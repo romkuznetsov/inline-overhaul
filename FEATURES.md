@@ -208,6 +208,8 @@ appends it to one that already exists.
 
 ## The full command list
 
+Every command is named after the area it belongs to — `Navigation: Move line up`, `Tags & PKM: Category next` — so Obsidian's own `Hotkeys` screen can be filtered down to one area at a time. The table below lists them by the part that says what they do.
+
 Thirteen commands exist always:
 
 | Command | What it does |

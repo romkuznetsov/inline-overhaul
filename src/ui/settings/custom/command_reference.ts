@@ -256,7 +256,17 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
         const does = say("list." + rowAt + ".does", protoRow.does);
         const family = FAMILY_BY_ROW[protoRow.name];
         if (!family) {
-          const cmd = commands.find(c => c.area === area.area && c.name === protoRow.name)
+          /*
+           * В прототипе имя команды записано **без области** — она у него
+           * отдельным полем, — а плагин регистрирует команду с областью в
+           * имени (его решение 2026-09-20). Ищется поэтому по обеим формам, а
+           * показывается та, под которой команда живёт в палитре: человек
+           * ищет ровно то, что увидел (У-240).
+           */
+          const full = area.area + ": " + protoRow.name;
+          const cmd = commands.find(c => c.area === area.area && c.name === full)
+            || commands.find(c => c.name === full)
+            || commands.find(c => c.area === area.area && c.name === protoRow.name)
             || commands.find(c => c.name === protoRow.name)
             || null;
           /*
@@ -265,7 +275,7 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
            * `Open settings` исчезла отсюда сама 2026-09-06, когда её сняли в
            * фазе 6, — правки справочника это не потребовало.
            */
-          if (cmd) rows.push({ row: { name: protoRow.name, does }, cmd, band: "standard" });
+          if (cmd) rows.push({ row: { name: cmd.name, does }, cmd, band: "standard" });
           return;
         }
         /*

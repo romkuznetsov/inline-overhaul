@@ -27,7 +27,8 @@ See the [full setup and user guide](../instructions.md) for installation, config
 What changed is the settings pane and the names of commands.
 
 **Every command was renamed**, and its identifier with it, so a caption naming a
-command by its old name is wrong: `Navigation: Move Up` is now `Move line up`,
+command by its old name is wrong: `Navigation: Move Up` is now
+`Navigation: Move line up`,
 `Transform: inline2note` is now `Transform inline to note`, `PKM: <field>
 increase` is now `<Field> next`. The full map is in
 [`docs/command_ids_v1_v2.md`](command_ids_v1_v2.md).

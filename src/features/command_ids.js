@@ -205,6 +205,32 @@ function commandName(id) {
   return Object.prototype.hasOwnProperty.call(NAMES, key) ? NAMES[key] : "";
 }
 
+/**
+ * Видимое имя команды: **область, двоеточие, имя** — `Navigation: Move line up`.
+ *
+ * **Это отмена T6 его решением 2026-09-20**, и отменил он её, зная цену: в
+ * палитре выйдет `inlineOverhaul: Navigation: Move line up`, то есть ровно та
+ * форма, из-за которой T6 и завели. Причина новая и к T6 отношения не имеет —
+ * **экран `Hotkeys` Obsidian умеет отбирать только по подстроке имени или
+ * идентификатора** (прочитано в `app.js` 1.13.7: запрос делится по пробелам, и
+ * каждое слово обязано найтись в одном из двух). Набор команд этим языком не
+ * выражается, и «покажи команды этого заголовка» возможно ровно тогда, когда у
+ * них есть общее слово. Область в имени — и есть это слово.
+ *
+ * **Объявление одно на регистрацию и на справочник.** Имя, которым команда
+ * зарегистрирована, и имя, которое человек читает в таблице, обязаны совпадать
+ * до знака: он ищет ровно то, что увидел (У-240).
+ */
+function commandDisplayName(area, name) {
+  const head = String(area == null ? "" : area).trim();
+  const tail = String(name == null ? "" : name).trim();
+  if (!tail) return "";
+  if (!head) return tail;
+  /* Уже с областью — второй раз не приписываем: имя строки Binder приходит
+     сюда готовым, `Binder: <строка>`. */
+  return tail.startsWith(head + ": ") ? tail : head + ": " + tail;
+}
+
 /** Признак T7: kebab-case, без префикса плагина, без двоеточия. */
 function isCompliantCommandId(id) {
   return /^[\p{Ll}\p{N}]+(-[\p{Ll}\p{N}]+)*$/u.test(String(id == null ? "" : id));
@@ -225,5 +251,6 @@ module.exports = {
   isLegacyCommandId,
   renameCommandId,
   commandName,
+  commandDisplayName,
   isCompliantCommandId,
 };

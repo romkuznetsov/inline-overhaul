@@ -12,16 +12,17 @@
 ## Unreleased
 
 > [!NOTE]
-> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note, with the hover preview and dragging behind two switches of their own. The command reference hands you over to Obsidian's `Hotkeys` screen from any heading, an unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
+> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
 
-1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen already filtered to that heading's commands. The filter is worked out from the commands you actually have; where Obsidian's search cannot express a heading exactly, it falls back to the plugin's own name.
-2. 🎨 **`not set` in the `Hotkey` column reads as an empty slot**: no button fill, a dashed outline and faint italic text, so an unassigned command is told from an assigned one at a glance.
-3. ✨ **A dropdown says which of its values is the standard one**: the value the plugin starts with carries `(default)` after its label, in every settings row that offers a list. A list with a single line — `Set a Templates folder first`, say — is left alone: there is no choice to point at.
-4. 🐛 **A numbered list keeps counting after you move a line in it.** A sub-line moved under another parent, or to the top of its own sub-list, used to keep the number it came with — `3.` where `1.` belongs. Moved lines are now numbered from the nearest item above them at the same level. A list started at another number keeps it, unless you move its first line.
-5. ✨ **A Field of type link can show its Values as anything you like.** Its Values table has the `Show` column now: pick `custom`, type an emoji, and `[[Project A]]` is drawn as that emoji — a click on it still opens the note, in a new tab with `Ctrl`. At `default` it stays the link Obsidian draws.
-6. ✨ **New: `Link view`** under `Visual → Inline appearance` — two switches that hand a shown link back what an ordinary link gets from Obsidian: the preview on hover and dragging. Both off by default.
-7. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
-8. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
+1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen filtered to exactly that heading's commands.
+2. 🎨 **Each command is named after its area now**: `Navigation: Move line up`, `Tags & PKM: Category next`. That is what makes the filter above exact — Obsidian's `Hotkeys` search matches words in a name. Identifiers did not change, so every hotkey you have set keeps working.
+3. 🎨 **`not set` in the `Hotkey` column reads as an empty slot**: no button fill, a dashed outline and faint italic text, so an unassigned command is told from an assigned one at a glance.
+4. ✨ **A dropdown says which of its values is the standard one**: the value the plugin starts with carries `(default)` after its label, in every settings row that offers a list. A list with a single line — `Set a Templates folder first`, say — is left alone: there is no choice to point at.
+5. 🐛 **A numbered list keeps counting after you move a line in it.** A sub-line moved under another parent, or to the top of its own sub-list, used to keep the number it came with — `3.` where `1.` belongs. Moved lines are now numbered from the nearest item above them at the same level. A list started at another number keeps it, unless you move its first line.
+6. ✨ **A Field of type link can show its Values as anything you like.** Its Values table has the `Show` column now: pick `custom`, type an emoji, and `[[Project A]]` is drawn as that emoji — a click on it still opens the note, in a new tab with `Ctrl`. At `default` it stays the link Obsidian draws.
+7. ✨ **New: `Link view`** under `Visual → Inline appearance` — two switches that hand a shown link back what an ordinary link gets from Obsidian: the preview on hover and dragging. Both off by default.
+8. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
+9. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
 

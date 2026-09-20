@@ -316,9 +316,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    * `date_due` против `Due`: на фикстуре, где они совпадают, эта проверка
    * слепа к их расхождению (У-47).
    */
-  assert.ok(names.includes("status next") && names.includes("status previous"),
+  assert.ok(names.includes("Tags & PKM: status next") && names.includes("Tags & PKM: status previous"),
     "команды тега не развёрнуты или названы не строгим именем: " + names.join(", "));
-  assert.ok(names.includes("date_due next") && names.includes("date_due previous"),
+  assert.ok(names.includes("Tags & PKM: date_due next") && names.includes("Tags & PKM: date_due previous"),
     "команды поля-даты не развёрнуты или названы не строгим именем: " + names.join(", "));
   assert.deepEqual(names.filter(n => /^(Status|Due) /.test(n)), [],
     "короткое имя для TagWheel попало в имя команды: " + names.join(", "));
@@ -326,8 +326,8 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   assert.ok(!names.includes("<your rows>"), "шаблонная строка Binder попала в таблицу");
   assert.ok(!names.includes("Toggle <module> module"), "шаблонная строка тумблера попала в таблицу");
   /* Своя строка Binder и тумблеры модулей — настоящими именами. */
-  assert.ok(names.includes("Round brackets"), "своя строка Binder не показана: " + names.join(", "));
-  assert.equal(names.filter(n => /^Toggle .+ module$/.test(n)).length, FEATURE_ORDER.length,
+  assert.ok(names.includes("Binder: Round brackets"), "своя строка Binder не показана: " + names.join(", "));
+  assert.equal(names.filter(n => /^General: Toggle .+ module$/.test(n)).length, FEATURE_ORDER.length,
     "тумблеров модулей не столько, сколько модулей: " + names.join(", "));
   ok("семьи развёрнуты: по строке на каждый Field, строку Binder и модуль");
 }
@@ -347,13 +347,13 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
 
   assert.ok(!names.includes("<your rows>"),
     "шаблонная строка Binder осталась при пустой семье: " + names.join(", "));
-  assert.ok(!names.includes("Status next") && !names.includes("Status previous"),
+  assert.ok(!names.includes("Tags & PKM: Status next") && !names.includes("Tags & PKM: Status previous"),
     "шаблонная строка Fields осталась при пустой семье: " + names.join(", "));
   /* Строк без команды не бывает ни одной: у каждой есть кнопка хоткея. */
   assert.deepEqual(d.rows.filter(r => !r.button).map(r => r.name), [],
     "строка без кнопки хоткея — это строка без команды за ней");
   /* Область при этом не пустеет: стандартные команды на месте. */
-  assert.ok(names.includes("Move line up"), "стандартные команды пропали вместе с шаблонными");
+  assert.ok(names.includes("Navigation: Move line up"), "стандартные команды пропали вместе с шаблонными");
   ok("пустая семья: строки нет, и ни одной строки без команды не осталось");
 }
 
@@ -370,7 +370,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    */
   const cfg = makeConfig();
   const full = ownCommands(cfg);
-  const without = full.filter((c: Any) => String(c.name) !== "Move line up");
+  const without = full.filter((c: Any) => String(c.name) !== "Navigation: Move line up");
   assert.equal(without.length, full.length - 1, "не нашёл команду, которую убираю");
 
   const host = makeNode("div");
@@ -398,9 +398,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   walk(host);
   close();
 
-  assert.ok(!names.includes("Move line up"),
+  assert.ok(!names.includes("Navigation: Move line up"),
     "справочник показал команду, которой плагин не регистрирует: " + names.join(", "));
-  assert.ok(names.includes("Move line down"), "и заодно потерял соседнюю: " + names.join(", "));
+  assert.ok(names.includes("Navigation: Move line down"), "и заодно потерял соседнюю: " + names.join(", "));
   ok("команды нет — строки нет: справочник не обещает лишнего (З8)");
 }
 
@@ -418,14 +418,14 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   });
   const byName = new Map(d.rows.map(r => [r.name, r]));
 
-  assert.equal(byName.get("Move line up")?.hotkey, "Alt + ArrowUp",
-    "назначенный хоткей не показан: " + byName.get("Move line up")?.hotkey);
+  assert.equal(byName.get("Navigation: Move line up")?.hotkey, "Alt + ArrowUp",
+    "назначенный хоткей не показан: " + byName.get("Navigation: Move line up")?.hotkey);
   /* `Mod` показывается словом платформы: `hotkeys.ts` переводит его в `Ctrl`. */
-  assert.equal(byName.get("date_due next")?.hotkey, "Ctrl + ]",
-    "хоткей команды поля не показан: " + byName.get("date_due next")?.hotkey);
-  assert.equal(byName.get("Move line down")?.hotkey, "not set",
+  assert.equal(byName.get("Tags & PKM: date_due next")?.hotkey, "Ctrl + ]",
+    "хоткей команды поля не показан: " + byName.get("Tags & PKM: date_due next")?.hotkey);
+  assert.equal(byName.get("Navigation: Move line down")?.hotkey, "not set",
     "у команды без хоткея должен быть прочерк словами");
-  assert.equal(byName.get("Move line down")?.disabled, false,
+  assert.equal(byName.get("Navigation: Move line down")?.disabled, false,
     "кнопка активна, когда приватное API на месте");
   ok("К-2: назначенный хоткей показан, у остальных прочерк словами");
 }
@@ -518,11 +518,11 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const fromFields = pkm.filter(r => r.under === "Commands from your Fields").map(r => r.name);
 
   assert.deepEqual(standard,
-    ["Open TagWheel on the left", "Open TagWheel on the right"],
+    ["Tags & PKM: Open TagWheel on the left", "Tags & PKM: Open TagWheel on the right"],
     "в стандартных не те команды: " + standard.join(", "));
   assert.ok(fromFields.length >= 2,
     "команд из Fields нет вовсе: " + fromFields.join(", "));
-  assert.ok(!fromFields.some(n => n.startsWith("Open TagWheel")),
+  assert.ok(!fromFields.some(n => n.includes("Open TagWheel")),
     "стандартная команда попала во вторую часть");
 
   /* Стандартные и правда выше: первая строка второй части идёт после последней
@@ -597,7 +597,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
 
   /* Внутри Field: сам Field, потом дочерний; в паре `next` раньше `previous`. */
   const ofType = rows.filter(n => base(n) === base(rows[0] as string));
-  assert.deepEqual(ofType.slice(0, 2).map(n => n.replace(/^\S+ /, "")),
+  /* Имя команды теперь начинается с области (`Tags & PKM: type next`), и
+     направление — последнее слово: берём его, а не «всё после первого». */
+  assert.deepEqual(ofType.slice(0, 2).map(n => n.replace(/^.*\s/, "")),
     ["next", "previous"],
     "в паре Field `next` обязан идти раньше `previous`: " + ofType.join(", "));
   const subAt = ofType.findIndex(n => subByName.get(n) === true);
@@ -795,6 +797,68 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   assert.deepEqual(missed, [],
     "запрос не покрывает команды своего заголовка:\n  " + missed.join("\n  "));
   ok("кнопка `to hotkeys` есть у каждого заголовка, и её запрос показывает все его команды");
+}
+
+{
+  /*
+   * **И показывает только их** — его замечание 2026-09-20: «я хотел, чтобы при
+   * нажатии в хедере `Navigation` у меня открылись только команды, относящиеся
+   * к этому хедеру».
+   *
+   * Стало возможным после того, как имя команды начало нести свою область
+   * (его решение того же дня): у заголовка появилось общее слово, а у области —
+   * общее начало с двоеточием, которого нет у похожего слова в чужом имени
+   * (`Navigation:` против `General: Toggle Navigation module`).
+   *
+   * Проверяется **на всех заголовках разом** и по числу лишних, а не на
+   * образце: заголовок, заведённый завтра, попадёт сюда сам.
+   */
+  const cfg = makeConfig();
+  const d = draw(cfg);
+  const commands = ownCommands(cfg);
+  const full = (c: Any): string => "inlineOverhaul: " + String(c.name);
+  const byRows = (pick: (r: Drawn["rows"][number]) => boolean): Any[] => {
+    const names = new Set(d.rows.filter(pick).map(r => r.name));
+    return commands.filter(c => names.has(String(c.name)));
+  };
+  const loose: string[] = [];
+  for (const j of d.jumps) {
+    if (!j.node) continue;
+    d.opened.length = 0;
+    (j.node as StubNode).click();
+    const query = String(d.opened[0] || "");
+    const members = j.level === "area"
+      ? commands.filter(c => String(c.area) === j.title)
+      : j.level === "part"
+        ? byRows(r => r.under === j.title)
+        : byRows(r => r.field === j.title);
+    const own = new Set(members.map((c: Any) => String(c.id)));
+    const extra = commands
+      .filter((c: Any) => !own.has(String(c.id))
+        && matchesHotkeyQuery(query, full(c), "inline-overhaul:" + String(c.id)))
+      .map((c: Any) => String(c.name));
+    if (!extra.length) continue;
+    /*
+     * **Одно исключение, и оно не про недосмотр, а про язык отбора.** Часть
+     * «Commands from your Fields» — это область **минус** её стандартные
+     * команды, то есть дополнение. Ни одно слово так не отбирает: у команд
+     * полей общее с областью, а своего общего слова у них нет. Поэтому здесь
+     * разрешено ровно одно — показать заодно стандартные команды той же
+     * области; всё прочее лишнее по-прежнему беда.
+     */
+    if (j.level === "part" && j.title === "Commands from your Fields") {
+      const standardNames = new Set(byRows(r => r.under === "Standard commands")
+        .map((c: Any) => String(c.name)));
+      const foreign = extra.filter(n => !standardNames.has(n));
+      if (!foreign.length) continue;
+      loose.push(j.level + " «" + j.title + "» тащит чужое: " + foreign.join(", "));
+      continue;
+    }
+    loose.push(j.level + " «" + j.title + "» → «" + query + "» тащит лишнее: " + extra.join(", "));
+  }
+  assert.deepEqual(loose, [],
+    "запрос заголовка показывает чужие команды:\n  " + loose.join("\n  "));
+  ok("запрос заголовка показывает только его команды — с одним названным исключением");
 }
 
 {

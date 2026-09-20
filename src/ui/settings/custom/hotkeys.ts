@@ -155,6 +155,20 @@ function words(name: string): string[] {
   return String(name || "").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
 
+/** Общее начало строк — то, чем заголовок отличается от своих соседей. */
+function commonPrefixOf(names: readonly string[]): string {
+  if (!names.length) return "";
+  let head = String(names[0] || "");
+  for (const name of names.slice(1)) {
+    const other = String(name || "");
+    let at = 0;
+    while (at < head.length && at < other.length && head[at] === other[at]) at++;
+    head = head.slice(0, at);
+    if (!head) break;
+  }
+  return head;
+}
+
 /**
  * Запрос, которым экран `Hotkeys` показывает команды одного заголовка
  * справочника (его заказ 2026-09-20, пункт 12.3).
@@ -184,18 +198,41 @@ export function hotkeyQueryFor(
     common = common.filter(w => has.has(w));
   }
   const candidates = common.map(w => (base ? base + " " + w : w));
+  /*
+   * **Общее начало имён — кандидат сильнее общего слова**, и решает это знак
+   * препинания. С 2026-09-20 имя команды начинается с её области
+   * (`Navigation: Move line up`), и слово `navigation` встречается ещё и у
+   * тумблера модуля — `General: Toggle Navigation module`. А начало
+   * `Navigation:` вместе с двоеточием есть только у своей области.
+   *
+   * Слова запроса ищутся подстрокой, поэтому двоеточие работает как граница,
+   * которой у отдельного слова нет.
+   */
+  const prefix = commonPrefixOf(members.map(c => full(c))).trim();
+  if (prefix) candidates.push(prefix);
   candidates.push(base);
-  let best = base;
-  let bestExtra = Infinity;
+  /*
+   * Годные запросы — те, под которые попадают **все** команды заголовка.
+   * Выбирается тот, под который попадает меньше чужих; при равенстве —
+   * запрос из **слова**, и слово подлиннее: `tagwheel` понятнее, чем `the`,
+   * хотя отбирают они одно и то же. Запрос из общего начала имён берётся
+   * последним — он длинный, зато отличает область от похожего слова в чужом
+   * имени (`Navigation:` против `Toggle Navigation module`).
+   */
+  const own = new Set(members.map(c => c.id));
+  const fit: Array<{ query: string; extra: number; byWord: boolean }> = [];
   for (const query of candidates) {
     if (!query) continue;
-    const own = new Set(members.map(c => c.id));
     if (!members.every(c => matchesHotkeyQuery(query, full(c), c.id))) continue;
     const extra = all.filter(c => !own.has(c.id) && matchesHotkeyQuery(query, full(c), c.id)).length;
-    const better = extra < bestExtra || (extra === bestExtra && query.length > best.length);
-    if (better) { best = query; bestExtra = extra; }
+    fit.push({ query, extra, byWord: query !== prefix });
   }
-  return best;
+  if (!fit.length) return base;
+  const least = Math.min(...fit.map(f => f.extra));
+  const shortlist = fit.filter(f => f.extra === least);
+  const byWord = shortlist.filter(f => f.byWord).sort((a, b) => b.query.length - a.query.length);
+  const chosen = byWord.length ? byWord[0] : shortlist[0];
+  return chosen ? chosen.query : base;
 }
 
 /** Имя плагина — то самое, которое Obsidian дописывает к имени каждой команды. */

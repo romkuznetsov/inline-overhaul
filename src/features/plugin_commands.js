@@ -96,6 +96,24 @@ function pkmRuntime() {
 }
 
 /**
+ * Область каждой семьи команд — **одно объявление на регистрацию и на
+ * справочник** (его решение 2026-09-20).
+ *
+ * Имя, которым команда зарегистрирована, и имя, которое человек читает в
+ * таблице, обязаны совпадать до знака: он ищет ровно то, что увидел (У-240). А
+ * область в имени нужна затем, что экран `Hotkeys` Obsidian умеет отбирать
+ * только по подстроке — набор команд его языком не выражается, и «покажи
+ * команды этого заголовка» работает ровно тогда, когда у них есть общее слово.
+ */
+const COMMAND_AREAS = {
+  core: "General",
+  navigation: "Navigation",
+  pkm: "Tags & PKM",
+  transform: "Transform",
+  binder: "Binder",
+};
+
+/**
  * Все команды плагина одним списком — для справочника 10.5.
  *
  * Собирается из **того же реестра**, которым команды регистрируются. Выписать
@@ -135,7 +153,7 @@ function buildOwnCommandList(plugin) {
       const isSub = /[-_]sub$/.test(strict);
       out.push({
         id,
-        name: String(d && d.name ? d.name : id),
+        name: __commandIds.commandDisplayName(area, String(d && d.name ? d.name : id)),
         area,
         family: typeof family === "function" ? family(d) : (family || ""),
         group: strict ? strict.replace(/[-_]sub$/, "") : "",
@@ -148,7 +166,7 @@ function buildOwnCommandList(plugin) {
   };
 
   try {
-    push(registry.buildNavigationCommandDefs(plugin), "Navigation", "");
+    push(registry.buildNavigationCommandDefs(plugin), COMMAND_AREAS.navigation, "");
     push(
       registry.buildPkmCommandDefs(
         serializePkmOrderForMacro,
@@ -157,7 +175,7 @@ function buildOwnCommandList(plugin) {
         cfg,
         FEATURE_ORDER
       ),
-      "Tags & PKM",
+      COMMAND_AREAS.pkm,
       (d) => {
         /* Команды TagWheel — не семья: их всегда ровно две, и в прототипе они
            названы поимённо. */
@@ -166,10 +184,10 @@ function buildOwnCommandList(plugin) {
       }
     );
     push([{ id: "transform-inline-to-note", name: __commandIds.commandName("transform-inline-to-note") }],
-      "Transform", "");
-    push(registry.buildBinderCommandDefs(cfg), "Binder",
+      COMMAND_AREAS.transform, "");
+    push(registry.buildBinderCommandDefs(cfg), COMMAND_AREAS.binder,
       (d) => (String(d && d.id ? d.id : "") === BINDER_SMART_BRACKET_COMMAND_ID ? "" : "binder-row"));
-    push(registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META), "General",
+    push(registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META), COMMAND_AREAS.core,
       (d) => (/^toggle-feature-/.test(String(d && d.id ? d.id : "")) ? "module-toggle" : ""));
   } catch (e) {
     reportLoaderFallback("commands.buildOwnCommandList", e);
@@ -196,7 +214,7 @@ function registerAll(plugin) {
     for (const d of coreDefs) {
       plugin.addCommand({
         id: d.id,
-        name: d.name,
+        name: __commandIds.commandDisplayName(COMMAND_AREAS.core, d.name),
         callback: async () => {
           await d.run(plugin);
         },
@@ -221,7 +239,7 @@ function registerNavigation(plugin) {
   for (const d of defs) {
     plugin.addCommand({
       id: d.id,
-      name: d.name,
+      name: __commandIds.commandDisplayName(COMMAND_AREAS.navigation, d.name),
       callback: async () => {
         await runNavigationGuard(plugin, "navigation", d.run, d.jump);
       },
@@ -252,7 +270,7 @@ function registerPkm(plugin) {
     if (plugin._registeredPkmCommandIds.has(id)) continue;
     plugin.addCommand({
       id,
-      name: d.name,
+      name: __commandIds.commandDisplayName(COMMAND_AREAS.pkm, d.name),
       callback: async () => {
         await runPkmGuard(plugin, async (cfg) => {
           const macroSettings = d.makeSettings(cfg);
@@ -280,7 +298,7 @@ function registerBinder(plugin) {
     if (plugin._registeredBinderCommandIds.has(id)) continue;
     plugin.addCommand({
       id,
-      name: String(d && d.name ? d.name : id),
+      name: __commandIds.commandDisplayName(COMMAND_AREAS.binder, String(d && d.name ? d.name : id)),
       callback: async () => {
         await Promise.resolve(d.run(plugin));
       },
@@ -292,7 +310,8 @@ function registerBinder(plugin) {
 function registerTransform(plugin) {
   plugin.addCommand({
     id: "transform-inline-to-note",
-    name: __commandIds.commandName("transform-inline-to-note"),
+    name: __commandIds.commandDisplayName(COMMAND_AREAS.transform,
+      __commandIds.commandName("transform-inline-to-note")),
     callback: async () => { await runInlineToNote(plugin); },
   });
 }
