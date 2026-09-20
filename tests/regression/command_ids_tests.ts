@@ -243,7 +243,7 @@ function allDefs(cfg: Any): Any[] {
    * «упомянуты ли ID», а то, что генератор не даёт diff: расхождение здесь
    * означает документ, который человек прочитает один раз и не проверит.
    */
-  const doc = fs.readFileSync(path.join(root, "docs", "command_ids_v1_v2.md"), "utf8");
+  const doc = fs.readFileSync(path.join(root, "docs", "COMMAND_IDS_V1_V2.md"), "utf8");
   for (const [was, now] of ids.RENAMED as Map<string, string>) {
     assert.ok(doc.includes("`" + was + "`"), "в документе нет старого ID: " + was);
     assert.ok(doc.includes("`" + now + "`"), "в документе нет нового ID: " + now);
@@ -406,7 +406,7 @@ function allDefs(cfg: Any): Any[] {
     "в уведомлении приватное API: 7.2 разрешает его одним исключением, и это не оно");
   assert.ok(/Settings, Hotkeys/.test(noticeBody),
     "уведомление не говорит, куда идти назначать хоткеи заново");
-  assert.ok(/command_ids_v1_v2\.md/.test(noticeBody),
+  assert.ok(/COMMAND_IDS_V1_V2\.md/.test(noticeBody),
     "уведомление не ссылается на карту");
   ok("уведомление показывается один раз и только после переезда с версии 1");
 }

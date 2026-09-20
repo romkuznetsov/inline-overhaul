@@ -106,7 +106,7 @@ cat_sub».
 | `src/ui/settings/actions.ts`, `reset-settings` | тоже безусловно, и там это единственный путь назад | нет |
 | `src/features/settings_backup.js`, `backupPath` | имя файла: папка, `Settings`, отметка времени | нет |
 | прототип, группа `settings-backup` | три текста обещали копию как правило | нет |
-| `instructions.md`, две строки; заметка копии, одна строка | то же обещание | нет |
+| `INSTRUCTIONS.md`, две строки; заметка копии, одна строка | то же обещание | нет |
 
 **Что сделано.** Тумблер `Save a backup before restoring`
 (`advanced.backups.beforeRestore`), умолчание включено. Постфикс

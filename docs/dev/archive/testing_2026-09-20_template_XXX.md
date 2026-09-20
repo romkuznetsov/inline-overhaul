@@ -252,7 +252,7 @@
 
 Действие:
 
-1. Открыть в репозитории `README.md`, `instructions.md` и `FEATURES.md`.
+1. Открыть в репозитории `README.md`, `INSTRUCTIONS.md` и `FEATURES.md`.
 
 ### Эталон и проверка
 

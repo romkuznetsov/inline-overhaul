@@ -51,7 +51,7 @@ so it cannot fight with what you already use. **Keyboard → Commands & Hotkeys*
 every command with the key it has now. The single exception is **Expanded `Ctrl/Cmd+A`**,
 which takes over a key Obsidian already owns, and it is off until you turn it on.
 
-New here? The [tutorial](docs/tutorial.md) takes you from install to a line that works
+New here? The [tutorial](docs/TUTORIAL.md) takes you from install to a line that works
 in about fifteen minutes.
 
 ## What you get
@@ -88,12 +88,12 @@ cleans up the source the way you told it to.
 
 | | |
 |---|---|
-| [**Tutorial**](docs/tutorial.md) | Fifteen minutes from install to a line that works |
+| [**Tutorial**](docs/TUTORIAL.md) | Fifteen minutes from install to a line that works |
 | [**Feature list**](FEATURES.md) | Everything the plugin can do, in full |
-| [**Visual showcase**](docs/showcase.md) | Thirty animations, grouped by workflow |
-| [**Setup and user guide**](instructions.md) | Configuration, Transform safety, troubleshooting |
-| [**Settings reference**](docs/settings.md) | The panel, tab by tab |
-| [**Command id map**](docs/command_ids_v1_v2.md) | Hotkeys that came loose when identifiers changed in `0.2.0` |
+| [**Visual showcase**](docs/SHOWCASE.md) | Thirty animations, grouped by workflow |
+| [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
+| [**Settings reference**](docs/SETTINGS.md) | The panel, tab by tab |
+| [**Command id map**](docs/COMMAND_IDS_V1_V2.md) | Hotkeys that came loose when identifiers changed in `0.2.0` |
 | [**Changelog**](CHANGELOG.md) | What changed in every release |
 
 ## Requirements

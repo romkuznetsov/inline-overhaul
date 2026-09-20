@@ -169,19 +169,19 @@ assert.deepStrictEqual(brokenLessons, [],
  *
  * Оставшееся названо поимённо вместе с причиной — у каждого есть читатель
  * снаружи:
- *   `showcase.md` и `media/` — на них ведёт `README.md`;
- *   `command_ids_v1_v2.md` — на него ведут `README.md`, руководство и
+ *   `SHOWCASE.md` и `media/` — на них ведёт `README.md`;
+ *   `COMMAND_IDS_V1_V2.md` — на него ведут `README.md`, руководство и
  *   уведомление самого плагина о переименовании команд;
  *   `prototype/` — нормативен (Р8), и на него ссылается половина кода;
- *   `tutorial.md` и `settings.md` — учебник и справочник панели, заведены
+ *   `TUTORIAL.md` и `SETTINGS.md` — учебник и справочник панели, заведены
  *   2026-09-20 по бренд-буку; на оба ведёт таблица «Where to go next» в `README.md`;
  *   `brand/` — знак и социальное превью; шапка `README.md` берёт картинку
  *   оттуда, и без неё первый экран пуст;
  *   `dev/` — всё остальное.
  */
 const DOCS_FOR_PEOPLE = new Set([
-  "dev", "media", "prototype", "showcase.md", "command_ids_v1_v2.md",
-  "tutorial.md", "settings.md", "brand",
+  "dev", "media", "prototype", "SHOWCASE.md", "COMMAND_IDS_V1_V2.md",
+  "TUTORIAL.md", "SETTINGS.md", "brand",
 ]);
 const docsEntries = fs.readdirSync(path.join(root, "docs"));
 assert.ok(docsEntries.length >= 4,

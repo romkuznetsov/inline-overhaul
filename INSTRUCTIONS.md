@@ -1,6 +1,6 @@
 # inlineOverhaul: Setup and User Guide
 
-Step-by-step instructions for people who have already installed the plugin. New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md); for the panel control by control, see the [settings reference](docs/settings.md).
+Step-by-step instructions for people who have already installed the plugin. New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md); for the panel control by control, see the [settings reference](docs/SETTINGS.md).
 
 inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, TagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
 
@@ -110,7 +110,7 @@ Each module also has an exact command-palette toggle:
 The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian's Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move line up`. The list below repeats it for reading offline, by the part that says what the command does.
 
 > [!WARNING]
-> **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md), and the plugin prints it once to the developer console.
+> **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/COMMAND_IDS_V1_V2.md`](docs/COMMAND_IDS_V1_V2.md), and the plugin prints it once to the developer console.
 
 ### Navigation
 

@@ -2,7 +2,7 @@
 
 This showcase covers part of the public feature surface as grouped user workflows; the complete surface is listed in [`FEATURES.md`](../FEATURES.md). `move-lines.gif`, `prefix-cycle.gif`, `pkm-cycle.gif`, and `tagwheel.gif` are live Obsidian captures; the other GIFs are animated behavior diagrams grounded in the runtime. Command hotkeys in captions are configurable; Enhanced Mod+A uses fixed `Ctrl/Cmd+A`.
 
-See the [full setup and user guide](../instructions.md) for installation, configuration, Transform safety, copyable examples, and troubleshooting.
+See the [full setup and user guide](../INSTRUCTIONS.md) for installation, configuration, Transform safety, copyable examples, and troubleshooting.
 
 ## What is here and what is not
 
@@ -20,7 +20,7 @@ See the [full setup and user guide](../instructions.md) for installation, config
 >
 > **The features did not go anywhere.** What each removed entry showed is
 > described in words in [`README.md`](../README.md) and in the
-> [user guide](../instructions.md); the links that pointed at the removed entries
+> [user guide](../INSTRUCTIONS.md); the links that pointed at the removed entries
 > are now plain headings there, not dead anchors.
 
 **Runtime behavior did not change** — moving lines, cycling Values, TagWheel.
@@ -31,7 +31,7 @@ command by its old name is wrong: `Navigation: Move Up` is now
 `Navigation: Move line up`,
 `Transform: inline2note` is now `Transform inline to note`, `PKM: <field>
 increase` is now `<Field> next`. The full map is in
-[`docs/command_ids_v1_v2.md`](command_ids_v1_v2.md).
+[`docs/COMMAND_IDS_V1_V2.md`](COMMAND_IDS_V1_V2.md).
 
 ### Captions still worth a second look
 
@@ -171,7 +171,7 @@ Display TagWheel fields and values in a panel with scrolling for larger configur
 
 ## Transform Inline2Note
 
-The Transform module defaults on, but the separate Inline2Note execution gate defaults off. Read the [full Transform instructions](../instructions.md) before enabling execution.
+The Transform module defaults on, but the separate Inline2Note execution gate defaults off. Read the [full Transform instructions](../INSTRUCTIONS.md) before enabling execution.
 
 ### Current root or selected tree
 

@@ -20,7 +20,7 @@ description: Единые правила всего, что видит чело�
 | `README.md` | `CLAUDE.md` |
 | `CHANGELOG.md` | `docs/PRD_*`, `docs/AUDIT_*`, `docs/CODE_REVIEW_*` |
 | `FEATURES.md` | `docs/SESSION_END.md`, `docs/OWNER_REMARKS*`, `docs/AWAITING_OWNER_CHECK*` |
-| `instructions.md`, `docs/tutorial.md`, `docs/settings.md`, `docs/showcase.md` | `docs/archive/**` |
+| `INSTRUCTIONS.md`, `docs/TUTORIAL.md`, `docs/SETTINGS.md`, `docs/SHOWCASE.md` | `docs/archive/**` |
 | `CONTRIBUTING.md`, `SECURITY.md`, `.github/**` шаблоны | `docs/LESSONS.md`, `docs/OPEN_QUESTIONS.md`, `docs/REMAINING_WORK.md` |
 | тексты релизов на GitHub, баннеры версий | `tests/**`, `tools/**` |
 
@@ -49,7 +49,7 @@ description: Единые правила всего, что видит чело�
    прозы о возможностях. Человек должен увидеть, что плагин делает, а не прочитать.
 2. **Янтарь встречается один раз на изображение.** Второй янтарный акцент гасит
    первый. Подробности — [`references/brand.md`](references/brand.md).
-3. **Справочник не уговаривает.** В `FEATURES.md` и `docs/settings.md` нет слов
+3. **Справочник не уговаривает.** В `FEATURES.md` и `docs/SETTINGS.md` нет слов
    «удобно», «мощный», «просто». Там перечень: что это, где лежит, что по умолчанию.
 4. **`README.md` не растёт.** Всё, что длиннее экрана и не нужно в первую минуту,
    уезжает в `docs/` со ссылкой. Предел — примерно 150 строк.

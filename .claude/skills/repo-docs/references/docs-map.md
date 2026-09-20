@@ -21,23 +21,45 @@
 | Файл | Работа | Что внутри | Предел |
 |---|---|---|---|
 | `README.md` | посадочная | пять минут: что это, как поставить, что умеет | ~150 строк |
-| `docs/tutorial.md` | **учит** | первые пятнадцать минут одной дорогой, без развилок | ~200 строк |
-| `instructions.md` | **проводит** | задачи целиком: настроить Fields, включить Transform, восстановиться из копии | — |
+| `docs/TUTORIAL.md` | **учит** | первые пятнадцать минут одной дорогой, без развилок | ~200 строк |
+| `INSTRUCTIONS.md` | **проводит** | задачи целиком: настроить Fields, включить Transform, восстановиться из копии | — |
 | `FEATURES.md` | **перечисляет** | все возможности и все команды, сухо | — |
-| `docs/settings.md` | **перечисляет** | панель настроек по вкладкам, в порядке самой панели | — |
-| `docs/showcase.md` | **перечисляет** | тридцать записей, сгруппированных по сценариям | — |
+| `docs/SETTINGS.md` | **перечисляет** | панель настроек по вкладкам, в порядке самой панели | — |
+| `docs/SHOWCASE.md` | **перечисляет** | тридцать записей, сгруппированных по сценариям | — |
 | `docs/VERSIONING.md` | **объясняет** | почему номер двигается так | — |
 | `CHANGELOG.md` | история | см. `changelog-and-releases.md` | — |
 | `CONTRIBUTING.md` | **проводит** | как собрать, как прислать правку | — |
 
+## Имя файла — капсом
+
+**Решение заказчика 2026-09-20:** «если этот файл для чтения человеком, то
+название должно быть капсом». Поводом было расхождение: `README.md` и
+`CHANGELOG.md` кричали, а `instructions.md` — нет, и по имени в списке файлов
+нельзя было сказать, кому документ адресован.
+
+| Для человека | Для разработки |
+|---|---|
+| `README.md`, `CHANGELOG.md`, `FEATURES.md`, `INSTRUCTIONS.md` | `docs/dev/**` — имя как удобно |
+| `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE` | `tests/**`, `tools/**` |
+| `docs/TUTORIAL.md`, `docs/SETTINGS.md`, `docs/SHOWCASE.md`, `docs/COMMAND_IDS_V1_V2.md` | |
+
+Правило держит сторож — `tests/regression/docs_links_tests.js`, — и он
+спрашивает **свойство имени**, а не список файлов: новый документ в строчных
+буквах роняет прогон, даже если его никуда не вписали. Исключение ровно одно и
+названо в `tests/harness/user_docs.js` с причиной.
+
+**Переименование ломает старые ссылки:** GitHub различает регистр в адресе
+файла, и ссылка на прежнее имя отдаёт 404. Это цена, и называть её надо в
+`CHANGELOG.md` тем же выпуском.
+
 ## Что где не должно оказаться
 
-- **В `README.md`** — инструкции по вкладкам. Это справочник, он в `docs/settings.md`.
-- **В `docs/tutorial.md`** — слова «можно также», «или, если хотите». Учебник ведёт
+- **В `README.md`** — инструкции по вкладкам. Это справочник, он в `docs/SETTINGS.md`.
+- **В `docs/TUTORIAL.md`** — слова «можно также», «или, если хотите». Учебник ведёт
   одной дорогой и гарантирует результат; альтернативы ломают гарантию.
 - **В `FEATURES.md`** — уговоры. Файл с таким именем сам тянет в рекламу; держим его
   сухим перечнем, а весь азарт живёт в шапке README.
-- **В `instructions.md`** — объяснения устройства. Человек с задачей их пролистывает.
+- **В `INSTRUCTIONS.md`** — объяснения устройства. Человек с задачей их пролистывает.
   Если объяснение нужно — ссылка на отдельный документ.
 - **В любом пользовательском документе** — рабочие заметки, вопросы заказчику,
   ссылки на `docs/archive/**`.
@@ -51,7 +73,7 @@
 # Setup and user guide
 
 Step-by-step instructions for people who have already installed the plugin.
-New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md).
+New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md).
 ```
 
 **Таблица «Where to go next» в README** — единственное место, где перечислены все
@@ -60,11 +82,11 @@ New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md)
 ```markdown
 | | |
 |---|---|
-| [**Tutorial**](docs/tutorial.md) | Fifteen minutes from install to a line that works |
+| [**Tutorial**](docs/TUTORIAL.md) | Fifteen minutes from install to a line that works |
 | [**Feature list**](FEATURES.md) | Everything the plugin can do, in full |
-| [**Visual showcase**](docs/showcase.md) | Thirty animations, grouped by workflow |
-| [**Setup and user guide**](instructions.md) | Configuration, Transform safety, troubleshooting |
-| [**Settings reference**](docs/settings.md) | The panel, tab by tab |
+| [**Visual showcase**](docs/SHOWCASE.md) | Thirty animations, grouped by workflow |
+| [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
+| [**Settings reference**](docs/SETTINGS.md) | The panel, tab by tab |
 | [**Changelog**](CHANGELOG.md) | What changed in every release |
 ```
 
@@ -72,7 +94,7 @@ New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md)
 
 ## Длинные документы
 
-`instructions.md` — почти тысяча строк, и это нормально для документа, в который
+`INSTRUCTIONS.md` — почти тысяча строк, и это нормально для документа, в который
 приходят с конкретной задачей. Чтобы им можно было пользоваться:
 
 - **заголовки второго уровня — названия задач**, а не областей: «Recover your
@@ -97,7 +119,7 @@ New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md)
 
 ## Обещание совпадать с продуктом
 
-Справочники (`FEATURES.md`, `docs/settings.md`) повторяют интерфейс: **тот же
+Справочники (`FEATURES.md`, `docs/SETTINGS.md`) повторяют интерфейс: **тот же
 порядок вкладок, те же названия контролов, та же капитализация**. Как только
 справочник расходится с панелью, он становится хуже, чем его отсутствие.
 

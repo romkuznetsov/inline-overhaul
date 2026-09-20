@@ -1,11 +1,11 @@
 # Feature list
 
 Everything inlineOverhaul does, in full. This page lists; it does not teach.
-New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md).
+New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md).
 
 For the settings panel control by control, see the
-[settings reference](docs/settings.md). For installation, configuration and recovery,
-see the [setup and user guide](instructions.md).
+[settings reference](docs/SETTINGS.md). For installation, configuration and recovery,
+see the [setup and user guide](INSTRUCTIONS.md).
 
 ```markdown
 - [ ] #todo #/1 || call the bank || [[Project A]] 📅 2026-09-15
@@ -209,10 +209,10 @@ And these appear from what you configure:
 
 | | |
 |---|---|
-| [**Tutorial**](docs/tutorial.md) | Fifteen minutes from install to a line that works |
-| [**Settings reference**](docs/settings.md) | The panel, tab by tab |
-| [**Setup and user guide**](instructions.md) | Configuration, Transform safety, troubleshooting |
-| [**Visual showcase**](docs/showcase.md) | Thirty animations, grouped by workflow |
+| [**Tutorial**](docs/TUTORIAL.md) | Fifteen minutes from install to a line that works |
+| [**Settings reference**](docs/SETTINGS.md) | The panel, tab by tab |
+| [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
+| [**Visual showcase**](docs/SHOWCASE.md) | Thirty animations, grouped by workflow |
 | [**Changelog**](CHANGELOG.md) | What changed in every release |
 
 ---

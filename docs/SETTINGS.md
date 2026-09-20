@@ -1,7 +1,7 @@
 # Settings reference
 
 Every control in the settings panel, tab by tab, in the order the panel puts them.
-Looking for a walkthrough instead? Start with the [tutorial](tutorial.md) or the
+Looking for a walkthrough instead? Start with the [tutorial](TUTORIAL.md) or the
 [README](../README.md).
 
 Open the panel the ordinary way: **Settings → Community plugins → inlineOverhaul**. There
@@ -79,7 +79,7 @@ Three keys Obsidian already gives you, your own insert commands, and the command
 
 This is the one place where the plugin takes over a key Obsidian already owns.
 
-See it in motion: [Expanded Ctrl+A](showcase.md#enhanced-ctrla).
+See it in motion: [Expanded Ctrl+A](SHOWCASE.md#enhanced-ctrla).
 
 ### Global hotkeys → Smart Delete\Backspace
 
@@ -109,7 +109,7 @@ A table. Each row is a piece of text and a command that drops it in at the curso
 ships with the plugin — `Smart bracket`, which cycles `text`, `[text]`, `[[text]]` and
 back.
 
-See it in motion: [Smart bracket](showcase.md#smart-bracket).
+See it in motion: [Smart bracket](SHOWCASE.md#smart-bracket).
 
 ### Commands & Hotkeys
 
@@ -125,7 +125,7 @@ Commands are named after the area they belong to — `Navigation: Move line up`,
 > [!IMPORTANT]
 > Command identifiers changed in `0.2.0`. Obsidian binds hotkeys to identifiers rather than
 > names, so keys assigned to inlineOverhaul commands before that release stopped working.
-> The old-to-new map is in [`command_ids_v1_v2.md`](command_ids_v1_v2.md), and the plugin
+> The old-to-new map is in [`COMMAND_IDS_V1_V2.md`](COMMAND_IDS_V1_V2.md), and the plugin
 > says so once on first load.
 
 ## Navigation
@@ -146,7 +146,7 @@ Moving lines, text and the cursor without reaching for the mouse.
 
 Commands: `Move line up`, `Move line down`.
 
-See it in motion: [Move lines and trees](showcase.md#move-linestrees).
+See it in motion: [Move lines and trees](SHOWCASE.md#move-linestrees).
 
 ### Move left and move right
 
@@ -167,8 +167,8 @@ top of the group.
 
 Commands: `Move left`, `Move right`.
 
-See it in motion: [Move selected inline text](showcase.md#move-selected-inline-text) and
-[Prefix cycle and indent fallback](showcase.md#prefix-cycleindent-fallback).
+See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-text) and
+[Prefix cycle and indent fallback](SHOWCASE.md#prefix-cycleindent-fallback).
 
 ### Moving cursor inside a line
 
@@ -181,7 +181,7 @@ See it in motion: [Move selected inline text](showcase.md#move-selected-inline-t
 
 Commands: `Move cursor left in line`, `Move cursor right in line`.
 
-See it in motion: [Inline zone navigation](showcase.md#inline-pkm-zone-navigation).
+See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigation).
 
 ### Moving cursor inside a note
 
@@ -196,7 +196,7 @@ See it in motion: [Inline zone navigation](showcase.md#inline-pkm-zone-navigatio
 
 Commands: `Jump back`, `Jump next`.
 
-See it in motion: [Header jumps](showcase.md#header-jumps).
+See it in motion: [Header jumps](SHOWCASE.md#header-jumps).
 
 ## Tags & PKM
 
@@ -237,8 +237,8 @@ it is drawn as itself, at `custom` as anything you type instead — an emoji in 
 The chevron at the right edge of the group header switches the table between its full
 height, where every control is on screen at once, and a fixed height that scrolls.
 
-See it in motion: [Cycle a Field from the keyboard](showcase.md#direct-taglink-field-cycle-increasedecrease)
-and [Step an element up or down](showcase.md#element-incrementdecrement).
+See it in motion: [Cycle a Field from the keyboard](SHOWCASE.md#direct-taglink-field-cycle-increasedecrease)
+and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
 
 ### Separators
 
@@ -362,8 +362,8 @@ Field you are on running down.
 
 Commands: `Open TagWheel on the left`, `Open TagWheel on the right`.
 
-See it in motion: [TagWheel](showcase.md#tagwheel-leftrightnavigationapplycancel) and
-[TagWheel panel and scroller](showcase.md#tagwheel-panelscroller).
+See it in motion: [TagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel) and
+[TagWheel panel and scroller](SHOWCASE.md#tagwheel-panelscroller).
 
 ### TagWheel opening
 
@@ -405,7 +405,7 @@ Turning a line you have already written into a note of its own.
 > [!CAUTION]
 > `Transform inline to note` rewrites the line you are standing on and writes real files.
 > It is off out of the box. Read
-> [the guide](../instructions.md#transform-a-line-becomes-a-note) before turning it on.
+> [the guide](../INSTRUCTIONS.md#transform-a-line-becomes-a-note) before turning it on.
 
 ### Inline to note
 
@@ -445,7 +445,7 @@ Command: `Transform inline to note`.
 Each Field's `YAML property` row decides which property of the new note it becomes, and
 each Value carries the rule for how it is written.
 
-See it in motion: [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping).
+See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping).
 
 ### Source line
 
@@ -462,7 +462,7 @@ See it in motion: [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping
 | `Opacity of transformed line` | `65` | Zero leaves the line as it is, eighty makes it barely readable |
 | `Color of transformed line` | unset | Unset keeps the colour your theme gives the text |
 
-See it in motion: [Current root or selected tree](showcase.md#current-root-or-selected-tree).
+See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
 
 ### Links in the notes you mention
 
@@ -524,8 +524,8 @@ command, not a button: saving is automatic and there is no manual flush.
 
 | | |
 |---|---|
-| [**Tutorial**](tutorial.md) | Fifteen minutes from install to a line that works |
-| [**Setup and user guide**](../instructions.md) | Configuration, Transform safety, troubleshooting |
+| [**Tutorial**](TUTORIAL.md) | Fifteen minutes from install to a line that works |
+| [**Setup and user guide**](../INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
 | [**Feature list**](../FEATURES.md) | Everything the plugin can do, in full |
-| [**Visual showcase**](showcase.md) | Thirty animations, grouped by workflow |
+| [**Visual showcase**](SHOWCASE.md) | Thirty animations, grouped by workflow |
 | [**README**](../README.md) | What this plugin is, and how to install it |

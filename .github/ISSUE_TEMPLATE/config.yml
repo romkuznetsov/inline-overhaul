@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/romkuznetsov/inline-overhaul/discussions
     about: Ask here rather than opening an issue — questions get answered faster and stay findable.
   - name: Setup and user guide
-    url: https://github.com/romkuznetsov/inline-overhaul/blob/main/instructions.md
+    url: https://github.com/romkuznetsov/inline-overhaul/blob/main/INSTRUCTIONS.md
     about: Installation, configuration, Transform safety, troubleshooting and recovery.
   - name: Security report
     url: https://github.com/romkuznetsov/inline-overhaul/security/advisories/new

@@ -217,7 +217,7 @@ project правильной была бы строка, названная «р
 | Ваш пункт | Где живёт | Что найдено |
 |---|---|---|
 | 1.1.1 tip и tipbox у хедеров не появились | `src/ui/settings/to_definitions.ts:209`, `groupToDefinition` | **дефект подтверждён.** `group.tip` не читается вовсе: в определение уходят только `heading` и `intro`. Прототип свои подсказки рисует (`settings_prototype.html:2468`) — значит расхождение с нормативом, а не задумка |
-| 1.2.1.1 `Command reference` → `Commands & Hotkeys` | прототип `:1455`, `schema/keyboard.ts:62`, `README.md` (2 места), `instructions.md` (5 мест), `settings_layer_tests.ts:187` | переименование; документы правятся тем же коммитом, сторожит `docs_terms_tests.ts` |
+| 1.2.1.1 `Command reference` → `Commands & Hotkeys` | прототип `:1455`, `schema/keyboard.ts:62`, `README.md` (2 места), `INSTRUCTIONS.md` (5 мест), `settings_layer_tests.ts:187` | переименование; документы правятся тем же коммитом, сторожит `docs_terms_tests.ts` |
 | 1.2.1.2 заливка строк-рубрикаторов, три ступени яркости | `custom/command_reference.ts`, `styles.css` | вёрстка |
 | 1.3.1 карандаш: `Rename` ничего не делает | **`main.js:2023`** против `custom/fields_model.ts:288` | **дефект подтверждён, корень найден.** Панель разрешает `/^[a-z0-9_\- ]+$/i`, первый проход нормализации (`main.js:2014`) — тоже, а второй (`main.js:2023`) требует `/^[a-z0-9_-]+$/`: без заглавных и без пробелов. Всё остальное молча откатывается к исходному ключу, поэтому имя и остаётся прежним. Правило объявлено в трёх местах, два расходятся |
 | 1.3.2.1 tip у `Property` | `schema/pkm.ts`, `custom/yaml_property.ts` | текст |

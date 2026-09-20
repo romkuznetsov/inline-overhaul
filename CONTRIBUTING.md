@@ -65,7 +65,7 @@ The plugin's interface lives in plain text files, one per language, inside the p
 folder in your vault. Adding a language does not require a pull request and does not
 require touching this repository at all — copy `texts/default.js` under a new name and
 change its first line. The
-[user guide](instructions.md#the-words-the-panel-uses) has the details.
+[user guide](INSTRUCTIONS.md#the-words-the-panel-uses) has the details.
 
 If you want your translation shipped with the plugin, open an issue with the file
 attached.

@@ -1,5 +1,5 @@
 /**
- * `README.md` и `instructions.md` против панели (PRD фаза 5.1, пункт 2).
+ * `README.md` и `INSTRUCTIONS.md` против панели (PRD фаза 5.1, пункт 2).
  *
  * **Зачем проверка, а не вычитка.** Документы разошлись с панелью не потому, что
  * их плохо написали, а потому, что панель менялась семь фаз, а документы —
@@ -21,7 +21,7 @@
  * превратилось. Поэтому `## Glossary` в руководстве и `## Terms` в README
  * исключены целиком, и других исключений нет.
  *
- * `showcase.md` здесь не проверяется вовсе: его текст и гифки — материал
+ * `SHOWCASE.md` здесь не проверяется вовсе: его текст и гифки — материал
  * заказчика, а отчёт о разошедшихся записях в нём намеренно называет старые
  * имена. Его **адреса** при этом спрашиваются наравне с остальными —
  * `tests/regression/docs_links_tests.js`.
@@ -65,22 +65,20 @@ function readDoc(name: string): string {
 }
 
 /*
- * Документов плагина три, и запреты терминологии одинаковы для всех:
- * снятый контрол и старое имя команды посылают человека в пустоту откуда
- * угодно. `FEATURES.md` добавлен 2026-09-11.
+ * **Список один на весь набор** — `tests/harness/user_docs.js`. Он стоял здесь
+ * и в `docs_links_tests.js` копиями, а это второе объявление одного правила
+ * (У-32): новый документ, вписанный в одну из двух проверок, второй остаётся
+ * неизвестен, и она зелена.
+ *
+ * `PLUGIN_DOCS` — три документа плагина: к ним, и только к ним, предъявляются
+ * «каждая команда названа» и «названа требуемая версия Obsidian».
+ * `TERM_DOCS` — всё, на что действуют запреты терминологии: снятое имя
+ * контрола посылает человека в пустоту из учебника и из справочника настроек
+ * ровно так же, как из README.
  */
-const DOCS = ["README.md", "instructions.md", "FEATURES.md"];
-
-/*
- * А запреты терминологии — ко **всему**, что читает человек снаружи. Их
- * предмет не «три документа плагина», а «текст, по которому человек пойдёт
- * искать контрол»: снятое имя посылает его в пустоту из учебника и из
- * справочника настроек ровно так же, как из README. Список ведётся здесь, и
- * новый пользовательский документ вписывается сюда тем же коммитом, что
- * заводится (правило 79: правило со списком мест исполняется кодом в каждом
- * из них, а не фразой).
- */
-const USER_DOCS = DOCS.concat(["docs/settings.md", "docs/tutorial.md"]);
+const userDocs = requireCjs(path.join(root, "tests", "harness", "user_docs.js")) as Any;
+const DOCS: string[] = userDocs.PLUGIN_DOCS;
+const USER_DOCS: string[] = userDocs.TERM_DOCS;
 
 /*
  * А вот два требования ниже — только к руководствам: версия Obsidian и
@@ -88,7 +86,7 @@ const USER_DOCS = DOCS.concat(["docs/settings.md", "docs/tutorial.md"]);
  * плагин умеет, а не как его ставить, и требовать от него того же значило
  * бы завести ему чужую работу.
  */
-const GUIDES = ["README.md", "instructions.md"];
+const GUIDES = ["README.md", "INSTRUCTIONS.md"];
 
 /* ---- удалённые контролы ------------------------------------------------- */
 
@@ -322,7 +320,7 @@ const GUIDES = ["README.md", "instructions.md"];
   const titles = (TABS as Any[]).map(t => String(t.label));
   assert.ok(titles.length >= 7,
     "положительный контроль: областей в схеме " + titles.length + " — спрашивать не у чего");
-  const missing = titles.filter(title => !readDoc("instructions.md").includes(title));
+  const missing = titles.filter(title => !readDoc("INSTRUCTIONS.md").includes(title));
   assert.deepEqual(missing, [],
     "руководство не называет область панели: " + missing.join(", "));
 
@@ -386,7 +384,7 @@ const GUIDES = ["README.md", "instructions.md"];
 
 {
   /* Глоссарий 7.3 на месте, и он не пустая заготовка (фаза 5.1, пункт 3). */
-  const text = fs.readFileSync(path.join(root, "instructions.md"), "utf8");
+  const text = fs.readFileSync(path.join(root, "INSTRUCTIONS.md"), "utf8");
   const from = text.indexOf("## Glossary");
   assert.ok(from > 0, "в руководстве нет глоссария");
   const to = text.indexOf("\n## ", from + 4);
@@ -405,9 +403,9 @@ const GUIDES = ["README.md", "instructions.md"];
 }
 
 /*
- * **Сверка якорей `showcase.md` переехала 2026-09-20** в
+ * **Сверка якорей `SHOWCASE.md` переехала 2026-09-20** в
  * `tests/regression/docs_links_tests.js`. Она спрашивала один `README.md`, а
- * раздел с шестнадцатью якорями ушёл оттуда в `docs/settings.md` (У-94:
+ * раздел с шестнадцатью якорями ушёл оттуда в `docs/SETTINGS.md` (У-94:
  * утверждение едет за своим предметом). На новом месте предмет шире и
  * объявлен один раз: **любой** адрес внутри репозитория в **любом**
  * пользовательском документе — и файл, и якорь. Держать здесь копию значило
@@ -418,7 +416,7 @@ const GUIDES = ["README.md", "instructions.md"];
   /* Разрыв хоткеев назван в обоих руководствах: человек обязан о нём прочитать. */
   for (const doc of GUIDES) {
     const text = fs.readFileSync(path.join(root, doc), "utf8");
-    assert.ok(text.includes("command_ids_v1_v2.md"),
+    assert.ok(text.includes("COMMAND_IDS_V1_V2.md"),
       doc + " не ссылается на карту старых и новых ID команд (Р3, фаза 2, пункт 8)");
   }
   ok("оба документа предупреждают о слетевших хоткеях и ведут к карте");

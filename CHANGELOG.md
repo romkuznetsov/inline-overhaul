@@ -21,14 +21,15 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **New: a tutorial** — [`docs/tutorial.md`](docs/tutorial.md) walks from install to a working line in about fifteen minutes, one path and no choices to make.
-2. ✨ **New: a settings reference** — [`docs/settings.md`](docs/settings.md) lists every control of the panel, tab by tab, in the panel's own order, with the value each one starts at.
+1. ✨ **New: a tutorial** — [`docs/TUTORIAL.md`](docs/TUTORIAL.md) walks from install to a working line in about fifteen minutes, one path and no choices to make.
+2. ✨ **New: a settings reference** — [`docs/SETTINGS.md`](docs/SETTINGS.md) lists every control of the panel, tab by tab, in the panel's own order, with the value each one starts at.
 3. ✨ **New: `CONTRIBUTING.md`, `SECURITY.md`, and issue and pull request templates** — what makes a bug report actionable, and how to report a security problem privately instead of in a public issue.
 4. 🎨 **The README is a landing page.** The wordmark, four badges and a recording of the plugin at work come before any prose; the tab-by-tab walk through the settings panel it used to carry moved into the settings reference.
 5. 🎨 **`FEATURES.md` reads as a list again**: the opening pitch moved to the README, and what is left is what the plugin does, without adjectives.
 6. 🎨 **This changelog carries the release date** under every version heading, and a link to the full comparison between that release and the one before it.
 7. 🐛 **The command id map is in English**, and it no longer says these commands dropped the area from their names: since `0.5.0` they carry it again, and the map said the opposite.
 8. 🐛 **The guide no longer promises a rules note in your vault.** The rules the engines work from are built from your settings as the plugin loads, and the note itself was removed several releases ago.
+9. 🎨 **Every document written for you is named in capitals**, the way `README.md` always was: `INSTRUCTIONS.md`, `docs/TUTORIAL.md`, `docs/SETTINGS.md`, `docs/SHOWCASE.md` and `docs/COMMAND_IDS_V1_V2.md`. GitHub tells capitals apart in a file address, so a link you saved to one of the old names returns 404 — the new name is the same page.
 
 ## 0.5.0
 
@@ -86,7 +87,7 @@ _2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-
 
 20. 🔧 **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
-21. 🔧 **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/dev/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
+21. 🔧 **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `SHOWCASE.md` under `docs/`; nine old documents moved to `docs/dev/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 
 ## 0.3.2
 

@@ -137,7 +137,7 @@ https://img.shields.io/github/license/romkuznetsov/inline-overhaul?style=flat-sq
 - ширина задаётся явно, `alt` обязателен;
 - подпись говорит, что происходит, а не как называется команда;
 - запись начинается с состояния покоя и заканчивается им же — иначе цикл дёргает;
-- в README только записи с настоящим Obsidian; схемы живут в `docs/showcase.md`.
+- в README только записи с настоящим Obsidian; схемы живут в `docs/SHOWCASE.md`.
 
 ## Социальное превью
 

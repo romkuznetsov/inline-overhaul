@@ -257,7 +257,7 @@ function noticeCommandIdsChanged(plugin) {
 
     plugin.notice("inlineOverhaul renamed its commands, so hotkeys you had set for them are no longer bound."
       + " Set them again in Settings, Hotkeys, searching for inlineOverhaul."
-      + " The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
+      + " The full old-to-new map is printed in the developer console and in docs/COMMAND_IDS_V1_V2.md");
 
     plugin.store.patch({ viewState: { commandIdsNotice: "shown" } }, "commands:ids:notice", { undoable: false });
   } catch (e) {

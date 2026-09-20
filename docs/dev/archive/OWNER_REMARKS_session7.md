@@ -139,8 +139,8 @@ vault (`buildBackupNote`, `src/features/settings_backup.js`), кроме вет�
 `order_deep_editor_render_tests.ts`, `command_ids_tests.ts`,
 `fields_editor_view_tests.ts`, `settings_layer_tests.ts`,
 `config_migration_v1_v2_tests.ts`. Документы: PRD (25 упоминаний — 5.6, 10.12,
-Э1–Э2а, 10.16, Приложение B), `instructions.md` (12), `MANUAL_TEST_PLAN.md`
-(3), `src/features/README.md` (3), `docs/command_ids_v1_v2.md`, `howto.ts`.
+Э1–Э2а, 10.16, Приложение B), `INSTRUCTIONS.md` (12), `MANUAL_TEST_PLAN.md`
+(3), `src/features/README.md` (3), `docs/COMMAND_IDS_V1_V2.md`, `howto.ts`.
 Порядок обязателен: прототип → `gen:schema` → `update_prd` → проверки.
 
 Заодно уходят: `readFieldsWorkshop` — один из трёх швов старой формы (У-18),

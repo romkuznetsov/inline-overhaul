@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Карта старых и новых ID команд — `docs/command_ids_v1_v2.md`.
+ * Карта старых и новых ID команд — `docs/COMMAND_IDS_V1_V2.md`.
  *
  * Документ **выводится** из `src/features/command_ids.js`, а не пишется руками:
  * карта, набранная во второй раз, разойдётся с кодом, а расходиться ей нельзя —
@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const DEST = path.join(ROOT, "docs", "command_ids_v1_v2.md");
+const DEST = path.join(ROOT, "docs", "COMMAND_IDS_V1_V2.md");
 const ids = require(path.join(ROOT, "src", "features", "command_ids.js"));
 
 /*

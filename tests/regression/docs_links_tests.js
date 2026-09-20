@@ -7,7 +7,7 @@
  * ведёт в 404, а битый якорь молча открывает начало файла. Заметить это может
  * только человек, и заметит он это уже после того, как пришёл по ссылке из
  * README. 2026-09-20 из README уехал раздел с шестнадцатью якорями, появились
- * `docs/tutorial.md` и `docs/settings.md` со своими ссылками, и число адресов,
+ * `docs/TUTORIAL.md` и `docs/SETTINGS.md` со своими ссылками, и число адресов,
  * которые некому спросить, выросло втрое.
  *
  * Спрашивается три вещи:
@@ -20,7 +20,7 @@
  * Чего проверка **не** делает: не ходит в сеть. Внешний адрес проверяется
  * глазами один раз, а прогон, зависящий от сети, краснеет от чужого простоя.
  *
- * **Сюда же переехала сверка якорей `showcase.md`** — она стояла в
+ * **Сюда же переехала сверка якорей `SHOWCASE.md`** — она стояла в
  * `docs_terms_tests.ts` отдельным блоком и спрашивала один README. Предмет у
  * неё тот же, что здесь, и два объявления одного правила расходятся молча
  * (У-32): там остался указатель, здесь — сама проверка.
@@ -29,27 +29,15 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const docs = require("../harness/user_docs.js");
 
-const root = path.resolve(__dirname, "..", "..");
+const root = docs.root;
 
 let passed = 0;
 function ok(label) { passed++; console.log("  ok " + label); }
 
-/*
- * Документы, которые читает человек снаружи. Список тот же, что `USER_DOCS` в
- * `docs_terms_tests.ts`, плюс `showcase.md`: его текст проверке терминов не
- * подчиняется (он материал заказчика), а ссылки в нём ведут человека так же.
- */
-const USER_DOCS = [
-  "README.md",
-  "FEATURES.md",
-  "instructions.md",
-  "CONTRIBUTING.md",
-  "SECURITY.md",
-  "docs/tutorial.md",
-  "docs/settings.md",
-  "docs/showcase.md",
-];
+/* Список один на весь набор — `tests/harness/user_docs.js`. */
+const USER_DOCS = docs.USER_DOCS;
 
 /** Якорь GitHub: нижний регистр, пунктуация выброшена, пробелы в дефисы. */
 function anchorOf(title) {
@@ -102,7 +90,7 @@ function linksOf(text) {
     '<img src="docs/brand/io-wordmark-light.svg" width="560" alt="знак">',
     '<source media="(prefers-color-scheme: dark)" srcset="docs/brand/io-wordmark-dark.svg">',
     "[внешняя](https://obsidian.md)",
-    "[якорь](docs/showcase.md#header-jumps)",
+    "[якорь](docs/SHOWCASE.md#header-jumps)",
   ].join("\n");
   const found = linksOf(sample);
   assert.equal(found.length, 6, "обход нашёл " + found.length + " адресов из шести");
@@ -171,17 +159,52 @@ function linksOf(text) {
    */
   assert.ok(!fs.existsSync(path.join(root, "docs", "net-takogo-fayla.md")),
     "контроль: выдуманный файл внезапно существует");
-  assert.ok(!anchorsOf("docs/showcase.md").has("zagolovka-takogo-net"),
+  assert.ok(!anchorsOf("docs/SHOWCASE.md").has("zagolovka-takogo-net"),
     "контроль: выдуманный якорь считается живым");
-  assert.ok(anchorsOf("docs/showcase.md").has("header-jumps"),
+  assert.ok(anchorsOf("docs/SHOWCASE.md").has("header-jumps"),
     "контроль: настоящий якорь showcase не найден — разбор заголовков сломан");
-  assert.ok(anchorsOf("docs/showcase.md").size >= 10,
-    "контроль: заголовков в showcase найдено " + anchorsOf("docs/showcase.md").size);
+  assert.ok(anchorsOf("docs/SHOWCASE.md").size >= 10,
+    "контроль: заголовков в showcase найдено " + anchorsOf("docs/SHOWCASE.md").size);
   assert.equal(anchorOf("Install & setup"), "install--setup",
     "правило якоря GitHub: пунктуация выброшена, пробелы в дефисы");
   assert.equal(anchorOf("Expanded 'Ctrl+A'"), "expanded-ctrla",
     "правило якоря GitHub: апостроф и плюс выброшены");
   ok("разбор якорей повторяет правило GitHub, и выдуманное живым не считается");
+}
+
+/* ---- имя документа для человека — капсом ------------------------------- */
+
+{
+  /**
+   * **Его слово 2026-09-20:** «мне не нравится, что все заметки для чтения
+   * пользователем написаны капсом (README.md), а instructions.md — маленькими
+   * буквами; хочу, чтобы был общий стиль с правилом "если этот файл для чтения
+   * человеком, то название должно быть капсом"».
+   *
+   * Спрашивается **свойство имени**, а не список файлов (правило 151): список
+   * пропустил бы ровно то место, где предмет не назван, — новый документ,
+   * который забыли в него вписать. Поэтому обход идёт по корню и по `docs/`, а
+   * всё, что человеку не показывается, названо в `user_docs.js` поимённо и с
+   * причиной.
+   */
+  const files = docs.userMarkdownFiles();
+  assert.ok(files.length >= 8,
+    "положительный контроль: заметок для человека найдено " + files.length
+    + " — обход смотрит не туда");
+
+  /* Контроль признака до первого вывода: он обязан различать обе стороны. */
+  assert.ok(docs.isShoutingName("README.md"), "контроль: признак не узнаёт README.md");
+  assert.ok(docs.isShoutingName("docs/COMMAND_IDS_V1_V2.md"),
+    "контроль: признак не узнаёт имя с цифрами и подчёркиваниями");
+  assert.ok(!docs.isShoutingName("instructions.md"),
+    "контроль: признак пропускает строчное имя");
+  assert.ok(!docs.isShoutingName("docs/Tutorial.md"),
+    "контроль: признак пропускает имя с одной заглавной");
+
+  const lower = files.filter((f) => !docs.isShoutingName(f));
+  assert.deepEqual(lower, [],
+    "заметку для человека зовут не капсом — его правило 2026-09-20:\n  " + lower.join("\n  "));
+  ok("имя каждой заметки для человека написано капсом (" + files.length + " файлов)");
 }
 
 console.log("\n" + passed + " проверок пройдено");

@@ -6,7 +6,7 @@ without your hands leaving the keyboard.
 
 This is a guided walk, not a reference. Where you could do something three ways, this
 page picks one. The [feature list](../FEATURES.md) and the
-[settings reference](settings.md) are where the other two live.
+[settings reference](SETTINGS.md) are where the other two live.
 
 > [!WARNING]
 > inlineOverhaul is in public beta. Do this tutorial in a scratch vault, or back up
@@ -134,11 +134,11 @@ What to read next, in the order it becomes useful:
 
 | | |
 |---|---|
-| [**Setup and user guide**](../instructions.md) | Separators, Transform safety, recovery |
-| [**Settings reference**](settings.md) | The panel, tab by tab |
+| [**Setup and user guide**](../INSTRUCTIONS.md) | Separators, Transform safety, recovery |
+| [**Settings reference**](SETTINGS.md) | The panel, tab by tab |
 | [**Feature list**](../FEATURES.md) | Everything else the plugin does |
-| [**Visual showcase**](showcase.md) | Thirty animations, grouped by workflow |
+| [**Visual showcase**](SHOWCASE.md) | Thirty animations, grouped by workflow |
 
 One thing deliberately left out: **Transform**, which turns a line into a whole note.
 It is powerful and it edits your files, so it stays off until you have read
-[its section in the guide](../instructions.md#transform-a-line-becomes-a-note).
+[its section in the guide](../INSTRUCTIONS.md#transform-a-line-becomes-a-note).
