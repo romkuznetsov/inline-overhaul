@@ -394,7 +394,9 @@ function foldableSub(head: El, body: El, key: string, label: string, tipHost?: E
 /* ---- раздел `Commands` правой колонки (`З-33`) ------------------------- */
 
 /** Одна команда так, как её отдаёт плагин: имя и идентификатор. */
-interface FieldCommand { id: string; name: string; group?: string }
+/* `short` — то же имя без области (его пункт 6, 2026-09-22): считает его
+   `buildOwnCommandList` рядом с тем местом, где область приписывается. */
+interface FieldCommand { id: string; name: string; short?: string; group?: string }
 
 /**
  * Команды выбранного Field и их хоткеи — его заказ `З-33`.
@@ -454,7 +456,10 @@ function fieldCommandsSection(detail: El, row: FieldRow, o: FieldsViewOpts): () 
   const canOpen = canOpenHotkeys(plugin);
   for (const cmd of mine) {
     const line = el(card, "div", "io-cmd__row");
-    el(line, "div", "io-cmd__name", cmd.name);
+    /* Имя без области (его пункт 6, 2026-09-22): раздел `Commands` стоит
+       внутри Field, и `Tags & PKM:` в каждой строке лишнее. В запрос к экрану
+       `Hotkeys` ниже по-прежнему уходит полное имя. */
+    el(line, "div", "io-cmd__name", cmd.short || cmd.name);
     const cell = el(line, "div");
     const current = hotkeyOf(plugin, cmd.id);
     const key = btn(cell, "io-hk" + (current ? "" : " io-hk--none"), {

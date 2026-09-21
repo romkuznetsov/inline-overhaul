@@ -231,6 +231,27 @@ function commandDisplayName(area, name) {
   return tail.startsWith(head + ": ") ? tail : head + ": " + tail;
 }
 
+/**
+ * То же имя **без области** — для колонки, над которой область уже написана.
+ *
+ * Его пункт 6, 2026-09-22: «в колонке io-cmd-col-col-command все команды
+ * называются полным названием `Navigation: Move left`, но у команд есть
+ * хедеры, например `Navigation`, и из-за этого выглядит гротескно». Настоящее
+ * имя команды при этом не меняется: в палитре, на экране `Hotkeys` и в запросе,
+ * которым панель туда ведёт, стоит полное — человек ищет ровно то, что ему
+ * покажет Obsidian (У-240).
+ *
+ * Дом у пары один: приписывает область `commandDisplayName`, снимает её эта
+ * функция, и свойство «снять после приписать даёт исходное» проверяется
+ * прогоном (У-157). Второе объявление любой из половин разошлось бы молча.
+ */
+function commandShortName(area, name) {
+  const head = String(area == null ? "" : area).trim();
+  const tail = String(name == null ? "" : name).trim();
+  if (!head || !tail) return tail;
+  return tail.startsWith(head + ": ") ? tail.slice(head.length + 2) : tail;
+}
+
 /** Признак T7: kebab-case, без префикса плагина, без двоеточия. */
 function isCompliantCommandId(id) {
   return /^[\p{Ll}\p{N}]+(-[\p{Ll}\p{N}]+)*$/u.test(String(id == null ? "" : id));
@@ -252,5 +273,6 @@ module.exports = {
   renameCommandId,
   commandName,
   commandDisplayName,
+  commandShortName,
   isCompliantCommandId,
 };

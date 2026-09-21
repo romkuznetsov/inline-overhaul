@@ -35,6 +35,16 @@ import { canOpenHotkeys, hotkeyOf, openHotkeys, hotkeyQueryFor, pluginScope } fr
 export interface OwnCommand {
   id: string;
   name: string;
+  /**
+   * То же имя **без области** — его пункт 6, 2026-09-22: над колонкой уже
+   * написано `Navigation`, и второй раз в каждой строке это гротескно.
+   * Считает его `buildOwnCommandList` рядом с тем местом, где область
+   * приписывается (`commandShortName`), а не панель: правило одно.
+   *
+   * Поле обязательное нарочно. Необязательное с запасным `|| name` молча
+   * вернуло бы прежний вид у всякого, кто список подделывает (У-237).
+   */
+  short: string;
   /** Область справочника: имя из прототипа. */
   area: string;
   /**
@@ -364,7 +374,13 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
           }
         }
         const line = el(inner, "div", "io-cmd__row");
-        el(line, "div", "io-cmd__name", row.name);
+        /*
+         * В колонке — имя **без области**: она написана заголовком строкой
+         * выше (его пункт 6, 2026-09-22). Настоящее имя остаётся у кнопки
+         * хоткея и в запросе, которым она открывает экран `Hotkeys`: человек
+         * ищет там ровно то, что Obsidian ему покажет (У-240).
+         */
+        el(line, "div", "io-cmd__name", cmd.short);
         el(line, "div", "io-cmd__does", row.does);
         const cell = el(line, "div");
 

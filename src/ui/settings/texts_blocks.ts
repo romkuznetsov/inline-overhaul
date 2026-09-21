@@ -522,7 +522,7 @@ export const BLOCK_TEXTS = {
     COL_HOTKEY: "Hotkey",
     /* Подсказки шапки и двух подписей частей, 2026-09-08. Шапка — в слот под
        ней; подпись части занимает строку целиком, и знак стоит в ней самой. */
-    COL_COMMAND_TIP: "The name Obsidian knows this command by. It is the same name in the command palette and on the <code>Hotkeys</code> screen, and it is never translated: Obsidian takes it from its own register, and two lists of one command would not agree",
+    COL_COMMAND_TIP: "The command, without the area already written above it. In the command palette and on the <code>Hotkeys</code> screen it carries that area in front — <code>Navigation: Move up</code> — and pressing a key cell here opens that screen at exactly that name. Never translated: Obsidian takes the name from its own register, and two lists of one command would not agree",
     COL_DOES_TIP: "What the command does, in one line. This column is the one thing in the table a language file can change — the names beside it cannot",
     COL_HOTKEY_TIP: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian's own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself",
     PART_STANDARD_TIP: "Commands that are always there, whatever you have set up: they come with the plugin, and their names do not change",

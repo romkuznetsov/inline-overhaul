@@ -51,8 +51,14 @@ const internals = loadPluginInternals();
  */
 const requireCjs = createRequire(import.meta.url);
 const ids = requireCjs(path.join(root, "src", "features", "command_ids.js")) as Any;
+/*
+ * Имя, которым команда живёт в палитре (с областью), и имя, которым она стоит
+ * в колонке справочника (без области, его пункт 6 от 2026-09-22). Оба
+ * спрашиваются у того же дома, где объявлены, — иначе проверка объявит правило
+ * второй раз и разойдётся с продуктом молча.
+ */
 const shownAs = (area: string, id: string): string =>
-  ids.commandDisplayName(area, ids.commandName(id));
+  ids.commandShortName(area, ids.commandDisplayName(area, ids.commandName(id)));
 
 setupGlobals();
 
@@ -248,8 +254,13 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    */
   const UNDESCRIBED: Record<string, string> = {};
   const shown = new Set(d.rows.map(r => r.name));
+  /*
+   * Сверяется **короткое** имя: с 2026-09-22 (его пункт 6) в колонке стоит оно,
+   * а область написана заголовком строкой выше. Полное имя при этом никуда не
+   * делось — им кнопка хоткея открывает экран `Hotkeys`, и это проверено ниже.
+   */
   const missing = commands
-    .map(c => String(c.name))
+    .map(c => String(c.short))
     .filter(n => !shown.has(n) && !Object.prototype.hasOwnProperty.call(UNDESCRIBED, n));
   assert.deepEqual(missing, [],
     "эти команды плагин регистрирует, а справочник о них молчит:\n  " + missing.join("\n  "));
@@ -261,10 +272,24 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     "команды уже нет — уберите её из списка неописанных: " + staleExceptions.join(", "));
 
   /* И не больше: ни одной строки без команды. */
-  const known = new Set(commands.map(c => String(c.name)));
+  const known = new Set(commands.map(c => String(c.short)));
   const extra = d.rows.map(r => r.name).filter(n => !known.has(n));
   assert.deepEqual(extra, [],
     "справочник обещает команды, которых нет (З8):\n  " + extra.join("\n  "));
+
+  /*
+   * Его пункт 6: в колонке имени области быть не должно, а в полном имени
+   * команды — обязана. Обе половины спрашиваются разом: одна без другой
+   * зелена и у справочника, который просто потерял область везде.
+   */
+  const AREAS = /^(Navigation|Tags & PKM|Transform|Binder|General): /;
+  const withArea = d.rows.map(r => r.name).filter(n => AREAS.test(n));
+  assert.deepEqual(withArea, [],
+    "в колонке имени осталась область заголовка:\n  " + withArea.join("\n  "));
+  assert.ok(commands.every(c => String(c.name) === String(c.area) + ": " + String(c.short)),
+    "короткое имя собрано не из полного: правило приписывания области и правило её снятия разошлись");
+  assert.ok(commands.some(c => AREAS.test(String(c.name))),
+    "положительный контроль: полного имени с областью нет ни у одной команды — снимать было нечего");
 
   assert.equal(d.rows.length, commands.length - Object.keys(UNDESCRIBED).length,
     "строк и команд разное число: " + d.rows.length + " и " + commands.length);
@@ -328,9 +353,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    * `date_due` против `Due`: на фикстуре, где они совпадают, эта проверка
    * слепа к их расхождению (У-47).
    */
-  assert.ok(names.includes("Tags & PKM: status next") && names.includes("Tags & PKM: status previous"),
+  assert.ok(names.includes("status next") && names.includes("status previous"),
     "команды тега не развёрнуты или названы не строгим именем: " + names.join(", "));
-  assert.ok(names.includes("Tags & PKM: date_due next") && names.includes("Tags & PKM: date_due previous"),
+  assert.ok(names.includes("date_due next") && names.includes("date_due previous"),
     "команды поля-даты не развёрнуты или названы не строгим именем: " + names.join(", "));
   assert.deepEqual(names.filter(n => /^(Status|Due) /.test(n)), [],
     "короткое имя для TagWheel попало в имя команды: " + names.join(", "));
@@ -338,8 +363,8 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   assert.ok(!names.includes("<your rows>"), "шаблонная строка Binder попала в таблицу");
   assert.ok(!names.includes("Toggle <module> module"), "шаблонная строка тумблера попала в таблицу");
   /* Своя строка Binder и тумблеры модулей — настоящими именами. */
-  assert.ok(names.includes("Binder: Round brackets"), "своя строка Binder не показана: " + names.join(", "));
-  assert.equal(names.filter(n => /^General: Toggle .+ module$/.test(n)).length, FEATURE_ORDER.length,
+  assert.ok(names.includes("Round brackets"), "своя строка Binder не показана: " + names.join(", "));
+  assert.equal(names.filter(n => /^Toggle .+ module$/.test(n)).length, FEATURE_ORDER.length,
     "тумблеров модулей не столько, сколько модулей: " + names.join(", "));
   ok("семьи развёрнуты: по строке на каждый Field, строку Binder и модуль");
 }
@@ -359,13 +384,13 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
 
   assert.ok(!names.includes("<your rows>"),
     "шаблонная строка Binder осталась при пустой семье: " + names.join(", "));
-  assert.ok(!names.includes("Tags & PKM: Status next") && !names.includes("Tags & PKM: Status previous"),
+  assert.ok(!names.includes("Status next") && !names.includes("Status previous"),
     "шаблонная строка Fields осталась при пустой семье: " + names.join(", "));
   /* Строк без команды не бывает ни одной: у каждой есть кнопка хоткея. */
   assert.deepEqual(d.rows.filter(r => !r.button).map(r => r.name), [],
     "строка без кнопки хоткея — это строка без команды за ней");
   /* Область при этом не пустеет: стандартные команды на месте. */
-  assert.ok(names.includes("Navigation: Move up"), "стандартные команды пропали вместе с шаблонными");
+  assert.ok(names.includes("Move up"), "стандартные команды пропали вместе с шаблонными");
   ok("пустая семья: строки нет, и ни одной строки без команды не осталось");
 }
 
@@ -410,9 +435,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   walk(host);
   close();
 
-  assert.ok(!names.includes("Navigation: Move up"),
+  assert.ok(!names.includes("Move up"),
     "справочник показал команду, которой плагин не регистрирует: " + names.join(", "));
-  assert.ok(names.includes("Navigation: Move down"), "и заодно потерял соседнюю: " + names.join(", "));
+  assert.ok(names.includes("Move down"), "и заодно потерял соседнюю: " + names.join(", "));
   ok("команды нет — строки нет: справочник не обещает лишнего (З8)");
 }
 
@@ -430,14 +455,14 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   });
   const byName = new Map(d.rows.map(r => [r.name, r]));
 
-  assert.equal(byName.get("Navigation: Move up")?.hotkey, "Alt + ArrowUp",
-    "назначенный хоткей не показан: " + byName.get("Navigation: Move up")?.hotkey);
+  assert.equal(byName.get("Move up")?.hotkey, "Alt + ArrowUp",
+    "назначенный хоткей не показан: " + byName.get("Move up")?.hotkey);
   /* `Mod` показывается словом платформы: `hotkeys.ts` переводит его в `Ctrl`. */
-  assert.equal(byName.get("Tags & PKM: date_due next")?.hotkey, "Ctrl + ]",
-    "хоткей команды поля не показан: " + byName.get("Tags & PKM: date_due next")?.hotkey);
-  assert.equal(byName.get("Navigation: Move down")?.hotkey, "not set",
+  assert.equal(byName.get("date_due next")?.hotkey, "Ctrl + ]",
+    "хоткей команды поля не показан: " + byName.get("date_due next")?.hotkey);
+  assert.equal(byName.get("Move down")?.hotkey, "not set",
     "у команды без хоткея должен быть прочерк словами");
-  assert.equal(byName.get("Navigation: Move down")?.disabled, false,
+  assert.equal(byName.get("Move down")?.disabled, false,
     "кнопка активна, когда приватное API на месте");
   ok("К-2: назначенный хоткей показан, у остальных прочерк словами");
 }
@@ -592,9 +617,10 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    */
   const groupByName = new Map<string, string>();
   const subByName = new Map<string, boolean>();
+  /* Ключ — то имя, которое стоит в колонке: с 2026-09-22 это короткое. */
   for (const c of ownCommands(cfg) as Any[]) {
-    groupByName.set(String(c.name), String(c.group || ""));
-    subByName.set(String(c.name), Boolean(c.sub));
+    groupByName.set(String(c.short), String(c.group || ""));
+    subByName.set(String(c.short), Boolean(c.sub));
   }
   const base = (name: string): string => String(groupByName.get(name) || name);
   const seen: string[] = [];
@@ -785,7 +811,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const full = (c: Any): string => "inlineOverhaul: " + String(c.name);
   const byRows = (pick: (r: Drawn["rows"][number]) => boolean): Any[] => {
     const names = new Set(d.rows.filter(pick).map(r => r.name));
-    return commands.filter(c => names.has(String(c.name)));
+    return commands.filter(c => names.has(String(c.short)));
   };
   const missed: string[] = [];
   for (const j of d.jumps) {
@@ -831,7 +857,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const full = (c: Any): string => "inlineOverhaul: " + String(c.name);
   const byRows = (pick: (r: Drawn["rows"][number]) => boolean): Any[] => {
     const names = new Set(d.rows.filter(pick).map(r => r.name));
-    return commands.filter(c => names.has(String(c.name)));
+    return commands.filter(c => names.has(String(c.short)));
   };
   const loose: string[] = [];
   for (const j of d.jumps) {

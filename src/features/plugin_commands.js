@@ -151,9 +151,16 @@ function buildOwnCommandList(plugin) {
        */
       const strict = String(d && d.strictName ? d.strictName : "").trim();
       const isSub = /[-_]sub$/.test(strict);
+      const display = __commandIds.commandDisplayName(area, String(d && d.name ? d.name : id));
       out.push({
         id,
-        name: __commandIds.commandDisplayName(area, String(d && d.name ? d.name : id)),
+        name: display,
+        /*
+         * То же имя без области — его пункт 6, 2026-09-22. Считается **здесь**,
+         * рядом с тем местом, где область приписывается: правило одно, и второе
+         * его объявление в панели разошлось бы с этим молча (У-32).
+         */
+        short: __commandIds.commandShortName(area, display),
         area,
         family: typeof family === "function" ? family(d) : (family || ""),
         group: strict ? strict.replace(/[-_]sub$/, "") : "",
