@@ -25,6 +25,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 2. 🐛 **A two-digit year is a year again — from the TagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
 3. 🐛 **The TagWheel no longer draws a bubble over its own markup.** On a fresh install, where none of the panel colors had been set, the picker drawn over your line got a Value bubble on top of it.
 4. 🎨 **The README links to the showcase instead of embedding recordings.** The animations stay in [`docs/SHOWCASE.md`](docs/SHOWCASE.md), and the page above them loads at once.
+5. 🐛 **The TagWheel keeps the words you wrote before your Fields.** A link or a plain word standing in the left Block — anything the plugin does not recognise as a Value — disappeared from the line as soon as you picked a Value there. The commands always kept it; the picker now keeps it too.
+6. 🐛 **No `====` around the picker on the right.** The strip is wrapped in a highlight so it gets a fill, and Obsidian shows the raw `==` whenever the caret sits inside one — which is exactly where the caret landed for the right Block. It now rests just after your text, so both sides look the same.
 
 ## 0.5.1
 
