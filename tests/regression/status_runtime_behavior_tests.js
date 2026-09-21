@@ -1530,6 +1530,51 @@ async function testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix() {
   assertTrue(/^\s*-\s+\[\s*\]\s+#area-alpha\s+\S+\s+111$/.test(line), "status_tags context minimal prefix off should preserve existing list checkbox prefix");
 }
 
+/**
+ * **Панель не уносит из строки текст человека, стоящий в левом Block**
+ * (В-163, его слово 2026-09-21 «да»).
+ *
+ * Замечание пришло про ссылку: `- [[test1]] :: текст`, выбор значения в левом
+ * Block — и ссылки в строке больше нет. Предмет оказался шире: так уходило
+ * **любое** слово, которое стоит в левой зоне и не названо значением поля.
+ * Команда того же поля обе формы сохраняет — то есть это потеря текста, а не
+ * разница вкусов.
+ *
+ * Две формы, а не одна: ссылку узнаёт признак значения-ссылки, а прозу не
+ * узнаёт ни один признак — это разные дороги разбора, и починка одной о
+ * другой ничего не говорит (У-201).
+ *
+ * **Контроль на месте:** панель обязана поставить своё значение. Без него
+ * утверждение «текст на месте» зелено и на строке, которой панель не
+ * коснулась вовсе (У-152).
+ */
+async function testTagWheelKeepsHumanTextFromLeftBlock() {
+  const cases = [
+    { line: "- [[test1]] :: 111", keeps: "[[test1]]", why: "ссылка, не названная значением поля" },
+    { line: "- слово :: 111", keeps: "слово", why: "проза человека в левом Block" },
+  ];
+  for (const c of cases) {
+    const editor = makeEditor(c.line, c.line.length);
+    await runTagWheelKeys(editor, {
+      "Rules data": SYNTHETIC_RULES,
+      "Order config": buildOrderConfig({
+        freeRoam: { type: "off" },
+        panel: { type: "left" },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    }, ["ArrowRight", "ArrowUp"]);
+    const line = editor.snapshot().line;
+    assertTrue(/#todo|#idea|#mem/.test(line),
+      "контроль: панель не поставила значение, и спрашивать про текст не о чем: "
+      + JSON.stringify(line));
+    assertTrue(line.indexOf(c.keeps) !== -1,
+      "панель унесла из строки " + c.why + ": " + JSON.stringify(line));
+    assertTrue(line.indexOf("111") !== -1,
+      "панель унесла из строки текст за разделителем: " + JSON.stringify(line));
+  }
+}
+
 async function testTagWheelMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runTagWheelApply(editor, {
@@ -4235,6 +4280,7 @@ async function run() {
   await testStatusTagsKeepsUserCheckboxOnEmptyLine();
   await testStatusTagsCycleEndKeepsForeignCheckbox();
   await testTagWheelCycleEndKeepsForeignCheckbox();
+  await testTagWheelKeepsHumanTextFromLeftBlock();
   await testTagWheelMinimalPrefixOffDoesNotCreatePrefix();
   await testStatusTagsImportanceMinimalOffPreservesExistingSeparators();
   await testStatusTagsCycleMixedOffAndMinimalKeepsBulletNoCheckboxNoSeparator();

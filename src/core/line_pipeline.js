@@ -728,6 +728,24 @@ function escapeRx(s) {
   return __sharedUtils.escapeRe(s);
 }
 
+/**
+ * Исходный текст человека возвращается в свой слот — и **ничего оттуда не
+ * выносит** (В-163, его слово 2026-09-21 «да»).
+ *
+ * Здесь стояло присваивание `text = textRaw`, то есть слот текста
+ * переписывался целиком. Пока обе дороги клали в слот ровно исходный текст,
+ * разницы не было; у панели слот бывает **шире**: её разбор считает текстом
+ * человека всё, что стоит в левой зоне и не названо значением поля, — ссылку
+ * `[[test1]]`, слово `слово`, — и складывает это со слотом. Присваивание
+ * уносило добавку молча: строка `- [[test1]] :: текст` после выбора значения
+ * в левом Block становилась `- #high :: текст`, а `- слово :: текст` —
+ * `- #high :: текст`. Команда того же поля обе сохраняет.
+ *
+ * Спрашивается теперь не «чем был слот», а **стоит ли в нём исходный текст**:
+ * стоит — слот не трогаем вовсе; нет — кладём исходный, как и прежде. У
+ * команды слот равен исходному тексту, и её поведение не меняется ни на одном
+ * входе (измерено обходом строки на его конфиге).
+ */
 function enforceTextSegmentForLeftTag(line, rules, originalText) {
   const textRaw = String(originalText || "").trim();
   if (!textRaw) return String(line || "");
@@ -737,10 +755,12 @@ function enforceTextSegmentForLeftTag(line, rules, originalText) {
   let dates = seg.dates;
   const esc = escapeRx(textRaw);
   const rxWhole = new RegExp("(^|\\s)" + esc + "(?=\\s|$)", "g");
+  const slot = String(text || "").replace(/\s+/g, " ").trim();
+  const slotKeepsText = new RegExp("(^|\\s)" + esc + "(?=\\s|$)").test(slot);
   left = String(left || "").replace(rxWhole, " ").replace(/\s+/g, " ").trim();
   text = String(text || "").replace(rxWhole, " ").replace(/\s+/g, " ").trim();
   dates = String(dates || "").replace(rxWhole, " ").replace(/\s+/g, " ").trim();
-  text = textRaw;
+  text = slotKeepsText ? slot : textRaw;
   return buildFromSegments({ indent: seg.indent, left: left, text: text, dates: dates }, rules);
 }
 
