@@ -21,6 +21,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
+## 0.6.0
+
+_2026-09-21 · [all changes since 0.5.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.1...0.6.0)_
+
+> [!NOTE]
+> Five new controls and a key that learns about lists. `Smart paste` counts a pasted numbered list from one; a link Value can be coloured in two halves; the picker and its scroller can print a Value the way you named it rather than the way it is written; and every Field now lists its own commands with the keys they carry. Two things moved: a tag is drawn the size Obsidian draws it, so the editor and reading mode agree at last, and the picker's opening Field sits with the rest of the picker instead of in a heading of its own.
+
 1. ✨ **The scroller can label Values the way you print them.** `Visual → tagWheel → Scroller Value names` chooses between the Value as it is written in the line, the custom text you gave it in `Color your tags`, or both at once — so the box shows `🎯`, `#todo`, or `🎯 #todo`. Where no custom text is set, the written Value is shown, so a Value never goes blank.
 2. 🐛 **A two-digit year is a year again — from the tagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
 3. 🐛 **The tagWheel no longer draws a bubble over its own markup.** On a fresh install, where none of the panel colors had been set, the picker drawn over your line got a Value bubble on top of it.
