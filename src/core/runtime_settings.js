@@ -43,7 +43,13 @@ function runtimeSettingsFromConfig(cfg) {
        («у этого значения есть свой текст»), а не это место: тот же ответ
        читает пузырь в заметке. */
     [KEYS.TAGWHEEL_SCROLLER_LABELS]: readCfgPath(cfg, "visual.tagWheel.scroller.labels") || "value",
-    [KEYS.TAGWHEEL_SCROLLER_CUSTOM_TEXT]: JSON.stringify(__editorVisuals.buildTagCustomTextMap(cfg)),
+    /* Чем подписано выбранное значение в самой полосе панели (его заказ
+       2026-09-21, `З-38`). Вопрос не тот же, что у коробки: коробка
+       подписывает соседние значения, полоса — выбранное. Карта своих текстов
+       у обоих контролов одна, и ключ назван по ней, а не по первому
+       читателю. */
+    [KEYS.TAGWHEEL_VALUE_NAMES]: readCfgPath(cfg, "visual.tagWheel.valueNames") || "default",
+    [KEYS.TAGWHEEL_CUSTOM_VALUE_TEXT]: JSON.stringify(__editorVisuals.buildTagCustomTextMap(cfg)),
     /* Цвета коробки скроллера (10.13.15). Пусто — коробка берёт цвета темы. */
     [KEYS.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
     [KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",

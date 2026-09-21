@@ -3385,8 +3385,32 @@ async function run() {
    */
   assertTrue(/TAGWHEEL_SCROLLER_LABELS\]: readCfgPath\(cfg, "visual\.tagWheel\.scroller\.labels"\)/.test(runtimeSettingsSrc),
     "слой команд подаёт режим подписей скроллера в настройки рантайма");
-  assertTrue(/TAGWHEEL_SCROLLER_CUSTOM_TEXT\]: JSON\.stringify\(__editorVisuals\.buildTagCustomTextMap\(cfg\)\)/.test(runtimeSettingsSrc),
+  assertTrue(/TAGWHEEL_CUSTOM_VALUE_TEXT\]: JSON\.stringify\(__editorVisuals\.buildTagCustomTextMap\(cfg\)\)/.test(runtimeSettingsSrc),
     "и карту своих текстов собирает дом правила, а не второе объявление рядом");
+  /*
+   * Чем подписано выбранное значение в самой полосе — его заказ 2026-09-21
+   * (`З-38`). Шов тот же и рук столько же; вопрос другой, чем у коробки, и
+   * потому закреплён отдельно.
+   */
+  assertTrue(/TAGWHEEL_VALUE_NAMES\]: readCfgPath\(cfg, "visual\.tagWheel\.valueNames"\)/.test(runtimeSettingsSrc),
+    "слой команд подаёт режим подписей полосы в настройки рантайма");
+  assertTrue(/out\.valueNames = qa\[TAGWHEEL_VALUE_NAMES_OPTION\]/.test(tagwheelSrc),
+    "tagwheel читает режим подписей полосы из настроек рантайма");
+  assertTrue(/valueNamesCfg: valueNamesCfg,/.test(tagwheelSrc),
+    "tagwheel держит режим подписей полосы на состоянии сессии");
+  assertTrue(/renderControlLine\(rules, session, parsedLine, valueNamesCfg\)/.test(tagwheelSrc),
+    "и отдаёт его тому, кто рисует полосу");
+  /*
+   * Три ключа подписей переносятся из реестра имён так же, как остальные.
+   * Пока их там не было, они держались на литерале в этом файле: значение
+   * совпадало, и расхождения не было **пока** (У-237).
+   */
+  assertTrue(/TAGWHEEL_SCROLLER_LABELS_OPTION = String\(keys\.TAGWHEEL_SCROLLER_LABELS/.test(tagwheelSrc),
+    "имя ключа подписей коробки берётся из реестра, а не из литерала");
+  assertTrue(/TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION = String\(keys\.TAGWHEEL_CUSTOM_VALUE_TEXT/.test(tagwheelSrc),
+    "имя ключа карты своих текстов берётся из реестра");
+  assertTrue(/TAGWHEEL_VALUE_NAMES_OPTION = String\(keys\.TAGWHEEL_VALUE_NAMES/.test(tagwheelSrc),
+    "имя ключа подписей полосы берётся из реестра");
   assertTrue(/out\.scrollerLabels = qa\[TAGWHEEL_SCROLLER_LABELS_OPTION\]/.test(tagwheelSrc),
     "tagwheel читает режим подписей скроллера из настроек рантайма");
   assertTrue(/labels: labels,/.test(tagwheelSrc),

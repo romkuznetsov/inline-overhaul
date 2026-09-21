@@ -2292,6 +2292,91 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 **После правки обход строки — 3 расхождения из 100** (были и остаются два про
 строку-заголовок без текста и одно про `[[test1]]`).
 
+#### 10.13.224 Текст человека из левого Block переживает панель (2026-09-21)
+
+**Его ответ `В-163` «да»**, исключение № 139. Предмет оказался шире вопроса:
+панель уносила из строки не только `[[ссылку]]`, а **любое** слово человека,
+стоящее в левой зоне и не названное значением поля.
+
+**Чем найдено.** Обходом по симптому (У-167), а не чтением дорог: каждое
+присваивание `finalLine` в применении панели напечатало своё значение, и слово
+пропадало ровно на `applyOffSelectionPostPolicies`.
+
+**Причина.** Два объявления одного правила «что здесь текст человека». Разбор
+панели считает текстом всё незнакомое из левой зоны;
+`extractOriginalTextFromRawLine` — только слот за разделителем. Присваивание
+`text = textRaw` стирало разницу.
+
+**Что сделано.** Спрашивается не «чем был слот», а стоит ли в нём исходный
+текст: стоит — слот не трогаем, нет — кладём исходный, как и прежде. У команды
+слот равен исходному тексту, и её поведение не меняется ни на одном входе.
+
+**Что осталось и не чинится молча.** Слово цело, но панель кладёт его **за**
+разделитель, а команда оставляет на месте. Это два оставшихся расхождения
+обхода, и ответ на них он дал 2026-09-21 — см. `З-39`.
+
+#### 10.13.225 Знаки `====` у правого Block: место каретки (2026-09-21)
+
+**Его замечание:** «при открытии tagwheel left панель визуально открывается без
+`====`, а right — с ними. Хочу, чтобы было одинаково», исключение № 140.
+
+**Правило прочитано у платформы, а не выведено** (правило 101). Полосу панели
+обёртывает `==…==`, и заливку ей рисует подсветка самой Obsidian — своей
+отрисовки у полосы нет нарочно. Метки `==` прячет тоже она, и ставит прячущие
+декорации, **пока выделение не перекрывает узел**: `IL(range, from, to)` =
+`range.from <= to && range.to >= from` в `app.js` 1.13.7, набор имён — `a3`.
+Край считается перекрытием.
+
+**Отсюда разница между Block.** Каретка после отрисовки вставала в конец
+строки. У левого Block полоса стоит в начале, и конец строки от неё далеко; у
+правого полоса строку **кончает**, и каретка садилась ровно на её закрывающее
+`==`.
+
+**Что сделано.** `cursorOutsidePanelStrip` уводит каретку из отрезка полосы.
+Отрезки берутся из плана записи, а не поиском `==` в строке: `==` бывают и в
+тексте человека.
+
+**Измерено обеими дорогами на его `data.json`** (2026-09-21, день): на строке
+`- ` рабочее дерево на коммите **до** правки ставит каретку в 25 — это и есть
+`to` подсветки, то есть перекрытие, — а после правки в 2, за четыре знака до её
+начала. У левого Block было 26 (вне полосы) и стало 1; ни то ни другое не
+перекрывает. Скриншот заказчика 12:15 воспроизводится **старым** деревом и не
+воспроизводится новым (правило 108, правило 173).
+
+#### 10.13.226 Чем подписано значение в самой полосе панели (2026-09-21)
+
+**Его заказ `З-38`:** «подпись значения в самой полосе панели, с тремя
+вариантами — `Only custom name`, `Default name`, `Custom+Default name`».
+Исключение № 141; работа назначена им самим (В-162), потому сделана сразу.
+
+**Вопрос не тот же, что у коробки скроллера** (10.13.222). Коробка подписывает
+**соседние** значения, полоса — **выбранное**. Два контрола, одна карта своих
+текстов.
+
+**Что сделано.** Контрол `TagWheel Value names` на вкладке `Visual`, путь
+`visual.tagWheel.valueNames`, умолчание `default`. Подпись считает
+`valueLabelInStrip` в `tagwheel_core.js`; она меняет **вид** ячейки и не
+трогает токен. Своего текста у значения нет — печатается написанное при любом
+положении: правило, которое что-то прячет, не решает судьбу написанного
+(У-188).
+
+**Три места, которые пришлось развести по дороге.**
+
+1. Разбор карты своих текстов стоял внутри конфига коробки и выполнялся только
+   при `Scroller Value names = custom`. Второму читателю карта приезжала бы
+   пустой при выключенной коробке, а выглядело бы это как «своих текстов нет».
+   Разбор вынесен в `readCustomValueTextMap`.
+2. Три ключа подписей не переносились из реестра имён в `applyPkmOptionKeys` —
+   они держались на литерале, совпадающем с реестром **пока** (У-237).
+3. Ключ карты переименован по предмету: `TagWheel custom value text` вместо
+   `TagWheel scroller custom text`. У него два читателя, и имя это говорит
+   (У-165).
+
+**Чего правка не делает.** Предпросмотр панели в настройках своих текстов
+значений не показывает ни при этом контроле, ни при соседнем `Scroller Value
+names`: величины предпросмотра собираются отдельно и карты не знают. Названо
+вслух, потому что человек будет искать глазами именно там.
+
 #### 10.13.222 Чем подписаны значения в коробке скроллера (2026-09-20)
 
 **Его заказ:** «в настройках скроллера нужно добавить режим отображения
@@ -7177,6 +7262,48 @@ Block» дописана в корпус обхода тем же заходом
 бы само (У-200); подмена «вернуть каретку как была» краснеет на правом Block.
 Разбор — 10.13.225.
 
+**Исключение сто сорок первое, разрешение спрошено «оставить ли сделанное»
+2026-09-21 по его заказу `З-38`** («подпись значения в самой полосе панели, с
+тремя вариантами — `Only custom name`, `Default name`, `Custom+Default name`»):
+`core/pkm_option_keys.js`, `pkm_v2/TagWheel/tagwheel.js`,
+`pkm_v2/TagWheel/tagwheel_core.js`. Работа назначена им самим — В-162, — и
+потому сделана сразу; вопрос стоит тестом в заметке.
+
+Контрол — `TagWheel Value names` на вкладке `Visual`, путь
+`visual.tagWheel.valueNames`, умолчание `default` (прежнее поведение). Имена
+положений — его слова, не переписаны.
+
+**Подпись — это вид, а не токен.** `valueLabelInStrip` в `tagwheel_core.js`
+меняет только `text` ячейки; сами значения уходят наружу прежними (`tokens`), и
+ими же убирается второй экземпляр значения из противоположного Block. Уедь туда
+подпись — человек увидел бы значение дважды, своим текстом в полосе и
+написанным в строке, и увидеть это можно только при трёх условиях разом
+(`Keep them in sight`, значение в противоположном Block, свой текст задан).
+
+**Своего правила «у значения есть свой текст» здесь не заведено** (У-32): карта
+приезжает готовой из `buildTagCustomTextMap` — того же дома, каким пузырь в
+заметке решает то же самое. Разбор карты вынут из конфига коробки скроллера:
+он выполнялся **только** при `Scroller Value names = custom`, и второму
+читателю карта приезжала бы пустой при выключенной коробке. Заодно три ключа
+подписей встали в перенос имён `applyPkmOptionKeys` — там их не было, и они
+держались на литерале, совпадающем с реестром **пока** (У-237). Ключ карты
+переименован по предмету: `TagWheel custom value text` вместо
+`TagWheel scroller custom text` — у него теперь два читателя, и имя это
+говорит (У-165).
+
+**Чем закреплено:** `runValueNamesSuite` в `tagwheel_tests.js` — чистая функция
+на всех трёх положениях, отрисовка полосы настоящими правилами и разбором, и
+третья половина про токены. Отрицательные контроли по его словам: значение без
+своего текста печатается написанным при любом положении, пустой токен остаётся
+пустым. Мутации: «настройка не читается» роняет `Only custom name`, «нет своего
+текста — печатать пустоту» роняет отрицательный контроль, «порядок в
+`Custom+Default` наоборот» роняет свою строку, «отдать наружу подписи вместо
+токенов» роняет третью половину — и не роняла ничего, пока её не было. Шов
+закреплён в `bootstrap_loader_tests.js` по всем четырём рукам: конфиг →
+настройки рантайма → разбор опций → состояние сессии → отрисовка. Обход строки
+на `Only custom name` — те же 2 из 104, новых расхождений нет. Разбор —
+10.13.226.
+
 ##              ->  ##  :: 📅2026-09-14 14:22
 ```
 
@@ -10092,7 +10219,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (68)
+### Пути, которых не было в описи v1.0 (69)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -10124,6 +10251,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
+| `visual.tagWheel.valueNames` | TagWheel Value names (`panel-value-names`) | TagWheel |
 | `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | TagWheel |
 | `visual.tagWheel.highlightLine` | Highlight the TagWheel line (`panel-highlight`) | TagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | TagWheel |
@@ -17382,7 +17510,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 56 | 11 |
+| 5 | Visual | `features.visual.enabled` | 8 | 57 | 11 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 9 | 1 |
 
@@ -18344,6 +18472,11 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: Show the hash and emoji in the picker, or just the words
   - tip: A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way
   - старые названия для поиска: «Show Prefix»
+- **TagWheel Value names** — `panel-value-names`, `dropdown`, path `visual.tagWheel.valueNames`, default `default`
+  - desc: What the picker prints for a Field that already carries a Value
+  - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
+  - варианты: `default` Default name · `custom` Only custom name · `both` Custom+Default name
+  - старые названия для поиска: «Value names», «Custom text in the picker», «Printed name»
 - **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
   - desc: What happens to the Values you are not picking while the picker is open
   - tip: TagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes
@@ -18659,3 +18792,4 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tagWheel.scroller.textColor` | color | `""` |
 | `visual.tagWheel.showMarkers` | toggle | `true` |
 | `visual.tagWheel.textColor` | color | `""` |
+| `visual.tagWheel.valueNames` | dropdown | `default` |

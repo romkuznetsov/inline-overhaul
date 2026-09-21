@@ -31,7 +31,16 @@ const KEYS = {
   TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
   TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
   TAGWHEEL_SCROLLER_LABELS: "TagWheel scroller labels",
-  TAGWHEEL_SCROLLER_CUSTOM_TEXT: "TagWheel scroller custom text",
+  /*
+   * **Карта своих текстов у значений — два читателя, и имя ключа это
+   * говорит.** Коробка скроллера спрашивает её с 2026-09-20, полоса панели —
+   * с 2026-09-21 (`З-38`). Пока ключ звался «scroller custom text», имя
+   * обещало одного читателя и врало бы второму (У-165).
+   */
+  TAGWHEEL_CUSTOM_VALUE_TEXT: "TagWheel custom value text",
+  /* Чем подписано значение в самой полосе панели: `default`, `custom`,
+     `both` (его заказ 2026-09-21, `З-38`). */
+  TAGWHEEL_VALUE_NAMES: "TagWheel value names",
   /* Цвета коробки скроллера (10.13.15, замечание заказчика D6 2026-09-02).
      Пустая строка означает «взять у темы». */
   TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",

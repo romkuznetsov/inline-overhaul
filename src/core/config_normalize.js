@@ -1036,6 +1036,9 @@ function normalizeConfigV2(cfg) {
   hex("visual.tagWheel.fillColor");
   bool("visual.tagWheel.showMarkers");
   bool("visual.tagWheel.highlightLine");
+  /* Чем подписано значение в самой полосе панели (его заказ 2026-09-21, `З-38`).
+     Умолчание `default` — прежнее поведение; варианты названы его словами. */
+  oneOf("visual.tagWheel.valueNames", ["default", "custom", "both"]);
   bool("visual.tagWheel.scroller.enabled");
   oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
   /* Чем подписаны соседние значения в коробке (его заказ 2026-09-20). */

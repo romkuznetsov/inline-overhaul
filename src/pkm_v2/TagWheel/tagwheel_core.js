@@ -2561,7 +2561,40 @@ function getDisplayTokenByFieldId(rules, state, fieldId) {
   return String(getValueTokenForField(hit.mode, state, hit.field, rules) || '')
 }
 
-function buildGroupDisplay(group, mode, state, rules) {
+/**
+ * Чем подписано значение **в самой полосе** — его заказ 2026-09-21 (`З-38`).
+ *
+ * Полоса показывает выбранное значение так, как оно пойдёт в строку. Он
+ * попросил три положения и назвал их сам: `Default name` — как написано,
+ * `Only custom name` — свой текст из `Color your tags`, `Custom+Default name` —
+ * оба, свой текст первым.
+ *
+ * **Своего правила «у значения есть свой текст» здесь нет.** Карта приезжает
+ * готовой (`buildTagCustomTextMap`), собранная тем же ответом, каким пузырь в
+ * заметке решает то же самое (У-32).
+ *
+ * **Своего текста нет — печатается написанное, при любом положении.** Иначе
+ * поле, которому цвета не задавали, ушло бы с экрана пустым: правило, которое
+ * что-то прячет, не решает судьбу написанного (У-188).
+ *
+ * Подпись — это **вид**, а не токен: сам токен уходит наружу отдельно
+ * (`tokens`), им же убирается второй экземпляр значения из противоположного
+ * Block. Спутав их, полоса вычистила бы из строки не то, что показала.
+ */
+function valueLabelInStrip(token, labels) {
+  var raw = String(token == null ? '' : token)
+  if (!raw) return raw
+  var mode = labels && typeof labels.mode === 'string' ? labels.mode : 'default'
+  if (mode !== 'custom' && mode !== 'both') return raw
+  var map = labels && labels.customText && typeof labels.customText === 'object'
+    ? labels.customText
+    : null
+  var printed = String((map ? map[raw.trim()] : '') || '').trim()
+  if (!printed) return raw
+  return mode === 'both' ? printed + ' ' + raw : printed
+}
+
+function buildGroupDisplay(group, mode, state, rules, labels) {
   var tokens = []
   var hasActive = false
   var hasVisibleField = false
@@ -2605,7 +2638,10 @@ function buildGroupDisplay(group, mode, state, rules) {
 
   var text = ''
   if (tokens.length) {
-    text = tokens.join('+')
+    var shown = []
+    var ti
+    for (ti = 0; ti < tokens.length; ti++) shown.push(valueLabelInStrip(tokens[ti], labels))
+    text = shown.join('+')
   } else {
     var ph = String(group.placeholder || '')
     if (hasActive) {
@@ -2674,7 +2710,11 @@ function getNavigableFieldSequence(rules, state) {
   return out
 }
 
-function renderControlLine(rules, state, parsedLine) {
+/**
+ * @param {object} [labels] чем подписывать выбранные значения (`З-38`); не
+ *   передан — печатается написанное, как было до 2026-09-21
+ */
+function renderControlLine(rules, state, parsedLine, labels) {
   var mode = getMode(rules, state.mode)
   var groups = getRenderedGroupsForMode(rules, state, mode)
 
@@ -2683,7 +2723,7 @@ function renderControlLine(rules, state, parsedLine) {
   var gi
   for (gi = 0; gi < groups.length; gi++) {
     var g = groups[gi]
-    var disp = buildGroupDisplay(g, mode, state, rules)
+    var disp = buildGroupDisplay(g, mode, state, rules, labels)
     if (disp.hidden) continue
     if (disp.active) cells.push('**[' + disp.text + ']**')
     else cells.push(disp.text)
@@ -3155,5 +3195,9 @@ module.exports = {
   getUnmanagedRightTokens: getUnmanagedRightTokens,
   assembleFinalLine: assembleFinalLine,
   renderControlLine: renderControlLine,
+  /* Подпись значения в полосе — чистая функция над токеном и картой своих
+     текстов, и проверяется она без Obsidian: правило `З-38` иначе жило бы
+     только на пути, где панель уже открыта (правило 122). */
+  valueLabelInStrip: valueLabelInStrip,
   getDisplayTokenByFieldId: getDisplayTokenByFieldId
 }

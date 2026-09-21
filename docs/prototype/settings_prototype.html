@@ -2550,6 +2550,20 @@ const SCHEMA = [
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],
       tip:"A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way" },
+    /* Чем подписано значение в самой полосе панели — его заказ 2026-09-21
+       (`З-38`), прочитанный по его же тесту 5: «подпись значения в самой полосе
+       панели, с тремя вариантами — Only custom name, Default name,
+       Custom+Default name». Имена вариантов — его слова, не переписаны.
+       Умолчание `Default name` — прежнее поведение. Соседняя строка
+       `Scroller Value names` отвечает на тот же вопрос про коробку, и карта
+       своих текстов у обеих одна. */
+    { kind:"dropdown", id:"panel-value-names", path:"visual.tagWheel.valueNames", default:"default",
+      name:"TagWheel Value names", desc:"What the picker prints for a Field that already carries a Value",
+      searchTerms:["Value names","Custom text in the picker","Printed name"],
+      options:[ {value:"default",label:"Default name"},
+                {value:"custom",label:"Only custom name"},
+                {value:"both",label:"Custom+Default name"} ],
+      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
     /* Значения противоположного Block: заказ заказчика 2026-09-12. «Сейчас при
        открытии tagwheel из строки визуально исчезают все элементы из
        противоположного block, даже если они уже были выбраны. Хочу добавить

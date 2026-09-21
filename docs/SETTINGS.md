@@ -347,6 +347,7 @@ Field you are on running down.
 | Control | Default | What it does |
 |---|---|---|
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
+| `TagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color your tags`, or both |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `Highlight the TagWheel line` | on | Marks the line while the picker is open |
 | `Non-active Field text color` | unset | The Field names you are not standing on |

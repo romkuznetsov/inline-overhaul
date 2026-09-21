@@ -276,7 +276,7 @@ async function main(): Promise<void> {
       + "«сделай в Keyboard хедер Global hotkeys, чтобы у него были субхедеры select-all, "
       + "smart-delete, smart-enter»: заголовков стало на два меньше, а строк — столько же");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
-    assert.equal(bound.length, 150,
+    assert.equal(bound.length, 151,
       "настроек, привязанных к путям конфига. Кегль Block разведён на две строки 2026-09-19 по его слову (`Text size of the Left Block` и `Text size of the Right Block`), прежняя одна снята. Строка `Chosen Value text color` добавлена 2026-09-17 по его заказу: у неактивного Field имя поля и выбранное значение рисовались одним цветом. Тумблер `Floating button` снят "
       + "2026-08-29: за ним нет движка, а контрол без движка в панели не "
       + "показывается (Ж2, З8). Путь папки копий добавлен 2026-08-31 (10.13.2). "
@@ -373,7 +373,10 @@ async function main(): Promise<void> {
       + "человек не попросит (10.13.220). И строка `Scroller Value names` "
       + "добавлена 2026-09-20 по его заказу: коробка скроллера подписывала "
       + "соседние значения только тем, как они написаны в строке, а свой "
-      + "текст значения из `Color your tags` показать было нечем");
+      + "текст значения из `Color your tags` показать было нечем. "
+      + "И строка `TagWheel Value names` добавлена 2026-09-21 по его заказу "
+      + "`З-38`: тот же вопрос про саму полосу панели, и три положения он "
+      + "назвал сам — `Only custom name`, `Default name`, `Custom+Default name`");
   });
 
   await test("ни одна группа не потерялась молча", () => {

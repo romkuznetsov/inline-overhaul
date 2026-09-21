@@ -101,6 +101,7 @@ const V2_ONLY: Record<string, string> = {
   "transform.inline2note.backlink.placement.fallback": "куда заводится заголовок, которого в заметке нет — там же (10.13.184)",
   "visual.tags.linkShown.hoverPreview": "предпросмотр заметки по наведению у значения-ссылки, показанного своим текстом — его слово 2026-09-20 «субхедер Link view» (10.13.220); читает askWikilinkHoverPreview в decorations.js",
   "visual.tags.linkShown.draggable": "перетаскивание такого значения — там же (10.13.220); читает makeWikilinkDraggable в decorations.js",
+  "visual.tagWheel.valueNames": "чем подписано выбранное значение в самой полосе панели — его заказ 2026-09-21 (`З-38`); доезжает ключом настройки TAGWHEEL_VALUE_NAMES до valueLabelInStrip в tagwheel_core.js",
 };
 
 /* ---- каждая настройка панели имеет пару в конфиге ----------------------- */
