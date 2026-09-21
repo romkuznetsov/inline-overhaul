@@ -807,6 +807,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   color: var(--text-faint); font-family: var(--font-ui); font-style: italic;
   background: transparent; border-style: dashed;
 }
+/* Цвет и заливка объявлены дважды — вторым разом удвоенным классом, как у
+   `.io-help`. В панели одиночный класс проигрывал правилу Obsidian
+   `button:not(.clickable-icon)` (`app.css` 1.13.7, строка 7219, специфичность
+   0-1-1), и от «хоткея нет» на экране оставался один курсив (его пункт 3,
+   2026-09-22). На этой странице `app.css` нет, и дефекта не было видно —
+   обе отрисовки держим одинаковыми. */
+.io-hk.io-hk { --text-color: var(--text-normal); color: var(--text-normal); background-color: var(--background-secondary); }
+.io-hk.io-hk:hover { --text-color: var(--text-accent); color: var(--text-accent); }
+.io-hk--none.io-hk--none { --text-color: var(--text-faint); color: var(--text-faint); background-color: transparent; }
 
 /* Кнопка `to hotkeys` в заголовке любого уровня (его заказ 2026-09-20,
    пункт 12.3): акцентная против серой кнопки хоткея, и насыщенность своя у

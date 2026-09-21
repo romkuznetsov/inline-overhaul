@@ -2148,6 +2148,136 @@ async function main(): Promise<void> {
       "у нажатого «?» на шапке снова своё правило — оно повторяет общее (У-32)");
   });
 
+  await test("цвет нашей кнопки выигрывает у правила Obsidian для `button`", () => {
+    /*
+     * Тот же счёт каскада, но **со вторым листом**: у Obsidian на всякую
+     * кнопку стоит своё правило, и наш класс ему проигрывает.
+     *
+     *   button:not(.clickable-icon) {
+     *     color: var(--text-color);
+     *     background-color: var(--interactive-normal);
+     *   }
+     *
+     * Это `app.css` 1.13.7, строка 7219 — прочитано в архиве сборки, а не
+     * выведено (правило 101). Специфичность у него 0-1-1, у одиночного класса
+     * 0-1-0, и объявление проигрывает **молча**: на странице прототипа
+     * `app.css` нет, и там вид верный.
+     *
+     * Так и жила кнопка хоткея: от «not set» на экране оставался один курсив,
+     * цвет и прозрачная заливка до него не доезжали. Он написал об этом
+     * 2026-09-22, пунктом 3. Лечится удвоением класса — тем же приёмом, каким
+     * выше подняты `.io-help` и `.io-danger`.
+     *
+     * Здесь спрашивается не «есть ли удвоение», а **кто побеждает**: набор
+     * классов узла, обе стороны в одном списке, и сравнение по настоящей
+     * специфичности (классы, потом теги), а не по одному числу.
+     */
+    const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+
+    type Weighed = { selector: string; prop: string; value: string; order: number; b: number; c: number; mine: boolean };
+
+    /** Специфичность: `b` — классы, атрибуты и псевдоклассы, `c` — теги. */
+    const weigh = (sel: string): { b: number; c: number } => {
+      const b = (sel.match(/\.[A-Za-z0-9_-]+|\[[^\]]*\]|:[a-z-]+/g) || []).length;
+      const c = (sel.match(/(^|[\s>+~(])([a-z][a-z0-9]*)(?![\w-])/g) || []).length;
+      return { b, c };
+    };
+
+    const all: Weighed[] = [];
+    let order = 0;
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const body = String(m[2] || "");
+      for (const selector of String(m[1] || "").split(",")) {
+        const sel = selector.trim();
+        if (!sel || sel.startsWith("@")) continue;
+        order += 1;
+        const w = weigh(sel);
+        for (const decl of body.split(";")) {
+          const at = decl.indexOf(":");
+          if (at < 0) continue;
+          const prop = decl.slice(0, at).trim();
+          const value = decl.slice(at + 1).trim();
+          if (!prop || !value) continue;
+          const norm = prop === "background" ? "background-color" : prop;
+          if (norm !== "color" && norm !== "background-color") continue;
+          all.push({ selector: sel, prop: norm, value, order, ...w, mine: true });
+        }
+      }
+    }
+    assert.ok(all.length > 50, "правил про цвет в стилях подозрительно мало: " + all.length);
+
+    /*
+     * Лист платформы кладётся **раньше** нашего: Obsidian читает `app.css` при
+     * запуске, а наш `<style>` плагин ставит при загрузке. При равном весе
+     * выигрывало бы наше — и это в нужную сторону, пин скорее промолчит, чем
+     * покраснеет зря.
+     */
+    const PLATFORM = "button:not(.clickable-icon)";
+    const PLATFORM_DECLS: ReadonlyArray<readonly [string, string]> = [
+      ["color", "var(--text-color)"],
+      ["background-color", "var(--interactive-normal)"],
+    ];
+    for (const [prop, value] of PLATFORM_DECLS) {
+      all.unshift({ selector: PLATFORM, prop, value, order: -1, b: 1, c: 1, mine: false });
+    }
+
+    /** Кто победит на узле `<button class="…">`. Предки считаются подходящими. */
+    const winner = (classes: readonly string[], prop: string): Weighed | null => {
+      const own = new Set(classes);
+      let best: Weighed | null = null;
+      for (const r of all) {
+        if (r.prop !== prop) continue;
+        const subject = String(r.selector.split(/[\s>+~]+/).pop() || "");
+        if (/::|:hover|:focus|:active|:disabled/.test(subject)) continue;
+        const asked = subject.match(/\.[A-Za-z0-9_-]+/g) || [];
+        if (!r.mine) {
+          /* Правило платформы садится на любую нашу кнопку. */
+        } else {
+          if (!asked.length) continue;
+          if (!asked.every(c => own.has(c.slice(1)))) continue;
+          /* Тег в нашем селекторе — это `button`, и он на кнопке есть. */
+          if (/:not\(/.test(subject)) continue;
+        }
+        if (!best || r.b > best.b || (r.b === best.b && r.c > best.c)
+          || (r.b === best.b && r.c === best.c && r.order > best.order)) best = r;
+      }
+      return best;
+    };
+
+    /* Кнопка хоткея без назначенных клавиш: `io-hk io-hk--none` в трёх местах
+       (`command_reference.ts`, `binder_view.ts`, `fields_editor_view.ts`). */
+    const WANT: ReadonlyArray<readonly [string, string]> = [
+      ["color", "--text-faint"],
+      ["background-color", "transparent"],
+    ];
+    for (const [prop, want] of WANT) {
+      const w = winner(["io-hk", "io-hk--none"], prop);
+      assert.ok(w && w.mine,
+        "«хоткея нет»: " + prop + " кнопке задаёт Obsidian, а не мы — победил `"
+        + (w ? w.selector + " { " + w.prop + ": " + w.value + " }" : "никто") + "`");
+      assert.ok(String(w.value).includes(want),
+        "«хоткея нет»: " + prop + " победил не тот, кто его объявляет: `"
+        + w.selector + " { " + w.prop + ": " + w.value + " }`");
+    }
+
+    /* И назначенный хоткей: его заливка наша, а не серая кнопка Obsidian. */
+    const setFill = winner(["io-hk"], "background-color");
+    assert.ok(setFill && setFill.mine && String(setFill.value).includes("--background-secondary"),
+      "заливку назначенного хоткея задаёт не наше правило: `"
+      + (setFill ? setFill.selector + " { " + setFill.value + " }" : "никто") + "`");
+
+    /*
+     * Отрицательные контроли — строки, которые счёт путать не должен (правило
+     * 125). Обе кнопки поднимали вес раньше и тем же приёмом.
+     */
+    for (const cls of ["io-help", "io-danger"]) {
+      const w = winner([cls], "background-color");
+      assert.ok(w && w.mine,
+        "у `" + cls + "` заливку отняла Obsidian — а он поднимал вес удвоением класса ещё в августе");
+    }
+  });
+
   await test("список Fields стоит вплотную к своей строке", () => {
     /*
      * «Черты нет, но есть много пустого места между source-fields-head и

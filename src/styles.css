@@ -2776,6 +2776,26 @@
   background: transparent;
   border-style: dashed;
 }
+/*
+ * Цвет и заливка кнопки хоткея объявлены **дважды**, и второй раз — удвоенным
+ * классом. Тем же приёмом выше поднят вес у `.io-help` и `.io-danger`.
+ *
+ * Причина измерена, а не выведена (его пункт 3, 2026-09-22: «цвет текста
+ * `not set` — серым… сейчас он курсивный»). У Obsidian на всякую кнопку стоит
+ * `button:not(.clickable-icon) { color: var(--text-color); background-color:
+ * var(--interactive-normal) }` (`app.css` 1.13.7, строка 7219), и это
+ * специфичность 0-1-1 против 0-1-0 у одиночного класса: и серый цвет, и
+ * прозрачная заливка проигрывали ей молча. На экране от «хоткея нет»
+ * оставался один курсив — ровно то, что он и написал. На странице прототипа
+ * `app.css` нет, и там всё выглядело верно (У-125).
+ *
+ * Цвет отдаётся ещё и её собственной переменной `--text-color`: её объявляет
+ * правило `button` (0-0-1), и так же переопределяют её `mod-cta` и
+ * `mod-warning` самой Obsidian.
+ */
+.io-hk.io-hk { --text-color: var(--text-normal); color: var(--text-normal); background-color: var(--background-secondary); }
+.io-hk.io-hk:hover:not(:disabled) { --text-color: var(--text-accent); color: var(--text-accent); }
+.io-hk--none.io-hk--none { --text-color: var(--text-faint); color: var(--text-faint); background-color: transparent; }
 .io-hk:disabled { cursor: default; opacity: 0.55; }
 
 /* Кнопка `to hotkeys` в заголовке справочника — его заказ 2026-09-20,

@@ -1507,7 +1507,9 @@ function heightBtn(host: StubNode): StubNode {
    * пишет в те же ветки конфига, что и соседние контролы.
    *
    * Положений у него три (его слово 2026-09-19), и умолчание — `after-parent`:
-   * так поле работало всегда.
+   * так поле работало всегда. **Первым в списке оно стоит с 2026-09-22** (его
+   * пункт 12): первая строка списка читается как стандартная, и у соседних
+   * списков этого блока умолчание тоже открывает список.
    */
   const v = makeView();
   const rows = all(v.host, "io-item");
@@ -1516,8 +1518,10 @@ function heightBtn(host: StubNode): StubNode {
   assert.ok(childRow, "у Field с дочерним есть ряд Child Field");
   const pick = all(childRow, "io-select")[0] as StubNode;
   assert.deepEqual(pick.children.map(c => String(c.value || "")),
-    ["always", "after-parent", "hide"],
-    "дочерний Field работает всегда, после родителя или не работает");
+    ["after-parent", "always", "hide"],
+    "умолчание открывает список: после родителя, всегда, не работает");
+  assert.equal(String(pick.children[0]?.value || ""), "after-parent",
+    "его пункт 12: `After parent` стоит первым, потому что он и есть умолчание");
   assert.equal(pick.value, "after-parent",
     "в конфиге проверки дочерний Field включён и ждёт родителя");
   pick.value = "hide";
