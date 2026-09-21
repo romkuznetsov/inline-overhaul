@@ -982,11 +982,61 @@ async function main() {
   console.log("команд дочерних полей " + subIds.length
     + " × " + CASES.length + " строк, расходится " + subBad
     + (subIds.length ? "" : "   <-- в конфиге нет ни одной, обходу нечего гонять"));
+  /*
+   * **Каретка при открытой панели не стоит внутри полосы** — его замечание
+   * 2026-09-21 про знаки `====` у правого Block.
+   *
+   * Прячет метки `==` сама Obsidian, и ставит прячущие декорации, пока
+   * выделение **не перекрывает** узел; край считается перекрытием
+   * (`IL(range, from, to)` = `range.from <= to && range.to >= from` в
+   * `app.js` 1.13.7). Каретка на границе полосы — это уже `====` на экране.
+   *
+   * Набор проверяет это на четырёх формах; здесь тот же вопрос задаётся
+   * **всем** строкам обхода обеими сторонами: ширина признака меряется, а не
+   * назначается (правило 125).
+   *
+   * Положительный контроль — сколько форм и правда кончаются полосой. Ноль
+   * значит «мерили не то»: на строке, где полоса стоит не в конце, утверждение
+   * выполняется само собой (У-200).
+   */
+  let caretBad = 0;
+  let caretChecked = 0;
+  let caretSubject = 0;
+  for (const side of ["left", "right"]) {
+    for (const c of CASES) {
+      const out = await bench.openSession(cfg, side, c.line, Math.min(c.ch, c.line.length));
+      if (!out.opened || !out.plan) continue;
+      caretChecked++;
+      const text = String(out.control || "");
+      const marks = [];
+      for (let i = 0; i + 1 < text.length; i++) {
+        if (text[i] === "=" && text[i + 1] === "=") { marks.push([i, i + 2]); i++; }
+      }
+      if (marks.length < 2) continue;
+      const from = marks[0][0];
+      const to = marks[marks.length - 1][1];
+      if (to >= text.length) caretSubject++;
+      const ch = Number(out.cursor);
+      if (ch >= from && ch <= to) {
+        caretBad++;
+        console.log("КАРЕТКА В ПОЛОСЕ " + side + ", строка " + JSON.stringify(c.name));
+        console.log("    " + JSON.stringify(text));
+        console.log("    каретка " + ch + ", подсветка [" + from + ", " + to + "]");
+      }
+    }
+  }
+  console.log("каретка при открытой панели: " + caretChecked + " открытий, внутри полосы "
+    + caretBad + "; форм, где полоса кончает строку, " + caretSubject);
+  if (!caretSubject) {
+    console.log("    <-- ни одна форма не кончается полосой: предмета правила в обходе нет");
+    process.exitCode = 1;
+  }
+
   /* Ноль кругов — «мерить нечем», а не «всё хорошо» (У-88): у полей без
      разрешения `Show always` круг со строки не выводится, и это надо видеть. */
   console.log("кругов дочерних полей " + ringChecked + ", расходится " + ringBad
     + (ringFields.length ? "" : "   <-- ни у одного дочернего поля нет `Show always`"));
-  if (bad || subBad || ringBad) process.exitCode = 1;
+  if (bad || subBad || ringBad || caretBad) process.exitCode = 1;
 }
 
 main().catch((e) => {

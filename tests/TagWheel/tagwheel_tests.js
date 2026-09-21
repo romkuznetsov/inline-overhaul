@@ -2266,11 +2266,19 @@ function runPanelCaretOutsideHighlightSuite(core, baseRules) {
     return span.from <= ch && span.to >= ch
   }
 
+  /*
+   * Две последние формы дописаны 2026-09-21 обходом строки: на строке, где
+   * вставка панели начинается с нулевого знака, первая версия правила уводила
+   * каретку в **конец** полосы, то есть ровно на её закрывающее `==`. Четырёх
+   * образцов эту форму не находили — нашла мера шире (правило 105, У-174).
+   */
   var shapes = [
     { side: 'left', source: '- 111' },
     { side: 'right', source: '- 111' },
     { side: 'left', source: '- #work || 111' },
-    { side: 'right', source: '- #work || 111' }
+    { side: 'right', source: '- #work || 111' },
+    { side: 'left', source: '' },
+    { side: 'right', source: '' }
   ]
 
   var subjectSeen = 0
@@ -2336,6 +2344,130 @@ function runPanelCaretOutsideHighlightSuite(core, baseRules) {
  * совсем, а на строке без правого Block панель его себе выдумывала. Теперь
  * каждая строка проезжает `core.parseLine`, как в продукте (У-2, У-47).
  */
+/**
+ * Чем подписано выбранное значение в самой полосе — его заказ 2026-09-21
+ * (`З-38`), контрол `TagWheel Value names`.
+ *
+ * Три положения он назвал сам: `Default name` (как написано), `Only custom
+ * name` (свой текст из `Color your tags`), `Custom+Default name` (оба).
+ *
+ * **Спрашиваются обе половины.** Чистая функция отвечает на «что печатается
+ * вместо токена», отрисовка — на «доехало ли это до полосы»: правило,
+ * проверенное только на функции, зелено и у функции, которую никто не зовёт
+ * (У-141).
+ *
+ * **И токен остаётся токеном.** Полоса показывает подпись, а наружу отдаёт
+ * само значение — им убирается второй экземпляр из противоположного Block.
+ * Спутав их, панель вычистила бы из строки не то, что показала.
+ *
+ * Отрицательные контроли — по одному на каждое его слово: значение **без**
+ * своего текста печатается написанным при любом положении, а пустой токен
+ * остаётся пустым (иначе поле уходило бы с экрана — У-188).
+ */
+function runValueNamesSuite(core, baseRules) {
+  var PRINTED = '\u{1F3AF}'
+  var map = { '#todo': PRINTED }
+
+  assertEq(core.valueLabelInStrip('#todo', { mode: 'default', customText: map }), '#todo',
+    'Default name печатает написанное значение')
+  assertEq(core.valueLabelInStrip('#todo', { mode: 'custom', customText: map }), PRINTED,
+    'Only custom name печатает свой текст')
+  assertEq(core.valueLabelInStrip('#todo', { mode: 'both', customText: map }), PRINTED + ' #todo',
+    'Custom+Default name печатает оба, свой текст первым')
+  assertEq(core.valueLabelInStrip('#low', { mode: 'custom', customText: map }), '#low',
+    'значение без своего текста печатается написанным и при Only custom name')
+  assertEq(core.valueLabelInStrip('#low', { mode: 'both', customText: map }), '#low',
+    'и при Custom+Default name оно не удваивается')
+  assertEq(core.valueLabelInStrip('', { mode: 'custom', customText: map }), '',
+    'пустое значение остаётся пустым: подпись не выдумывает токена')
+  assertEq(core.valueLabelInStrip('#todo', null), '#todo',
+    'без настройки печатается написанное — прежнее поведение')
+
+  /*
+   * Вторая половина: доезжает ли выбор до самой полосы. Правила и разбор —
+   * настоящие, как в продукте (У-2); рядом контроль «полоса непуста» (У-152).
+   */
+  var rules = JSON.parse(JSON.stringify(baseRules))
+  rules.io = Object.assign({}, rules.io, { separator1: '||', separator2: '::' })
+
+  var leftFields = rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : []
+  var tagField = null
+  var tagToken = ''
+  var fi
+  for (fi = 0; fi < leftFields.length && !tagField; fi++) {
+    var f = leftFields[fi]
+    var vals = f && Array.isArray(f.values) ? f.values : []
+    var vi
+    for (vi = 0; vi < vals.length; vi++) {
+      var tok = String(vals[vi] && vals[vi].token || '')
+      if (tok.charAt(0) !== '#') continue
+      tagField = f
+      tagToken = tok
+      break
+    }
+  }
+  assertTrue(!!tagField, 'фикстура обязана нести поле с тегом в левом Block')
+
+  var line = '- ' + tagToken + ' || текст'
+  var parsed = core.parseLine(line, rules)
+  var state = core.makeInitialState(rules, 'left')
+  state.mode = 'left'
+  core.hydrateStateFromParsedLine(rules, state, parsed)
+  core.sanitizeState(rules, state)
+
+  var shown = { mode: 'custom', customText: {} }
+  shown.customText[tagToken] = PRINTED
+
+  var plain = core.renderControlLine(rules, state, parsed)
+  assertTrue(plain.indexOf(tagToken) !== -1,
+    'контроль: без настройки полоса и правда показывает написанное значение — ' + JSON.stringify(plain))
+  var custom = core.renderControlLine(rules, state, parsed, shown)
+  assertTrue(custom.indexOf(PRINTED) !== -1,
+    'свой текст значения доезжает до полосы — ' + JSON.stringify(custom))
+  assertTrue(custom.indexOf(tagToken) === -1,
+    'и при Only custom name написанного значения в полосе нет — ' + JSON.stringify(custom))
+
+  var both = core.renderControlLine(rules, state, parsed,
+    { mode: 'both', customText: shown.customText })
+  assertTrue(both.indexOf(PRINTED + ' ' + tagToken) !== -1,
+    'Custom+Default name показывает оба подряд — ' + JSON.stringify(both))
+
+  /*
+   * **Третья половина, и без неё правило дырявое: подпись — не токен.**
+   *
+   * Значение, которое полоса взяла себе, она же убирает из противоположного
+   * Block — точным токеном (`removeExactTokens`). Уедь туда подпись вместо
+   * токена, убирать стало бы нечего, и человек увидел бы значение дважды:
+   * один раз своим текстом в полосе, второй раз написанным в строке.
+   *
+   * Увидеть это можно только здесь и только при трёх условиях разом:
+   * `Values in the other Block = Keep them in sight`, значение написано в
+   * **противоположном** Block и у него задан свой текст. Подмена
+   * «отдать наружу подписи вместо токенов» набор до этой строки не роняла.
+   */
+  var path = require('path')
+  var builder = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
+  var keepRules = JSON.parse(JSON.stringify(rules))
+  keepRules.ui = builder.buildRulesShapeFromConfig({
+    visual: { tagWheel: { oppositeBlock: 'keep' } }
+  }).ui
+
+  var oppositeLine = core.parseLine('- 111 :: ' + tagToken, keepRules)
+  assertEq(oppositeLine.right, tagToken,
+    'контроль: значение и правда стоит в противоположном Block — ' + JSON.stringify(oppositeLine.right))
+  var oppositeState = core.makeInitialState(keepRules, 'left')
+  oppositeState.mode = 'left'
+  core.hydrateStateFromParsedLine(keepRules, oppositeState, oppositeLine)
+  core.sanitizeState(keepRules, oppositeState)
+
+  var kept = core.renderControlLine(keepRules, oppositeState, oppositeLine,
+    { mode: 'custom', customText: shown.customText })
+  assertTrue(kept.indexOf(PRINTED) !== -1,
+    'контроль: полоса и правда показывает это значение своим текстом — ' + JSON.stringify(kept))
+  assertEq(kept.split(tagToken).length - 1, 0,
+    'взятое полосой значение вторым экземпляром в строке не остаётся — ' + JSON.stringify(kept))
+}
+
 function runOppositeBlockSuite(core, baseRules) {
   var path = require('path')
   /* Форма правил выводится из конфига одним модулем — `pkm_rules_shape`.
@@ -2947,6 +3079,7 @@ function runNode() {
   runLinkFieldOrderSuite()
   runPanelHighlightSuite(core, rules)
   runPanelCaretOutsideHighlightSuite(core, rules)
+  runValueNamesSuite(core, rules)
   runOppositeBlockSuite(core, rules)
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()

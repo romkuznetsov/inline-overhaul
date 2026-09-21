@@ -12,7 +12,13 @@ var TAGWHEEL_SCROLLER_ENABLED_OPTION = 'TagWheel scroller enabled'
 var TAGWHEEL_SCROLLER_DIRECTION_OPTION = 'TagWheel scroller direction'
 var TAGWHEEL_SCROLLER_SIZE_OPTION = 'TagWheel scroller size'
 var TAGWHEEL_SCROLLER_LABELS_OPTION = 'TagWheel scroller labels'
-var TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION = 'TagWheel scroller custom text'
+/* Карта своих текстов у значений — её спрашивают двое: коробка скроллера
+   и полоса панели (`З-38`). Имя ключа названо по предмету, а не по первому
+   читателю (У-165). */
+var TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION = 'TagWheel custom value text'
+/* Чем подписано значение в самой полосе панели — его заказ 2026-09-21
+   (`З-38`): `default`, `custom`, `both`. */
+var TAGWHEEL_VALUE_NAMES_OPTION = 'TagWheel value names'
 /* Цвета коробки скроллера: десятое исключение к З3, разрешение заказчика
    2026-09-02 по замечанию D6 (PRD 10.13.15). Пусто — цвета темы. */
 var TAGWHEEL_SCROLLER_FILL_OPTION = 'TagWheel scroller fill color'
@@ -141,6 +147,34 @@ function withKeptPrefix(originalLine, control) {
 }
 
 /**
+ * **Отрезок подсветки, которым нарисована полоса панели.**
+ *
+ * Метки `==` ставит сам движок панели вокруг своей полосы, значит они лежат
+ * во **вставленном**, а не в тексте человека: искать их во всей строке
+ * нельзя — `==` человек пишет и сам. Поэтому границы берутся из плана записи,
+ * а внутри его отрезков ищется первая и последняя пара знаков.
+ *
+ * Плана нет, отрезков нет, пары одной — подсветки нет, и уводить каретку
+ * неоткуда. Это ответ, а не отказ.
+ */
+function panelStripHighlightSpan(src, plan) {
+  var ranges = plan && Array.isArray(plan.inserted) ? plan.inserted : []
+  if (!ranges.length) return null
+  var marks = []
+  var i
+  for (i = 0; i < ranges.length; i++) {
+    var from = Math.max(0, Number(ranges[i][0]) || 0)
+    var to = Math.min(src.length, Number(ranges[i][1]) || 0)
+    var at
+    for (at = from; at + 1 < to; at++) {
+      if (src.charAt(at) === '=' && src.charAt(at + 1) === '=') { marks.push(at); at++ }
+    }
+  }
+  if (marks.length < 2) return null
+  return [marks[0], marks[marks.length - 1] + 2]
+}
+
+/**
  * **Каретка не стоит внутри полосы панели** (его замечание 2026-09-21:
  * «при открытии tagwheel left панель открывается без `====`, а right — с
  * ними; хочу, чтобы `====` не отображались при открытии»).
@@ -150,32 +184,36 @@ function withKeptPrefix(originalLine, control) {
  * метки `==` — работа Obsidian, и делает она это по одному правилу:
  * прячущие декорации ставятся, **пока выделение не перекрывает узел**.
  * Прочитано в `app.js` 1.13.7, предикат `IL(range, from, to)` =
- * `range.from <= to && range.to >= from`, то есть край считается
- * перекрытием, и набор имён с `"highlight"` — `a3`.
+ * `range.from <= to && range.to >= from`, то есть **край считается
+ * перекрытием**, и набор имён с `"highlight"` — `a3`.
  *
  * Каретка после отрисовки встаёт в конец строки. У левого Block полоса
  * стоит в начале, и конец строки от неё далеко — метки спрятаны. У правого
  * полоса **кончает** строку, каретка садится на её закрывающее `==` — и
  * Obsidian показывает метки сырыми. Разница между Block была ровно в этом.
  *
- * Поэтому каретка уводится к началу вставки. Отрезки вставки приносит план
- * записи — искать `==` в строке нельзя: они бывают и в тексте человека.
- * Если вставка начинается не с пробела, каретка встаёт на знак раньше: её
- * место на границе вставки — это и есть `range.from` подсветки.
+ * **Спрашивается сама подсветка, а не границы вставки.** Первая версия
+ * считала полосой весь вставленный кусок и на строке, где вставка начинается
+ * с нулевого знака, уводила каретку в её **конец** — то есть ровно на
+ * закрывающее `==`. Форму нашёл обход строки (`node tools/line_matrix.js`) на
+ * пустой строке с правым Block: `:: ==**[Due]** ` + '`' + `Now` + '`' + `==`, каретка 22
+ * при подсветке [3, 22]. Починка вида открывает следующую форму того же
+ * дефекта (У-174), и увидеть её могла только мера шире четырёх образцов
+ * (правило 125).
  *
- * Строка, у которой вставка начинается с самого начала, каретку левее
- * увести не может — тогда она уходит за конец вставки, где подсветка уже
- * закрылась.
+ * Сторона выбирается по месту: есть знак слева от подсветки — каретка туда,
+ * иначе за её конец. Обе стороны строго снаружи, потому что край перекрывает.
+ * Выйти некуда только у строки, которая **вся** подсветка, — такой у панели
+ * не бывает: свой разделитель полоса ставит всегда.
  */
 function cursorOutsidePanelStrip(text, plan, ch) {
   var src = String(text || '')
-  var ranges = plan && Array.isArray(plan.inserted) ? plan.inserted : []
-  if (!ranges.length) return ch
-  var from = Number(ranges[0][0]) || 0
-  var to = Number(ranges[ranges.length - 1][1]) || 0
-  if (ch < from || ch > to) return ch
-  if (from > 0) return /\s/.test(src.charAt(from)) ? from : from - 1
-  return Math.min(src.length, to)
+  var span = panelStripHighlightSpan(src, plan)
+  if (!span) return ch
+  if (ch < span[0] || ch > span[1]) return ch
+  if (span[0] > 0) return span[0] - 1
+  if (span[1] < src.length) return span[1] + 1
+  return ch
 }
 
 function isLowSurrogate(code) {
@@ -474,8 +512,11 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (!out.scrollerLabels && typeof qa[TAGWHEEL_SCROLLER_LABELS_OPTION] === 'string') {
     out.scrollerLabels = qa[TAGWHEEL_SCROLLER_LABELS_OPTION]
   }
-  if (out.scrollerCustomText == null && typeof qa[TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION] === 'string') {
-    out.scrollerCustomText = qa[TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION]
+  if (out.customValueText == null && typeof qa[TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION] === 'string') {
+    out.customValueText = qa[TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION]
+  }
+  if (!out.valueNames && typeof qa[TAGWHEEL_VALUE_NAMES_OPTION] === 'string') {
+    out.valueNames = qa[TAGWHEEL_VALUE_NAMES_OPTION]
   }
   if (out.scrollerFillColor == null && typeof qa[TAGWHEEL_SCROLLER_FILL_OPTION] === 'string') {
     out.scrollerFillColor = qa[TAGWHEEL_SCROLLER_FILL_OPTION]
@@ -553,6 +594,48 @@ function planFieldStep(input) {
   }
 }
 
+/**
+ * Карта «чем печатается это значение вместо себя» — **один разбор на двоих**.
+ *
+ * Спрашивают её коробка скроллера (его заказ 2026-09-20) и сама полоса панели
+ * (`З-38`, его заказ 2026-09-21). Собирает карту дом правила
+ * (`buildTagCustomTextMap`), тот же, каким пузырь в заметке решает то же
+ * самое; сюда она приезжает строкой настройки.
+ *
+ * Разбор стоял внутри конфига коробки и выполнялся **только** при
+ * `Scroller Value names = custom`: второму читателю карта при выключенной
+ * коробке приезжала бы пустой, а выглядело бы это как «своих текстов нет».
+ *
+ * Строку правит не человек, но сломанной она быть может: это проба, и ответ
+ * «нет» здесь ответ — значения подписываются как написано.
+ */
+function readCustomValueTextMap(raw) {
+  try {
+    var parsed = JSON.parse(String((raw && raw.customValueText) || '{}'))
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+  } catch (_eCustomText) {
+    /* Карта приезжает строкой настройки и бывает сломанной; пустая карта —
+       законное значение, а не отказ. */
+  }
+  return {}
+}
+
+/**
+ * Чем подписано значение **в самой полосе** — его заказ 2026-09-21 (`З-38`).
+ *
+ * Три положения, названные его словами: `Default name` (как написано, прежнее
+ * поведение), `Only custom name` (свой текст из `Color your tags`) и
+ * `Custom+Default name` (оба, свой текст первым).
+ *
+ * Вопрос это **не тот же**, что у коробки: коробка подписывает соседние
+ * значения, полоса — выбранное. Два контрола, одна карта.
+ */
+function normalizeValueNamesConfig(raw) {
+  var modeRaw = String((raw && raw.valueNames) || '').trim().toLowerCase()
+  var mode = modeRaw === 'custom' || modeRaw === 'both' ? modeRaw : 'default'
+  return { mode: mode, customText: mode === 'default' ? {} : readCustomValueTextMap(raw) }
+}
+
 function normalizeScrollerConfig(input) {
   var raw = input && typeof input === 'object' ? input : {}
   var directionRaw = String(raw.scrollerDirection || '').trim().toLowerCase()
@@ -582,17 +665,7 @@ function normalizeScrollerConfig(input) {
    */
   var labelsRaw = String(raw.scrollerLabels || '').trim().toLowerCase()
   var labels = labelsRaw === 'custom' ? 'custom' : 'value'
-  var customText = {}
-  if (labels === 'custom') {
-    try {
-      var parsed = JSON.parse(String(raw.scrollerCustomText || '{}'))
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) customText = parsed
-    } catch (_eLabels) {
-      /* Проба: карта приезжает строкой, и разобрать её может не выйти. Ответ
-         «нет» — это ответ: коробка подписывает значения как написано. */
-      customText = {}
-    }
-  }
+  var customText = readCustomValueTextMap(raw)
   return {
     enabled: raw.scrollerEnabled === true,
     direction: direction,
@@ -668,6 +741,12 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_SCROLLER_ENABLED_OPTION = String(keys.TAGWHEEL_SCROLLER_ENABLED || TAGWHEEL_SCROLLER_ENABLED_OPTION)
     TAGWHEEL_SCROLLER_DIRECTION_OPTION = String(keys.TAGWHEEL_SCROLLER_DIRECTION || TAGWHEEL_SCROLLER_DIRECTION_OPTION)
     TAGWHEEL_SCROLLER_SIZE_OPTION = String(keys.TAGWHEEL_SCROLLER_SIZE || TAGWHEEL_SCROLLER_SIZE_OPTION)
+    /* Три ключа подписей стояли тут же и не переносились: значение совпадало с
+       литералом, и расхождения не было **пока**. Ключ, которого нет в этом
+       переносе, молча остаётся на своём литерале (У-237). */
+    TAGWHEEL_SCROLLER_LABELS_OPTION = String(keys.TAGWHEEL_SCROLLER_LABELS || TAGWHEEL_SCROLLER_LABELS_OPTION)
+    TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION = String(keys.TAGWHEEL_CUSTOM_VALUE_TEXT || TAGWHEEL_CUSTOM_VALUE_TEXT_OPTION)
+    TAGWHEEL_VALUE_NAMES_OPTION = String(keys.TAGWHEEL_VALUE_NAMES || TAGWHEEL_VALUE_NAMES_OPTION)
     TAGWHEEL_SCROLLER_FILL_OPTION = String(keys.TAGWHEEL_SCROLLER_FILL || TAGWHEEL_SCROLLER_FILL_OPTION)
     TAGWHEEL_SCROLLER_TEXT_OPTION = String(keys.TAGWHEEL_SCROLLER_TEXT || TAGWHEEL_SCROLLER_TEXT_OPTION)
     TAGWHEEL_EDGE_MODE_OPTION = String(keys.TAGWHEEL_EDGE_MODE || TAGWHEEL_EDGE_MODE_OPTION)
@@ -2186,6 +2265,7 @@ async function runTagWheel(input, quickAddSettings) {
 
   var runtimeInput = buildTagWheelRuntimeInput(input, quickAddSettings)
   var scrollerCfg = normalizeScrollerConfig(runtimeInput)
+  var valueNamesCfg = normalizeValueNamesConfig(runtimeInput)
 
   var app_ = resolveTagWheelApp(runtimeInput) || preApp
   if (!app_) {
@@ -2419,6 +2499,7 @@ async function runTagWheel(input, quickAddSettings) {
       originalCursorCh: cursor.ch,
       keyHandler: null,
       scrollerCfg: scrollerCfg,
+      valueNamesCfg: valueNamesCfg,
       edgeMode: normalizeEdgeMode(runtimeInput.edgeMode),
       scrollerOverlay: null
     }
@@ -2495,7 +2576,8 @@ async function runTagWheel(input, quickAddSettings) {
         if (state.active) {
           /* Вид панели — не правка человека, и в историю отмен он не идёт. */
           drawPanelLine(state, withKeptPrefix(state.originalLine,
-            state.core.renderControlLine(state.rules, state.session, state.parsedLine)))
+            state.core.renderControlLine(state.rules, state.session, state.parsedLine,
+              state.valueNamesCfg)))
         }
         e.preventDefault()
         e.stopPropagation()
@@ -2526,7 +2608,7 @@ async function runTagWheel(input, quickAddSettings) {
     window.addEventListener('keydown', state.keyHandler, true)
 
     drawPanelLine(state, withKeptPrefix(originalLine,
-      core.renderControlLine(rules, session, parsedLine)))
+      core.renderControlLine(rules, session, parsedLine, valueNamesCfg)))
     /*
      * Успешное открытие молчит.
      *
