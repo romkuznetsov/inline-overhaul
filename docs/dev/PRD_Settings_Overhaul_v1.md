@@ -2343,6 +2343,27 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 перекрывает. Скриншот заказчика 12:15 воспроизводится **старым** деревом и не
 воспроизводится новым (правило 108, правило 173).
 
+#### 10.13.230 Два цвета у ссылки, показанной как написано (`З-37`) (2026-09-21)
+
+**Его заказ `З-37`**, уточнённый `В-174` (вариант «а») и `В-176`: «оба, как заказывали».
+
+**Цена спрошена до правки, и это было не формальностью.** `В-174` отвечал на вопрос «какие ссылки», а не «видно ли скобки». Прочитав `app.js` 1.13.7, я увидел второе: метки разметки Obsidian снимает со строки заменой без виджета, пока выделение не перекрывает узел (У-256), и токены у неё свои — `formatting-link formatting-link-start`, `formatting-link-end`, цель `cm-hmd-internal-link`. То есть контрол «цвет скобок» почти всегда красил бы то, чего на экране нет. Неверно названная цена делает выбор заказчика недействительным (У-171, правило 92), поэтому вопрос задан заново — и ответ тот же.
+
+**Ветка своя.** `visual.tags.linkAsWritten.targetColor` и `.bracketsColor`. Соседние `linkShown.*` — про противоположный случай, где ссылка заменена своим текстом; одно имя на два предмета уже стоило шести неоткрывавшихся подсказок (У-103).
+
+**Разбор ссылки на три куска объявлен один раз** — `writtenLinkParts` в `editor_visuals_config.js`, рядом с именами классов. Образец спрашивает ровно то, что видно, и цель ссылки по-прежнему выводит общий дом (`wikilinkTargetOf`): это разные вопросы.
+
+**Кто выигрывает каскад — измерено браузером, а не выведено.** Наша пометка и пометка Obsidian накрывают один отрезок, и наш узел ложится **внутрь** её узла: значит цвет, объявленный на самом узле, выигрывает наследованием, и ни `!important`, ни поднятия веса не нужно — у обоих цена шире предмета (У-166). Перевернись устройство — гейт покраснеет: он спрашивает цвет у самого глубокого узла с теми же буквами, а не у узла с удобным классом.
+
+**Подделка Obsidian в браузерном шаге дополнена двумя половинами.** Первая — свой цвет у текста ссылки: без него «наш цвет выиграл» проверялось бы отсутствием соперника (У-88). Вторая — правило места каретки: скобки прячутся только пока выделение не перекрывает узел, и без этой половины подделка была бы строже оригинала (У-45), а второй цвет проверялся бы отсутствием предмета.
+
+**Чем закреплено.** Три подмены браузерного шага, все три краснеют: цвет не ставится вовсе (`link-written-not-painted`), цель и скобки красятся одним цветом (`link-written-one-color`), правило стилей теряет свой узел (`link-written-loses-cascade`). Значения цветов в настройках страницы **разведены нарочно** (У-147) и оба отличаются от цвета подделки.
+
+**Две находки по дороге, обе в моих инструментах.**
+
+1. **Сборщик схемы считал скобки в комментарии записью.** `Decoration.replace({})` внутри объяснения к этой правке дало в схему пустое `{}` — и все семь шагов были зелёные: пустая запись не нарушает ни одного правила, она просто есть. Это У-96 в лоб: у своего разборщика обязана быть проверка **на симптом**. Теперь запись без `kind` роняет генерацию с именем группы.
+2. **Подмена браузерного шага с неверным именем файла не применялась вовсе.** Лист стилей страница знает как `styles.css`; запись `src/styles.css` уходила в сборщик, где `.css` не грузится, и прогон печатал «проверка осталась зелёной — она не смотрит на то, что подменили». Я едва не снял по этому живое правило как мёртвое (У-151). Теперь такое имя роняет прогон.
+
 #### 10.13.229 Приписка «(recommended)» у варианта списка (2026-09-21)
 
 **Его пункт 10:** «в cursor-policy сейчас `end of your text (recommended) (default)` исправь на `end of your text (default)` (и проверь, чтобы такого не было в других контролах)».
@@ -10337,7 +10358,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (70)
+### Пути, которых не было в описи v1.0 (72)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -10367,6 +10388,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tags.blockFill.widthPct` | Stripe width (`tags-block-fill-width`) | Inline appearance |
 | `visual.tags.linkShown.hoverPreview` | Preview on hover (`link-hover-preview`) | Inline appearance |
 | `visual.tags.linkShown.draggable` | Drag to move (`link-draggable`) | Inline appearance |
+| `visual.tags.linkAsWritten.targetColor` | Link target color (`link-target-color`) | Inline appearance |
+| `visual.tags.linkAsWritten.bracketsColor` | Link brackets color (`link-brackets-color`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -17629,7 +17652,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 57 | 12 |
+| 5 | Visual | `features.visual.enabled` | 7 | 59 | 12 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 9 | 1 |
 
@@ -18500,6 +18523,14 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - desc: A Value shown as your own text can be dragged into another note
   - tip: Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there
   - старые названия для поиска: «Link drag», «Custom link drag»
+- **Link target color** — `link-target-color`, `color`, path `visual.tags.linkAsWritten.targetColor`, default `""`
+  - desc: The name inside a link Value written as <code>[[the note name]]</code>
+  - tip: This paints the name between the brackets, and only for a Value of a link Field left on <code>Show</code> = <code>default</code> — the one your line carries as <code>[[the note name]]</code>. Ordinary links you typed into a note are not touched: they are not Values of anything. Empty means the color your theme gives a link
+  - старые названия для поиска: «Link color», «Wikilink color», «Link text color»
+- **Link brackets color** — `link-brackets-color`, `color`, path `visual.tags.linkAsWritten.bracketsColor`, default `""`
+  - desc: The <code>[[</code> and <code>]]</code> around that name
+  - tip: The brackets are their own half of the link, and this colors them apart from the name. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes the brackets off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives them
+  - старые названия для поиска: «Bracket color», «Wikilink brackets»
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)
 
@@ -18887,6 +18918,8 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
 | `visual.tags.emptyBubblePct` | slider | `100` |
+| `visual.tags.linkAsWritten.bracketsColor` | color | `""` |
+| `visual.tags.linkAsWritten.targetColor` | color | `""` |
 | `visual.tags.linkShown.draggable` | toggle | `false` |
 | `visual.tags.linkShown.hoverPreview` | toggle | `false` |
 | `visual.tags.opacityLeft` | slider | `100` |

@@ -78,6 +78,8 @@ const V2_ONLY: Record<string, string> = {
   "editor.smartEnter.enabled": "Smart Enter — заказ 2026-09-12 (10.13.88); читает handleSmartEnterKeymap в smart_enter_engine.js",
   "editor.smartEnter.newLinePrefix": "чем начинается новая строка: тем же знаком, ничем или номером — решение заказчика 2026-09-13 (10.13.88); читает planSmartEnter",
   "editor.smartEnter.scope": "где клавиша работает: вся строка или только слот текста — заказ 2026-09-13 (10.13.91); читает planSmartEnter",
+  "visual.tags.linkAsWritten.targetColor": "цвет цели ссылки, показанной как написано — его заказ `З-37`, ответ `В-174`; читает createTagVisualDecorationExtension в decorations.js",
+  "visual.tags.linkAsWritten.bracketsColor": "цвет скобок той же ссылки — там же; цена скобок названа ему и принята (`В-176`)",
   "editor.smartPaste.enabled": "Smart paste — его пункт 9 от 2026-09-21 (`З-31`, `З-32`); читает handleSmartPaste в smart_paste_engine.js",
   "editor.smartDelete.enabled": "Smart Delete — заказ 2026-09-05 (10.13.32); читает handleSmartDeleteKeymap в smart_delete_engine.js",
   "editor.smartDelete.dropPrefix": "снимать ли Prefix приехавшей строки — там же (10.13.32 Д7)",

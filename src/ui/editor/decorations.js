@@ -60,6 +60,9 @@ const {
   buildBlockStyleCss,
   blockValueStyleVars,
   blockValueClassFor,
+  LINK_TARGET_CLASS,
+  LINK_BRACKETS_CLASS,
+  writtenLinkParts,
   buildElementMarkersFromConfig,
   buildFieldTagVisualMap,
   buildGlobalTagVisualMap,
@@ -995,6 +998,42 @@ function buildTagVisualLayer(view, plugin) {
               }),
             });
             continue;
+          }
+          /*
+           * Ссылка осталась показанной **как написано** — два цвета, `З-37`
+           * (его ответ `В-174`, вариант «а»): один красит цель, второй сами
+           * скобки. Пометки ставятся **поверх** общей пометки зоны, а не
+           * вместо неё: прозрачность, кегль и уровень у ссылки остаются те же.
+           *
+           * Цвет приезжает переменной, вид объявлен классом (Р7 каталога), а
+           * чужое правило на том же месте **гасится**, а не закрашивается
+           * (У-66): `color: inherit` у узла Obsidian внутри нашего.
+           *
+           * **Цена скобок названа и принята** (`В-176`): их Obsidian снимает с
+           * экрана заменой без виджета, пока выделение не перекрывает узел
+           * (`app.js` 1.13.7, У-256) — то есть красить там нечего, и цвет виден
+           * на строке с кареткой и в предпросмотре панели.
+           */
+          const parts = writtenLinkParts(token, from, to);
+          if (parts) {
+            if (visuals.linkTargetColor && parts.targetTo > parts.targetFrom) {
+              ranges.push({
+                from: parts.targetFrom,
+                to: parts.targetTo,
+                deco: cmView.Decoration.mark({
+                  class: LINK_TARGET_CLASS,
+                  attributes: { style: "--io-link-target: " + visuals.linkTargetColor + ";" },
+                }),
+              });
+            }
+            if (visuals.linkBracketsColor) {
+              const brackets = cmView.Decoration.mark({
+                class: LINK_BRACKETS_CLASS,
+                attributes: { style: "--io-link-brackets: " + visuals.linkBracketsColor + ";" },
+              });
+              ranges.push({ from: parts.openFrom, to: parts.openTo, deco: brackets });
+              ranges.push({ from: parts.closeFrom, to: parts.closeTo, deco: brackets });
+            }
           }
         }
         /*

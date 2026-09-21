@@ -132,6 +132,14 @@ const CFG = {
        * набор проверок.
        */
       linkShown: { hoverPreview: true, draggable: true },
+      /*
+       * Два цвета ссылки, показанной как написано (`З-37`). Оба заданы
+       * нарочно и **разными** значениями: при одинаковых переворот правила
+       * «цель и скобки красятся врозь» прошёл бы незамеченным (У-147). Ни
+       * один не равен цвету подделки Obsidian (`#705dcf`) — иначе «наш цвет
+       * выиграл» выполнялось бы совпадением.
+       */
+      linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" },
       byTagTail: null,
       byTag: {
         type: { "#todo": { fillColor: "#0008f0", textColor: "#f0eaea", visibility: "default" } },
@@ -302,10 +310,24 @@ function buildLinkMarks(view) {
       if (i < 0) break;
       const j = line.text.indexOf("]]", i);
       if (j < 0) break;
-      out.push(Decoration.replace({}).range(line.from + i, line.from + i + 2));
+      /*
+       * **Скобки прячутся не всегда** — правило платформы, и оно про место
+       * каретки (У-256): метки разметки Obsidian снимает декорацией, пока
+       * выделение не перекрывает узел. В `app.js` 1.13.7 это
+       * `IL(range, from, to)` = `range.from <= to && range.to >= from`, и
+       * край считается перекрытием.
+       *
+       * Без этой половины подделка была бы добрее оригинала ровно наоборот
+       * (У-45): она прятала бы скобки всегда, и цвет скобок проверялся бы
+       * отсутствием предмета.
+       */
+      const from = line.from + i;
+      const to = line.from + j + 2;
+      const touched = view.state.selection.ranges.some((r) => r.from <= to && r.to >= from);
+      if (!touched) out.push(Decoration.replace({}).range(from, from + 2));
       out.push(Decoration.mark({ class: "io-probe-link cm-underline" })
-        .range(line.from + i + 2, line.from + j));
-      out.push(Decoration.replace({}).range(line.from + j, line.from + j + 2));
+        .range(from + 2, line.from + j));
+      if (!touched) out.push(Decoration.replace({}).range(line.from + j, to));
       at = j + 2;
     }
   }
@@ -402,6 +424,69 @@ window.__ioSetCursor = function (lineNumber) {
   const line = view.state.doc.line(Number(lineNumber) || 1);
   view.dispatch({ selection: { anchor: line.to, head: line.to } });
   return settled();
+};
+
+/**
+ * Два цвета ссылки, показанной как написано (`З-37`) — вычисленными
+ * величинами, а не объявлениями.
+ *
+ * Спрашивается **кто выиграл** цвет у одного и того же отрезка: текст ссылки
+ * рисует Obsidian со своим `color`, наш слой ставит поверх свою пометку, и
+ * решает это каскад, а не рассуждение (У-67). Скобки отдельной строкой:
+ * платформа снимает их с экрана, пока каретка не на узле, и `null` здесь —
+ * ответ, а не отказ.
+ *
+ * `at` ставит каретку внутрь ссылки: без этого скобок на странице нет вовсе,
+ * и второй цвет проверялся бы отсутствием предмета (У-113).
+ */
+window.__ioLinkColors = async function (needle, caretInside) {
+  let lineNo = 0;
+  for (let n = 1; n <= view.state.doc.lines; n++) {
+    if (view.state.doc.line(n).text.includes(needle)) { lineNo = n; break; }
+  }
+  if (!lineNo) return { found: false };
+  const line = view.state.doc.line(lineNo);
+  const at = line.from + line.text.indexOf(needle);
+  const head = caretInside ? at + 3 : line.from;
+  view.dispatch({ selection: { anchor: head, head } });
+  await settled();
+  /*
+   * **Спрашивается одна строка, а не вся страница.** Первая попытка брала
+   * первый узел каждого вида по всему документу — и сравнивала цвет нашей
+   * пометки на одной строке с цветом узла платформы на другой. Проба врала
+   * правдоподобно (У-173): числа были настоящие, вопрос чужой.
+   */
+  const host = Array.from(document.querySelectorAll(".cm-line"))
+    .find((n) => (n.textContent || "").includes(needle.slice(2, -2)));
+  if (!host) return { found: false };
+  const pick = (sel) => {
+    const nodes = Array.from(host.querySelectorAll(sel));
+    const hit = nodes.find((n) => (n.textContent || "").length > 0);
+    return hit ? getComputedStyle(hit).color : null;
+  };
+  /*
+   * Что человек видит **на самих буквах**: у нашей пометки и у узла платформы
+   * один текст, и решает тот из них, что лежит внутри. Спрашивается поэтому
+   * самый глубокий узел с этими буквами, а не тот, чей класс удобнее.
+   */
+  const deepest = () => {
+    let node = Array.from(host.querySelectorAll(".io-linkwritten__target"))
+      .find((n) => (n.textContent || "").length > 0);
+    if (!node) return null;
+    for (;;) {
+      const inner = Array.from(node.children)
+        .find((c) => (c.textContent || "") === (node.textContent || ""));
+      if (!inner) break;
+      node = inner;
+    }
+    return getComputedStyle(node).color;
+  };
+  return {
+    found: true,
+    target: pick(".io-linkwritten__target"),
+    brackets: pick(".io-linkwritten__mark"),
+    shown: deepest(),
+  };
 };
 
 /**

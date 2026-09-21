@@ -124,6 +124,18 @@ function getTagVisualsFromConfig(cfg) {
      */
     linkShownHover: readCfgPath(cfg, "visual.tags.linkShown.hoverPreview") === true,
     linkShownDrag: readCfgPath(cfg, "visual.tags.linkShown.draggable") === true,
+    /*
+     * Два цвета ссылки, показанной **как написано** (`З-37`, его ответ
+     * `В-174`, вариант «а»). Предмет — значение поля-ссылки, которое стоит в
+     * строке как `[[имя]]`; соседние два тумблера, наоборот, про случай, где
+     * ссылка заменена своим текстом, и потому ветка здесь **своя**.
+     *
+     * Пусто значит «взять у темы»: смысл живёт на шве, а не в значении (У-60),
+     * и `normalizeHexColorInput` отдаёт пустую строку на всём, что цветом не
+     * является.
+     */
+    linkTargetColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.linkAsWritten.targetColor")),
+    linkBracketsColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.linkAsWritten.bracketsColor")),
     separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
     separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
     stripActive: strip.active === true,
@@ -779,6 +791,36 @@ function lineBelongsToPlugin(lineText, sep1, sep2) {
  * Величины по-прежнему едут стилем — они считаются на отрисовке.
  */
 const BLOCK_VALUE_CLASS = "io-blockvalue";
+
+/*
+ * Имена кусков ссылки, показанной как написано (`З-37`) — **одно объявление
+ * на код и стили** (У-103). `io-link__target` и `io-link__mark` тут заняты:
+ * так зовутся куски ссылки в предпросмотре панели, и её правила — со своим
+ * кеглем — накрыли бы отрезок в заметке.
+ */
+const LINK_TARGET_CLASS = "io-linkwritten__target";
+
+const LINK_BRACKETS_CLASS = "io-linkwritten__mark";
+
+/**
+ * Три куска ссылки, показанной как написано: скобка, цель, скобка.
+ *
+ * Образец спрашивает ровно то, что видно, и **своего разбора ссылки здесь
+ * нет**: цель и подпись после черты — вопрос другой, на него отвечает
+ * `wikilinkTargetOf` в общем доме. Токен, не похожий на `[[…]]`, кусков не
+ * даёт вовсе — пустой ответ и есть ответ (У-209).
+ */
+function writtenLinkParts(token, from, to) {
+  const src = String(token == null ? "" : token);
+  if (to - from !== src.length) return null;
+  if (src.length < 5) return null;
+  if (src.slice(0, 2) !== "[[" || src.slice(-2) !== "]]") return null;
+  return {
+    openFrom: from, openTo: from + 2,
+    targetFrom: from + 2, targetTo: to - 2,
+    closeFrom: to - 2, closeTo: to,
+  };
+}
 
 /** Нужен ли этому куску класс «значение в Block». Ответ один на все дороги. */
 function blockValueClassFor(entry, visuals) {
@@ -2252,6 +2294,9 @@ module.exports = {
   tagVisualSizingForZone,
   BLOCK_VALUE_CLASS,
   blockValueClassFor,
+  LINK_TARGET_CLASS,
+  LINK_BRACKETS_CLASS,
+  writtenLinkParts,
   lineBelongsToPlugin,
   formatTagwheelDisplayToken,
   TAGWHEEL_FILL_STYLE_CSS,

@@ -152,6 +152,15 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   cssVar(node, "--io-blockfill-color", bandColor || "var(--text-accent)");
   cssVar(node, "--io-blockfill-opacity", String(num(ctx, "visual.tags.blockFill.opacity") / 100));
   /*
+   * Два цвета ссылки, показанной **как написано** (`З-37`, его ответ `В-174`):
+   * цель и скобки красятся врозь. Пусто значит «взять у темы» — и запасное
+   * значение то самое, чем ссылка красилась до этой пары (У-60).
+   */
+  const linkTarget = String(ctx.get("visual.tags.linkAsWritten.targetColor") || "").trim();
+  const linkBrackets = String(ctx.get("visual.tags.linkAsWritten.bracketsColor") || "").trim();
+  cssVar(node, "--io-link-target", linkTarget || "var(--text-accent)");
+  cssVar(node, "--io-link-brackets", linkBrackets || "var(--text-accent)");
+  /*
    * На сколько подложка выходит за написанное (S7). Высота — в точках. Ширина
    * — шкала с переломом на середине, и три её ориентира назвал заказчик
    * (2026-09-09): ноль — по написанному, пятьдесят — до разделителя, сотня —
@@ -222,6 +231,9 @@ const TAG_PATHS = [
    */
   "pkm.fields",
   "visual.tags.byTag",
+  /* Цвета ссылки, показанной как написано (`З-37`): предпросмотр обязан
+     показывать их сразу, а не с первой правки соседней настройки (У-24). */
+  "visual.tags.linkAsWritten",
 ] as const;
 
 /**
@@ -869,6 +881,24 @@ export const linePreview: CustomRender = (host, ctx) => {
  */
 const TAG_SLOTS = ["status", "priority"] as const;
 
+/*
+ * Ссылка, показанная **как написано**, — три куска, а не один (`З-37`):
+ * скобка, цель, скобка. Иначе второму цвету красить нечего. Не разобралась
+ * на три — рисуется одним куском: своего разбора ссылки здесь нет, образец
+ * спрашивает ровно то, что видно. Вторая отрисовка того же — прототип
+ * (`renderWrittenLink`, правило 41).
+ */
+export function drawWrittenLink(host: El, text: string): El {
+  const src = String(text || "");
+  const m = /^(\[\[)([\s\S]*)(\]\])$/.exec(src);
+  if (!m) return el(host, "span", "io-link", src);
+  const box = el(host, "span", "io-link");
+  el(box, "span", "io-link__mark", m[1]);
+  el(box, "span", "io-link__target", m[2]);
+  el(box, "span", "io-link__mark", m[3]);
+  return box;
+}
+
 /**
  * Предпросмотр оформления тегов. Показывает то, что настраивает группа: два
  * Value слева, текст, и справа элемент со ссылкой — они не теги и пузырей не
@@ -905,7 +935,7 @@ export const tagPreview: CustomRender = (host, ctx) => {
 
     const right = el(line, "span", "io-line__side io-line__side--right");
     if (text && text.element) el(right, "span", "io-elem", askText(ctx, previewKey("tag-preview", "element"), text.element));
-    if (text && text.link) el(right, "span", "io-link", askText(ctx, previewKey("tag-preview", "link"), text.link));
+    if (text && text.link) drawWrittenLink(right, askText(ctx, previewKey("tag-preview", "link"), text.link));
 
     /* Пример помечается, иначе человек с настроенными Fields решит, что
        панель показывает его собственные (ПЗ2). */

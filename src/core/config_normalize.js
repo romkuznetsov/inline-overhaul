@@ -989,6 +989,10 @@ function normalizeConfigV2(cfg) {
      и `hex` возвращает пустую строку для чего угодно непохожего. */
   bool("visual.tags.blockFill.enabled");
   hex("visual.tags.blockFill.color");
+  /* Два цвета ссылки, показанной как написано (`З-37`). Пусто значит
+     «взять у темы», и это законное значение — смысл на шве (У-60). */
+  hex("visual.tags.linkAsWritten.targetColor");
+  hex("visual.tags.linkAsWritten.bracketsColor");
   int("visual.tags.blockFill.opacity", 0, 100);
   /* На сколько подложка выходит за написанное (замечание по S7). Обе шкалы — в
      долях измеренного: высота — свободного места до краёв зрительной строки,

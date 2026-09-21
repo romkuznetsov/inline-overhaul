@@ -118,7 +118,17 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"link-draggable", path:"visual.tags.linkShown.draggable", default:false,
       name:"Drag to move", desc:"A Value shown as your own text can be dragged into another note",
       tip:"Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there",
-      searchTerms:["Link drag", "Custom link drag"] }
+      searchTerms:["Link drag", "Custom link drag"] },
+    { kind:"color", id:"link-target-color", path:"visual.tags.linkAsWritten.targetColor", default:"",
+      name:"Link target color", desc:"The name inside a link Value written as <code>[[the note name]]</code>",
+      searchTerms:["Link color", "Wikilink color", "Link text color"],
+      tip:"This paints the name between the brackets, and only for a Value of a link Field left on <code>Show</code> = <code>default</code> — the one your line carries as <code>[[the note name]]</code>. Ordinary links you typed into a note are not touched: they are not Values of anything. Empty means the color your theme gives a link",
+      allowReset:true },
+    { kind:"color", id:"link-brackets-color", path:"visual.tags.linkAsWritten.bracketsColor", default:"",
+      name:"Link brackets color", desc:"The <code>[[</code> and <code>]]</code> around that name",
+      searchTerms:["Bracket color", "Wikilink brackets"],
+      tip:"The brackets are their own half of the link, and this colors them apart from the name. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes the brackets off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives them",
+      allowReset:true }
   ]
 },
 {

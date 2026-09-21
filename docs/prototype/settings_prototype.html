@@ -580,6 +580,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-elem { font-family: var(--font-mono); font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-muted); }
 .io-link { font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-accent); }
+/* Ссылка, показанная как написано, красится двумя цветами (`З-37`): цель
+   отдельно, скобки отдельно. Пусто в цвете значит «взять у темы», и потому
+   запасное значение переменной — тот же акцент темы, что был у всей ссылки. */
+.io-link__target { color: var(--io-link-target, var(--text-accent)); }
+.io-link__mark { color: var(--io-link-brackets, var(--text-accent)); }
 
 /* Level bars. One bar per nesting level of the chosen field, and a bar runs
    the whole height of the subtree it belongs to — so nesting the markup is
@@ -2478,7 +2483,33 @@ const SCHEMA = [
     { kind:"toggle", id:"link-draggable", path:"visual.tags.linkShown.draggable", default:false,
       name:"Drag to move", desc:"A Value shown as your own text can be dragged into another note",
       tip:"Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there",
-      searchTerms:["Link drag", "Custom link drag"] }
+      searchTerms:["Link drag", "Custom link drag"] },
+    /*
+     * Два цвета у ссылки, показанной **как написано** — его заказ `З-37`,
+     * уточнённый ответом `В-174` (вариант «а»): предмет — значение поля-ссылки,
+     * которое стоит в строке как `[[имя]]`, а не любая ссылка заметки.
+     *
+     * **Ветка своя — `linkAsWritten`, а не `linkShown`.** Соседние два тумблера
+     * про случай `custom`, где ссылка заменена своим текстом; эти два цвета —
+     * про противоположный случай. Одно имя на два предмета уже стоило шести
+     * неоткрывавшихся подсказок (У-103).
+     *
+     * **Цена скобок названа ему и принята** (`В-176`, 2026-09-21): `[[` и `]]`
+     * Obsidian снимает со строки заменой без виджета, пока
+     * выделение не перекрывает узел (`app.js` 1.13.7, У-256) — то есть красить
+     * там нечего, и цвет виден в предпросмотре выше и на той строке, где стоит
+     * каретка. Он ответил «оба, как заказывали», зная это.
+     */
+    { kind:"color", id:"link-target-color", path:"visual.tags.linkAsWritten.targetColor", default:"",
+      name:"Link target color", desc:"The name inside a link Value written as <code>[[the note name]]</code>",
+      searchTerms:["Link color", "Wikilink color", "Link text color"],
+      tip:"This paints the name between the brackets, and only for a Value of a link Field left on <code>Show</code> = <code>default</code> — the one your line carries as <code>[[the note name]]</code>. Ordinary links you typed into a note are not touched: they are not Values of anything. Empty means the color your theme gives a link",
+      allowReset:true },
+    { kind:"color", id:"link-brackets-color", path:"visual.tags.linkAsWritten.bracketsColor", default:"",
+      name:"Link brackets color", desc:"The <code>[[</code> and <code>]]</code> around that name",
+      searchTerms:["Bracket color", "Wikilink brackets"],
+      tip:"The brackets are their own half of the link, and this colors them apart from the name. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes the brackets off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives them",
+      allowReset:true }
   ]
 },
 {
@@ -4217,6 +4248,12 @@ function applyTagVars(node) {
   cssVar(node, "--io-blockfill-color",
     String(val("visual.tags.blockFill.color") || "").trim() || "var(--text-accent)");
   cssVar(node, "--io-blockfill-opacity", String(val("visual.tags.blockFill.opacity") / 100));
+  /* Два цвета ссылки, показанной как написано (`З-37`): цель и скобки.
+     Пусто значит «взять у темы» — то же, чем ссылка красилась до этой пары. */
+  cssVar(node, "--io-link-target",
+    String(val("visual.tags.linkAsWritten.targetColor") || "").trim() || "var(--text-accent)");
+  cssVar(node, "--io-link-brackets",
+    String(val("visual.tags.linkAsWritten.bracketsColor") || "").trim() || "var(--text-accent)");
   /*
    * Насколько подложка выходит за написанное (замечания по S7, 2026-09-09).
    *
@@ -4454,6 +4491,23 @@ function renderLinePreview(host) {
   ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
 }
 
+/*
+ * Ссылка, показанная **как написано**, — три куска, а не один (`З-37`, его
+ * ответ `В-174`): скобка, цель, скобка. Иначе второй цвет красить нечего.
+ * Не разобралась на три — рисуется одним куском: своего разбора ссылки тут
+ * нет, образец спрашивает ровно то, что видно.
+ */
+function renderWrittenLink(host, text) {
+  const src = String(text || "");
+  const box = el("span", "io-link", host);
+  const m = /^(\[\[)([\s\S]*)(\]\])$/.exec(src);
+  if (!m) { box.textContent = src; return box; }
+  el("span", "io-link__mark", box, m[1]);
+  el("span", "io-link__target", box, m[2]);
+  el("span", "io-link__mark", box, m[3]);
+  return box;
+}
+
 function renderTagPreview(host) {
   const pt = PREVIEW_TEXTS["tag-preview"];
   const box = previewShell(host, pt.cap, pt.tip);
@@ -4471,7 +4525,7 @@ function renderTagPreview(host) {
     el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator2") || "||"));
     const right = el("span", "io-line__side io-line__side--right", line);
     el("span", "io-elem", right, pt.element);
-    el("span", "io-link", right, pt.link);
+    renderWrittenLink(right, pt.link);
     /* the prototype has no config, so its Fields are always the example */
     rich(el("p", "io-preview__note", holder), PREVIEW_EXAMPLE);
   };
