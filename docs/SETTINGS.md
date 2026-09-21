@@ -221,6 +221,11 @@ The right column is everything about the Field picked on the left:
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |
 | `YAML property` | Which property of a transformed note this Field becomes |
+| `Commands` | This Field's own commands and the key each one is on |
+
+`Values`, `Behavior`, `YAML property` and `Commands` are sections, and each folds with the
+triangle in front of its heading — the same one the settings headings carry. What you leave
+folded stays folded until Obsidian is restarted.
 
 A Field is one of three types, picked when you press `Add Field`: `Tag` (`#todo`), `Link`
 (`[[Project A]]`) or `Element` — a marker and a format instead of a list, such as

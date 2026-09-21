@@ -136,10 +136,25 @@ interface Write { reason: string; patch: Any }
 
 type NewFieldAnswer = { name: string; kind: "tag" | "wikilink" | "element" } | null;
 
+/**
+ * Подпись раздела правой колонки без служебных знаков.
+ *
+ * В строке подписи с 2026-09-21 стоят три узла: знак сворачивания (`З-34`),
+ * сама подпись и «?». Проверка спрашивает подпись, а не текст строки целиком:
+ * иначе она ловила бы каждое новое украшение соседей (У-258).
+ */
+function subTitle(node: StubNode): string {
+  return String(node.textContent || "").replace(/[?▸▾]/g, "").trim();
+}
+
 function makeView(opts?: {
   t?: (key: string, fallback: string) => string;
   /** Настройки панели вне ветки `visual.tags.*`: их редактор читает через `ctx`. */
   panel?: Record<string, unknown>;
+  /** Команды плагина для раздела `Commands` (`З-33`); нет — нет и раздела. */
+  commands?: ReadonlyArray<{ id: string; name: string; group?: string }>;
+  /** Назначенные хоткеи: ключ — полный идентификатор `<плагин>:<id>`. */
+  hotkeys?: Record<string, unknown>;
 }): {
   host: StubNode;
   writes: Write[];
@@ -163,6 +178,8 @@ function makeView(opts?: {
   asksRename: string[];
   /** Чем окно переименования ответит в следующий раз; null — отказ. */
   renameTo: (v: string | null) => void;
+  /** Строки поиска, с которыми открывали экран хоткеев Obsidian (`З-33`). */
+  opened: string[];
 } {
   const cfg = makeConfig();
   const writes: Write[] = [];
@@ -198,6 +215,28 @@ function makeView(opts?: {
    * стоят по сотне, то есть «как в теме».
    */
   const panel: Record<string, unknown> = { ...(opts && opts.panel ? opts.panel : {}) };
+  /*
+   * Платформа нужна разделу `Commands` (`З-33`): список команд живёт в
+   * плагине, и без него раздела нет вовсе. Подделан ровно шов —
+   * `listOwnCommands`, менеджер хоткеев и окно настроек, — а не сам список:
+   * что в нём лежит, задаёт проверка.
+   */
+  const opened: string[] = [];
+  const ctxPlatform = opts && opts.commands
+    ? {
+      /* Конфиг платформы спрашивает подсказчик свойств заметки: шов один на
+         весь блок, и подделка обязана быть не беднее его (У-45). */
+      getConfig: () => cfg,
+      plugin: {
+        manifest: { id: "inline-overhaul", name: "inlineOverhaul" },
+        listOwnCommands: () => opts.commands as readonly unknown[],
+        app: {
+          hotkeyManager: { customKeys: (opts.hotkeys || {}) as Record<string, unknown> },
+          setting: { open: () => {}, openTabById: () => ({ setQuery: (q: string) => { opened.push(q); } }) },
+        },
+      },
+    }
+    : undefined;
   const sets: Array<{ path: string; value: unknown }> = [];
   const ctx = {
     get: (path: string) => (path.startsWith("visual.tags.")
@@ -209,6 +248,7 @@ function makeView(opts?: {
     },
     run: async () => {},
     watch: () => () => {},
+    ...(ctxPlatform ? { platform: ctxPlatform } : {}),
     /* Подстановка текста, когда проверка её задала: так спрашивается, доезжает
        ли перевод до нарисованного (10.13.47). */
     ...(opts && opts.t ? { t: opts.t } : {}),
@@ -247,6 +287,8 @@ function makeView(opts?: {
     reply: (v: NewFieldAnswer) => { answer = v; },
     confirm: (v: boolean) => { confirms = v; },
     renameTo: (v: string | null) => { renameAnswer = v; },
+    /** Строки поиска, с которыми открывали экран хоткеев Obsidian. */
+    opened,
   };
 }
 
@@ -1686,7 +1728,7 @@ function heightBtn(host: StubNode): StubNode {
   const v = makeView();
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
-  const subs = all(v.host, "io-sub").map(n => String(n.textContent || "").replace("?", "").trim());
+  const subs = all(v.host, "io-sub").map(subTitle);
   assert.deepEqual(subs, ["Value", "Behavior", "YAML property"],
     "значение идёт первым, за ним поведение и свойство заметки (1.4.1.2.4)");
   const step = all(v.host, "io-select").find(s =>
@@ -1837,7 +1879,7 @@ function heightBtn(host: StubNode): StubNode {
 /* ---- 2 и 3: три раздела правой колонки -------------------------------- */
 {
   const v = makeView();
-  const subs = all(v.host, "io-sub").map(n => String(n.textContent || "").replace("?", "").trim());
+  const subs = all(v.host, "io-sub").map(subTitle);
   assert.deepEqual(subs, ["Values", "Behavior", "YAML property"],
     "разделы: значения, поведение, свойство заметки (1.4.1.2.4)");
 
@@ -2702,5 +2744,140 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
     "тему прочитать нечем — остаётся белый: гадать панель не должна");
   ok("C31: образец цвета Value показывает цвет темы, пока своего нет");
 }
+
+
+/* ---- З-33: команды выбранного Field и их хоткеи ------------------------ */
+{
+  /*
+   * Его заказ: «в `io-fields-detail` внизу — субхедер с командами этого Field
+   * и их хоткеями, как в справочнике команд; список обновляется сразу».
+   *
+   * Список приходит от плагина, и в нём нарочно лежат **чужие** команды:
+   * отбор проверяется тем, что он кого-то отбросил. Без них «показали всё»
+   * и «показали своё» выглядели бы одинаково (У-147).
+   */
+  const commands = [
+    { id: "status-next", name: "Tags & PKM: Status next", group: "status" },
+    { id: "status-previous", name: "Tags & PKM: Status previous", group: "status" },
+    { id: "status-sub-next", name: "Tags & PKM: Status-sub next", group: "status" },
+    { id: "due-next", name: "Tags & PKM: Due next", group: "due" },
+    { id: "move-line-up", name: "Navigation: Move line up" },
+  ];
+  const v = makeView({
+    commands,
+    hotkeys: { "inline-overhaul:status-next": [{ modifiers: ["Alt"], key: "W" }] },
+  });
+  const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
+  one(status, "io-fields__pick").click();
+
+  const subs = all(v.host, "io-sub").map(subTitle);
+  assert.ok(subs.includes("Commands"),
+    "раздела `Commands` в правой колонке нет: " + subs.join(" | "));
+  assert.equal(subs[subs.length - 1], "Commands",
+    "раздел команд обязан стоять последним, как в прототипе: " + subs.join(" | "));
+
+  const card = one(v.host, "io-cmd--field");
+  const names = all(card, "io-cmd__name").map(n => String(n.textContent || "").trim());
+  assert.deepEqual(names,
+    ["Tags & PKM: Status next", "Tags & PKM: Status previous", "Tags & PKM: Status-sub next"],
+    "в разделе не те команды: " + names.join(" | "));
+
+  /* Колонка хоткея: назначенный показан, ненайденный — словом. */
+  const keys = all(card, "io-hk").map(n => String(n.textContent || "").trim());
+  assert.equal(keys.length, 3, "кнопок хоткея столько же, сколько команд: " + keys.length);
+  assert.equal(keys[0], "Alt + W", "назначенный хоткей не доехал до колонки: " + keys[0]);
+  assert.equal(keys[1], "not set", "у команды без хоткея должно стоять слово: " + keys[1]);
+  assert.ok(all(card, "io-hk").slice(1).every(n => n.classList.contains("io-hk--none")),
+    "пустая ячейка обязана отличаться классом, а не только словом");
+
+  /* Нажатие ведёт на экран хоткеев Obsidian, и ведёт **по имени** команды. */
+  (all(card, "io-hk")[0] as StubNode).click();
+  assert.deepEqual(v.opened, ["Tags & PKM: Status next"],
+    "кнопка открыла экран хоткеев не на той команде: " + v.opened.join(" | "));
+
+  ok("З-33: раздел `Commands` показывает команды этого Field с их хоткеями");
+}
+
+{
+  /*
+   * Отрицательный контроль к отбору: у Field, чьих команд в реестре нет,
+   * раздел обязан сказать это словом, а не показать чужие. Без него
+   * «показали своё» было бы правдой и у пустого фильтра.
+   */
+  const v = makeView({ commands: [{ id: "due-next", name: "Tags & PKM: Due next", group: "due" }] });
+  const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
+  one(status, "io-fields__pick").click();
+  const card = one(v.host, "io-cmd--field");
+  assert.equal(all(card, "io-cmd__name").length, 0,
+    "в разделе оказались команды чужого Field");
+  assert.ok(all(card, "io-fields__hint").length === 1,
+    "пустой раздел обязан сказать, что команд нет");
+  ok("З-33: команды чужого Field в раздел не попадают");
+}
+
+{
+  /*
+   * Платформы нет — раздела нет вовсе. Пустая таблица обещала бы, что команд у
+   * Field не бывает (З8), а дело в том, что спрашивать их не у кого.
+   */
+  const v = makeView();
+  const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
+  one(status, "io-fields__pick").click();
+  assert.equal(all(v.host, "io-cmd--field").length, 0,
+    "раздел команд нарисован без плагина — показывать ему нечего");
+  assert.ok(!all(v.host, "io-sub").map(subTitle).includes("Commands"),
+    "подпись раздела осталась без своего содержимого");
+  ok("З-33: без плагина раздела команд нет, а не пустая таблица");
+}
+
+/* ---- З-34: разделы правой колонки сворачиваются ----------------------- */
+{
+  /*
+   * Его заказ: «субхедеры `io-fields-detail` сворачиваются треугольником, как
+   * заголовки настроек».
+   *
+   * Спрашивается **тело раздела**, а не знак: знак можно нарисовать и не
+   * подключить, и проверка на один его вид была бы зелёной у неработающей
+   * кнопки (У-43).
+   */
+  const v = makeView();
+  const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
+  one(status, "io-fields__pick").click();
+
+  const heads = all(v.host, "io-sub");
+  assert.ok(heads.length >= 3, "разделов меньше трёх — сворачивать нечего: " + heads.length);
+  for (const head of heads) {
+    assert.equal(all(head, "io-fold").length, 1,
+      "у раздела «" + subTitle(head) + "» нет знака сворачивания");
+  }
+
+  const behavior = heads.find(h => subTitle(h) === "Behavior") as StubNode;
+  const mark = one(behavior, "io-fold");
+  const bodies = all(v.host, "io-fields__sec");
+  assert.ok(bodies.length >= 3, "тел разделов меньше трёх: " + bodies.length);
+  assert.equal(bodies.filter(b => b.classList.contains("io-subshut")).length, 0,
+    "развёрнутым разделам нечего прятать, а класс уже стоит");
+
+  mark.click();
+  const shut = all(v.host, "io-fields__sec").filter(b => b.classList.contains("io-subshut"));
+  assert.equal(shut.length, 1, "нажатие свернуло не один раздел, а " + shut.length);
+  assert.equal(String(mark.textContent || ""), "\u25B8",
+    "знак не сменился на свёрнутый: " + String(mark.textContent || ""));
+  assert.equal(mark.attrs["aria-expanded"], "false",
+    "свёрнутый раздел обязан сказать об этом вслух");
+
+  /* Состояние переживает перерисовку: иначе первое же изменение развернуло бы. */
+  v.draw();
+  const again = all(v.host, "io-sub").find(h => subTitle(h) === "Behavior") as StubNode;
+  assert.equal(String(one(again, "io-fold").textContent || ""), "\u25B8",
+    "после перерисовки раздел развернулся сам");
+
+  one(again, "io-fold").click();
+  assert.equal(all(v.host, "io-fields__sec").filter(b => b.classList.contains("io-subshut")).length, 0,
+    "повторное нажатие не развернуло раздел");
+  ok("З-34: разделы правой колонки сворачиваются знаком и помнят своё положение");
+}
+
+console.log("");
 
 console.log("\n" + passed + " проверок пройдено");

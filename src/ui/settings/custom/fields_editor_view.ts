@@ -21,6 +21,7 @@ import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
+import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 import { TYPE_COLOR, bareToken, typeColor } from "./preview_data.ts";
 /*
  * Ключ вида у значения-ссылки — тот же, каким его ищет слой оформления
@@ -329,6 +330,140 @@ export interface FieldsViewOpts {
    * в заметках останется старый тег, а хоткей отвяжется (1.4.1.2.2).
    */
   askRename?: (name: string, done: (next: string | null) => void) => void;
+}
+
+/* ---- сворачивание разделов правой колонки (`З-34`) --------------------- */
+
+/**
+ * Свёрнутые разделы правой колонки Fields — его заказ `З-34`: «субхедеры
+ * `io-fields-detail` сворачиваются треугольником, как заголовки настроек».
+ *
+ * **Состояние взгляда, а не настройка** — то же решение, что у свёрнутых
+ * групп панели (его слово 2026-09-04): в `data.json` не пишется и в отмену не
+ * попадает, живёт до выгрузки плагина.
+ *
+ * **Ключ — род раздела, а не Field.** Свернув `Behavior`, человек сворачивает
+ * его насовсем: иначе переключение Field в списке возвращало бы развёрнутое, и
+ * знак читался бы как случайный.
+ */
+const FOLDED_SUBS = new Set<string>();
+
+/** Класс на теле свёрнутого раздела; видимость решает `styles.css`. */
+const SUB_SHUT_CLASS = "io-subshut";
+
+/**
+ * Знак сворачивания у подписи раздела.
+ *
+ * **Прячется тело раздела, а не соседи по колонке.** Первая мысль была ходить
+ * по следующим братьям до следующей подписи — разметка сама говорит, где
+ * раздел кончается, — но у `El` нет перехода к следующему брату, и завести
+ * его в заглушке значило бы сделать её добрее браузера (У-45). Поэтому у
+ * раздела есть своё тело, и оно же — предмет.
+ *
+ * Знак и класс те же, что у заголовка группы: свёрнутое положение отличается
+ * и знаком, и заливкой — на одном знаке в мелком кегле разницу видно плохо.
+ */
+function foldableSub(head: El, body: El, key: string, label: string, tipHost?: El): void {
+  const mark = btn(head, "io-fold", { text: "", label: "" });
+  const paint = (): void => {
+    const shut = FOLDED_SUBS.has(key);
+    mark.textContent = shut ? "▸" : "▾";
+    if (shut) mark.classList.add("io-fold--shut");
+    else mark.classList.remove("io-fold--shut");
+    mark.setAttribute("aria-expanded", shut ? "false" : "true");
+    mark.setAttribute("aria-label", (shut ? "Expand " : "Collapse ") + label);
+    for (const node of tipHost ? [body, tipHost] : [body]) {
+      if (shut) node.classList.add(SUB_SHUT_CLASS);
+      else node.classList.remove(SUB_SHUT_CLASS);
+    }
+  };
+  mark.addEventListener("click", (() => {
+    if (FOLDED_SUBS.has(key)) FOLDED_SUBS.delete(key);
+    else FOLDED_SUBS.add(key);
+    paint();
+  }) as never);
+  paint();
+}
+
+/* ---- раздел `Commands` правой колонки (`З-33`) ------------------------- */
+
+/** Одна команда так, как её отдаёт плагин: имя и идентификатор. */
+interface FieldCommand { id: string; name: string; group?: string }
+
+/**
+ * Команды выбранного Field и их хоткеи — его заказ `З-33`.
+ *
+ * **Список спрашивается у плагина, а не выписывается.** `listOwnCommands`
+ * собирает его из **нынешнего** конфига теми же строителями, какими плагин
+ * регистрирует команды: переименовали Field — и следующая отрисовка колонки
+ * покажет новое имя. Выписанный здесь список разошёлся бы с палитрой на первом
+ * же Field, и разошёлся бы молча (У-85).
+ *
+ * **Свой Field узнаётся по `group`** — строгому имени без `_sub`, — который
+ * ставит тот же строитель. Разбор имени команды образцом здесь был бы вторым
+ * объявлением правила «как подписан дочерний Field», а оно уже объявлено в
+ * `buildOwnCommandList` (У-32).
+ *
+ * **Платформы нет — раздела нет.** Список живёт в плагине, и без него у
+ * колонки не было бы ни имён, ни хоткеев; пустая таблица обещала бы, что
+ * команд нет вовсе (З8).
+ */
+function fieldCommandsSection(detail: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const say = words(o);
+  const platform = o.ctx.platform;
+  if (!platform) return () => {};
+  const plugin = platform.plugin as {
+    listOwnCommands?: () => readonly FieldCommand[];
+  } & Record<string, unknown>;
+  if (typeof plugin.listOwnCommands !== "function") return () => {};
+
+  const closers: Array<() => void> = [];
+  const head = el(detail, "div", "io-sub io-item__namerow");
+  el(head, "span", undefined, say("COMMANDS_HEAD"));
+  const headTip = el(detail, "div", "io-tiphost");
+  closers.push(tipBelow({
+    head,
+    host: headTip,
+    text: say("COMMANDS_HEAD_TIP"),
+    label: say("COMMANDS_HEAD"),
+    id: "io-field-commands-tip",
+    showTips: o.showTips, showIds: o.showIds,
+  }));
+  const sec = el(detail, "div", "io-fields__sec");
+  foldableSub(head, sec, "commands", say("COMMANDS_HEAD"), headTip);
+
+  const card = el(sec, "div", "io-cmd io-cmd--field");
+  const headRow = el(card, "div", "io-cmd__head");
+  el(headRow, "div", undefined, say("COMMANDS_COL_NAME"));
+  el(headRow, "div", undefined, say("COMMANDS_COL_HOTKEY"));
+
+  const mine = plugin.listOwnCommands().filter(
+    c => String(c && c.group ? c.group : "") === row.strictName,
+  );
+  if (!mine.length) {
+    el(card, "div", "io-fields__hint", say("COMMANDS_EMPTY"));
+    return () => { closers.forEach(fn => fn()); };
+  }
+
+  const canOpen = canOpenHotkeys(plugin);
+  for (const cmd of mine) {
+    const line = el(card, "div", "io-cmd__row");
+    el(line, "div", "io-cmd__name", cmd.name);
+    const cell = el(line, "div");
+    const current = hotkeyOf(plugin, cmd.id);
+    const key = btn(cell, "io-hk" + (current ? "" : " io-hk--none"), {
+      text: current || say("HOTKEY_NOT_SET"),
+      label: say(current ? "HOTKEY_CHANGE" : "HOTKEY_ASSIGN", cmd.name),
+      title: say("HOTKEY_OPEN"),
+    });
+    /* Приватного API нет — кнопке некуда вести, и она неактивна (К-2). */
+    key.disabled = !canOpen;
+    key.addEventListener("click", (() => {
+      if (canOpen) openHotkeys(plugin, cmd.name);
+    }) as never);
+  }
+
+  return () => { closers.forEach(fn => fn()); };
 }
 
 /* ---- левая колонка: список Fields -------------------------------------- */
@@ -843,14 +978,18 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      замечанию 1.4.1.2.5: заголовок был единственным без объяснения. */
   const behaviorHead = el(detail, "div", "io-sub io-item__namerow");
   el(behaviorHead, "span", undefined, say("BEHAVIOR_HEAD"));
+  const behaviorHeadTip = el(detail, "div", "io-tiphost");
   closers.push(tipBelow({
     head: behaviorHead,
-    host: el(detail, "div", "io-tiphost"),
+    host: behaviorHeadTip,
     text: say("BEHAVIOR_HEAD_TIP"),
     label: say("BEHAVIOR_HEAD"),
     id: "io-field-behavior-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
+  /* Тело раздела: его и прячет знак сворачивания (`З-34`). */
+  const behaviorSec = el(detail, "div", "io-fields__sec");
+  foldableSub(behaviorHead, behaviorSec, "behavior", say("BEHAVIOR_HEAD"), behaviorHeadTip);
 
   /*
    * Работает ли Field. У дочернего Field этого ряда нет намеренно: его
@@ -859,7 +998,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * — это две правды, и одна из них однажды окажется старой.
    */
   if (!row.parent) {
-    const active = itemRow(detail, {
+    const active = itemRow(behaviorSec, {
       name: say("ACTIVE_NAME"),
       desc: say("ACTIVE_DESC"),
       tip: say("ACTIVE_TIP"),
@@ -880,7 +1019,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     }) as never);
   }
 
-  const behavior = itemRow(detail, {
+  const behavior = itemRow(behaviorSec, {
     name: say("BEHAVIOR_NAME"),
     desc: say("BEHAVIOR_DESC"),
     tip: say("BEHAVIOR_TIP"),
@@ -917,7 +1056,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      * человек ни выбрал (замечание заказчика 2026-08-27).
      */
     const subMode = o.model.getSubMode(row.subKey);
-    const child = itemRow(detail, {
+    const child = itemRow(behaviorSec, {
       name: say("CHILD_NAME"),
       desc: say("CHILD_DESC"),
       tip: say("CHILD_TIP"),
@@ -945,7 +1084,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      * не показывается.
      */
     if (subMode === "always") {
-      const parentRow = itemRow(detail, {
+      const parentRow = itemRow(behaviorSec, {
         name: say("CHILD_PARENT_NAME"),
         desc: say("CHILD_PARENT_DESC"),
         tip: say("CHILD_PARENT_TIP"),
@@ -977,7 +1116,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * Дочернему Field предусловия не бывает: его `dependsOn` уже занят
    * родителем, и вторым тем же ключом распорядиться нечем (З8).
    */
-  if (!row.parent) closers.push(...prerequisiteRows(detail, row, o));
+  if (!row.parent) closers.push(...prerequisiteRows(behaviorSec, row, o));
 
   /*
    * Свойство заметки принадлежит Field, а не отдельной таблице где-то ещё:
@@ -991,15 +1130,28 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    */
   const propertyHead = el(detail, "div", "io-sub io-item__namerow");
   el(propertyHead, "span", undefined, say("YAML_HEAD"));
+  const propertyHeadTip = el(detail, "div", "io-tiphost");
   closers.push(tipBelow({
     head: propertyHead,
-    host: el(detail, "div", "io-tiphost"),
+    host: propertyHeadTip,
     text: say("YAML_HEAD_TIP"),
     label: say("YAML_HEAD"),
     id: "io-field-property-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
-  closers.push(yamlPropertyRows(detail, row, o));
+  /* Тело раздела: его и прячет знак сворачивания (`З-34`). */
+  const propertySec = el(detail, "div", "io-fields__sec");
+  foldableSub(propertyHead, propertySec, "yaml", say("YAML_HEAD"), propertyHeadTip);
+  closers.push(yamlPropertyRows(propertySec, row, o));
+
+  /*
+   * Команды этого Field — его заказ `З-33`: «в `io-fields-detail` внизу —
+   * субхедер с командами этого Field и их хоткеями, как в справочнике команд;
+   * список обновляется сразу».
+   *
+   * Стоит последним разделом колонки, как в прототипе (Р8).
+   */
+  closers.push(fieldCommandsSection(detail, row, o));
 
   return () => { closers.forEach(fn => fn()); };
 }
@@ -1230,16 +1382,20 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
 
   const head = el(host, "div", "io-sub io-item__namerow");
   el(head, "span", undefined, "Values");
+  const headTip = el(host, "div", "io-tiphost");
   closers.push(tipBelow({
     head,
-    host: el(host, "div", "io-tiphost"),
+    host: headTip,
     text: say("VALUES_TIP"),
     label: "Values",
     id: "io-values-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
+  /* Тело раздела: его и прячет знак сворачивания (`З-34`). */
+  const sec = el(host, "div", "io-fields__sec");
+  foldableSub(head, sec, "values", "Values", headTip);
 
-  const box = el(host, "div", "io-vals" + (isLink ? " io-vals--link" : ""));
+  const box = el(sec, "div", "io-vals" + (isLink ? " io-vals--link" : ""));
   const scroll = el(box, "div", "io-scroll");
   const inner = el(scroll, "div", "io-vals__inner" + (isLink ? " io-vals__inner--link" : ""));
 
@@ -1623,19 +1779,23 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
 
   const valueHead = el(host, "div", "io-sub io-item__namerow");
   el(valueHead, "span", undefined, "Value");
+  const valueHeadTip = el(host, "div", "io-tiphost");
   closers.push(tipBelow({
     head: valueHead,
-    host: el(host, "div", "io-tiphost"),
+    host: valueHeadTip,
     text: say("ELEMENT_VALUE_TIP"),
     label: "Value",
     id: "io-element-value-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
+  /* Тело раздела: его и прячет знак сворачивания (`З-34`). */
+  const sec = el(host, "div", "io-fields__sec");
+  foldableSub(valueHead, sec, "element-value", "Value", valueHeadTip);
 
   /** Строка с полем ввода. */
   const line = (name: string, desc: string, tip: string, tipId: string, value: string,
     placeholder: string, save: (v: string) => void): void => {
-    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
+    const item = itemRow(sec, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
     closers.push(item.closeTip);
     const input = textInput(item.control, "io-text io-text--mono", {
       value,
@@ -1655,7 +1815,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
     say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
 
-  const steps = itemRow(host, {
+  const steps = itemRow(sec, {
     name: say("ELEMENT_STEP_NAME"),
     desc: say("ELEMENT_STEP_DESC"),
     tip: say("ELEMENT_STEP_TIP"),
@@ -1677,7 +1837,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
 
   /* Показывается только то, чем этот режим шагает: три поля разом сбивают с толку. */
   if (ed.mode === "increment") {
-    const by = itemRow(host, {
+    const by = itemRow(sec, {
       name: say("ELEMENT_AMOUNT_NAME"),
       desc: say("ELEMENT_AMOUNT_DESC"),
       tip: say("ELEMENT_AMOUNT_TIP"),
@@ -1695,7 +1855,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       ed.setIncrementBy(Number(input.value || 1));
     }) as never);
   } else if (ed.mode === "command") {
-    const cmd = itemRow(host, {
+    const cmd = itemRow(sec, {
       name: say("ELEMENT_COMMAND_NAME"),
       desc: say("ELEMENT_COMMAND_DESC"),
       tip: say("ELEMENT_COMMAND_TIP"),
@@ -1718,7 +1878,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       ed.setCommand(pick.value);
     }) as never);
   } else {
-    const own = itemRow(host, {
+    const own = itemRow(sec, {
       name: say("ELEMENT_STEPS_NAME"),
       desc: say("ELEMENT_STEPS_DESC"),
       tip: say("ELEMENT_STEPS_TIP"),

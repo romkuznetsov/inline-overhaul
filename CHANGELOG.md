@@ -29,6 +29,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 6. 🐛 **No `====` around the picker on the right.** The strip is wrapped in a highlight so it gets a fill, and Obsidian shows the raw `==` whenever the caret sits inside one — which is exactly where the caret landed for the right Block. It now rests outside the strip, on an empty line as well, so both sides look the same.
 7. ✨ **The picker can label a chosen Value the way you print it.** `Visual → tagWheel → tagWheel Value names` chooses between the Value as it is written, the custom text you gave it in `Color your tags`, or both at once. Where no custom text is set, the written Value is shown, so a Field never goes blank.
 8. 🎨 **Four commands read the way they work.** `Jump back` and `Jump next` are now `Jump up` and `Jump down`; the two that open the picker are now `tagWheel Left` and `tagWheel Right`. The picker is written `tagWheel` everywhere you see it, the way `inlineOverhaul` is. Names only — the command identifiers are the same, so your hotkeys stay put.
+9. ✨ **Every Field lists its own commands, with the keys they are on.** The right-hand column of `Tags & PKM → Fields` ends with `Commands`: the Field's own `next` and `previous`, its child Field's pair, and the key each one carries. Press a key cell and Obsidian's `Hotkeys` screen opens at that command. Rename a Field and the list follows at once.
+10. ✨ **The sections of that column fold.** `Values`, `Behavior`, `YAML property` and `Commands` each carry the same triangle the settings headings do, and each remembers whether you left it open.
 
 ## 0.5.1
 

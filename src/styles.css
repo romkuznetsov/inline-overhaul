@@ -1320,6 +1320,43 @@
 }
 
 .io-sub { margin: 16px 0 7px; font-size: 13px; font-weight: 600; color: var(--text-normal); }
+/*
+ * Разделы правой колонки Fields сворачиваются — его заказ `З-34`: «субхедеры
+ * `io-fields-detail` сворачиваются треугольником, как заголовки настроек».
+ *
+ * Знак — тот же `.io-fold`, что у заголовка группы, и он же объявлен выше; тут
+ * остаётся его место в строке подписи (она флекс) и вид свёрнутого тела.
+ * Второго объявления знака не заводим: у правила один дом (У-32).
+ */
+.io-sub > .io-fold {
+  appearance: none;
+  order: -1;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* Свёрнутый раздел: остаётся одна подпись со знаком. */
+.io-subshut { display: none; }
+/* Таблица команд Field (`З-33`): две колонки, а не три — описания тут нет,
+   его место занимает сам раздел. Правило стоит ПОСЛЕ общего нарочно:
+   специфичность одна, решает порядок (У-67). */
+.io-cmd--field .io-cmd__head,
+.io-cmd--field .io-cmd__row {
+  grid-template-columns: minmax(140px, 1fr) 132px;
+}
 /* Субхедер, делящий группу настроек.
 
    Своей черты снизу у него больше нет. Платформа рисует свою сверху у первой

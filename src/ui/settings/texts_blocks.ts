@@ -200,6 +200,27 @@ export const BLOCK_TEXTS = {
     ELEMENT_STEPS_DESC: "One step per line, in the order the presses walk them",
     ELEMENT_STEPS_TIP: "A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value",
     ELEMENT_STEPS_FOR: "Steps for {0}",
+    /*
+     * Раздел `Commands` — его заказ `З-33`: «в `io-fields-detail` внизу —
+     * субхедер с командами этого Field и их хоткеями, как в справочнике
+     * команд; список обновляется сразу».
+     *
+     * Подписи колонок свои, а не взятые у справочника: там их три и одна из
+     * них — описание, а здесь колонки две. Общий дом у них — не текст, а
+     * способ спросить хоткей (`hotkeys.ts`).
+     */
+    COMMANDS_HEAD: "Commands",
+    COMMANDS_HEAD_TIP: "Every command this Field has right now, and the key each one is on. A Field gets a <code>next</code> and a <code>previous</code>; a child Field adds its own pair. Rename the Field or switch it off and this list follows at once — it is built from your setup, not written down. Press a key cell to open Obsidian's own <code>Hotkeys</code> screen at that command; this plugin assigns no keys by itself",
+    COMMANDS_COL_NAME: "Command",
+    COMMANDS_COL_HOTKEY: "Hotkey",
+    COMMANDS_EMPTY: "This Field has no commands right now",
+    /* Подписи кнопки хоткея. Свои у каждого блока — так устроен каталог:
+       владелец текста тот блок, в котором он нарисован (10.13.47), и у
+       справочника с Binder они тоже свои. */
+    HOTKEY_NOT_SET: "not set",
+    HOTKEY_CHANGE: "Change the hotkey for {0}",
+    HOTKEY_ASSIGN: "Assign the hotkey for {0}",
+    HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command",
     /* Раздел YAML. */
     YAML_HEAD: "YAML property",
     YAML_HEAD_TIP: "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied",

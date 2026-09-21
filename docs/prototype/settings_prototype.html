@@ -274,6 +274,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-fold:hover { color: var(--text-normal); border-color: var(--background-modifier-border-hover); }
 .io-fold--shut { background: var(--background-modifier-hover); color: var(--text-normal); }
+/* Свёрнутый раздел правой колонки Fields (`З-34`): остаётся одна подпись со
+   знаком, всё до следующей подписи уходит с глаз. */
+.io-subshut { display: none; }
 /* Вводная фраза группы: тот же коллаут, что и вводный у вкладки, только
    поуже и без шапки. Одно объявление вида на оба (У-32) — своё держит только
    отступ. */
@@ -3368,6 +3371,22 @@ let activeTab = "general";
    «хочу, чтобы запоминалось состояние хедеров (свернуто\развернуто) … как
    минимум в рамках текущей сессии». */
 const FOLDED = new Set();
+/*
+ * Свёрнутые субхедеры правой колонки Fields — его заказ `З-34`: «субхедеры
+ * `io-fields-detail` сворачиваются треугольником, как заголовки настроек».
+ * Состояние того же рода, что и `FOLDED`: взгляд, а не настройка.
+ *
+ * Ключ — **род раздела**, а не Field: свернув `Behavior`, человек сворачивает
+ * его насовсем, а не у одного поля. Иначе переключение Field возвращало бы
+ * развёрнутое, и знак читался бы как случайный.
+ */
+const FOLDED_SUBS = new Set();
+/*
+ * Красильщики субхедеров, собранные за одну отрисовку правой колонки.
+ * Зовутся после того, как колонка дорисована: раздел кончается следующей
+ * подписью, и до конца отрисовки её ещё нет.
+ */
+let subPaints = [];
 let selectedFieldId = "status";
 /*
  * Высота таблицы Fields: развёрнутая (как было всегда) или заданная со
@@ -3450,6 +3469,47 @@ function el(tag, cls, parent, text) {
   if (text != null) n.textContent = text;
   if (parent) parent.appendChild(n);
   return n;
+}
+/*
+ * Сворачивание субхедера правой колонки Fields (`З-34`).
+ *
+ * **Прячется не обёртка, а соседи.** Подпись раздела и его строки лежат в
+ * колонке подряд, братьями: обернуть каждый раздел в свой узел значило бы
+ * переписать отрисовку всех разделов ради знака, и цена была бы не в знаке.
+ * Поэтому конец раздела спрашивается у самой разметки — следующая подпись, —
+ * а не задаётся списком.
+ *
+ * Знак тот же, что у заголовка группы, и класс тот же: свёрнутое положение
+ * отличается и знаком, и заливкой (У-67 — на одном знаке в мелком кегле
+ * разницу видно плохо).
+ */
+function foldableSub(head, key, label, sink) {
+  const paint = () => {
+    const shut = FOLDED_SUBS.has(key);
+    mark.textContent = shut ? "▸" : "▾";
+    mark.classList.toggle("io-fold--shut", shut);
+    mark.setAttribute("aria-expanded", shut ? "false" : "true");
+    mark.setAttribute("aria-label", (shut ? "Expand " : "Collapse ") + label);
+    let n = head.nextElementSibling;
+    while (n && !n.classList.contains("io-sub")) {
+      n.classList.toggle("io-subshut", shut);
+      n = n.nextElementSibling;
+    }
+  };
+  const mark = el("button", "io-fold", head);
+  mark.type = "button";
+  mark.addEventListener("click", () => {
+    if (FOLDED_SUBS.has(key)) FOLDED_SUBS.delete(key); else FOLDED_SUBS.add(key);
+    paint();
+  });
+  /*
+   * Красится не здесь: раздела ещё нет. Возвращённую функцию зовёт тот, кто
+   * колонку собрал, — после того, как все разделы дорисованы. Первая версия
+   * звала её через `setTimeout`, и это ровно та проверка вида, которая
+   * зелёная только в браузере: дымовой рендер не ждёт такта (У-212).
+   */
+  if (Array.isArray(sink)) sink.push(paint);
+  return paint;
 }
 function rich(node, html) {
   const parts = String(html).split(/(<code>.*?<\/code>|<b>.*?<\/b>)/g);
@@ -5016,6 +5076,7 @@ function revealScrollerOnDemand(wrap) {
 
 function renderFieldEditor(host) {
   const wrap = el("div", "io-fields" + (fieldsTableFixed ? " io-fields--fixed" : ""), host);
+  subPaints = [];
 
   const f = field(selectedFieldId) || FIELDS[0];
 
@@ -5117,6 +5178,7 @@ function renderFieldEditor(host) {
     elementRows(detail, f);
   } else {
     const vh = el("div", "io-sub io-item__namerow", detail);
+    foldableSub(vh, "values", "Values", subPaints);
     el("span", null, vh, "Values");
     attachTipItem(vh, detail, { name:"Values",
       tip:"The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent’s <code>Behavior</code>, and what those are allowed to change is set under <code>Placement modes</code> on this tab" });
@@ -5128,6 +5190,7 @@ function renderFieldEditor(host) {
      `Child Field` (замечание заказчика 2026-08-27). «?» у него появился по
      замечанию 1.4.1.2.5: заголовок был единственным без объяснения. */
   const bh = el("div", "io-sub io-item__namerow", detail);
+  foldableSub(bh, "behavior", "Behavior", subPaints);
   el("span", null, bh, "Behavior");
   attachTipItem(bh, detail, { name:"Behavior", tip:"Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line" });
   placementRows(detail, f);
@@ -5137,7 +5200,9 @@ function renderFieldEditor(host) {
      только в фазе 5: её смысл в колонке `Hotkey`, а та держится на реестре
      действий (5.6) и на именах команд после переименования фазы 2. Решение
      заказчика 2026-08-27, подтверждено им же 2026-08-27 после показа. */
-  el("div", "io-sub", detail, "Commands");
+  const ch = el("div", "io-sub io-item__namerow", detail);
+  foldableSub(ch, "commands", "Commands", subPaints);
+  el("span", null, ch, "Commands");
   const cmdCard = el("div", "io-cmd", detail);
   const cmdCols = "minmax(120px,0.8fr) minmax(140px,1.2fr) 132px";
   const cmdHead = el("div", "io-cmd__head", cmdCard);
@@ -5154,6 +5219,10 @@ function renderFieldEditor(host) {
     el("div", "io-cmd__does", row, does);
     hotkeyCell(el("div", null, row), name);
   });
+
+  /* Разделы дорисованы — знаки могут посчитать, что им прятать (`З-34`). */
+  for (const paint of subPaints) paint();
+  subPaints = [];
 }
 
 
@@ -5298,6 +5367,7 @@ function elementRows(host, f) {
   /* «?» у заголовка: у Field типа element он был без объяснения, как и
      `Behavior` (замечание заказчика 1.4.1.2.5). */
   const vhe = el("div", "io-sub io-item__namerow", host);
+  foldableSub(vhe, "element-value", "Value", subPaints);
   el("span", null, vhe, "Value");
   attachTipItem(vhe, host, { name:"Value", tip:"An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along" });
 
@@ -5415,6 +5485,7 @@ function propertyRow(host, f) {
    * нет — настройка живёт там, где живёт Field.
    */
   const head = el("div", "io-sub io-item__namerow", host);
+  foldableSub(head, "yaml", "YAML property", subPaints);
   el("span", null, head, "YAML property");
   attachTipItem(head, host, { name:"YAML property",
     tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied" });
