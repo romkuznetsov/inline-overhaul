@@ -370,19 +370,17 @@ Field you are on running down.
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighbouring Values stay visible |
 | `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
+| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
+| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
+| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
+
+The last three sit under `tagWheel opening`, a subheading inside this group, the way
+the scroller rows sit under `Scroller`.
 
 Commands: `tagWheel Left`, `tagWheel Right`.
 
 See it in motion: [tagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel) and
 [tagWheel panel and scroller](SHOWCASE.md#tagwheel-panelscroller).
-
-### tagWheel opening
-
-| Control | Default | What it does |
-|---|---|---|
-| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
-| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
-| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
 
 ### Text cursor
 

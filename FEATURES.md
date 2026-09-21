@@ -63,7 +63,7 @@ land on a line that never existed. Keeping the other Block in sight removes the 
 where only that Block was filled; the case where the Block under the panel was filled too
 is open.
 
-*Where:* **Visual → tagWheel**, **Visual → tagWheel opening**.
+*Where:* **Visual → tagWheel**, with the opening Field under its `tagWheel opening` subheading.
 
 ## Navigation
 

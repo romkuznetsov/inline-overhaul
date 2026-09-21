@@ -270,7 +270,7 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 38,
+    assert.equal(SCHEMA.length, 37,
       "групп в схеме: 22 с настройками, 7 вводных коллаутов, группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Options IDs` добавлена 2026-08-28 по "
@@ -283,7 +283,7 @@ async function main(): Promise<void> {
       + "`Config note` и `Generated files` сняты 2026-09-03 вместе с "
       + "конфиг-заметкой (10.12, решения В-28 и В-29): их не ждут, их больше "
       + "нет. Группа `Language` заведена 2026-09-06 вместе с каталогом "
-      + "текстов (10.13.38), а `TagWheel opening` — 2026-09-12 вместе с контролом ведущего поля (10.13.76). "
+      + "текстов (10.13.38). Группа `tagWheel opening` была заведена 2026-09-12 вместе с контролом ведущего поля (10.13.76) и **снята 2026-09-21** его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)»: три её строки уехали в группу `tagWheel` под субхедер `tagWheel opening`, ни одна не пропала. "
       + "Группа `Smart Enter` заведена 2026-09-13 по его заказу (10.13.88): . Группа `Links in the notes you mention` заведена 2026-09-17 по его заказу Н4 (10.13.184): ссылка на новую заметку уезжает в те заметки, на которые ссылалась строка. Своей группы у скроллера нет: 2026-09-17 он получил субхедер внутри `TagWheel` его словом «я хочу, чтобы все настройки tagwheel были в одном месте», и предел в двенадцать строк с тех пор считается по разделу, а не по группе (Г11). Группа `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек»: строки не новые — они ушли из группы `Moving cursor inside a note` вместе со своей веткой конфига"
       + "заголовок соседней названа двумя клавишами, и третья в него не "
       + "помещается. Три группы вкладки Keyboard сведены в одну 2026-09-19 его словом "
@@ -408,8 +408,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 38,
-      "38 групп прототипа разложены без остатка: три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), группа `TagWheel opening` заведена 2026-09-12 вместе с контролом ведущего поля (10.13.76), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184)");
+    assert.equal(SCHEMA.length + AWAITED.length, 37,
+      "37 групп прототипа разложены без остатка: группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184)");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -3013,6 +3013,40 @@ async function main(): Promise<void> {
       "шаг переноса текста относится к Move text, а не к Move line");
     assert.ok(idx("Change the indent") > lineSubAt,
       "смена отступа — тоже работа со строкой, и живёт под Move line");
+  });
+
+  /*
+   * Открытие панели — субхедер внутри `tagWheel`, а не своя группа (его слово
+   * 2026-09-21, пункт 11: «tagwheel-opening сделать субхедером в хедере
+   * tagwheel (как scroller)»).
+   *
+   * Спрашивается **нарисованное**, а не запись схемы: прежней группы на
+   * вкладке быть не должно, три её строки обязаны найтись в группе `tagWheel`,
+   * и над первой из них обязана стоять подпись — своим блоком, а не строкой
+   * настройки (У-44, У-5).
+   */
+  await test("строки открытия панели стоят под субхедером внутри группы tagWheel", () => {
+    const { pane } = makePane();
+    assert.equal(groupOf(pane, "visual", "tagWheel opening"), undefined,
+      "своей группы `tagWheel opening` на вкладке остаться не должно");
+    const group = groupOf(pane, "visual", "tagWheel") as Def;
+    assert.ok(group, "группы tagWheel на вкладке нет");
+    const items = group.items as Def[];
+    for (const name of ["Active Field on opening", "Left Block active Field",
+                        "Right Block active Field"]) {
+      assert.ok(items.some((d: Def) => d.name === name),
+        "строка «" + name + "» не доехала до группы tagWheel");
+    }
+    const at = items.findIndex((d: Def) => d.name === "Active Field on opening");
+    assert.ok(at > 0, "строка открытия стоит первой в группе — подписи над ней нет");
+    const sub = items[at - 1] as Def;
+    assert.equal(typeof sub.render, "function",
+      "над строкой открытия стоит не свой блок, а строка настройки");
+    assert.equal(sub.searchable, false, "субхедер не должен попадать в поиск");
+    assert.equal(sub.control, undefined, "у субхедера нет контрола");
+    assert.equal(
+      String(drawBlock(sub).querySelector(".io-sub__text")?.textContent || ""),
+      "tagWheel opening", "подпись обязана назваться так же, как звалась группа");
   });
 
   /* Переименование группы переходов по заголовкам (замечание заказчика

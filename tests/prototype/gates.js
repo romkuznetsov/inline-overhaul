@@ -215,6 +215,60 @@ if (SUBHEADER_IDS.size < 3) {
   bad("обход нашёл субхедеров " + SUBHEADER_IDS.size + " — разделы считать нечем");
 }
 
+/*
+ * **Подпись субхедера — такой же видимый текст, как заголовок группы.**
+ * Куплено переносом `tagWheel opening` из своей группы в субхедер 2026-09-21
+ * (его пункт 11): у записи `kind: "custom"` нет ни `name`, ни `tip`, и все
+ * запреты Г10 — `TagWheel`, `band`, сущность со строчной — её обходили
+ * стороной. Перенос текста под субхедер выносил его из-под сторожа молча,
+ * то есть у лекарства была своя цена (У-166, правило 87).
+ *
+ * Текст берётся из **аргументов вызова** тем же образцом, каким его читает
+ * `gen_schema.js`: у самой записи схемы признака не остаётся, спрашивать надо
+ * исходник. Порог рядом — ноль разобранных подписей значит «искать перестало».
+ */
+{
+  const calls = Array.from(
+    js.matchAll(/render:\s*renderSubheader\(((?:[^()"]|"(?:[^"\\]|\\.)*")*)\)/g), m => m[1]);
+  let parsed = 0;
+  for (const args of calls) {
+    for (const lit of args.match(/"(?:[^"\\]|\\.)*"/g) || []) {
+      let text;
+      try { text = JSON.parse(lit); } catch { continue; }
+      parsed += 1;
+      for (const f of FORBIDDEN) {
+        if (text.includes(f)) bad("текст субхедера содержит " + f + ": " + text.slice(0, 60));
+      }
+      const low = lowerEntities(text);
+      if (low.length) bad("текст субхедера оставляет сущность со строчной: " + low.join(", "));
+    }
+  }
+  if (parsed < SUBHEADER_IDS.size) {
+    bad("разобрано подписей субхедеров " + parsed + " при " + SUBHEADER_IDS.size + " субхедерах");
+  }
+}
+
+/*
+ * Приписка, которая сама ранжирует вариант списка. Предмет — **скобка**, а не
+ * слово: имя режима `Standard` законно, `(standard)` рядом с подписью — вторая
+ * приписка к той, что панель ставит сама.
+ */
+const RANKING_ASIDE =
+  /\([^)]*\b(?:recommend(?:ed)?|preferred|suggested|advised|standard|usual|normal|best)\b[^)]*\)/i;
+{
+  /* Положительные — то, ради чего запрет заведён; отрицательные — подписи,
+     которые он путать не должен: пример значения, уточнение и имя режима. */
+  const should = ["End of your text (recommended)", "Both ways (preferred)", "Keep it (standard)"];
+  const shouldNot = ["Separate tags (#doing #review)", "Custom name (if set)", "No (plain text)",
+                     "Standard", "Normal weight", "Best of both"];
+  for (const s of should) {
+    if (!RANKING_ASIDE.test(s)) bad("контроль запрета приписки: не нашёл в " + JSON.stringify(s));
+  }
+  for (const s of shouldNot) {
+    if (RANKING_ASIDE.test(s)) bad("контроль запрета приписки: нашёл лишнее в " + JSON.stringify(s));
+  }
+}
+
 // Г11 group size, Г12 every group has an intro
 for (const g of SCHEMA) {
   /*
@@ -322,6 +376,23 @@ for (const g of SCHEMA) for (const it of g.items) {
   }
   if (it.options) it.options.forEach(o => {
     if (/_/.test(o.label)) bad(it.id + " option label has an underscore: " + o.label);
+    /*
+     * На вопрос «какой из вариантов стандартный» отвечает сама панель —
+     * припиской `(default)` у того значения, что стоит умолчанием в схеме.
+     * Подпись, отвечающая на него второй раз, читается подряд с ней: у
+     * `cursor-policy` человек видел `End of your text (recommended) (default)`
+     * и написал об этом 2026-09-21, пункт 10.
+     *
+     * Запрет по **скобочной** форме, а не по слову: `Standard` именем режима
+     * законно, `(standard)` рядом с подписью — та же приписка другими буквами.
+     * Ширина померена до того, как признак стал сторожем (У-204, правило 125):
+     * на 187 подписях прототипа слово `recommended`, любое ранжирующее слово и
+     * эта форма нашли **одно и то же** место, и отрицательные контроли ниже
+     * стоят на подписях, которые он путать не должен.
+     */
+    if (RANKING_ASIDE.test(o.label)) {
+      bad(it.id + " option label ranks itself; the panel already marks the default: " + o.label);
+    }
   });
 }
 

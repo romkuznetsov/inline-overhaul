@@ -10338,9 +10338,9 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | tagWheel |
 | `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | tagWheel |
 | `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel |
-| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel opening |
-| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel opening |
-| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel opening |
+| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel |
+| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel |
+| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel |
 | `visual.caret.enabled` | Color the text cursor (`caret-enabled`) | Text cursor |
 | `visual.caret.color` | Cursor color (`caret-color`) | Text cursor |
 | `visual.caret.shapeEnabled` | Shape the text cursor (`caret-shape`) | Text cursor |
@@ -17588,7 +17588,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 57 | 11 |
+| 5 | Visual | `features.visual.enabled` | 7 | 57 | 12 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 9 | 1 |
 
@@ -17643,7 +17643,6 @@ python tests/prototype/update_prd.py
 | 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
 | 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
 | 300 | `tagwheel` | tagWheel | tagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
-| 350 | `tagwheel-opening` | tagWheel opening | Which Field the picker is standing on the moment it opens, before you touch an arrow key | да | — |
 | 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
 | 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
 
@@ -18098,7 +18097,7 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
 - **Cursor after an action** — `cursor-policy`, `dropdown`, path `pkm.behavior.cursorPolicy`, default `text_end`
   - desc: Where the cursor waits once a tag or date has been set
   - tip: Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from
-  - варианты: `text_end` End of your text (recommended) · `current_position` Leave it where it was · `line_end` End of the line
+  - варианты: `text_end` End of your text · `current_position` Leave it where it was · `line_end` End of the line
   - старые названия для поиска: «Cursor behavior»
 
 #### Placement modes — `placement-modes` (вкладка `pkm`)
@@ -18618,13 +18617,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
   - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
   - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
-
-#### tagWheel opening — `tagwheel-opening` (вкладка `visual`)
-
-_Intro:_ Which Field the picker is standing on the moment it opens, before you touch an arrow key
-
-_Tip:_ tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it
-
+- **`wheel-opening-sub`** — свой блок, рендерер `?`
 - **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
   - desc: Which Field the picker lands on when it opens
   - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block

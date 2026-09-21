@@ -286,14 +286,9 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
-  ]
-},
-{
-  id: "tagwheel-opening", tab: "visual", order: 350, heading: "tagWheel opening",
-  intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
-  tip: "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it",
-  items: [
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" },
+    { kind:"custom", id:"wheel-opening-sub", render: subheader("tagWheel opening",
+      "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it") },
     { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
       name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
       searchTerms:["Lead Field","Starting Field","Active Field"],

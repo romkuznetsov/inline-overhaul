@@ -2239,7 +2239,11 @@ const SCHEMA = [
     { kind:"dropdown", id:"cursor-policy", path:"pkm.behavior.cursorPolicy", default:"text_end",
       name:"Cursor after an action", desc:"Where the cursor waits once a tag or date has been set",
       searchTerms:["Cursor behavior"],
-      options:[ {value:"text_end",label:"End of your text (recommended)"},
+      /* Приписка «(recommended)» снята его словом 2026-09-21: панель сама
+         помечает стандартный вариант «(default)», и два ответа на один вопрос
+         читались подряд — `End of your text (recommended) (default)`. Какой
+         вариант чаще всего нужен, говорит `tip` ниже. */
+      options:[ {value:"text_end",label:"End of your text"},
                 {value:"current_position",label:"Leave it where it was"},
                 {value:"line_end",label:"End of the line"} ],
       tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from" }
@@ -2676,22 +2680,18 @@ const SCHEMA = [
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
-  ]
-},
-/* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
-   в модели был, а контрола не было — и писать его было некому.
-
-   **Почему своя группа, а не строки в tagWheel.** В той группе одиннадцать
-   настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
-   Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
-   выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
-   вопрос задан строкой листа. Разбор — 10.13.76. */
-{
-  id: "tagwheel-opening", tab: "visual", order: 350, heading: "tagWheel opening",
-  intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
-  tip: "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it",
-  items: [
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" },
+    /*
+     * **Открытие панели — субхедер, а не своя группа** (его слово 2026-09-21,
+     * пункт 11: «tagwheel-opening сделать субхедером в хедере tagwheel (как
+     * scroller)»). Своя группа завелась 2026-09-11 от предела в двенадцать
+     * строк — «три новые туда не помещаются», — а предел он и тогда решил
+     * подписью внутри группы (так стоит `Scroller`): Г11 считает настройки в
+     * **разделе**, и субхедер раздел начинает заново. Цена, названная той
+     * записью, оказалась моей формой варианта, а не свойством панели (У-156).
+     */
+    { kind:"custom", id:"wheel-opening-sub", render: renderSubheader("tagWheel opening",
+      "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it") },
     /* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5).
        Ключ в модели был, а контрола не было — и писать его было некому.
        Разбор и правка — 10.13.76. */

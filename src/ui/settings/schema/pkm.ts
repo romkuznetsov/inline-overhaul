@@ -60,7 +60,11 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
     { kind:"dropdown", id:"cursor-policy", path:"pkm.behavior.cursorPolicy", default:"text_end",
       name:"Cursor after an action", desc:"Where the cursor waits once a tag or date has been set",
       searchTerms:["Cursor behavior"],
-      options:[ {value:"text_end",label:"End of your text (recommended)"},
+      /* Приписка «(recommended)» снята его словом 2026-09-21: панель сама
+         помечает стандартный вариант «(default)», и два ответа на один вопрос
+         читались подряд — `End of your text (recommended) (default)`. Какой
+         вариант чаще всего нужен, говорит `tip` ниже. */
+      options:[ {value:"text_end",label:"End of your text"},
                 {value:"current_position",label:"Leave it where it was"},
                 {value:"line_end",label:"End of the line"} ],
       tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from" }
