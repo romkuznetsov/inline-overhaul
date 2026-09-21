@@ -664,7 +664,7 @@ function normalizeScrollerConfig(input) {
    * и коробка подпишет значения как раньше.
    */
   var labelsRaw = String(raw.scrollerLabels || '').trim().toLowerCase()
-  var labels = labelsRaw === 'custom' ? 'custom' : 'value'
+  var labels = (labelsRaw === 'custom' || labelsRaw === 'both') ? labelsRaw : 'value'
   var customText = readCustomValueTextMap(raw)
   return {
     enabled: raw.scrollerEnabled === true,
@@ -1917,13 +1917,18 @@ async function runTagWheel(input, quickAddSettings) {
        * Свой текст значения сильнее написания — но только когда человек об этом
        * попросил контролом `Scroller Value names`. Спрашивается сам токен, а не
        * то, что из него сделала `formatVisualToken`: карта собрана по токенам.
+       *
+       * Положений три, и третье — его слово 2026-09-21, вечер: «добавь опцию
+       * `Custom+Default`, чтобы работал как `panel-value-names=Custom+Default
+       * name`». Соединяет их общий дом `core.joinValueLabel` — тот же, каким
+       * подписывает значение полоса панели; написанное считается здесь,
+       * потому что у коробки оно своё (`formatVisualToken`).
        */
+      var written = formatVisualToken(token || '-') || '-'
       var scroller = state && state.scrollerCfg ? state.scrollerCfg : null
-      if (scroller && scroller.labels === 'custom') {
-        var printed = String((scroller.customText || {})[String(token || '').trim()] || '').trim()
-        if (printed) return printed
-      }
-      return formatVisualToken(token || '-') || '-'
+      if (!scroller || (scroller.labels !== 'custom' && scroller.labels !== 'both')) return written
+      var printed = String((scroller.customText || {})[String(token || '').trim()] || '')
+      return state.core.joinValueLabel(printed, written, scroller.labels) || '-'
     }
 
     function buildBranch(direction, size) {

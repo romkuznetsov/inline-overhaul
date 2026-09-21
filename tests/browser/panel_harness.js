@@ -165,6 +165,18 @@ const PANEL_INJECTIONS = {
     find: "  if (tagwheelPanelSegmentInLine(text)) return -1;",
     replace: "  if (!text) return -1;",
   },
+  /*
+   * Третье положение подписей коробки схлопывается во второе: `Custom+Default
+   * name` печатает один свой текст, без написанного рядом. Это ровно та
+   * половина его заказа 2026-09-21, которой не было до этой сессии, и всем
+   * прежним утверждениям страницы она не видна — коробка нарисована, строк в
+   * ней столько же, свой текст на месте.
+   */
+  "scroller-both-drops-written": {
+    file: "src/pkm_v2/TagWheel/tagwheel_core.js",
+    find: "  if (mode === 'both') return custom + ' ' + written",
+    replace: "  if (mode === 'both') return custom",
+  },
   "scroller-silent": {
     file: "src/ui/tagwheel_scroller_overlay.js",
     find: "function getAnchorRect(editor, lineNumber, controlLine) {\n  try {",

@@ -2562,6 +2562,30 @@ function getDisplayTokenByFieldId(rules, state, fieldId) {
 }
 
 /**
+ * Как своя подпись соединяется с написанной — **один дом на оба контрола**.
+ *
+ * На этот вопрос отвечали два места: полоса панели (`valueLabelInStrip` ниже)
+ * и коробка скроллера в `tagwheel.js`. Пока у коробки было два положения, а у
+ * полосы три, различие выглядело разницей функций; его слово 2026-09-21,
+ * вечер — «добавь опцию `Custom+Default`, чтобы работал как
+ * `panel-value-names=Custom+Default name`» — сделало вопрос одним, и второе
+ * объявление разошлось бы молча (У-159, правило 80).
+ *
+ * Написанное коробка и полоса считают **по-разному** (коробка гонит токен
+ * через `formatVisualToken`, полоса берёт его как есть), поэтому дому
+ * передаётся уже посчитанное написанное, а не токен.
+ *
+ * Своего текста нет — печатается написанное, при любом положении (У-188).
+ */
+function joinValueLabel(printed, written, mode) {
+  var custom = String(printed == null ? '' : printed).trim()
+  if (!custom) return written
+  if (mode === 'both') return custom + ' ' + written
+  if (mode === 'custom') return custom
+  return written
+}
+
+/**
  * Чем подписано значение **в самой полосе** — его заказ 2026-09-21 (`З-38`).
  *
  * Полоса показывает выбранное значение так, как оно пойдёт в строку. Он
@@ -2589,9 +2613,7 @@ function valueLabelInStrip(token, labels) {
   var map = labels && labels.customText && typeof labels.customText === 'object'
     ? labels.customText
     : null
-  var printed = String((map ? map[raw.trim()] : '') || '').trim()
-  if (!printed) return raw
-  return mode === 'both' ? printed + ' ' + raw : printed
+  return joinValueLabel(map ? map[raw.trim()] : '', raw, mode)
 }
 
 function buildGroupDisplay(group, mode, state, rules, labels) {
@@ -3199,5 +3221,9 @@ module.exports = {
      текстов, и проверяется она без Obsidian: правило `З-38` иначе жило бы
      только на пути, где панель уже открыта (правило 122). */
   valueLabelInStrip: valueLabelInStrip,
+  /* Общий дом правила «свой текст + написанное» — его зовёт и коробка
+     скроллера в `tagwheel.js`. Без экспорта у неё было бы второе объявление
+     того же правила (правило 80). */
+  joinValueLabel: joinValueLabel,
   getDisplayTokenByFieldId: getDisplayTokenByFieldId
 }

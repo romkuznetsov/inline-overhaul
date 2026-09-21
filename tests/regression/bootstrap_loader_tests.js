@@ -3415,8 +3415,16 @@ async function run() {
     "tagwheel читает режим подписей скроллера из настроек рантайма");
   assertTrue(/labels: labels,/.test(tagwheelSrc),
     "tagwheel держит режим подписей на состоянии сессии");
-  assertTrue(/if \(scroller && scroller\.labels === 'custom'\)/.test(tagwheelSrc),
-    "и подпись соседнего значения спрашивает этот режим");
+  assertTrue(/scroller\.labels !== 'custom' && scroller\.labels !== 'both'/.test(tagwheelSrc),
+    "и подпись соседнего значения спрашивает этот режим, оба его непустых положения");
+  /*
+   * Положений у контрола три (его слово 2026-09-21, вечер), и соединяет свой
+   * текст с написанным **общий дом** в ядре — тот же, каким подписывает
+   * значение полоса панели. Своё второе объявление здесь разошлось бы с ним
+   * молча (У-159, правило 80).
+   */
+  assertTrue(/state\.core\.joinValueLabel\(printed, written, scroller\.labels\)/.test(tagwheelSrc),
+    "коробка соединяет свой текст с написанным домом правила, а не своим телом");
   assertTrue(/out\.edgeMode = qa\[TAGWHEEL_EDGE_MODE_OPTION\]/.test(tagwheelSrc), "tagwheel reads the Block edge mode out of the runtime settings");
   assertTrue(/edgeMode: normalizeEdgeMode\(runtimeInput\.edgeMode\)/.test(tagwheelSrc), "tagwheel keeps the normalized edge mode on the session state");
   assertTrue(/plan = planFieldStep\(\{/.test(tagwheelSrc), "tagwheel arrow step delegates the decision to the pure planner");

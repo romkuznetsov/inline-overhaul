@@ -1041,8 +1041,10 @@ function normalizeConfigV2(cfg) {
   oneOf("visual.tagWheel.valueNames", ["default", "custom", "both"]);
   bool("visual.tagWheel.scroller.enabled");
   oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
-  /* Чем подписаны соседние значения в коробке (его заказ 2026-09-20). */
-  oneOf("visual.tagWheel.scroller.labels", ["value", "custom"]);
+  /* Чем подписаны соседние значения в коробке (его заказ 2026-09-20; третье
+     положение `both` — его слово 2026-09-21, вечер, тем же вопросом, что и
+     `visual.tagWheel.valueNames` выше). */
+  oneOf("visual.tagWheel.scroller.labels", ["value", "custom", "both"]);
   int("visual.tagWheel.scroller.size", 1, 20);
   /* Цвета скроллера (10.13.15). Пустое значение — «взять у темы», и `hex`
      оставляет его пустым: второго смысла у пустоты в панели быть не должно. */

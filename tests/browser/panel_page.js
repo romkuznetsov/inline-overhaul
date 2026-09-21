@@ -37,6 +37,7 @@ const visuals = require("../../src/core/editor_visuals_config.js");
 const panelMask = require("../../src/ui/editor/panel_mask.js");
 const runtime = require("../../src/pkm_runtime_v2.js");
 const panelBench = require("../harness/panel_bench.js");
+const optionKeys = require("../../src/core/pkm_option_keys.js");
 
 /* Посчитано в Node сборкой страницы: конфиг фикстуры после `migrateConfig`,
    текст правил и ключи рантайма. Своей копии этих правил у страницы нет. */
@@ -121,6 +122,26 @@ function lineEl(n) {
 }
 
 const START_DOC = view.state.doc.toString();
+
+/**
+ * Переключить `Scroller Value names` перед следующим открытием панели.
+ *
+ * Положений у контрола три, а страница собирается один раз: держать три
+ * страницы значило бы три браузерных прогона по пять минут. Сессия читает
+ * ключ при открытии, поэтому достаточно поменять его в настройках команды и
+ * открыть панель заново — то же самое делает человек, правя контрол при
+ * закрытой панели.
+ *
+ * **Имя ключа берётся из реестра, а не пишется литералом** (правило 102):
+ * литерал здесь разошёлся бы с `pkm_option_keys.js` молча, и страница
+ * проверяла бы умолчание под именем третьего положения.
+ */
+window.__ioPanelScrollerLabels = function (mode) {
+  const key = optionKeys.KEYS.TAGWHEEL_SCROLLER_LABELS;
+  FIXTURE.settingsLeft[key] = String(mode);
+  FIXTURE.settingsRight[key] = String(mode);
+  return { key, mode: String(mode) };
+};
 
 /** Открыть панель на строке: то же, что делает хоткей. */
 window.__ioPanelOpen = async function (side, lineNumber) {

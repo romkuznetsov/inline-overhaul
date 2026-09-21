@@ -21,7 +21,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **The scroller can label Values the way you print them.** `Visual → TagWheel → Scroller Value names` chooses between the Value as it is written in the line and the custom text you gave it in `Color your tags` — so the box shows `🎯` where you set one, and `#todo` where you did not.
+1. ✨ **The scroller can label Values the way you print them.** `Visual → TagWheel → Scroller Value names` chooses between the Value as it is written in the line, the custom text you gave it in `Color your tags`, or both at once — so the box shows `🎯`, `#todo`, or `🎯 #todo`. Where no custom text is set, the written Value is shown, so a Value never goes blank.
 2. 🐛 **A two-digit year is a year again — from the TagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
 3. 🐛 **The TagWheel no longer draws a bubble over its own markup.** On a fresh install, where none of the panel colors had been set, the picker drawn over your line got a Value bubble on top of it.
 4. 🎨 **The README links to the showcase instead of embedding recordings.** The animations stay in [`docs/SHOWCASE.md`](docs/SHOWCASE.md), and the page above them loads at once.

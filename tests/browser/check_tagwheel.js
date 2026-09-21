@@ -226,6 +226,39 @@ async function main() {
         + "» вместо «" + applied.startDoc + "»");
     }
 
+    /* ---- 10. Третье положение подписей коробки ------------------------ */
+    /*
+     * `Custom+Default name` — его слово 2026-09-21, вечер: «добавь опцию
+     * `Custom+Default`, чтобы работал как `panel-value-names=Custom+Default
+     * name` (т.е. чтобы в скроллере тоже было видно `💡#idea`)».
+     *
+     * От второго положения оно отличается ровно тем, что рядом со своим
+     * текстом стоит написанное, и спрашивается это **на том значении, у
+     * которого свой текст задан**: там, где своего текста нет, все три
+     * положения печатают одно и то же, и утверждение было бы зелёным от
+     * совпадения сторон (У-147). Вторая половина — то самое значение без
+     * своего текста: оно обязано остаться написанным.
+     */
+    const both = await page.evaluate(async () => {
+      await window.__ioPanelKey("Escape");
+      window.__ioPanelScrollerLabels("both");
+      await window.__ioPanelOpen("left", 0);
+      return window.__ioPanelKey("ArrowUp");
+    });
+    const bothTexts = Array.isArray(both.overlayTexts) ? both.overlayTexts : [];
+    const paired = bothTexts.filter((t) => String(t || "").indexOf(SCROLLER_CUSTOM_TEXT) === 0);
+    if (!paired.length) {
+      bad("в положении `Custom+Default name` своего текста в коробке нет вовсе: "
+        + JSON.stringify(bothTexts));
+    } else if (!/^\S+\s+\S/.test(paired[0])) {
+      bad("в положении `Custom+Default name` рядом со своим текстом нет написанного значения: "
+        + JSON.stringify(paired));
+    }
+    if (!bothTexts.some((t) => /^#/.test(String(t || "")))) {
+      bad("значение без своего текста в положении `Custom+Default name` перестало быть написанным: "
+        + JSON.stringify(bothTexts));
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {
@@ -239,7 +272,8 @@ async function main() {
       + ", Ctrl+Z вернул исходное; окно"
       + " отрисовки на строке с длинным Block порвано на " + torn.viewportPieces
       + ", подложек " + torn.bandTotal + " и ни одной вдвойне, кнопки `→` при"
-      + " открытой панели нет и после закрытия она вернулась");
+      + " открытой панели нет и после закрытия она вернулась; в положении"
+      + " `Custom+Default name` коробка печатает " + JSON.stringify(bothTexts));
   } finally {
     await browser.close();
   }

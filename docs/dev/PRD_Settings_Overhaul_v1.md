@@ -7304,6 +7304,41 @@ Block» дописана в корпус обхода тем же заходом
 на `Only custom name` — те же 2 из 104, новых расхождений нет. Разбор —
 10.13.226.
 
+**Исключение сто сорок второе, разрешение спрошено «оставить ли сделанное»
+2026-09-21, ночь, по его слову в тесте 4** («доп.задача → `scroller-labels` —
+добавь опцию `Custom+Default`, чтобы работал как
+`panel-value-names=Custom+Default name`, т.е. чтобы в скроллере тоже было видно
+`💡#idea`», и следом список переименований положений):
+`pkm_v2/TagWheel/tagwheel.js`, `pkm_v2/TagWheel/tagwheel_core.js`. Работа
+назначена им самим — В-162, — и потому сделана сразу.
+
+**Второе объявление правила снято тем же заходом.** На вопрос «печатать свой
+текст, написанное или оба» отвечали два места: `valueLabelInStrip` у полосы
+панели и `getDisplayLabel` у коробки скроллера. Пока у коробки было два
+положения, а у полосы три, это выглядело разницей функций; его слово сделало
+вопрос одним, и дальше они разошлись бы молча (У-159, правило 80). Дом —
+`joinValueLabel` в `tagwheel_core.js`, и **написанное** ему передаётся уже
+посчитанным: у коробки оно своё (`formatVisualToken`, которая слушается
+контрола `Show tag markers`), у полосы это сам токен.
+
+Значения ключа не трогались: `value` остался `value`, добавился `both`.
+Переименованы только подписи положений — его список слово в слово:
+`Default name`, `Custom name (if set)`, `Custom+Default name`. Прежние подписи
+(`As written`, `Custom text when set`) ушли в `searchTerms`, чтобы поиск панели
+находил строку по тому имени, которое человек помнит.
+
+**Чем закреплено.** Дом проверяется в `tagwheel_tests.js` на написанном, **не
+равном** токену (`todo` против `#todo`): на равных сторонах перевёрнутые
+аргументы выглядели бы верно (У-147). Что до коробки правило доезжает —
+браузерный шаг: страница переключает контрол своим швом
+`__ioPanelScrollerLabels` (имя ключа берётся из реестра `pkm_option_keys`, не
+литералом) и спрашивает у коробки обе половины — у значения со своим текстом
+рядом стоит написанное, у соседнего без своего текста написанное осталось одно.
+Подмена `scroller-both-drops-written` («третье положение схлопывается во
+второе») краснеет ровно на этом утверждении и невидима всем прежним. Шов
+закреплён в `bootstrap_loader_tests.js`: коробка обязана звать дом, а не считать
+сама. Разбор — 10.13.227.
+
 ##              ->  ##  :: 📅2026-09-14 14:22
 ```
 
@@ -18515,10 +18550,10 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «Scroller direction», «Opens»
 - **Scroller Value names** — `scroller-labels`, `dropdown`, path `visual.tagWheel.scroller.labels`, default `value`
   - desc: What the box shows for each neighboring Value
-  - tip: <code>As written</code> shows the Value the way it goes into your line, marks and all. <code>Custom text when set</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word — and falls back to the written Value wherever no custom text is given
-  - варианты: `value` As written · `custom` Custom text when set
+  - tip: <code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank
+  - варианты: `value` Default name · `custom` Custom name (if set) · `both` Custom+Default name
   - видна если: `visual.tagWheel.scroller.enabled`
-  - старые названия для поиска: «Scroller names», «Custom text in the scroller», «Printed name»
+  - старые названия для поиска: «Scroller names», «Custom text in the scroller», «Printed name», «As written», «Custom text when set»
 - **Scroller background color** — `scroller-fill`, `color`, path `visual.tagWheel.scroller.fillColor`, default `""`
   - desc: The color behind the box of neighboring Values
   - tip: Leave it empty and the box takes the color your theme gives a popover. Set it and the box stands out from the note even where the theme is pale

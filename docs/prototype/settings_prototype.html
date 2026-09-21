@@ -2633,13 +2633,22 @@ const SCHEMA = [
        настройках скроллера нужно добавить режим отображения (дефолтные
        названия или custom (при наличии)) — чтобы при прокручивании
        пользователь видел `#todo` либо `🎯` (custom printed)». Умолчание —
-       прежнее поведение. */
+       прежнее поведение.
+       **Третье положение и имена вариантов — его слово 2026-09-21, вечер:**
+       «добавь опцию `Custom+Default`, чтобы работал как
+       `panel-value-names=Custom+Default name` (т.е. чтобы в скроллере тоже
+       было видно `💡#idea`)», и следом список переименований. Имена вариантов
+       теперь совпадают с соседней строкой `TagWheel Value names`: вопрос у них
+       один, и разные подписи заставляли читать два раза. Значения ключа не
+       трогаются — `value` остаётся `value`, иначе поехал бы конфиг. */
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
       name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
-      tip:"<code>As written</code> shows the Value the way it goes into your line, marks and all. <code>Custom text when set</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word — and falls back to the written Value wherever no custom text is given",
-      searchTerms:["Scroller names","Custom text in the scroller","Printed name"],
+      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
+      searchTerms:["Scroller names","Custom text in the scroller","Printed name","As written","Custom text when set"],
       visible: on("visual.tagWheel.scroller.enabled"),
-      options:[ {value:"value",label:"As written"}, {value:"custom",label:"Custom text when set"} ] },
+      options:[ {value:"value",label:"Default name"},
+                {value:"custom",label:"Custom name (if set)"},
+                {value:"both",label:"Custom+Default name"} ] },
     /* Цвета скроллера (PRD 10.13.15, замечание заказчика D6 от 2026-09-02).
        Скроллер не читал ни одной настройки цвета: его коробка была целиком из
        переменных темы, а подпись цвета текста панели обещала как раз его. Пустое
