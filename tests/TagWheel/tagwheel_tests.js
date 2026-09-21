@@ -2224,6 +2224,82 @@ function runPanelHighlightSuite(core, baseRules) {
     'выключенная настройка возвращает ту же строку, что и отсутствие ветки')
 }
 
+/**
+ * **Каретка при открытой панели стоит вне подсветки** (его замечание
+ * 2026-09-21: «при открытии tagwheel left панель открывается без `====`, а
+ * right — с ними; хочу, чтобы эти `====` не отображались»).
+ *
+ * Метки `==` прячет сама Obsidian, и прячет ровно до тех пор, пока выделение
+ * не перекрывает узел подсветки: `IL(range, from, to)` в `app.js` 1.13.7 —
+ * `range.from <= to && range.to >= from`, то есть **край считается
+ * перекрытием**. Значит правило продукта звучит так: после отрисовки панели
+ * каретка обязана лежать строго вне отрезка `==…==`.
+ *
+ * Спрашивается это у настоящей пары «вид панели + план записи», а не у
+ * арифметики помощника: план приносит отрезки вставки, по ним помощник и
+ * двигает каретку.
+ *
+ * **Положительный контроль — первым**: хотя бы на одной форме конец строки
+ * обязан попадать внутрь подсветки. Без него вся проверка зелена и на
+ * строках, где подсветки рядом с кареткой нет вовсе (У-152, У-200).
+ */
+function runPanelCaretOutsideHighlightSuite(core, baseRules) {
+  var path = require('path')
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var planWrite = require(path.join(__dirname, '..', '..', 'src', 'core', 'panel_line_write.js'))
+  var builder = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
+
+  var rules = JSON.parse(JSON.stringify(baseRules))
+  rules.io = Object.assign({}, rules.io, { separator1: '||', separator2: '||' })
+  rules.ui = builder.buildRulesShapeFromConfig({ visual: { tagWheel: { highlightLine: true } } }).ui
+
+  /** Отрезок подсветки в записанной строке: от первых `==` до последних. */
+  function highlightSpan(text) {
+    var from = String(text).indexOf('==')
+    var to = String(text).lastIndexOf('==')
+    if (from === -1 || to === from) return null
+    return { from: from, to: to + 2 }
+  }
+
+  /** Правило самой Obsidian: край считается перекрытием. */
+  function overlaps(span, ch) {
+    return span.from <= ch && span.to >= ch
+  }
+
+  var shapes = [
+    { side: 'left', source: '- 111' },
+    { side: 'right', source: '- 111' },
+    { side: 'left', source: '- #work || 111' },
+    { side: 'right', source: '- #work || 111' }
+  ]
+
+  var subjectSeen = 0
+  var i
+  for (i = 0; i < shapes.length; i++) {
+    var shape = shapes[i]
+    var st = core.makeInitialState(rules, shape.side)
+    st.mode = shape.side
+    var parsedShape = core.parseLine(shape.source, rules)
+    var control = core.renderControlLine(rules, st, parsedShape)
+    var plan = planWrite.planPanelLineWrite(shape.source, control)
+    assertTrue(!!plan, 'план записи не сошёлся, мерить нечего: ' + JSON.stringify(control))
+    var span = highlightSpan(plan.text)
+    assertTrue(!!span, 'в строке панели нет подсветки, мерить нечего: ' + JSON.stringify(plan.text))
+    var lineEnd = plan.text.length
+    if (overlaps(span, lineEnd)) subjectSeen += 1
+    var ch = tagwheel.cursorOutsidePanelStrip(plan.text, plan, lineEnd)
+    assertTrue(!overlaps(span, ch),
+      shape.side + ' / ' + JSON.stringify(shape.source)
+      + ': каретка ' + ch + ' внутри подсветки [' + span.from + ', ' + span.to + '] строки '
+      + JSON.stringify(plan.text))
+  }
+
+  /* Ноль здесь значит «мерили не то»: без случая, где конец строки попадает
+     в подсветку, утверждение выше выполняется само собой (У-200). */
+  assertTrue(subjectSeen > 0,
+    'ни на одной форме конец строки не попадает в подсветку — предмета правила в наборе нет')
+}
+
 /*
  * Значения противоположного Block, пока панель открыта (10.13.87).
  *
@@ -2870,6 +2946,7 @@ function runNode() {
   runLeadFieldPolicySuite(core)
   runLinkFieldOrderSuite()
   runPanelHighlightSuite(core, rules)
+  runPanelCaretOutsideHighlightSuite(core, rules)
   runOppositeBlockSuite(core, rules)
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()

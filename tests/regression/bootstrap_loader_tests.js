@@ -956,8 +956,15 @@ async function run() {
    * снято: правило то же — курсор считает `getControlCursorCh`, то есть
    * настройка `Cursor behavior after apply` (У-94).
    */
-  assertTrue(/ch: visibleChToTextCh\(text, plan \? plan\.hidden : \[\], getControlCursorCh\(state, control\)\)/.test(tagwheelSrc), "tagwheel updates cursor using cursorPolicy in active control mode");
+  /*
+   * И ещё раз, 2026-09-21: поверх того же вызова встал увод каретки из полосы
+   * (`cursorOutsidePanelStrip`, его замечание про `====`). Правило прежнее —
+   * столбец считает `getControlCursorCh`, — поэтому утверждение переписано на
+   * новую форму вызова, а не снято (У-94).
+   */
+  assertTrue(/cursorOutsidePanelStrip\(text, plan,\s*visibleChToTextCh\(text, plan \? plan\.hidden : \[\], getControlCursorCh\(state, control\)\)\)/.test(tagwheelSrc), "tagwheel updates cursor using cursorPolicy in active control mode");
   assertTrue(/function visibleChToTextCh\(text, hidden, visibleCh\)/.test(tagwheelSrc), "tagwheel maps the visible column onto the written line");
+  assertTrue(/function cursorOutsidePanelStrip\(text, plan, ch\)/.test(tagwheelSrc), "tagwheel keeps the caret out of its own highlighted strip");
   assertTrue(/linePipeline\.splitSegments\(rawLine, rules\)|linePipeline\.splitSegments\(line, rules\)|linePipeline\.splitSegments\(out, rules\)/.test(statusTagsSrc), "status_tags split delegates to shared line pipeline");
   assertTrue(/linePipeline\.splitSegments\(rawLine, rules\)|linePipeline\.splitSegments\(line, rules\)/.test(statusDateSrc), "status_date split delegates to shared line pipeline");
   assertTrue(/throw new Error\("line_pipeline unavailable: splitSegments"\);/.test(statusTagsSrc), "status_tags split fallback removed in favor of shared line pipeline");

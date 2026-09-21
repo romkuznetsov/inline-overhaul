@@ -140,6 +140,44 @@ function withKeptPrefix(originalLine, control) {
   return kept + text.slice(indent.length)
 }
 
+/**
+ * **Каретка не стоит внутри полосы панели** (его замечание 2026-09-21:
+ * «при открытии tagwheel left панель открывается без `====`, а right — с
+ * ними; хочу, чтобы `====` не отображались при открытии»).
+ *
+ * Полоса обёрнута в `==…==`, и заливку ей рисует сама Obsidian этой
+ * подсветкой (разбор — `.io-twline` в `styles.css`, три захода). Прятать
+ * метки `==` — работа Obsidian, и делает она это по одному правилу:
+ * прячущие декорации ставятся, **пока выделение не перекрывает узел**.
+ * Прочитано в `app.js` 1.13.7, предикат `IL(range, from, to)` =
+ * `range.from <= to && range.to >= from`, то есть край считается
+ * перекрытием, и набор имён с `"highlight"` — `a3`.
+ *
+ * Каретка после отрисовки встаёт в конец строки. У левого Block полоса
+ * стоит в начале, и конец строки от неё далеко — метки спрятаны. У правого
+ * полоса **кончает** строку, каретка садится на её закрывающее `==` — и
+ * Obsidian показывает метки сырыми. Разница между Block была ровно в этом.
+ *
+ * Поэтому каретка уводится к началу вставки. Отрезки вставки приносит план
+ * записи — искать `==` в строке нельзя: они бывают и в тексте человека.
+ * Если вставка начинается не с пробела, каретка встаёт на знак раньше: её
+ * место на границе вставки — это и есть `range.from` подсветки.
+ *
+ * Строка, у которой вставка начинается с самого начала, каретку левее
+ * увести не может — тогда она уходит за конец вставки, где подсветка уже
+ * закрылась.
+ */
+function cursorOutsidePanelStrip(text, plan, ch) {
+  var src = String(text || '')
+  var ranges = plan && Array.isArray(plan.inserted) ? plan.inserted : []
+  if (!ranges.length) return ch
+  var from = Number(ranges[0][0]) || 0
+  var to = Number(ranges[ranges.length - 1][1]) || 0
+  if (ch < from || ch > to) return ch
+  if (from > 0) return /\s/.test(src.charAt(from)) ? from : from - 1
+  return Math.min(src.length, to)
+}
+
 function isLowSurrogate(code) {
   /* Правило объявлено один раз — `shared_utils.js` (10.13.137). */
   return __sharedUtils.isLowSurrogate(code)
@@ -1926,7 +1964,8 @@ async function runTagWheel(input, quickAddSettings) {
       state.lineNumber, plan ? plan.hidden : [])
     state.editor.setCursor({
       line: state.lineNumber,
-      ch: visibleChToTextCh(text, plan ? plan.hidden : [], getControlCursorCh(state, control)),
+      ch: cursorOutsidePanelStrip(text, plan,
+        visibleChToTextCh(text, plan ? plan.hidden : [], getControlCursorCh(state, control))),
     })
     /*
      * Оверлею отдаётся **записанная** строка, а не вид: место своей коробки он
@@ -1935,6 +1974,7 @@ async function runTagWheel(input, quickAddSettings) {
      */
     updateScrollerOverlay(state, text)
   }
+
 
   /**
    * Столбец в записанной строке по столбцу в том, что человек видит.
@@ -2558,6 +2598,10 @@ module.exports.setLineOutsideHistory = setLineOutsideHistory
 module.exports.lineDiffChange = lineDiffChange
 module.exports.keptLinePrefix = keptLinePrefix
 module.exports.withKeptPrefix = withKeptPrefix
+/* Место каретки при открытой панели — чистая функция над планом записи, и
+   проверяется она без Obsidian: правило про `====` иначе жило бы только в
+   моей памяти (правило 122). */
+module.exports.cursorOutsidePanelStrip = cursorOutsidePanelStrip
 /* «Как значение поля выглядит в строке» объявлено и здесь, и в ядре
    (`buildOutputToken`). Отдаётся наружу затем, чтобы расхождение между двумя
    объявлениями меряла программа, а не чтение: стенд `tools/form_divergence.js`
