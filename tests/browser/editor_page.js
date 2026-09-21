@@ -505,6 +505,27 @@ window.__ioBubblesByZone = function () {
       zone,
       cls: String(el.className || ""),
       fontSize: cs.getPropertyValue("font-size"),
+      /*
+       * **Чем рисует тег сама платформа на этой строке.** Спрашивается у
+       * браузера пробой, а не пересчётом от кегля строки: своя копия правила
+       * `--tag-size` разошлась бы с продуктом молча (У-4). Узел живёт один
+       * вопрос и снимается тем же тактом.
+       */
+      themeTagPx: (() => {
+        const host = el.closest(".cm-line");
+        if (!host) return "";
+        const probe = document.createElement("span");
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.fontSize = "var(--tag-size)";
+        host.appendChild(probe);
+        const px = getComputedStyle(probe).getPropertyValue("font-size");
+        probe.remove();
+        return px;
+      })(),
+      /* Подъём пузыря: на сотне он ноль — тег стоит базовой линией, как его
+         рисует и сама Obsidian (`vertical-align: baseline`). */
+      verticalAlign: cs.getPropertyValue("vertical-align"),
       padTop: cs.getPropertyValue("padding-top"),
       padLeft: cs.getPropertyValue("padding-left"),
       background: cs.getPropertyValue("background-color"),

@@ -32,6 +32,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 9. ✨ **Every Field lists its own commands, with the keys they are on.** The right-hand column of `Tags & PKM → Fields` ends with `Commands`: the Field's own `next` and `previous`, its child Field's pair, and the key each one carries. Press a key cell and Obsidian's `Hotkeys` screen opens at that command. Rename a Field and the list follows at once.
 10. ✨ **The sections of that column fold.** `Values`, `Behavior`, `YAML property` and `Commands` each carry the same triangle the settings headings do, and each remembers whether you left it open.
 11. 🐛 **A word of yours no longer sits among the Values.** `Importance next` on `- [[a note]] :: your text` left the link where it was; now it moves into your text, the way the picker has always moved it: `- #high :: [[a note]] your text`. Any word the plugin does not recognise as a Value is yours, and it belongs on your side of the Separator.
+12. 🎨 **A tag is drawn the size Obsidian draws it.** In the editor a tag used to take the size of the text beside it, which made it larger than the same tag in reading mode. It now takes the size your theme gives a tag, so both modes agree. Inside a Block it still sits centred on the line; in your own text it sits on the baseline, the way a tag does everywhere else.
 
 ## 0.5.1
 

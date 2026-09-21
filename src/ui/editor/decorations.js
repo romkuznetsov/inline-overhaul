@@ -427,7 +427,7 @@ class LinkVisualTokenWidget extends cmView.WidgetType {
 }
 
 class TagVisualTokenWidget extends cmView.WidgetType {
-  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin, basePx) {
+  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin, basePx, tagBasePx, inBlock) {
     super();
     this.plugin = plugin || null;
     this.tokenText = String(tokenText || "");
@@ -445,6 +445,24 @@ class TagVisualTokenWidget extends cmView.WidgetType {
        размер текста в Block). Стоит и в `eq`: смени человек размер текста в
        Obsidian — виджет обязан перерисоваться, а не остаться прежним. */
     this.basePx = Number(basePx);
+    /*
+     * Кегль тега, как его задаёт тема (`--tag-size`) — его слово 2026-09-21,
+     * ночь: «как в просмотре, и в text block тоже». У пузыря, который рисует
+     * **тег**, это и есть сотня процентов; у пузыря значения-не-тега сотня
+     * по-прежнему кегль строки, потому что такого предмета Obsidian не рисует
+     * вовсе и брать величину не у кого (У-260).
+     */
+    this.tagBasePx = Number(tagBasePx);
+    /*
+     * В Block ли этот пузырь. От этого зависит **уровень**, и оба ответа — его
+     * слова. `G4`, 2026-09-16: «хочу, чтобы при уменьшении текста все values в
+     * технических блоках были выровнены по центру строки, а не по нижней
+     * границе» — то есть в Block пузырь поднимается к середине строки. Вне
+     * Block он стоит базовой линией: это ваш текст, и тег в нём обязан стоять
+     * так же, как его рисует Obsidian в режиме просмотра (его слово
+     * 2026-09-21, ночь).
+     */
+    this.inBlock = inBlock === true;
   }
   eq(other) {
     return !!other
@@ -459,7 +477,9 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       && other.emptyBubbleSizePct === this.emptyBubbleSizePct
       && other.shapePct === this.shapePct
       && other.displayTextOverride === this.displayTextOverride
-      && other.basePx === this.basePx;
+      && other.basePx === this.basePx
+      && other.tagBasePx === this.tagBasePx
+      && other.inBlock === this.inBlock;
   }
   /**
    * **Вид — классами, величины — переменными** (правило каталога Р7).
@@ -479,7 +499,15 @@ class TagVisualTokenWidget extends cmView.WidgetType {
    */
   toDOM() {
     const el = document.createElement("span");
-    const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct, this.basePx);
+    /*
+     * Сотня процентов у тега — кегль, которым тег рисует сама Obsidian; у
+     * прочих значений — кегль строки. Спрашивается это здесь, потому что
+     * «тег ли это» здесь и известно (`isTag` ниже собран тем же признаком).
+     */
+    const bubbleBasePx = this.tokenText.charAt(0) === "#" && Number.isFinite(this.tagBasePx) && this.tagBasePx > 0
+      ? this.tagBasePx
+      : this.basePx;
+    const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct, bubbleBasePx);
     const emptyScale = Number.isFinite(this.emptyBubbleSizePct) ? Math.max(10, Math.min(180, Math.trunc(this.emptyBubbleSizePct))) / 100 : 1;
     const renderedText = this.emptyMode ? " " : (this.displayTextOverride || this.tokenText);
     el.textContent = renderedText;
@@ -532,8 +560,20 @@ class TagVisualTokenWidget extends cmView.WidgetType {
      * нём на уровне текста строки (его слово 2026-09-19). Мельче — подъём
      * ровно тот, который нужен, чтобы середины совпали.
      */
+    /*
+     * Подъём считается **от своей сотни**, а не от кегля строки: на сотне он
+     * ноль, и пузырь стоит базовой линией — ровно так рисует тег и сама
+     * Obsidian (`vertical-align: baseline` у `a.tag` и `.cm-hashtag`).
+     * Считай его от кегля строки, тег поехал бы вверх на всех настройках,
+     * а не только на мелких (правило 87 — у лекарства есть цена).
+     */
+    /*
+     * Опора подъёма: в Block — кегль **строки** (его `G4`: значения стоят
+     * серединой строки), вне Block — своя сотня, и тогда подъёма нет вовсе.
+     */
+    const riseFrom = this.inBlock ? baseTextPx(this.basePx) : baseTextPx(bubbleBasePx);
     el.style.setProperty("--io-tagbubble-rise",
-      `${Math.round((baseTextPx(this.basePx) - st.fontSizePx) / 2 * 100) / 100}px`);
+      `${Math.round((riseFrom - st.fontSizePx) / 2 * 100) / 100}px`);
     el.style.setProperty("--io-tagbubble-line", String(st.lineHeight));
     if (this.emptyMode) {
       /*
@@ -652,6 +692,77 @@ function lineTextBasePx(view, lineNo, fallbackPx) {
   }
 }
 
+/**
+ * Кегль **тега**, как его задаёт платформа.
+ *
+ * **Его слово 2026-09-21, ночь:** «как в просмотре… и текст в text block должен
+ * быть таким же — если в textblock теги такие же большие, то тоже их уменьши».
+ * Это отменяет его же слово от 2026-09-19 («при 100 текст в left/right block
+ * должен быть таким же как в text block») и отменяет нарочно: тег в режиме
+ * просмотра рисует сама Obsidian, и кегль ему задан `var(--tag-size)` —
+ * `0.875em` умолчанием, `0.8em` у его темы. Тем же `--tag-size` она рисует
+ * `.cm-hashtag`, то есть тег **в самом редакторе** там, где мы не вмешиваемся.
+ * Наш пузырь брал кегль строки, и разница была ровно 1,25 (У-260).
+ *
+ * **Величина спрашивается, а не считается.** Своего разбора `em` против `px`
+ * здесь нет: пробе задаётся кегль **этой строки**, `--tag-size` она наследует
+ * от темы, и браузер отвечает готовыми точками при любой единице.
+ *
+ * **Проба живёт вне `.cm-content`.** Узел кладётся в `view.dom` — рамку
+ * редактора, — а не в содержимое: содержимое CodeMirror наблюдает, и чужой
+ * ребёнок в нём читается как правка документа (У-45 наоборот: заглушка бывает
+ * добрее браузера, а браузер тут строже).
+ *
+ * Ответа нет — отвечает кегль строки, то есть ровно прежнее поведение.
+ */
+const TAG_BASE_CACHE = new Map();
+
+function editorTagBasePx(view, basePx, rawTagSize) {
+  const raw = String(rawTagSize || "").trim();
+  if (!raw) return basePx;
+  const key = basePx + "|" + raw;
+  if (TAG_BASE_CACHE.has(key)) return TAG_BASE_CACHE.get(key);
+  let px = basePx;
+  try {
+    const host = view && view.dom;
+    if (host && typeof document !== "undefined" && typeof document.createElement === "function"
+      && typeof getComputedStyle === "function") {
+      const probe = document.createElement("span");
+      probe.className = "io-tagsize-probe";
+      /* Величина приезжает переменной, а не свойством узла: вид строкой
+         атрибута запрещён правилом каталога Р7, и запрет этот сплошной. */
+      probe.style.setProperty("--io-tagprobe-base", basePx + "px");
+      const inner = document.createElement("span");
+      inner.className = "io-tagsize-probe__inner";
+      probe.appendChild(inner);
+      host.appendChild(probe);
+      const got = parseFloat(String(getComputedStyle(inner).fontSize || ""));
+      probe.remove();
+      if (Number.isFinite(got) && got > 0) px = got;
+    }
+  } catch (_) {
+    /* Проба: страницы может не быть вовсе (прогон без браузера). Ответ «нет» —
+       это ответ, и им остаётся кегль строки. */
+  }
+  /* Карта мала нарочно: у заголовка свой кегль, и ключей столько, сколько
+     разных кеглей на экране. Тема сменилась — сменится и `raw`. */
+  if (TAG_BASE_CACHE.size > 32) TAG_BASE_CACHE.clear();
+  TAG_BASE_CACHE.set(key, px);
+  return px;
+}
+
+/** Что тема объявила тегу: спрашивается один раз на отрисовку. */
+function themeTagSizeRaw(view) {
+  try {
+    const node = view && view.contentDOM;
+    if (!node || typeof getComputedStyle !== "function") return "";
+    return String(getComputedStyle(node).getPropertyValue("--tag-size") || "").trim();
+  } catch (_) {
+    /* Проба: переменной может не быть вовсе — это ответ. */
+    return "";
+  }
+}
+
 function buildTagVisualLayer(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
@@ -674,6 +785,10 @@ function buildTagVisualLayer(view, plugin) {
     baseByLine.set(lineNo, px);
     return px;
   };
+  /* Что тема объявила тегу — один вопрос на всю отрисовку (`--tag-size`). */
+  const tagSizeRaw = themeTagSizeRaw(view);
+  /* Кегль тега на этой строке: `em` темы считается от кегля самой строки. */
+  const lineTagBasePx = (lineNo) => editorTagBasePx(view, lineBasePx(lineNo), tagSizeRaw);
   const userTags = visuals.userTags;
   const fieldMap = buildFieldTagVisualMap(cfg);
   const globalMap = buildGlobalTagVisualMap(cfg);
@@ -946,7 +1061,7 @@ function buildTagVisualLayer(view, plugin) {
              документ совпадают знак в знак, и ходить по нему надо как по тексту. */
           atomic: effectiveMode === "custom" || effectiveMode === "empty",
           deco: cmView.Decoration.replace({
-            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo)),
+            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo), lineTagBasePx(lineNo), sizing.inBlock),
             inclusive: false,
           }),
         });
@@ -2193,10 +2308,13 @@ function blockFillMarkersFor(view, plugin) {
   const tagVisuals = getTagVisualsFromConfig(cfg);
   /* Кегль редактора — один ответ на всю отрисовку: он от строки не зависит. */
   const basePx = editorTextBasePx(view);
+  /* Кегль тега — тот же вопрос, что у пузыря: подложка обязана быть не выше
+     того, что в ней лежит (его пункт `G4`, второй заход). */
+  const tagBasePx = editorTagBasePx(view, basePx, themeTagSizeRaw(view));
   const askHeight = (rowH, textH, zone) => blockFillBandHeightPx(
     look, rowH,
     blockFillWrittenTextHeightPx(tagVisuals, textH, zone),
-    blockFillBubbleHeightPx(tagVisuals, zone, basePx));
+    blockFillBubbleHeightPx(tagVisuals, zone, basePx, tagBasePx));
   /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
   const flyLine = floatingButtonLineNumber(view, plugin);
   /* Ряды строки — один ответ на оба её Block (см. ниже). */

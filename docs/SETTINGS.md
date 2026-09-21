@@ -293,6 +293,10 @@ How a tagged line looks while you write it. Nothing here changes a character in 
 | `Opacity of the Right Block` | `100` | Dims everything written after your text |
 | `Left Block text size` | `100` | How big everything before your text is written |
 | `Right Block text size` | `100` | How big everything after your text is written |
+
+At `100` a tag is drawn the size your theme gives a tag — the same size it has in reading
+mode — and not the size of the text beside it. Links and dates in a Block keep the size of
+the line.
 | `Color the Block with Stripe` | off | A Stripe behind the Left Block and the Right Block |
 | `Stripe direction` | `both` | Which of the two Blocks gets a Stripe |
 | `Stripe color` | unset | Unset follows your theme |

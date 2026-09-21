@@ -24,8 +24,14 @@
  *   * `read` — `a.tag`, как тег рисует **режим просмотра**;
  *   * `lp` — `span.cm-hashtag`, как тег рисует **Live Preview** там, где
  *     плагин не вмешивается;
- *   * `now` — наш пузырь при нынешних величинах (кегль = кегль строки);
- *   * `alt` — наш пузырь, если кегль брать у платформы (`--tag-size`).
+ *   * `line` — наш пузырь, если кегль брать у строки (так было до 2026-09-21);
+ *   * `tag` — наш пузырь, если кегль брать у платформы (`--tag-size`); **так
+ *     он рисуется сейчас**, его словом «как в просмотре».
+ *
+ * **Имена строк называют модель, а не продукт.** Стенд не зовёт код плагина —
+ * он одевает узел руками, — и потому подпись «так сейчас» в нём стареет молча
+ * (У-246). Что до пузыря и правда доезжает, спрашивает браузерный шаг:
+ * `npm run gate:browser`, подмена `bubble-takes-line-size`.
  *
  * **Контроль стоит до первого вывода** (правило 44): если `--tag-size` темы не
  * прочиталось или `read` и `word` вышли одного кегля, стенд падает громко —
@@ -116,8 +122,8 @@ function buildHtml(appCss, themeCss, pluginCss, basePx) {
     "  <span id='word'>test2</span>",
     "  <a class='tag' id='read' href='#'>#work</a>",
     "  <span class='cm-hashtag cm-hashtag-begin cm-hashtag-end' id='lp'>#work</span>",
-    "  <span class='io-tagbubble io-tagbubble--accent io-tagbubble--clickable' id='now'>#work</span>",
-    "  <span class='io-tagbubble io-tagbubble--accent io-tagbubble--clickable' id='alt'>#work</span>",
+    "  <span class='io-tagbubble io-tagbubble--accent io-tagbubble--clickable' id='line'>#work</span>",
+    "  <span class='io-tagbubble io-tagbubble--accent io-tagbubble--clickable' id='tag'>#work</span>",
     "</div></div></div></div>",
     "<script>",
     "  function dress(el, font) {",
@@ -128,8 +134,8 @@ function buildHtml(appCss, themeCss, pluginCss, basePx) {
     "    el.style.setProperty('--io-tagbubble-rise', '0px');",
     "    el.style.setProperty('--io-tagbubble-line', '1.2');",
     "  }",
-    "  dress(document.getElementById('now'), '" + basePx + "px');",
-    "  dress(document.getElementById('alt'), 'var(--tag-size, 0.875em)');",
+    "  dress(document.getElementById('line'), '" + basePx + "px');",
+    "  dress(document.getElementById('tag'), 'var(--tag-size, 0.875em)');",
     "</script>",
   ].join("\n");
 }
@@ -159,7 +165,7 @@ async function main() {
     await p.goto("file:///" + page.replace(/\\/g, "/"));
     const out = await p.evaluate(() => {
       const res = {};
-      for (const id of ["word", "read", "lp", "now", "alt"]) {
+      for (const id of ["word", "read", "lp", "line", "tag"]) {
         const el = document.getElementById(id);
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
@@ -187,7 +193,7 @@ async function main() {
     console.log("сборка: " + path.basename(asar)
       + (themeFile ? ";  тема: " + path.basename(path.dirname(themeFile)) : ";  темы нет")
       + ";  кегль строки: " + basePx + "px;  --tag-size: " + out.tagSizeVar);
-    for (const id of ["word", "read", "lp", "now", "alt"]) {
+    for (const id of ["word", "read", "lp", "line", "tag"]) {
       const v = out[id];
       console.log("  " + id.padEnd(5)
         + " кегль " + String(v.font).padStart(7)
@@ -195,10 +201,10 @@ async function main() {
         + "  фон " + v.bg.padEnd(22) + " рамка " + v.border);
     }
     const r = (a, b) => Math.round((a / b) * 1000) / 1000;
-    console.log("отношения к тегу режима просмотра: наш пузырь сейчас — кегль ×"
-      + r(out.now.font, out.read.font) + ", высота ×" + r(out.now.h, out.read.h)
-      + ";  кегль у платформы — ×" + r(out.alt.font, out.read.font)
-      + ", высота ×" + r(out.alt.h, out.read.h));
+    console.log("отношения к тегу режима просмотра: кегль у строки — ×"
+      + r(out.line.font, out.read.font) + ", высота ×" + r(out.line.h, out.read.h)
+      + ";  кегль у платформы (так сейчас) — ×" + r(out.tag.font, out.read.font)
+      + ", высота ×" + r(out.tag.h, out.read.h));
   } finally {
     await browser.close();
   }

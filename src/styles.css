@@ -3214,6 +3214,22 @@
   vertical-align: baseline;
 }
 
+/*
+ * Проба кегля тега (`У-260`). Узел заводится на один вопрос к браузеру и
+ * снимается тем же тактом; в потоке он не участвует и места не занимает.
+ */
+.io-tagsize-probe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  /* Кегль строки, о которой спрашивают: его ставит слой переменной. */
+  font-size: var(--io-tagprobe-base, 1em);
+}
+/* Собственно вопрос: чем тема рисует тег. Ответ читается у браузера. */
+.io-tagsize-probe__inner { font-size: var(--tag-size); }
 /* Пузырь Value в самой заметке. */
 .io-tagbubble {
   display: inline-block;

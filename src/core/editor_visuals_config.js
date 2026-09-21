@@ -1433,11 +1433,25 @@ function blockFillWrittenTextHeightPx(visuals, textHeightPx, zone) {
   return textH * share / 100;
 }
 
-function blockFillBubbleHeightPx(visuals, zone, basePx) {
+/**
+ * Высота пузыря, посчитанная от настроек.
+ *
+ * **Кегль здесь — кегль тега**, а не строки: пузыри в Block рисует тег, и с
+ * 2026-09-21 сотня процентов у него значит «как рисует тег сама Obsidian»
+ * (`var(--tag-size)`, У-260). Считай эту высоту от кегля строки — и подложка
+ * снова стала бы выше того, что в ней лежит, то есть вернулся бы его же
+ * пункт `G4`, второй заход (правило 87: у лекарства есть цена, и мерить её
+ * надо тем же прогоном).
+ *
+ * Кегля тега нет (прогон без страницы) — отвечает кегль строки, прежнее
+ * поведение.
+ */
+function blockFillBubbleHeightPx(visuals, zone, basePx, tagBasePx) {
   const v = isObj(visuals) ? visuals : {};
+  const forBubble = Number.isFinite(Number(tagBasePx)) && Number(tagBasePx) > 0 ? Number(tagBasePx) : basePx;
   const st = computeTagVisualStyle(
     tagVisualSizingForZone(String(zone || ""), v).textSizePct,
-    v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0, basePx);
+    v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0, forBubble);
   return st.fontSizePx * st.lineHeight + st.verticalPaddingPx * 2;
 }
 
