@@ -32,7 +32,7 @@
 сказать «работает» может только ваш взгляд.
 
 Найденное записывайте по ходу, не откладывая: имя вкладки, имя строки и — если
-дело в настройке — её id. **Включите `Advanced → Options IDs → Show option IDs
+дело в настройке — её id. **Включите `Advanced → Diagnostics → Show option IDs
 in tips`**: он для этого и сделан, id появится последней строкой подсказки.
 
 ## 0. Подготовка
@@ -120,7 +120,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 | Tags & PKM | Before you start, Fields, Separators, Writing rules, Placement modes, Prefix priority |
 | Visual | Before you start, Inline appearance, Color your Tags, Tag Bars, tagWheel |
 | Transform | Before you start, Inline to note, Naming, Note content, Source line, Smart Rules |
-| Advanced | Before you start, Options IDs, Backup, Diagnostics |
+| Advanced | Before you start, Backup, Diagnostics |
 
 - **⚙ Всего 35 групп и 104 привязанные настройки.** Считать не нужно — важно,
   что ни одна группа не пропала и порядок не перемешался.

@@ -3156,16 +3156,6 @@ const SCHEMA = [
    плагин пишет его сам: при загрузке и после каждой правки настроек. Кнопки
    ручной пересборки больше нет; уйдёт и сам файл вместе с мостом в фазе 6. */
 {
-  id: "setting-ids", tab: "advanced", order: 150, heading: "Options IDs",
-  intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
-  tip: "Ids are what the plugin\u2019s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting \u2014 in a bug report, in a question, or when someone walks you through a fix",
-  items: [
-    { kind:"toggle", id:"show-setting-ids", path:"advanced.showSettingIds", default:false,
-      name:"Show option IDs in tips", desc:"Put the id of each setting and group at the end of its tip",
-      tip:"The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it" }
-  ]
-},
-{
   id: "settings-backup", tab: "advanced", order: 190, heading: "Backup",
   intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
   tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
@@ -3197,9 +3187,16 @@ const SCHEMA = [
 },
 {
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
-  intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
-  tip: "Leave this off unless you are chasing a problem. The log is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on — so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note",
+  intro: "What helps work out why something misbehaves: the id every setting carries, and a log of what the plugin did. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
+  tip: "Leave the log off unless you are chasing a problem. It is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on — so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note. The row above it is quieter and costs nothing: ids are what the plugin’s own notes, reports and issues call settings by, and they never change when a name or a description is reworded",
   items: [
+    /* Строка переехала сюда из своей группы `Options IDs` 2026-09-22, его
+       пункт 5: «show-setting-ids перенеси в diagnostics, а сам хедер
+       setting-ids удали». Путь в конфиге, умолчание и подпись не тронуты —
+       сменился только дом, а с ним приставка ключа каталога текстов. */
+    { kind:"toggle", id:"show-setting-ids", path:"advanced.showSettingIds", default:false,
+      name:"Show option IDs in tips", desc:"Put the id of each setting and group at the end of its tip",
+      tip:"The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it. Ids are the safe way to point at a setting — in a bug report, in a question, or when someone walks you through a fix — because they outlive every rewording of a name" },
     { kind:"toggle", id:"dev-mode", path:"advanced.devMode.enabled", default:false,
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],

@@ -152,8 +152,8 @@ it to one that already exists. Off out of the box.
 - **Backup.** `Save a backup` writes your setup into a note; `Autosave` keeps a copy
   whenever the settings file changes outside the panel; `Start over` returns to defaults
   and writes a backup first.
-- **Options IDs.** Each setting shows its identifier in its tip.
-- **Diagnostics.** A developer log, and `Undo last settings change`, which rolls back the
+- **Diagnostics.** `Show option IDs in tips` puts each setting's identifier into its tip, a
+  developer log records what the plugin did, and `Undo last settings change` rolls back the
   most recent change made in the panel.
 - **What changed, after an update.** The first time you open a vault on a new version, a
   window shows that version's section of the changelog — once per version, and never on a

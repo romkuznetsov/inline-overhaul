@@ -10430,10 +10430,10 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Links in the notes you mention |
 | `transform.inline2note.backlink.placement.targetHeader` | Type name of header (`backlink-target-header`) | Links in the notes you mention |
 | `transform.inline2note.backlink.placement.fallback` | If header not found (`backlink-header-missing`) | Links in the notes you mention |
-| `advanced.showSettingIds` | Show option IDs in tips (`show-setting-ids`) | Options IDs |
 | `advanced.backups.folder` | Backup folder (`backup-folder`) | Backup |
 | `advanced.backups.autosave` | Autosave (`backup-autosave`) | Backup |
 | `advanced.backups.beforeRestore` | Save a backup before restoring (`backup-before-restore`) | Backup |
+| `advanced.showSettingIds` | Show option IDs in tips (`show-setting-ids`) | Diagnostics |
 
 ---
 
@@ -17654,7 +17654,7 @@ python tests/prototype/update_prd.py
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 59 | 12 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
-| 7 | Advanced | — | 4 | 9 | 1 |
+| 7 | Advanced | — | 3 | 9 | 1 |
 
 ### Группы по порядку
 
@@ -17727,9 +17727,8 @@ python tests/prototype/update_prd.py
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `advanced-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 150 | `setting-ids` | Options IDs | Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen | да | — |
 | 190 | `settings-backup` | Backup | A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault | да | — |
-| 200 | `diagnostics` | Diagnostics | If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on | да | — |
+| 200 | `diagnostics` | Diagnostics | What helps work out why something misbehaves: the id every setting carries, and a log of what the plugin did. Be aware the log is saved into your vault and will contain the text of the lines you were working on | да | — |
 
 ### Полная опись настроек
 
@@ -17737,16 +17736,6 @@ python tests/prototype/update_prd.py
 #### Before you start — `advanced-intro` (вкладка `advanced`)
 
 - **`advanced-callout`** — свой блок, рендерер `renderTabCallout`
-
-#### Options IDs — `setting-ids` (вкладка `advanced`)
-
-_Intro:_ Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen
-
-_Tip:_ Ids are what the plugin’s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting — in a bug report, in a question, or when someone walks you through a fix
-
-- **Show option IDs in tips** — `show-setting-ids`, `toggle`, path `advanced.showSettingIds`, default `false`
-  - desc: Put the id of each setting and group at the end of its tip
-  - tip: The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it
 
 #### Backup — `settings-backup` (вкладка `advanced`)
 
@@ -17774,10 +17763,13 @@ _Tip:_ Saving writes a new note every time and never overwrites an earlier one, 
 
 #### Diagnostics — `diagnostics` (вкладка `advanced`)
 
-_Intro:_ If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on
+_Intro:_ What helps work out why something misbehaves: the id every setting carries, and a log of what the plugin did. Be aware the log is saved into your vault and will contain the text of the lines you were working on
 
-_Tip:_ Leave this off unless you are chasing a problem. The log is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on — so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note
+_Tip:_ Leave the log off unless you are chasing a problem. It is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on — so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note. The row above it is quieter and costs nothing: ids are what the plugin’s own notes, reports and issues call settings by, and they never change when a name or a description is reworded
 
+- **Show option IDs in tips** — `show-setting-ids`, `toggle`, path `advanced.showSettingIds`, default `false`
+  - desc: Put the id of each setting and group at the end of its tip
+  - tip: The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it. Ids are the safe way to point at a setting — in a bug report, in a question, or when someone walks you through a fix — because they outlive every rewording of a name
 - **Developer logging** — `dev-mode`, `toggle`, path `advanced.devMode.enabled`, default `false`
   - desc: Record what the plugin did, to help track down a problem
   - tip: Leave this off day to day. Turn it on, reproduce the problem once, then turn it off and attach the log to a bug report after checking what is in it

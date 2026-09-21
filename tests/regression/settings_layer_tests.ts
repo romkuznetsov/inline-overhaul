@@ -270,8 +270,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 37,
-      "групп в схеме: 22 с настройками, 7 вводных коллаутов, группа Fields, "
+    assert.equal(SCHEMA.length, 36,
+      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Options IDs` добавлена 2026-08-28 по "
       + "заказу, Binder перенесён 2026-08-29, `Color your Tags` заведена в тот "
@@ -408,8 +408,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 37,
-      "37 групп прототипа разложены без остатка: группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184)");
+    assert.equal(SCHEMA.length + AWAITED.length, 36,
+      "36 групп прототипа разложены без остатка: группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {

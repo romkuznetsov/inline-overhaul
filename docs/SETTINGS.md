@@ -510,14 +510,6 @@ line.
 
 ## Advanced
 
-### Options IDs
-
-| Control | Default | What it does |
-|---|---|---|
-| `Show option IDs in tips` | off | Puts the id of each setting and group at the end of its tip |
-
-The fastest way to name a control exactly when you report something.
-
 ### Backup
 
 A backup is an ordinary note in your vault. It travels with the vault, so restoring it on
@@ -538,9 +530,13 @@ them back.
 
 | Control | Default | What it does |
 |---|---|---|
+| `Show option IDs in tips` | off | Puts the id of each setting and group at the end of its tip |
 | `Developer logging` | off | Records what the plugin did |
 | `Machine-readable log` | on | Also keeps a second, denser log meant for tools |
 | `Log file` | `InlineOverhaul_DevLog` | Where in your vault the logs are put |
+
+`Show option IDs in tips` is the fastest way to name a control exactly when you report
+something: ids outlive every rewording of a name.
 
 The log is a note in your vault and it records the lines you were working on. Read it before
 you share it.
