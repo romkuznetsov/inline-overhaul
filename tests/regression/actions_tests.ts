@@ -261,7 +261,7 @@ function makeVault(has: boolean): {
     "What to set up first",
     "Fields and Values",
     "How a line is put together",
-    "TagWheel",
+    "tagWheel",
     "Tag Bars",
     "Binder",
     "Transform: a line becomes a note",

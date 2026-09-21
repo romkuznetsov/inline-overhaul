@@ -63,7 +63,7 @@ follow.
 
 [▸ Watch it in the showcase](docs/SHOWCASE.md#move-linestrees)
 
-### Pick a value from the TagWheel
+### Pick a value from the tagWheel
 
 When you do not remember the values by heart, the wheel shows them around the cursor and
 you choose without typing.

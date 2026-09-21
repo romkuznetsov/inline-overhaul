@@ -21,13 +21,14 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **The scroller can label Values the way you print them.** `Visual → TagWheel → Scroller Value names` chooses between the Value as it is written in the line, the custom text you gave it in `Color your tags`, or both at once — so the box shows `🎯`, `#todo`, or `🎯 #todo`. Where no custom text is set, the written Value is shown, so a Value never goes blank.
-2. 🐛 **A two-digit year is a year again — from the TagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
-3. 🐛 **The TagWheel no longer draws a bubble over its own markup.** On a fresh install, where none of the panel colors had been set, the picker drawn over your line got a Value bubble on top of it.
+1. ✨ **The scroller can label Values the way you print them.** `Visual → tagWheel → Scroller Value names` chooses between the Value as it is written in the line, the custom text you gave it in `Color your tags`, or both at once — so the box shows `🎯`, `#todo`, or `🎯 #todo`. Where no custom text is set, the written Value is shown, so a Value never goes blank.
+2. 🐛 **A two-digit year is a year again — from the tagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
+3. 🐛 **The tagWheel no longer draws a bubble over its own markup.** On a fresh install, where none of the panel colors had been set, the picker drawn over your line got a Value bubble on top of it.
 4. 🎨 **The README links to the showcase instead of embedding recordings.** The animations stay in [`docs/SHOWCASE.md`](docs/SHOWCASE.md), and the page above them loads at once.
-5. 🐛 **The TagWheel keeps the words you wrote before your Fields.** A link or a plain word standing in the left Block — anything the plugin does not recognise as a Value — disappeared from the line as soon as you picked a Value there. The commands always kept it; the picker now keeps it too.
+5. 🐛 **The tagWheel keeps the words you wrote before your Fields.** A link or a plain word standing in the left Block — anything the plugin does not recognise as a Value — disappeared from the line as soon as you picked a Value there. The commands always kept it; the picker now keeps it too.
 6. 🐛 **No `====` around the picker on the right.** The strip is wrapped in a highlight so it gets a fill, and Obsidian shows the raw `==` whenever the caret sits inside one — which is exactly where the caret landed for the right Block. It now rests outside the strip, on an empty line as well, so both sides look the same.
-7. ✨ **The picker can label a chosen Value the way you print it.** `Visual → TagWheel → TagWheel Value names` chooses between the Value as it is written, the custom text you gave it in `Color your tags`, or both at once. Where no custom text is set, the written Value is shown, so a Field never goes blank.
+7. ✨ **The picker can label a chosen Value the way you print it.** `Visual → tagWheel → tagWheel Value names` chooses between the Value as it is written, the custom text you gave it in `Color your tags`, or both at once. Where no custom text is set, the written Value is shown, so a Field never goes blank.
+8. 🎨 **Four commands read the way they work.** `Jump back` and `Jump next` are now `Jump up` and `Jump down`; the two that open the picker are now `tagWheel Left` and `tagWheel Right`. The picker is written `tagWheel` everywhere you see it, the way `inlineOverhaul` is. Names only — the command identifiers are the same, so your hotkeys stay put.
 
 ## 0.5.1
 

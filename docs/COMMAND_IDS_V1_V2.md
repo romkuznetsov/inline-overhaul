@@ -26,12 +26,12 @@ Obsidian puts the plugin name before that.
 | `inlineOverhaul_Navigation_MoveDown` | `move-line-down` | `Move line down` |
 | `inlineOverhaul_Navigation_MoveLeft` | `move-left` | `Move left` |
 | `inlineOverhaul_Navigation_MoveRight` | `move-right` | `Move right` |
-| `inlineOverhaul_Navigation_JumpHeaderUp` | `jump-back` | `Jump back` |
-| `inlineOverhaul_Navigation_JumpHeaderDown` | `jump-next` | `Jump next` |
+| `inlineOverhaul_Navigation_JumpHeaderUp` | `jump-back` | `Jump up` |
+| `inlineOverhaul_Navigation_JumpHeaderDown` | `jump-next` | `Jump down` |
 | `inlineOverhaul_Navigation_InlineLeft` | `move-cursor-left-in-line` | `Move cursor left in line` |
 | `inlineOverhaul_Navigation_InlineRight` | `move-cursor-right-in-line` | `Move cursor right in line` |
-| `inlineOverhaul_Hotkey_tagwheel_left` | `open-tagwheel-left` | `Open TagWheel on the left` |
-| `inlineOverhaul_Hotkey_tagwheel_right` | `open-tagwheel-right` | `Open TagWheel on the right` |
+| `inlineOverhaul_Hotkey_tagwheel_left` | `open-tagwheel-left` | `tagWheel Left` |
+| `inlineOverhaul_Hotkey_tagwheel_right` | `open-tagwheel-right` | `tagWheel Right` |
 | `inlineOverhaul_Transform_inline2note` | `transform-inline-to-note` | `Transform inline to note` |
 | `inlineOverhaul_Binder_Smart_bracket` | `smart-bracket` | `Smart bracket` |
 

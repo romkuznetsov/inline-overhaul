@@ -91,17 +91,17 @@ travels too, and so do indented children if the line has any.
 ## 6. Pick a value without remembering it
 
 You will not remember every Value by heart once you have more than a handful. That is
-what the **TagWheel** is for.
+what the **tagWheel** is for.
 
 `Status` and `Priority` sit in the Left Block, before your text, so the command you want
-is **Tags & PKM: Open TagWheel on the left**. Give it a key — use `Alt+W` — then put the
+is **Tags & PKM: tagWheel Left**. Give it a key — use `Alt+W` — then put the
 cursor on the line and press it.
 
 The wheel appears over the line. Left and right move between Fields, up and down between
 that Field's Values, `Tab` jumps to the Fields on the other side of your text, and
 `Esc` closes it without changing anything.
 
-<img src="media/showcase/tagwheel.gif" width="720" alt="The TagWheel opening at the cursor and a value being chosen">
+<img src="media/showcase/tagwheel.gif" width="720" alt="The tagWheel opening at the cursor and a value being chosen">
 
 ## 7. Make a Field of your own
 

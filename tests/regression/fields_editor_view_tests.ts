@@ -268,8 +268,15 @@ function one(root: StubNode, cls: string): StubNode {
   return found[0] as StubNode;
 }
 
-/** Имя строки `Name in TagWheel`: она же и подпись у поля ввода. */
-const SHORT_NAME = "Name in TagWheel";
+/**
+ * Имя строки короткого имени: она же и подпись у поля ввода.
+ *
+ * Берётся у каталога текстов, а не переписывается сюда: 2026-09-21 его слово
+ * В-166 сменило написание на `tagWheel`, и литерал покраснел не на дефекте, а
+ * на собственной копии имени (У-229, правило 151).
+ */
+const SHORT_NAME = String(
+  (BLOCK_TEXTS["field-editor"] as Readonly<Record<string, string>>).SHORT_NAME_NAME);
 
 /** Строка имени в TagWheel: своя строка ниже шапки (шестой круг). */
 function shortRowOf(host: StubNode): StubNode {

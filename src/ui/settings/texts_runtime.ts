@@ -89,7 +89,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "no-editor": "Open a note first",
     /* Пока сессия панели открыта, строкой распоряжается она: её вид лежит в
        самом документе, и команда правила бы картинку, а не строку человека. */
-    "tagwheel-open": "TagWheel is open on this line: finish it with Enter or close it with Escape first",
+    "tagwheel-open": "tagWheel is open on this line: finish it with Enter or close it with Escape first",
     error: "Tags & PKM error: {0}",
   },
 
@@ -102,21 +102,21 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   },
 
   tagwheel: {
-    "no-app": "TagWheel: no app context",
+    "no-app": "tagWheel: no app context",
     /*
      * Была русской строкой — `TagWheel: нет активного редактора` — и это был
      * дефект, а не выбор (Р9, 10.13.50 Ф-6). Заметить его мог только тот, кто
      * читает по-русски: всем остальным он показывал бы чужой алфавит.
      */
-    "no-editor": "TagWheel: open a note first",
+    "no-editor": "tagWheel: open a note first",
     /*
      * Панель берёт правила из настроек, а не из служебного файла (PRD
      * 10.13.52, П-8, шаг третий). Пустой ключ значит, что панель позвали не
      * нашей командой: текст называет не файл, а то, чем открывать.
      */
-    "rules-missing": "TagWheel: no rules came with the command - open it from the command list or its hotkey",
-    "emoji-required": "TagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
-    error: "TagWheel error: {0}",
+    "rules-missing": "tagWheel: no rules came with the command - open it from the command list or its hotkey",
+    "emoji-required": "tagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
+    error: "tagWheel error: {0}",
   },
 
   rules: {

@@ -2,7 +2,7 @@
 
 Step-by-step instructions for people who have already installed the plugin. New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md); for the panel control by control, see the [settings reference](docs/SETTINGS.md).
 
-inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, TagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
+inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, tagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
 
 > [!WARNING]
 > This is beta software. Back up the entire vault, including its `.obsidian` folder, before installation, updates, configuration imports, or Transform use. Test important workflows on disposable notes first. **Transform inline to note** can create, append to, overwrite, and edit notes.
@@ -92,8 +92,8 @@ Four global modules exist:
 | Module | Purpose | Default |
 |---|---|---|
 | Navigation | Move lines/selections, cycle prefixes, jump through sections, navigate inline text | On |
-| Tags & PKM | Field cycles, TagWheel, Fields and Values | On |
-| Visual | Tag bubbles, Tag Bars, TagWheel panel and scroller appearance | On |
+| Tags & PKM | Field cycles, tagWheel, Fields and Values | On |
+| Visual | Tag bubbles, Tag Bars, tagWheel panel and scroller appearance | On |
 | Transform | Hosts Transform commands/settings | On |
 
 Transform has a second safety gate: **Transform inline to note** defaults to **Off**. Both the Transform module and that setting must be on before transformation runs.
@@ -118,15 +118,15 @@ The plugin shows this list itself, and there it also shows the key each command 
 - **Move line down**
 - **Move left**
 - **Move right**
-- **Jump back**
-- **Jump next**
+- **Jump up**
+- **Jump down**
 - **Move cursor left in line**
 - **Move cursor right in line**
 
 ### Tags & PKM
 
-- **Open TagWheel on the left**
-- **Open TagWheel on the right**
+- **tagWheel Left**
+- **tagWheel Right**
 - Two commands per configured Field, named after it: **`<Field>` next** and **`<Field>` previous**
 - A child Field uses its parent's name with `-sub` appended.
 
@@ -188,7 +188,7 @@ The blank entry represents a plain line. Right follows the list; Left mirrors it
 
 ### Jump between headers
 
-**Jump back** and **Jump next** can:
+**Jump up** and **Jump down** can:
 
 - jump between section edges or move line-by-line;
 - use start/end, start-only, or end-only edge behavior;
@@ -265,14 +265,14 @@ Under **Navigation → Moving lines**, `Follow the moved line` decides whether t
 
 Under **Navigation → Moving cursor inside a note**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Moving lines` has, and it works the same way.
 
-### The edge of a Block in TagWheel
+### The edge of a Block in tagWheel
 
-Under **Visual → TagWheel**, `TagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
+Under **Visual → tagWheel**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
 
-### The other Block while TagWheel is open
+### The other Block while tagWheel is open
 
 The picker takes the place of the Block it is standing in, and what happens to the other
-one is set under **Visual → TagWheel**, `Values in the other Block`. `Hide them while the
+one is set under **Visual → tagWheel**, `Values in the other Block`. `Hide them while the
 picker is open` is how it has always worked: the other Block leaves the line for as long
 as you are choosing. `Keep them in sight` leaves it written where it belongs, on its own
 side of your text, so you can see what the line already carries.
@@ -352,7 +352,7 @@ or:
 #task/research
 ```
 
-Choose **Subtag format → separate** or **combined**. Hotkey cycles and TagWheel share this setting.
+Choose **Subtag format → separate** or **combined**. Hotkey cycles and tagWheel share this setting.
 
 ### Wikilink fields
 
@@ -400,8 +400,8 @@ This applies `1` for three presses, then `5`; `END` marks cycle removal.
 ### Active and placement-mode behavior
 
 - `yes`: field participates normally.
-- `no`: field is excluded from PKM cycle and TagWheel behavior. Transform can still recognize its exact configured tokens for mapping and cleanup.
-- `hotkey_only`: field remains available through its generated command without normal TagWheel participation.
+- `no`: field is excluded from PKM cycle and tagWheel behavior. Transform can still recognize its exact configured tokens for mapping and cleanup.
+- `hotkey_only`: field remains available through its generated command without normal tagWheel participation.
 - `off`: normal configured prefix/placement rules apply.
 - `minimal`: insert according to Order with optional separators and optional tag-specific prefix replacement.
 - `full`: allows insertion away from the normal prefix zone; placement inside text can be Smart, Left, or Right.
@@ -423,9 +423,9 @@ Every active field has increase/decrease commands. Cycling can add a value, repl
 - `current_position`: remap near the pre-command cursor.
 - `line_end`: end of final line.
 
-### TagWheel
+### tagWheel
 
-Run **Open TagWheel on the left** or **Open TagWheel on the right** to start in a Block. Runtime Field order and dependencies come from the Fields list. Default interaction keys are:
+Run **tagWheel Left** or **tagWheel Right** to start in a Block. Runtime Field order and dependencies come from the Fields list. Default interaction keys are:
 
 | Key | Action |
 |---|---|
@@ -435,9 +435,9 @@ Run **Open TagWheel on the left** or **Open TagWheel on the right** to start in 
 | Enter | Apply |
 | Escape | Cancel |
 
-TagWheel and direct increase/decrease commands use the same field, ordering, prefix, separator, subtag, cycle-end, and cursor rules.
+tagWheel and direct increase/decrease commands use the same field, ordering, prefix, separator, subtag, cycle-end, and cursor rules.
 
-Optional **Visual → TagWheel → TagWheel Scroller** shows nearby values above editor text. Set direction to `up`, `down`, or `full`, and visible size from 1 to 20 items per side.
+Optional **Visual → tagWheel → tagWheel Scroller** shows nearby values above editor text. Set direction to `up`, `down`, or `full`, and visible size from 1 to 20 items per side.
 
 One known limit, measured rather than guessed: while the panel is open it holds its strip in the text of the note, which takes the Values it stands on out of the line for that moment. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Setting `Values in the other Block` to `Keep them in sight` removes the case where only that Block was filled; the case where the Block under the panel was filled too is still open, and the fix for it is structural.
 
@@ -501,7 +501,7 @@ Everything you set up here lives in one place, and one button writes it out:
 6. Restart Obsidian so every part of the plugin picks the settings up.
 
 A backup holds every tab, not a part of one: Fields and Values, colours, Bars,
-TagWheel, Navigation, Binder and Transform. Two things stay behind on purpose:
+tagWheel, Navigation, Binder and Transform. Two things stay behind on purpose:
 
 - window state: which tab was open, which Fields were expanded, which one-time
   notices you have already seen;
@@ -567,7 +567,7 @@ These are editor decorations: they change display, not stored markdown tokens.
 
 Tag Bars draw up to three colored bars in the editor margin for a selected tag Field's parent and child hierarchy. Configure the Field, tag visibility, optional Separator hiding when a hidden Bar token is the only technical token, default or crossing mode, bar count, thickness, child offset, and distance to the text. Tag Bars are **off** by default: on a fresh install lines look as they always did until you turn them on.
 
-### TagWheel panel and scroller
+### tagWheel panel and scroller
 
 - Show/hide token prefixes visually
 - Default placeholder text color
@@ -790,7 +790,7 @@ still use the left column.
 | YAML note format | — | Removed; replaced by a `Raw` or `Clean` rule on each Value |
 | Execution Backend, Flush Settings Now | — | Removed. Settings save on their own |
 | Undo last settings change (a button in settings) | **Undo last settings change** (a command) | The button is gone; the command keeps the name |
-| — | **TagWheel** | The panel with all Fields above the line, steered with the arrow keys |
+| — | **tagWheel** | The panel with all Fields above the line, steered with the arrow keys |
 | — | **Binder** | Your own text-insertion commands |
 | — | **Prefix** | The start of a line: list marker, checkbox, heading hashes |
 | — | **Smart Rules** | Rules that pick a Transform template by the look of a line |
@@ -802,7 +802,7 @@ inlineOverhaul assigns **no** default keys to any of its commands. Two ways to g
 - **Keyboard → Commands & Hotkeys** in the plugin's settings: every command with the key it has now, and a click takes you to Obsidian's Hotkeys screen with that command already found;
 - Obsidian's own **Settings → Hotkeys**: type `inlineOverhaul` in its search box to bring up the whole set at once.
 
-TagWheel is the exception worth knowing: once it is open you steer it with the arrow keys, so it needs only the one command that opens it.
+tagWheel is the exception worth knowing: once it is open you steer it with the arrow keys, so it needs only the one command that opens it.
 
 Recommended setup pattern:
 
@@ -810,7 +810,7 @@ Recommended setup pattern:
 |---|---|
 | Navigation | Arrow-like combinations that do not conflict with editor defaults |
 | Field next/previous | Paired keys per Field |
-| TagWheel | One key for the left Block and one for the right |
+| tagWheel | One key for the left Block and one for the right |
 | Binder | Mnemonic keys for frequently inserted tokens |
 | Transform | Deliberate multi-key binding to avoid accidental execution |
 
@@ -881,7 +881,7 @@ Open **General** and enable the named module. For Transform, also turn on **Tran
 
 Adding a Field directly in settings registers its commands immediately. Registry changes from a Field rename or delete, a restored backup, or a Binder delete and recreate need plugin disable/re-enable or an Obsidian reload. Stale commands may remain until that reload.
 
-### TagWheel or inline navigation uses stale values
+### tagWheel or inline navigation uses stale values
 
 1. Change any setting on **Tags & PKM**, anything at all. The plugin rewrites the
    compiled copy of your setup on every change, and that is what the commands read.
@@ -935,7 +935,7 @@ Transform stops before target mutation when a selected template cannot be read o
   a clean vault, the move of an older config to the new form, and the notice about
   renamed commands.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
-- General Visual features are implemented: tag bubbles, the Stripe behind each Block, Tag Bars, Separator colors, and the TagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
+- General Visual features are implemented: tag bubbles, the Stripe behind each Block, Tag Bars, Separator colors, and the tagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
 - The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbours, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
 - **No translation ships with the plugin, and that is deliberate.** The `texts` folder holds one file, `default.js`, and it belongs to the plugin: it is rewritten whenever the panel gains a line or a line is reworded, so what you copy is never out of date. To add a language, copy it under a name of your own, change the first line `"$language"` to the name you want to see in the list, and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is worth using. English is always in the list and has no file at all: it lives in the code, which is the only way it stays current.
 - **This guide note has a translation mechanism of its own.** The `guide` folder holds `default.md` — this same guide, with a small property block at the top. Copy it under a language name, change `language:` in that block, translate the prose, and the `Read` button writes your version into the vault instead of the English one. Two things are worth knowing. Your copy is yours from the moment it appears: the plugin never rewrites it and never reads it back, because there is no way to tell a translated paragraph from an untranslated one. And each language gets its own note — `inlineOverhaul Guide (Русский).md` sits beside the English one rather than replacing it, so switching language never costs you the notes you wrote in the margins.

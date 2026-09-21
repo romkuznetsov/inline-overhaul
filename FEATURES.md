@@ -40,13 +40,13 @@ project link, an estimate. You define them; the plugin ships no methodology.
 *Where:* **Tags & PKM → Fields**, `Separators`, `Writing rules`, `Placement modes`,
 `Prefix priority`.
 
-## TagWheel
+## tagWheel
 
-TagWheel lays your Fields out over the line you are standing on. Arrow keys move between
+tagWheel lays your Fields out over the line you are standing on. Arrow keys move between
 Fields and their Values; on exit the line is written back as plain markdown.
 
-- **Two commands, two sides.** `Open TagWheel on the left` starts on the Fields before
-  your text, `Open TagWheel on the right` on those after it.
+- **Two commands, two sides.** `tagWheel Left` starts on the Fields before
+  your text, `tagWheel Right` on those after it.
 - **The other Block.** While the picker is open it takes the place of the Block it stands
   in. The other one either leaves the line for as long as you are choosing, or stays
   written where it belongs.
@@ -63,7 +63,7 @@ land on a line that never existed. Keeping the other Block in sight removes the 
 where only that Block was filled; the case where the Block under the panel was filled too
 is open.
 
-*Where:* **Visual → TagWheel**, **Visual → TagWheel opening**.
+*Where:* **Visual → tagWheel**, **Visual → tagWheel opening**.
 
 ## Navigation
 
@@ -75,8 +75,8 @@ Eight commands, each aware that a line has structure.
 | `Move line down` | The same, downwards |
 | `Move left` | Move selected text, cycle the line Prefix, or unindent |
 | `Move right` | Move selected text, cycle the line Prefix, or indent |
-| `Jump back` | Move the cursor to the heading or line above |
-| `Jump next` | Move the cursor to the heading or line below |
+| `Jump up` | Move the cursor to the heading or line above |
+| `Jump down` | Move the cursor to the heading or line below |
 | `Move cursor left in line` | Step the cursor back through the parts of the line |
 | `Move cursor right in line` | Step the cursor on through the parts of the line |
 
@@ -170,12 +170,12 @@ Thirteen commands exist always:
 | `Move line down` | Navigation |
 | `Move left` | Navigation |
 | `Move right` | Navigation |
-| `Jump back` | Navigation |
-| `Jump next` | Navigation |
+| `Jump up` | Navigation |
+| `Jump down` | Navigation |
 | `Move cursor left in line` | Navigation |
 | `Move cursor right in line` | Navigation |
-| `Open TagWheel on the left` | Tags & PKM |
-| `Open TagWheel on the right` | Tags & PKM |
+| `tagWheel Left` | Tags & PKM |
+| `tagWheel Right` | Tags & PKM |
 | `Transform inline to note` | Transform |
 | `Smart bracket` | Binder |
 | `Undo last settings change` | General |

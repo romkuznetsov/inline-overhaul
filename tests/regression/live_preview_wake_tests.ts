@@ -299,13 +299,24 @@ function firstFieldKey(cfg: Any): string {
    * оформление тегов и полосы — **значения**. Один пробой на всех молчал бы
    * там, где смотрит не туда, и проверка выглядела бы зелёной.
    */
+  /*
+   * **Заголовок берётся у схемы, а не переписывается сюда.** Так стояла одна
+   * запись из четырёх — группу `Inline appearance` переименовали 2026-09-04, и
+   * литерал разошёлся бы, — а остальные три держались на совпадении. Оно и
+   * кончилось 2026-09-21: `TagWheel` стал `tagWheel` его словом В-166, и
+   * проверка покраснела не на дефекте, а на своём литерале. Признак у списка
+   * теперь один — id группы (У-229, правило 151).
+   */
+  const headingOf = (id: string): string => {
+    const heading = String(SCHEMA.find(g => g.id === id)?.heading || "");
+    assert.ok(heading, "в схеме нет группы " + id + " — предпросмотр искать негде");
+    return heading;
+  };
   const places: Array<[string, string, "label" | "value"]> = [
-    ["pkm", "Fields", "label"],
-    /* Заголовок берётся у схемы: группу переименовали в `Inline appearance`
-       (замечание заказчика 2026-09-04), и переписанный литерал разошёлся бы. */
-    ["visual", String(SCHEMA.find(g => g.id === "tag-appearance")?.heading || ""), "value"],
-    ["visual", "Tag Bars", "value"],
-    ["visual", "TagWheel", "label"],
+    ["pkm", headingOf("fields"), "label"],
+    ["visual", headingOf("tag-appearance"), "value"],
+    ["visual", headingOf("tag-bars"), "value"],
+    ["visual", headingOf("tagwheel"), "label"],
   ];
   /*
    * Порог до вывода: запрет ниже — «список глухих пуст», и пуст он и тогда,

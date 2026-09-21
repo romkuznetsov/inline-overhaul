@@ -23,7 +23,7 @@ See the [full setup and user guide](../INSTRUCTIONS.md) for installation, config
 > [user guide](../INSTRUCTIONS.md); the links that pointed at the removed entries
 > are now plain headings there, not dead anchors.
 
-**Runtime behavior did not change** — moving lines, cycling Values, TagWheel.
+**Runtime behavior did not change** — moving lines, cycling Values, tagWheel.
 What changed is the settings pane and the names of commands.
 
 **Every command was renamed**, and its identifier with it, so a caption naming a
@@ -62,9 +62,9 @@ goes, the `README.md` link becomes plain text in the same commit. A pin in
 - [PKM runtime](#pkm-runtime)
   - [Direct tag/link field cycle increase/decrease](#direct-taglink-field-cycle-increasedecrease)
   - [Element increment/decrement](#element-incrementdecrement)
-  - [TagWheel left/right/navigation/apply/cancel](#tagwheel-leftrightnavigationapplycancel)
+  - [tagWheel left/right/navigation/apply/cancel](#tagwheel-leftrightnavigationapplycancel)
 - [Visual](#visual)
-  - [TagWheel panel/scroller](#tagwheel-panelscroller)
+  - [tagWheel panel/scroller](#tagwheel-panelscroller)
 - [Transform Inline2Note](#transform-inline2note)
   - [Current root or selected tree](#current-root-or-selected-tree)
   - [YAML Raw/Clean mapping](#yaml-rawclean-mapping)
@@ -151,23 +151,23 @@ Increase or decrease supported generic, date, time, and number elements in place
 
 *Typical action: place the cursor on an element, then run its increase or decrease command from configured hotkeys.*
 
-### TagWheel left/right/navigation/apply/cancel
+### tagWheel left/right/navigation/apply/cancel
 
-Open TagWheel, move across fields and values, apply a choice, or cancel without changes.
+Open tagWheel, move across fields and values, apply a choice, or cancel without changes.
 
-![Navigate and apply values with TagWheel](media/showcase/tagwheel.gif)
+![Navigate and apply values with tagWheel](media/showcase/tagwheel.gif)
 
 *Typical action: open with `Alt+Down`, navigate with arrow keys, apply with `Enter`, or cancel with `Escape`.*
 
 ## Visual
 
-### TagWheel panel/scroller
+### tagWheel panel/scroller
 
-Display TagWheel fields and values in a panel with scrolling for larger configurations.
+Display tagWheel fields and values in a panel with scrolling for larger configurations.
 
-![Use the TagWheel panel and scroller](media/showcase/visual-tagwheel-scroller.gif)
+![Use the tagWheel panel and scroller](media/showcase/visual-tagwheel-scroller.gif)
 
-*Typical action: open TagWheel from its configured hotkey and scroll through available entries.*
+*Typical action: open tagWheel from its configured hotkey and scroll through available entries.*
 
 ## Transform Inline2Note
 

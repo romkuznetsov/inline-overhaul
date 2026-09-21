@@ -125,6 +125,20 @@ const rowsOf = (pane: SettingsPane, tab: string, heading: string): Def[] => {
   return items;
 };
 
+/**
+ * Заголовок группы по её id.
+ *
+ * Заголовок — видимый текст, и он меняется его словом: `TagWheel` стал
+ * `tagWheel` 2026-09-21 (В-166), и три вызова ниже покраснели не на дефекте, а
+ * на своём литерале. Id при этом не двигался ни разу — по нему и спрашиваем
+ * (У-229, правило 151).
+ */
+const headingOf = (id: string): string => {
+  const heading = String(SCHEMA.find(g => g.id === id)?.heading || "");
+  assert.ok(heading, "в схеме нет группы " + id);
+  return heading;
+};
+
 /** Свой блок группы по её заголовку: предпросмотр всегда первый после фразы. */
 const blockOf = (pane: SettingsPane, tab: string, heading: string): Def => {
   const block = rowsOf(pane, tab, heading).find((it: Def) => typeof it.render === "function");
@@ -1010,7 +1024,7 @@ async function main(): Promise<void> {
 
   function wheelHost(pane: SettingsPane): StubNode {
     const host = makeNode("div");
-    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    blockOf(pane, "visual", headingOf("tagwheel")).render({ settingEl: host }, {});
     return host;
   }
 
@@ -1212,7 +1226,7 @@ async function main(): Promise<void> {
       visual: { tagWheel: { scroller: { enabled: true, size: 3, direction: "full" } } },
     });
     const host = makeNode("div");
-    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    blockOf(pane, "visual", headingOf("tagwheel")).render({ settingEl: host }, {});
     const box = host.querySelector(".io-preview");
     assert.equal(box?.style.getPropertyValue("--io-wheel-up"), "81px",
       "три строки по 21 плюс рамка панели: 3*21+18");
@@ -1231,7 +1245,7 @@ async function main(): Promise<void> {
   await test("форма линии: чип на каждый Field и пустое состояние правого Block", () => {
     const { pane } = makePane();
     const host = makeNode("div");
-    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    blockOf(pane, "visual", headingOf("tagwheel")).render({ settingEl: host }, {});
     const text = host.textContent;
     assert.ok(text.includes("your text"), "нет текста выдуманной строки");
     assert.ok(text.includes("nothing on the right yet"),

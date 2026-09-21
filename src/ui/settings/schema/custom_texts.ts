@@ -108,7 +108,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
     tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
     "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
-    "Field, rename one, give it a short name for TagWheel, drag it across the line, change a Separator — so you can " +
+    "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +
     "see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "tag-preview": {
@@ -129,7 +129,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
       { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
         { text: "Rewrite every description", fields: ["status"], children: [
           { text: "Tag Bars", fields: ["status", "priority"], children: [] },
-          { text: "TagWheel panel", fields: ["status"], children: [] },
+          { text: "tagWheel panel", fields: ["status"], children: [] },
           { text: "proof-read the tips", fields: ["priority"], children: [] }
         ] }
       ] },
@@ -216,8 +216,8 @@ export const COMMAND_TEXTS: readonly CommandArea[] = [
     { name:"Move line down",            does:"The same, downwards" },
     { name:"Move left",                 does:"Move selected text, cycle the line Prefix, or unindent" },
     { name:"Move right",                does:"Move selected text, cycle the line Prefix, or indent" },
-    { name:"Jump back",                 does:"Move the cursor to the heading or line above" },
-    { name:"Jump next",                 does:"Move the cursor to the heading or line below" },
+    { name:"Jump up",                 does:"Move the cursor to the heading or line above" },
+    { name:"Jump down",                 does:"Move the cursor to the heading or line below" },
     { name:"Move cursor left in line",  does:"Step the cursor back through the parts of the line" },
     { name:"Move cursor right in line", does:"Step the cursor on through the parts of the line" }
   ]},
@@ -228,8 +228,8 @@ export const COMMAND_TEXTS: readonly CommandArea[] = [
     parts:{ standard:"Standard commands", user:"Commands from your Fields" }, list:[
     { name:"Status next",     does:"One pair per Field, created automatically from your Field list" },
     { name:"Status previous", does:"The same Field, backwards through its Values" },
-    { name:"Open TagWheel on the left",  does:"Open TagWheel starting on the Fields before your text" },
-    { name:"Open TagWheel on the right", does:"Open TagWheel starting on the Fields after your text" }
+    { name:"tagWheel Left",  does:"Open tagWheel starting on the Fields before your text" },
+    { name:"tagWheel Right", does:"Open tagWheel starting on the Fields after your text" }
   ]},
   /* Область `Config` снята вместе с конфиг-заметкой 2026-09-03 (В-28): команды
      `Apply config note` и `Open config template` из палитры убраны. */

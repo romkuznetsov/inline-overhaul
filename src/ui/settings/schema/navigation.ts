@@ -143,10 +143,10 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   id: "heading-jumps", tab: "navigation", order: 500, heading: "Moving cursor inside a note",
   intro: "Skip through a long note by its headings instead of scrolling",
   tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
-  commands: ["Jump back", "Jump next"],
+  commands: ["Jump up", "Jump down"],
   items: [
     { kind:"toggle", id:"heading-jumps-enabled", path:"navigation.jumpToHeader.enabled", default:true,
-      name:"Jump between headings", desc:"Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
+      name:"Jump between headings", desc:"Turn on the <code>Jump up</code> and <code>Jump down</code> commands",
       tip:"Both commands move between headings only; walking line by line is a mode inside them, not a separate feature. Off, they stay in the palette and do nothing, and any hotkey you gave them is kept",
       searchTerms:["Enable Jump To Header"] },
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",

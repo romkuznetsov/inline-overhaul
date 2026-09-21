@@ -591,7 +591,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tline { display: flex; align-items: center; padding: 2px 0; }
 .io-tline__pad { flex: 0 0 var(--io-bar-distance); }
 
-/* TagWheel. Fields run across, the values of the active field run down. */
+/* tagWheel. Fields run across, the values of the active field run down. */
 .io-wheelwrap { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .io-wheel {
   display: flex; align-items: flex-start; gap: 4px;
@@ -992,7 +992,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tline { display: flex; align-items: center; padding: 2px 0; }
 .io-branch--bar { border-left-color: var(--io-bar-color, var(--text-faint)); }
 
-/* TagWheel: a panel only as wide as the field it belongs to */
+/* tagWheel: a panel only as wide as the field it belongs to */
 .io-wheelrow { display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap; }
 
 /* the two auto-created commands, on a line of their own */
@@ -1086,7 +1086,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* level bars: the text always clears the bars */
 .io-branch--pad { padding-left: calc(var(--io-bar-thickness) + var(--io-bar-gap)); }
 
-/* TagWheel: the panel sits with the field, inside the line */
+/* tagWheel: the panel sits with the field, inside the line */
 .io-wheelchip { display: flex; justify-content: center; }
 .io-bubble--current { box-shadow: 0 0 0 2px var(--interactive-accent); }
 .io-line { align-items: center; }
@@ -1256,7 +1256,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* level bars: one border plus one gap per level, always, so the text never
    moves when Number of bars changes */
 
-/* TagWheel: neutralise the stale absolute rules, then place the panel
+/* tagWheel: neutralise the stale absolute rules, then place the panel
    over a zero-width slot so it is centred and cannot widen the line */
 
 /* the only .io-wheelval rule. The row height is pinned on purpose: the room
@@ -1820,7 +1820,7 @@ const SCHEMA = [
       name:"Guide", desc:"Worked examples of the things people set up first",
       tip:"<code>Read</code> writes the guide into your vault the first time you press it, and opens it every time " +
           "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
-          "Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
+          "Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
           "so nothing you add there can be lost by pressing this button",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
@@ -1990,7 +1990,7 @@ const SCHEMA = [
 {
   id: "command-reference", tab: "keyboard", order: 300, heading: "Commands & Hotkeys",
   intro: "Everything this plugin can do, in one list. None of it has a key until you give it one \u2014 click in the <code>Hotkey</code> column to do that",
-  tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>inlineOverhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
+  tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>inlineOverhaul</b>, so typing that in its search box brings up the whole set at once. tagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
   items: [ { kind:"custom", id:"command-list", render: renderCommandReference } ]
 },
 
@@ -2119,10 +2119,10 @@ const SCHEMA = [
   id: "heading-jumps", tab: "navigation", order: 500, heading: "Moving cursor inside a note",
   intro: "Skip through a long note by its headings instead of scrolling",
   tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
-  commands: ["Jump back", "Jump next"],
+  commands: ["Jump up", "Jump down"],
   items: [
     { kind:"toggle", id:"heading-jumps-enabled", path:"navigation.jumpToHeader.enabled", default:true,
-      name:"Jump between headings", desc:"Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
+      name:"Jump between headings", desc:"Turn on the <code>Jump up</code> and <code>Jump down</code> commands",
       tip:"Both commands move between headings only; walking line by line is a mode inside them, not a separate feature. Off, they stay in the palette and do nothing, and any hotkey you gave them is kept",
       searchTerms:["Enable Jump To Header"] },
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",
@@ -2197,7 +2197,7 @@ const SCHEMA = [
 {
   id: "fields", tab: "pkm", order: 100, heading: "Fields",
   intro: "A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go",
-  tip: "A <b>Field</b> is one slot on a line. There are three kinds of Field: <b>tag</b>, <b>link</b> (wikilink), and <b>emoji-element</b> — such as a date or a time. Each Field automatically gets two <b>cycle commands</b>, <code>next</code> and <code>previous</code>, which insert the Value and cycle it back or forth — it is worth a hotkey for the ones you use often, so a <code>#todo</code> tag is one keypress away. <b>TagWheel</b> opens all of your Fields over the line at once, so you can pick with the arrow keys instead of remembering which key does what",
+  tip: "A <b>Field</b> is one slot on a line. There are three kinds of Field: <b>tag</b>, <b>link</b> (wikilink), and <b>emoji-element</b> — such as a date or a time. Each Field automatically gets two <b>cycle commands</b>, <code>next</code> and <code>previous</code>, which insert the Value and cycle it back or forth — it is worth a hotkey for the ones you use often, so a <code>#todo</code> tag is one keypress away. <b>tagWheel</b> opens all of your Fields over the line at once, so you can pick with the arrow keys instead of remembering which key does what",
   items: [
     { kind:"custom", id:"line-preview", render: renderLinePreview },
     { kind:"custom", id:"field-editor", render: renderFieldEditor }
@@ -2540,10 +2540,10 @@ const SCHEMA = [
   ]
 },
 {
-  id: "tagwheel", tab: "visual", order: 300, heading: "TagWheel",
-  intro: "TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down",
-  tip: "Every Field has its own pair of cycle commands, and one key each adds up to more keys than anyone remembers. TagWheel is the way round that: one command opens a picker over the line, with your Fields laid out across it and the Values of the Field you are on running down it, so you choose by looking instead of by memory. Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything. The settings below decide how the picker looks, and whether the neighboring Values stay in sight as you move",
-  commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
+  id: "tagwheel", tab: "visual", order: 300, heading: "tagWheel",
+  intro: "tagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down",
+  tip: "Every Field has its own pair of cycle commands, and one key each adds up to more keys than anyone remembers. tagWheel is the way round that: one command opens a picker over the line, with your Fields laid out across it and the Values of the Field you are on running down it, so you choose by looking instead of by memory. Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything. The settings below decide how the picker looks, and whether the neighboring Values stay in sight as you move",
+  commands: ["tagWheel Left", "tagWheel Right"],
   items: [
     { kind:"custom", id:"wheel-preview", render: renderWheelPreview },
     { kind:"toggle", id:"panel-markers", path:"visual.tagWheel.showMarkers", default:true,
@@ -2558,7 +2558,7 @@ const SCHEMA = [
        `Scroller Value names` отвечает на тот же вопрос про коробку, и карта
        своих текстов у обеих одна. */
     { kind:"dropdown", id:"panel-value-names", path:"visual.tagWheel.valueNames", default:"default",
-      name:"TagWheel Value names", desc:"What the picker prints for a Field that already carries a Value",
+      name:"tagWheel Value names", desc:"What the picker prints for a Field that already carries a Value",
       searchTerms:["Value names","Custom text in the picker","Printed name"],
       options:[ {value:"default",label:"Default name"},
                 {value:"custom",label:"Only custom name"},
@@ -2574,15 +2574,15 @@ const SCHEMA = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide them while the picker is open"},
                 {value:"keep",label:"Keep them in sight"} ],
-      tip:"TagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
     { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:true,
-      name:"Highlight the TagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
+      name:"Highlight the tagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
       searchTerms:["Highlight the line"],
-      tip:"TagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note" },
+      tip:"tagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note" },
     { kind:"color", id:"panel-text-color", path:"visual.tagWheel.textColor", default:"",
       name:"Non-active Field text color", desc:"The color of the Field names you are not standing on, while the line is marked",
       searchTerms:["Text color"],
-      tip:"This paints the picker drawn over your line, and only while <code>Highlight the TagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected",
+      tip:"This paints the picker drawn over your line, and only while <code>Highlight the tagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected",
       allowReset:true },
     /* Цвет активного Field: третий из трёх, о которых просил заказчик (D6,
        PRD 10.13.15). Он на строке, а не в коробке скроллера: коробка показывает
@@ -2607,7 +2607,7 @@ const SCHEMA = [
     { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
-      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color", allowReset:true },
+      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color", allowReset:true },
     /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
        он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
     /*
@@ -2622,7 +2622,7 @@ const SCHEMA = [
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,
       name:"Scroller", desc:"Show the next and previous Values around the current one",
       tip:"Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
-      searchTerms:["TagWheel Scroller"] },
+      searchTerms:["tagWheel Scroller"] },
     { kind:"dropdown", id:"scroller-direction", path:"visual.tagWheel.scroller.direction", default:"full",
       name:"Scroller opening direction", desc:"Which way the Values unroll from the Field you are on",
       tip:"The scroller shows the Values around the one you are on. Upwards keeps your line at the bottom of it and your note visible below; downwards does the opposite. <code>Both ways</code> centres the current Value and is easiest to read when a Field has many Values",
@@ -2638,7 +2638,7 @@ const SCHEMA = [
        «добавь опцию `Custom+Default`, чтобы работал как
        `panel-value-names=Custom+Default name` (т.е. чтобы в скроллере тоже
        было видно `💡#idea`)», и следом список переименований. Имена вариантов
-       теперь совпадают с соседней строкой `TagWheel Value names`: вопрос у них
+       теперь совпадают с соседней строкой `tagWheel Value names`: вопрос у них
        один, и разные подписи заставляли читать два раза. Значения ключа не
        трогаются — `value` остаётся `value`, иначе поехал бы конфиг. */
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
@@ -2669,7 +2669,7 @@ const SCHEMA = [
       tip:"How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has",
       searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
     { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
@@ -2679,15 +2679,15 @@ const SCHEMA = [
 /* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
    в модели был, а контрола не было — и писать его было некому.
 
-   **Почему своя группа, а не строки в TagWheel.** В той группе одиннадцать
+   **Почему своя группа, а не строки в tagWheel.** В той группе одиннадцать
    настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
    Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
    выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
    вопрос задан строкой листа. Разбор — 10.13.76. */
 {
-  id: "tagwheel-opening", tab: "visual", order: 350, heading: "TagWheel opening",
+  id: "tagwheel-opening", tab: "visual", order: 350, heading: "tagWheel opening",
   intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
-  tip: "TagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it",
+  tip: "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it",
   items: [
     /* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5).
        Ключ в модели был, а контрола не было — и писать его было некому.
@@ -2698,15 +2698,15 @@ const SCHEMA = [
       options:[ {value:"first",label:"First Field of the Block"},
                 {value:"middle",label:"Middle Field of the Block"},
                 {value:"custom",label:"A Field you choose"} ],
-      tip:"TagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
     { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
-      name:"Left Block active Field", desc:"The Field TagWheel lands on when it opens on the left",
+      name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
       searchTerms:["Lead Field left"],
       options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
       visible: eq("visual.tagWheel.activeField.mode","custom"),
       tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
     { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
-      name:"Right Block active Field", desc:"The Field TagWheel lands on when it opens on the right",
+      name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
       searchTerms:["Lead Field right"],
       options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
       visible: eq("visual.tagWheel.activeField.mode","custom"),
@@ -2773,7 +2773,7 @@ const SCHEMA = [
   id: "jump-highlight", tab: "visual", order: 450, heading: "Jump highlight",
   intro: "A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own",
   tip: "Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only \u2014 typing and the arrow keys are not jumps \u2014 and the last row decides whether the short hops inside one line count as jumps too",
-  commands: ["Jump back", "Jump next"],
+  commands: ["Jump up", "Jump down"],
   items: [
     { kind:"toggle", id:"jump-flash", path:"visual.jumpFlash.enabled", default:false,
       name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
@@ -3319,7 +3319,7 @@ const PREFIX_ORDER = ["- [!]", "- [ ]", "- [/]", "- [x]", "- "];
 const CYCLE_ORDER = ["#", "##", "###", "####", "#####", "1. ", "", "- "].map(t => ({ text: t }));
 
 /* Real command set, renamed per PRD 7.2: sentence case, no plugin or module
-   prefix. TagWheel has no movement commands — only two ways to open it,
+   prefix. tagWheel has no movement commands — only two ways to open it,
    which is what the two tagwheel command definitions actually differ by. */
 const COMMANDS = [
   { area:"Navigation", list:[
@@ -3327,8 +3327,8 @@ const COMMANDS = [
     { name:"Move line down",            does:"The same, downwards" },
     { name:"Move left",                 does:"Move selected text, cycle the line Prefix, or unindent" },
     { name:"Move right",                does:"Move selected text, cycle the line Prefix, or indent" },
-    { name:"Jump back",                 does:"Move the cursor to the heading or line above" },
-    { name:"Jump next",                 does:"Move the cursor to the heading or line below" },
+    { name:"Jump up",                 does:"Move the cursor to the heading or line above" },
+    { name:"Jump down",                 does:"Move the cursor to the heading or line below" },
     { name:"Move cursor left in line",  does:"Step the cursor back through the parts of the line" },
     { name:"Move cursor right in line", does:"Step the cursor on through the parts of the line" }
   ]},
@@ -3339,8 +3339,8 @@ const COMMANDS = [
     parts:{ standard:"Standard commands", user:"Commands from your Fields" }, list:[
     { name:"Status next",     does:"One pair per Field, created automatically from your Field list" },
     { name:"Status previous", does:"The same Field, backwards through its Values" },
-    { name:"Open TagWheel on the left",  does:"Open TagWheel starting on the Fields before your text" },
-    { name:"Open TagWheel on the right", does:"Open TagWheel starting on the Fields after your text" }
+    { name:"tagWheel Left",  does:"Open tagWheel starting on the Fields before your text" },
+    { name:"tagWheel Right", does:"Open tagWheel starting on the Fields after your text" }
   ]},
   /* Область `Config` снята вместе с конфиг-заметкой 2026-09-03 (В-28): команды
      `Apply config note` и `Open config template` из палитры убраны. */
@@ -4255,7 +4255,7 @@ const PREVIEW_TEXTS = {
     tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
     "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
-    "Field, rename one, give it a short name for TagWheel, drag it across the line, change a Separator — so you can " +
+    "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +
     "see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "tag-preview": {
@@ -4276,7 +4276,7 @@ const PREVIEW_TEXTS = {
       { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
         { text: "Rewrite every description", fields: ["status"], children: [
           { text: "Tag Bars", fields: ["status", "priority"], children: [] },
-          { text: "TagWheel panel", fields: ["status"], children: [] },
+          { text: "tagWheel panel", fields: ["status"], children: [] },
           { text: "proof-read the tips", fields: ["priority"], children: [] }
         ] }
       ] },
@@ -5040,7 +5040,7 @@ function renderFieldEditor(host) {
     "the Fields list", null, detailHead);
   /* «?» у шапки правой колонки: у левой он был, у правой нет, и заказчик
      заметил именно эту разницу (замечание 1.4.1.2.1). */
-  attachTip(detailHead, "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
+  attachTip(detailHead, "Everything about the Field picked on the left. Its name in tagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
     "this column", null, detailHead);
 
   /*
@@ -5103,14 +5103,14 @@ function renderFieldEditor(host) {
   del.title = "Delete the Field " + f.name;
 
   /*
-   * Имя в TagWheel — своя строка сразу под шапкой (замечание заказчика,
+   * Имя в tagWheel — своя строка сразу под шапкой (замечание заказчика,
    * шестой круг). Она про то, как Field назван, а не про то, как он себя
    * ведёт, поэтому стоит до заголовка `Behavior`, а не внутри него.
    */
   nameInWheelRow(detail, f);
 
   /* Что Field пишет в строку — раньше того, как он себя ведёт: заказчик
-     просил поднять `Values` под `Name in TagWheel`, над `Behavior`, и для
+     просил поднять `Values` под `Name in tagWheel`, над `Behavior`, и для
      всех типов Field сразу (замечание 1.4.1.2.4). У `element` значение
      одно, и на этом месте стоит его блок. */
   if (f.type === "element") {
@@ -5383,25 +5383,25 @@ function elementRows(host, f) {
 /* The note property belongs to the Field, not to a table somewhere else:
    it is set here, next to everything else the Field decides. */
 /*
- * Короткое имя, которым Field подписан в TagWheel. Своя строка, а не кусок
+ * Короткое имя, которым Field подписан в tagWheel. Своя строка, а не кусок
  * шапки: в шапке она стояла между чипом типа и красной корзиной и читалась
  * как случайный набор (замечание заказчика, шестой круг). Название строки —
- * `Name in TagWheel`, словами заказчика: «short name» не говорило, где это
+ * `Name in tagWheel`, словами заказчика: «short name» не говорило, где это
  * имя видно.
  */
 function nameInWheelRow(host, f) {
   const row = el("div", "io-item", host);
   const info = el("div", "io-item__info", row);
   const nrow = el("div", "io-item__namerow", info);
-  el("div", "io-item__name", nrow, "Name in TagWheel");
+  el("div", "io-item__name", nrow, "Name in tagWheel");
   /* «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
      — так это читается слева направо (замечание заказчика 2026-08-27). */
-  attachTipItem(nrow, row, { name:"Name in TagWheel",
-    tip:"TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
+  attachTipItem(nrow, row, { name:"Name in tagWheel",
+    tip:"tagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
   subComment(nrow, info, "field-editor/short-name");
-  el("div", "io-item__desc", info, "A shorter name for the TagWheel row, where there is little room");
+  el("div", "io-item__desc", info, "A shorter name for the tagWheel row, where there is little room");
   const ctl = el("div", "io-item__control", row);
-  const nin = textEl(ctl, f.short, f.name, "Name in TagWheel for " + f.name, "io-text io-text--prop");
+  const nin = textEl(ctl, f.short, f.name, "Name in tagWheel for " + f.name, "io-text io-text--prop");
   nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
 }
 
@@ -5499,14 +5499,14 @@ function placementRows(host, f) {
   /*
    * Работает ли Field вообще. Настройка живая и читается рантаймом: при `no`
    * Field выключен везде, при `hotkey_only` его команды работают, а из
-   * TagWheel он убран. Значения в конфиге прежние (З1) — меняются подписи.
+   * tagWheel он убран. Значения в конфиге прежние (З1) — меняются подписи.
    * Возвращена решением заказчика 2026-08-27: в первой версии этой колонки
    * контрола не было, и настройка становилась недостижимой.
    */
   row({ name:"Active", key:"active",
     desc:"Whether this Field is offered, and where",
-    tip:"<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. " +
-        "<b>Commands only</b> keeps the commands working and takes the Field out of TagWheel",
+    tip:"<b>No</b> switches the Field off everywhere: tagWheel does not show it and its commands do nothing. " +
+        "<b>Commands only</b> keeps the commands working and takes the Field out of tagWheel",
     options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" },
              { value:"hotkey_only", label:"Commands only" }] },
     f.active || "yes", v => { f.active = v; });
@@ -5524,14 +5524,14 @@ function placementRows(host, f) {
    * (`__ioParentBinding`), а не соседняя ссылка, и заводится он своим
    * контролом, а не этим. У Field типа Emoji значений нет вовсе (З8).
    *
-   * Выключенный дочерний Field не появляется в TagWheel после выбора
+   * Выключенный дочерний Field не появляется в tagWheel после выбора
    * родительского значения, даже если значения у него заведены.
    */
   if (f.type === "tag") {
     row({ name:"Child Field", key:"child",
-      desc:"Show the child Field in TagWheel once a parent Value is picked",
+      desc:"Show the child Field in tagWheel once a parent Value is picked",
       tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. " +
-          "Switched off, TagWheel does not offer it even when its Values are set up",
+          "Switched off, tagWheel does not offer it even when its Values are set up",
       options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" }] },
       f.childOn === false ? "no" : "yes", v => { f.childOn = v !== "no"; });
   }
@@ -5541,7 +5541,7 @@ function placementRows(host, f) {
 
 /*
  * Предусловие Field (10.13.4). Field ждёт другой Field: пока у того в
- * строке нет значения, этот не показывается ни в TagWheel, ни в командах, ни
+ * строке нет значения, этот не показывается ни в tagWheel, ни в командах, ни
  * в самой строке. Выбрано значение — можно сузить и до него одного.
  *
  * В конфиг это ложится двумя ключами, которые рантайм понимает давно:
@@ -5561,7 +5561,7 @@ function prerequisiteRows(host, f, row) {
 
   row({ name:"Prerequisite Field", key:"prereq",
     desc:"Show this Field only after another Field has a Value",
-    tip:"A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line until the Field it waits for has a Value. " +
+    tip:"A Field with a prerequisite stays out of tagWheel, out of its commands and out of the line until the Field it waits for has a Value. " +
         "Picking a different Value in that Field clears this one" },
     f.prereq ? "yes" : "no",
     v => { f.prereq = v === "yes" ? (f.prereq || (others[0] && others[0].id) || "") : ""; f.prereqValue = ""; },
@@ -6942,7 +6942,7 @@ const MOCK_HOTKEYS = {
   "Smart bracket": "Ctrl + Alt + B",
   "Move line up": "Alt + Up",
   "Move line down": "Alt + Down",
-  "Open TagWheel on the left": "Ctrl + Alt + W"
+  "tagWheel Left": "Ctrl + Alt + W"
 };
 
 function hotkeyFor(commandName) {

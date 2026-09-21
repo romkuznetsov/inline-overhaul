@@ -90,7 +90,7 @@ function navigationRuntime() {
   return require("../navigation_runtime.js");
 }
 
-/** Движок PKM: команды Fields, TagWheel, даты и системная строка. */
+/** Движок PKM: команды Fields, tagWheel, даты и системная строка. */
 function pkmRuntime() {
   return require("../pkm_runtime_v2.js");
 }
@@ -177,7 +177,7 @@ function buildOwnCommandList(plugin) {
       ),
       COMMAND_AREAS.pkm,
       (d) => {
-        /* Команды TagWheel — не семья: их всегда ровно две, и в прототипе они
+        /* Команды tagWheel — не семья: их всегда ровно две, и в прототипе они
            названы поимённо. */
         if (!String(d && d.strictName ? d.strictName : "").trim()) return "";
         return d.direction === "decrease" ? "field-previous" : "field-next";
@@ -479,7 +479,7 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
    */
   if (String(command || "") !== "tagWheel" && openTagWheelSession()) {
     new Notice(__say(__noticeKey("pkm", "tagwheel-open"),
-      "TagWheel is open on this line: finish it with Enter or close it with Escape first"));
+      "tagWheel is open on this line: finish it with Enter or close it with Escape first"));
     return;
   }
   const rt = await ensurePkmRuntime(plugin);

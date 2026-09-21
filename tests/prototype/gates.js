@@ -37,8 +37,16 @@ const bad = m => { console.log("  FAIL " + m); fail++; };
 /* Sentence case, with one exception the owner set: anything InlineOverhaul
    itself defines is a proper noun, so a reader can tell the Bar the plugin
    draws from a bar in general. Obsidian's words and plain English are not. */
+/*
+ * `TagWheel` ушло отсюда 2026-09-21 его словом В-166: человек видит
+ * `tagWheel`, как и `inlineOverhaul`. Это отменяет строку правил текстов
+ * PRD 7 о заглавной — правило перечисляет сущности плагина, а написание
+ * одной из них теперь задано им. Прежнее написание не просто разрешено
+ * перестало быть: оно запрещено списком `FORBIDDEN` ниже, иначе запрет
+ * пережил бы своё основание молча (У-247).
+ */
 const ENTITIES = ["Field","Fields","Value","Values","Bar","Bars","Prefix","Prefixes",
-  "Separator","Separators","Block","Blocks","TagWheel","Binder","Transform","Wheel",
+  "Separator","Separators","Block","Blocks","tagWheel","Binder","Transform","Wheel",
   /* `Stripe` — его слово 2026-09-19 (З-13): полосу за Block рисуем мы, и
      от полосы в общем смысле она отличается так же, как Bar. Прежнее
      значение слова — старое имя Bars, и живёт оно только в `searchTerms`. */
@@ -84,9 +92,33 @@ const FORBIDDEN = ["inlineOverhaul_", "Command ID", "debounce", "undo stack", "r
   /* `band` — прежнее слово для полосы Block, снятое его переименованием
      2026-09-19 (З-13). Запрет держит второе слово от возврата: на экране у
      одной вещи одно имя, а не два в разных текстах. */
-  "band"];
+  "band",
+  /* `TagWheel` — прежнее написание, снятое его словом В-166 (2026-09-21).
+     Ровно то же, что с `band`: на экране у одной вещи одно написание. */
+  "TagWheel",
+  /* `Open TagWheel on the` — прежнее имя пары команд, снятое тем же словом
+     (В-166): человек ищет в палитре `tagWheel Left` и `tagWheel Right`. */
+  "Open TagWheel on the"];
 const outsideCode = t => t.replace(/<code>[\s\S]*?<\/code>/g, "");
 const lowerEntities = t => [...new Set((outsideCode(t).match(LOWER) || []))];
+
+/*
+ * **Контроль запрета стоит до первого вывода** (У-119, правило 44), и у него
+ * две половины. Положительная: запрет обязан краснеть на образце — иначе
+ * «запрещённого нет» бывает правдой от того, что искать нечем (У-127).
+ * Отрицательные: он обязан молчать на том написании, которым мы пишем
+ * сегодня, — запрет по списку строк слепнет ровно наоборот, когда продукт
+ * передумал (У-247, правило 170). Образцы взяты из живых текстов панели.
+ */
+{
+  const hits = t => FORBIDDEN.filter(f => String(t).includes(f));
+  if (!hits("строка про TagWheel внутри").length) {
+    bad("контроль запрета: прежнее написание `TagWheel` проходит мимо");
+  }
+  for (const live of ["tagWheel Value names", "tagWheel Left", "Highlight the tagWheel line"]) {
+    if (hits(live).length) bad("контроль запрета: он цепляет нынешний текст «" + live + "»");
+  }
+}
 
 
 /* Two definitions of the same function is worse than none: the file parses,
@@ -204,6 +236,16 @@ for (const g of SCHEMA) {
     }
   }
   /*
+   * **Заголовок группы — такой же видимый текст, как её вводный абзац.**
+   * Куплено это переименованием `TagWheel` → `tagWheel` (В-166, 2026-09-21):
+   * запрет стоял на `desc`, `tip` и текстах группы, а заголовок `TagWheel`
+   * человек читает первым. Переименование по списку пропускает место, где
+   * предмет не назван контролом (У-229, правило 151).
+   */
+  for (const f of FORBIDDEN) {
+    if (String(g.heading || "").includes(f)) bad("group " + g.id + " heading contains: " + f);
+  }
+  /*
    * Г11 считает настройки **в разделе**, а не в группе целиком, и раздел
    * начинается с субхедера. Предел куплен читаемостью: двенадцать строк
    * подряд под одной подписью человек уже не охватывает глазом. Подпись
@@ -253,6 +295,8 @@ for (const g of SCHEMA) for (const it of g.items) {
       bad(it.id + " name not sentence case: " + it.name);
     }
   });
+  /* Имя строки — то, что человек читает раньше описания; запрет тот же. */
+  for (const f of FORBIDDEN) if (it.name && it.name.includes(f)) bad(it.id + " name contains: " + f);
   if (it.desc) {
     described++;
     if (it.desc.length > 140) bad(it.id + " desc " + it.desc.length + " chars");

@@ -10,9 +10,9 @@
  * условия Smart Rules).
  *
  * **Вечером того же дня он дописал в свой файл ещё пять кусков**, и они здесь:
- * группа настроек у `Move line up` и `Move line down`, закрытие TagWheel тем же
+ * группа настроек у `Move line up` и `Move line down`, закрытие tagWheel тем же
  * хоткеем, порядок Fields и колонки цвета, как Value делается дочерним и когда
- * дочерний доезжает до TagWheel, и целый абзац про команды, которые Field
+ * дочерний доезжает до tagWheel, и целый абзац про команды, которые Field
  * заводит себе сам. Имена контролов при переносе приведены к панели: у Field
  * тумблер называется `Child Field`, а не `Child Fields`, и команды строки
  * называются `Move line up` и `Move line down`, а не `Move up` и `Move down`.
@@ -22,7 +22,7 @@
  * пин разбирает `Вкладка → Группа → Строка` и спрашивает схему.
  *
  * Правила текста те же, что у панели (раздел 7): сущности плагина с заглавной
- * (`Field`, `Value`, `Block`, `Prefix`, `Separator`, `TagWheel`, `Binder`,
+ * (`Field`, `Value`, `Block`, `Prefix`, `Separator`, `tagWheel`, `Binder`,
  * `Transform`, `Smart Rules`), слова Obsidian и обычного языка — со строчной.
  * Отличие одно: это заметка, а не подпись контрола, поэтому предложения
  * обычные, с точками.
@@ -86,7 +86,7 @@ function intro(): string {
     "> - **Tags & PKM**: the heart of the plugin, where you set up your tags, wikilinks",
     ">   and emoji-elements and decide how they behave",
     "> - **Visual**: not only makes a note nicer to look at, but also gives you Tag Bars",
-    ">   and TagWheel",
+    ">   and tagWheel",
     "> - **Transform**: turns a line into a note of its own, with properties and a",
     ">   template, in one press",
   ].join("\n");
@@ -104,8 +104,8 @@ function firstSteps(): string {
     "   round works too: `inlineOverhaul → Keyboard → Commands & Hotkeys`, find the",
     "   command and press `not set` in its `Hotkey` column, and Obsidian opens its own",
     "   Hotkeys screen already filtered to that command.",
-    "\t1. `Open TagWheel on the left` is the one you will press most. It opens the",
-    "\t   TagWheel panel over your line, where you pick the tags, wikilinks and",
+    "\t1. `tagWheel Left` is the one you will press most. It opens the",
+    "\t   tagWheel panel over your line, where you pick the tags, wikilinks and",
     "\t   emoji-elements you set up in `Tags & PKM → Fields`. (*I use `Alt + Arrow down`*)",
     "\t2. `Move left` and `Move right` do three things at once: they move selected text",
     "\t   inside a line, change the indent of a line, and cycle the line Prefix.",
@@ -120,12 +120,12 @@ function firstSteps(): string {
     "   idea, delete the ones you do not want with the bin button, or go to",
     "   `Advanced → Backup → Start over` and begin from scratch. They come with a",
     "   fresh install only: `Start over` does not bring them back.",
-    "3. **Type a line and open TagWheel.** Write `- buy milk` in any note, put the cursor",
-    "   on it and press your TagWheel key. The panel opens over the line. `Arrow left` and",
+    "3. **Type a line and open tagWheel.** Write `- buy milk` in any note, put the cursor",
+    "   on it and press your tagWheel key. The panel opens over the line. `Arrow left` and",
     "   `Arrow right` move between Fields, `Arrow up` and `Arrow down` turn the Values of",
     "   the Field you are on. Fields live in two places, the `Left Block` before your text",
     "   and the `Right Block` after it, and `Tab` switches between them. `Enter`, or your",
-    "   TagWheel key a second time, closes the panel and keeps what you picked. `Esc`",
+    "   tagWheel key a second time, closes the panel and keeps what you picked. `Esc`",
     "   closes it and keeps nothing.",
     "4. **Look at the result.** The line has changed: your text `buy milk` is now fenced",
     "   off from the tags by two marks. Those are the Separators, and you can change them",
@@ -167,7 +167,7 @@ function fieldsAndValues(): string {
     "the line the two show up either as separate bubbles or as one `#open/wip`, and which",
     "one it is is `Tags & PKM → Writing rules → Child tag format`.",
     "",
-    "A child reaches TagWheel only when both of these are true: the Field has",
+    "A child reaches tagWheel only when both of these are true: the Field has",
     "`Child Field` turned on in its `Behavior` block, and you have already picked the",
     "parent Value on that line.",
     "",
@@ -178,11 +178,11 @@ function fieldsAndValues(): string {
     "",
     "**A new Field brings its own commands.** Add one and two commands appear by",
     "themselves, `<Name> next` and `<Name> previous`, called after the Field `Name` and",
-    "not after its shorter `Name in TagWheel`. Turn `Child Field` on and there are two",
+    "not after its shorter `Name in tagWheel`. Turn `Child Field` on and there are two",
     "more, `<Name>-sub next` and `<Name>-sub previous`. Each of them walks the Values of",
     "that Field in a circle: nothing, the first Value, the last one, nothing again. One",
     "key per Field is therefore enough, and you do not turn your keyboard into a piano.",
-    "This is how you set a Value without opening TagWheel at all. They are listed in",
+    "This is how you set a Value without opening tagWheel at all. They are listed in",
     "`Keyboard → Commands & Hotkeys`, and deleting the Field takes its commands with it.",
   ].join("\n");
 }
@@ -210,26 +210,26 @@ function theLine(): string {
 
 function tagWheel(): string {
   return [
-    "## TagWheel",
+    "## tagWheel",
     "",
-    "TagWheel is the reason the Fields are worth setting up. Put the cursor on a line,",
+    "tagWheel is the reason the Fields are worth setting up. Put the cursor on a line,",
     "press the key you bound to it, and a small panel opens over the line with your Fields",
     "in it. Arrow keys move between Fields and between Values, and the line updates as you",
     "move.",
     "",
-    "How it looks is `inlineOverhaul → Visual → TagWheel`:",
+    "How it looks is `inlineOverhaul → Visual → tagWheel`:",
     "",
     "* **`Scroller`** turns on a second small panel beside the Field you are on, showing",
     "  the Values above and below the current one;",
     "* **`Scroller size`** is how many Values it shows on each side;",
     "* **`Scroller opening direction`** is which way it opens;",
-    "* **`Highlight the TagWheel line`** fills the line while the panel is open, so you can",
+    "* **`Highlight the tagWheel line`** fills the line while the panel is open, so you can",
     "  see at a glance what you are editing;",
     "* **`Active Field text color`** and **`Non-active Field text color`** are what tells",
     "  the current Field from the rest. Your tag colours are not drawn inside the panel, so",
     "  these two are the whole difference there.",
     "",
-    "If a Field does not show up in TagWheel, open its `Behavior` block in",
+    "If a Field does not show up in tagWheel, open its `Behavior` block in",
     "`Tags & PKM → Fields`: check that it is `Active`, and that it is not waiting for",
     "another Field through `Prerequisite Field`.",
   ].join("\n");
@@ -336,7 +336,7 @@ function recipes(): string {
     "* Bars drawn by `Priority`.",
     "* `Move left` and `Move right` on `Alt + Arrow left` and `Alt + Arrow right`.",
     "",
-    "You type a line, press the TagWheel key, pick a status, and the Bar tells you the",
+    "You type a line, press the tagWheel key, pick a status, and the Bar tells you the",
     "state of the whole block from across the room.",
     "",
     "### A reading log",

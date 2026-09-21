@@ -27,7 +27,7 @@
 **Три вещи в этом плане машина не увидит никогда, и это не лень проверок:** DOM
 живого окна Obsidian из них недостижим, а библиотеки DOM в проекте нет. Это
 приклеенная полоса вкладок, разрыв между полосами соседних строк и то, как
-читается панель TagWheel в редакторе. Правки в этих трёх местах сделаны так,
+читается панель tagWheel в редакторе. Правки в этих трёх местах сделаны так,
 чтобы ломаться было нечему, а машиной закреплён механизм, а не вид, — но
 сказать «работает» может только ваш взгляд.
 
@@ -118,7 +118,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 | Keyboard | Before you start, Expanded 'Ctrl+A' ('⌘+A'), Binder, Command reference |
 | Navigation | Before you start, Moving lines (up and down), Move left and move right (субхедеры `Move text` и `Moving lines (left and right)`), Moving cursor inside a line, Moving cursor inside a note |
 | Tags & PKM | Before you start, Fields, Separators, Writing rules, Placement modes, Prefix priority |
-| Visual | Before you start, Inline appearance, Color your Tags, Tag Bars, TagWheel |
+| Visual | Before you start, Inline appearance, Color your Tags, Tag Bars, tagWheel |
 | Transform | Before you start, Inline to note, Naming, Note content, Source line, Smart Rules |
 | Advanced | Before you start, Options IDs, Backup, Diagnostics |
 
@@ -219,13 +219,13 @@ npm run install:test -- "C:\путь\до\новой\папки"
 - **👁 `Move left` / `Move right`:** цикл Prefix на строке, которая ещё не
   элемент списка. Правое направление циклирует наравне с левым, если включён
   `Cycle in both directions` (сделано 2026-09-01, В-12).
-- **👁 `Jump back` / `Jump next`** по заголовкам, включая края документа.
+- **👁 `Jump up` / `Jump down`** по заголовкам, включая края документа.
 - **👁 `Move cursor left/right in line`** по зонам строки.
 - **👁 Expanded `Ctrl+A`:** первое нажатие — строка с её отступным поддеревом,
   второе — вся заметка. Настройка задержки и `Clear selection on last press`.
 - **👁 PKM:** `<Field> next` / `<Field> previous` на строке с токенами и без;
   Field с пустым значением обязан убирать прежний токен.
-- **👁 TagWheel:** `Open TagWheel on the left` / `on the right`, порядок значений
+- **👁 tagWheel:** `tagWheel Left` / `on the right`, порядок значений
   в скроллере, размер, цвета заголовка.
 - **👁 Tag Bars:** включите (по умолчанию выключены) и проверьте полосы на
   строках, скрытие токена и Separator.

@@ -187,14 +187,14 @@ See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigatio
 
 | Control | Default | What it does |
 |---|---|---|
-| `Jump between headings` | on | Turns on the `Jump back` and `Jump next` commands |
+| `Jump between headings` | on | Turns on the `Jump up` and `Jump down` commands |
 | `Jump target` | `edge` | Hop between headings, or crawl from one written line to the next |
 | `Where in the section` | `start-end` | Land at the start of the part you jump to, or at its end |
 | `Cursor position after jumping` | `section-end` | Where on that line the cursor ends up |
 | `Follow the jump target` | on | Scrolls the note so the line you landed on is on screen |
 | `Where the target lands` | `center` | The place on screen the line you jump to is scrolled to |
 
-Commands: `Jump back`, `Jump next`.
+Commands: `Jump up`, `Jump down`.
 
 See it in motion: [Header jumps](SHOWCASE.md#header-jumps).
 
@@ -213,7 +213,7 @@ The right column is everything about the Field picked on the left:
 
 | Row | What it holds |
 |---|---|
-| `Name in TagWheel` | A shorter name for the TagWheel row, where there is little room |
+| `Name in tagWheel` | A shorter name for the tagWheel row, where there is little room |
 | `Active` | `Yes`, `No`, or `Commands only` — whether the Field is offered, and where |
 | `Prefix behavior` | `Strict`, `Insert only` or `Free`; how the Field affects the line Prefix |
 | `Child Field` | `After parent`, `Show always` or `Hide` |
@@ -339,7 +339,7 @@ tag Field draws them.
 | `Bars for the whole tree` | on | A Bar runs down everything nested under its line |
 | `Join Bars in a tree` | on | A parent and its own children draw one unbroken Bar |
 
-### TagWheel
+### tagWheel
 
 The picker opens over the line and lays your Fields out across it, with the Values of the
 Field you are on running down.
@@ -347,9 +347,9 @@ Field you are on running down.
 | Control | Default | What it does |
 |---|---|---|
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
-| `TagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color your tags`, or both |
+| `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color your tags`, or both |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
-| `Highlight the TagWheel line` | on | Marks the line while the picker is open |
+| `Highlight the tagWheel line` | on | Marks the line while the picker is open |
 | `Non-active Field text color` | unset | The Field names you are not standing on |
 | `Active Field text color` | unset | The Field you are on |
 | `Chosen Value text color` | unset | A Field that already carries a Value |
@@ -360,14 +360,14 @@ Field you are on running down.
 | `Scroller background color` | unset | Behind the box of neighbouring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighbouring Values stay visible |
-| `TagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
+| `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
 
-Commands: `Open TagWheel on the left`, `Open TagWheel on the right`.
+Commands: `tagWheel Left`, `tagWheel Right`.
 
-See it in motion: [TagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel) and
-[TagWheel panel and scroller](SHOWCASE.md#tagwheel-panelscroller).
+See it in motion: [tagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel) and
+[tagWheel panel and scroller](SHOWCASE.md#tagwheel-panelscroller).
 
-### TagWheel opening
+### tagWheel opening
 
 | Control | Default | What it does |
 |---|---|---|

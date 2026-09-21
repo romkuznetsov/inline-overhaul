@@ -89,7 +89,9 @@ async function run(): Promise<void> {
     assert.equal(notices.length, 1,
       "команда при открытой панели промолчала — а человек звал её сам: "
       + JSON.stringify(notices));
-    assert.ok(/TagWheel/.test(String(notices[0] || "")),
+    /* Написание задаёт его слово (В-166, `tagWheel`), а проверяется здесь
+       свойство «сообщение называет панель» — потому и без учёта регистра. */
+    assert.ok(/tagwheel/i.test(String(notices[0] || "")),
       "сообщение не называет причину отказа: " + notices[0]);
   });
   ok("команда поля при открытой панели не доходит до движка и говорит вслух");

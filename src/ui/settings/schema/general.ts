@@ -35,7 +35,7 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
       name:"Guide", desc:"Worked examples of the things people set up first",
       tip:"<code>Read</code> writes the guide into your vault the first time you press it, and opens it every time " +
           "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
-          "Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
+          "Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
           "so nothing you add there can be lost by pressing this button",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },

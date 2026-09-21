@@ -24,6 +24,7 @@
  */
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +42,17 @@ type Any = ReturnType<typeof JSON.parse>;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const internals = loadPluginInternals();
+
+/*
+ * **Имена команд берутся у реестра, а не переписываются сюда.** Две строки
+ * ниже держались на литерале и покраснели 2026-09-21, когда его слово В-166
+ * переименовало пару `Open TagWheel on the …` в `tagWheel Left` / `tagWheel
+ * Right`: проверка ловила не дефект, а собственную копию имени (У-240, У-229).
+ */
+const requireCjs = createRequire(import.meta.url);
+const ids = requireCjs(path.join(root, "src", "features", "command_ids.js")) as Any;
+const shownAs = (area: string, id: string): string =>
+  ids.commandDisplayName(area, ids.commandName(id));
 
 setupGlobals();
 
@@ -518,11 +530,11 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const fromFields = pkm.filter(r => r.under === "Commands from your Fields").map(r => r.name);
 
   assert.deepEqual(standard,
-    ["Tags & PKM: Open TagWheel on the left", "Tags & PKM: Open TagWheel on the right"],
+    [shownAs("Tags & PKM", "open-tagwheel-left"), shownAs("Tags & PKM", "open-tagwheel-right")],
     "в стандартных не те команды: " + standard.join(", "));
   assert.ok(fromFields.length >= 2,
     "команд из Fields нет вовсе: " + fromFields.join(", "));
-  assert.ok(!fromFields.some(n => n.includes("Open TagWheel")),
+  assert.ok(!fromFields.some(n => n.includes(ids.commandName("open-tagwheel-left"))),
     "стандартная команда попала во вторую часть");
 
   /* Стандартные и правда выше: первая строка второй части идёт после последней
@@ -874,7 +886,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     { name: "Type previous", id: "type-previous" },
     { name: "Type-sub next", id: "type-sub-next" },
     { name: "Move line up", id: "move-line-up" },
-    { name: "Open TagWheel on the left", id: "open-tagwheel-left" },
+    { name: ids.commandName("open-tagwheel-left"), id: "open-tagwheel-left" },
   ];
   const typed = all.filter(c => /^Type/.test(c.name));
   assert.equal(hotkeyQueryFor(scope, typed, all), scope + " type",
