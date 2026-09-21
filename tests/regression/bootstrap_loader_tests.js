@@ -599,6 +599,8 @@ async function run() {
       "./features/plugin_commands.js",
       "./features/smart_delete_engine.js",
       "./features/smart_enter_engine.js",
+      /* Smart paste (`З-31`, `З-32`, его пункт 9 от 2026-09-21). */
+      "./features/smart_paste_engine.js",
       "./ui/editor/styles.js",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");

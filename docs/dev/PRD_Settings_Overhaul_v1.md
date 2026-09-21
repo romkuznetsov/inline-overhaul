@@ -10297,7 +10297,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (69)
+### Пути, которых не было в описи v1.0 (70)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -10311,6 +10311,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Global hotkeys |
 | `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Global hotkeys |
 | `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Global hotkeys |
+| `editor.smartPaste.enabled` | Smart paste (`smart-paste-enabled`) | Global hotkeys |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
 | `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
@@ -17585,7 +17586,7 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 9 | 1 |
-| 2 | Keyboard | — | 4 | 13 | 7 |
+| 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 57 | 12 |
@@ -17609,7 +17610,7 @@ python tests/prototype/update_prd.py
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `keyboard-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 100 | `global-hotkeys` | Global hotkeys | Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours | да | — |
+| 100 | `global-hotkeys` | Global hotkeys | Four keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, <code>Enter</code> and <code>Ctrl/Cmd + V</code> — taught to do the obvious thing inside a line of yours | да | — |
 | 200 | `binder` | Binder (custom insert commands) | For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is | да | — |
 | 300 | `command-reference` | Commands & Hotkeys | Everything this plugin can do, in one list. None of it has a key until you give it one — click in the <code>Hotkey</code> column to do that | да | — |
 
@@ -17791,9 +17792,9 @@ _Tip:_ Turning an area off is not the same as leaving it alone. Its commands dis
 
 #### Global hotkeys — `global-hotkeys` (вкладка `keyboard`)
 
-_Intro:_ Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours
+_Intro:_ Four keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, <code>Enter</code> and <code>Ctrl/Cmd + V</code> — taught to do the obvious thing inside a line of yours
 
-_Tip:_ Nothing here rebinds a key: all three stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The three sections below are independent: switch on the one you want and the other two stay as they were
+_Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The sections below are independent: switch on the one you want and the others stay as they were
 
 - **`select-all-sub`** — свой блок, рендерер `?`
 - **Expanded 'Ctrl+A'** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
@@ -17864,6 +17865,11 @@ _Tip:_ Nothing here rebinds a key: all three stay Obsidian’s own, and each set
   - варианты: `same` Same as the line above · `none` None · `number-only` None, unless the line is numbered
   - выключена если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Keep the bullet», «New line Prefix», «Carry the Prefix over»
+- **`smart-paste-sub`** — свой блок, рендерер `?`
+- **Smart paste** — `smart-paste-enabled`, `toggle`, path `editor.smartPaste.enabled`, default `false`
+  - desc: Count a pasted numbered list from one, and drop a pasted marker where the line has one
+  - tip: Nothing here rebinds the key: <code>Ctrl/Cmd + V</code> stays Obsidian’s, and this only changes what arrives when what you paste is a numbered list or a list item. Off, the key behaves as it always has. A paste that neither starts a numbered list nor lands on a line with a marker is not touched at all, whatever this is set to
+  - старые названия для поиска: «Smart insert», «Paste a numbered list», «Renumber on paste»
 
 #### Binder (custom insert commands) — `binder` (вкладка `keyboard`)
 
@@ -18732,6 +18738,7 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `editor.smartEnter.enabled` | toggle | `false` |
 | `editor.smartEnter.newLinePrefix` | dropdown | `same` |
 | `editor.smartEnter.scope` | dropdown | `line` |
+| `editor.smartPaste.enabled` | toggle | `false` |
 | `features.navigation.enabled` | toggle | `true` |
 | `features.pkm.enabled` | toggle | `true` |
 | `features.transform.enabled` | toggle | `true` |

@@ -971,6 +971,9 @@ function normalizeConfigV2(cfg) {
      `line`: это поведение, которое у него уже стоит, плюс починка правого
      Block. */
   oneOf("editor.smartEnter.scope", ["line", "text"]);
+  /* Smart paste (`З-31`, `З-32`). Умолчание выключено — как у трёх соседних
+     разделов `Global hotkeys`: клавиша принадлежит Obsidian. */
+  bool("editor.smartPaste.enabled");
   writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
 
   /* --- вид тегов -------------------------------------------------------- */

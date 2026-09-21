@@ -21,8 +21,8 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
   visible: on("general.help.showCallouts") },
 {
   id: "global-hotkeys", tab: "keyboard", order: 100, heading: "Global hotkeys",
-  intro: "Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours",
-  tip: "Nothing here rebinds a key: all three stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The three sections below are independent: switch on the one you want and the other two stay as they were",
+  intro: "Four keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, <code>Enter</code> and <code>Ctrl/Cmd + V</code> — taught to do the obvious thing inside a line of yours",
+  tip: "Nothing here rebinds a key: all four stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The sections below are independent: switch on the one you want and the others stay as they were",
   items: [
     { kind:"custom", id:"select-all-sub", render: subheader("Expanded 'Ctrl+A' ('⌘+A')",
         "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection. Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it") },
@@ -99,7 +99,13 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"same",label:"Same as the line above"},
                 {value:"none",label:"None"},
                 {value:"number-only",label:"None, unless the line is numbered"} ],
-      tip:"<b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" }
+      tip:"<b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" },
+    { kind:"custom", id:"smart-paste-sub", render: subheader("Smart paste",
+        "Paste a numbered list you cut from somewhere else and it arrives carrying the numbers it had there: a list that started at nine goes on starting at nine. With this on, a pasted list is counted from one, and pasting it right under a list you already have carries that list's count on instead. The other half is the single item: paste <code>1. text</code> into a line that already starts with a number and you get <code>2. 1. text</code>, two markers in a row. With this on the pasted marker is dropped and only the text lands. Everything else you paste — plain text, a link, a table — arrives exactly as it always did") },
+    { kind:"toggle", id:"smart-paste-enabled", path:"editor.smartPaste.enabled", default:false,
+      name:"Smart paste", desc:"Count a pasted numbered list from one, and drop a pasted marker where the line has one",
+      searchTerms:["Smart insert","Paste a numbered list","Renumber on paste"],
+      tip:"Nothing here rebinds the key: <code>Ctrl/Cmd + V</code> stays Obsidian’s, and this only changes what arrives when what you paste is a numbered list or a list item. Off, the key behaves as it always has. A paste that neither starts a numbered list nor lands on a line with a marker is not touched at all, whatever this is set to" }
   ]
 },
 {

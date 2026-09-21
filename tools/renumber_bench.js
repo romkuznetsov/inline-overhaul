@@ -40,6 +40,7 @@ if (typeof globalThis.window === "undefined") {
 
 const cmState = require("@codemirror/state");
 const nav = require(path.join(ROOT, "src", "navigation_runtime.js"));
+const smartPaste = require(path.join(ROOT, "src", "features", "smart_paste_engine.js"));
 
 /** Где лежит сборка Obsidian этой машины. */
 function findAsar(explicit) {
@@ -222,6 +223,89 @@ const CASES = [
   },
 ];
 
+/* ---- вставка из буфера (`З-31`, `З-32`) --------------------------------- */
+
+/**
+ * Что уйдёт в документ, если человек вставит `pasted` в `doc` на месте `at`
+ * при включённом `Smart paste`, и что из этого сделает фильтр Obsidian.
+ *
+ * Здесь **две** стороны, и разводить их обязательно: плагин считает, что
+ * подать, а продолжение счёта под имеющимся списком пишет платформа. Своего
+ * правила «под списком ли это» у плагина нет и быть не должно (правило 101),
+ * и проверить это можно только так — прогнав обе стороны разом.
+ */
+function pasteThrough(filter, doc, at, pasted, enabled) {
+  const before = doc.slice(0, at);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEnd = doc.indexOf("\n", at) < 0 ? doc.length : doc.indexOf("\n", at);
+  const plan = smartPaste.planSmartPaste({
+    enabled: enabled !== false,
+    pasted,
+    lineText: doc.slice(lineStart, lineEnd),
+    ch: at - lineStart,
+  });
+  const insert = plan ? plan.insert : pasted;
+  const state = cmState.EditorState.create({
+    doc,
+    extensions: [filter({ tableCell: null, cm: { composing: false } })],
+  });
+  const tr = state.update({
+    changes: { from: at, to: at, insert },
+    selection: { anchor: at + insert.length },
+    userEvent: "input.paste",
+  });
+  return { plan: !!plan, text: tr.state.doc.toString() };
+}
+
+const NINES = "9. девятый\n10. десятый\n11. одиннадцатый";
+
+/**
+ * Случаи вставки. У каждого сказано, **чья** это половина: где ждём работы
+ * плагина, а где — работы платформы.
+ *
+ * Контроль стенда — колонка `off`: при выключенном `Smart paste` случай обязан
+ * дать ровно то, что даёт Obsidian сама. Совпали `on` и `off` там, где мы
+ * обещали правку, — значит меряли не то (У-164).
+ */
+const PASTE_CASES = [
+  {
+    what: "его случай: список 9..11 в пустую заметку — счёт с единицы (наша половина)",
+    doc: "", at: 0, pasted: NINES,
+    on: "1. девятый\n2. десятый\n3. одиннадцатый",
+    off: NINES,
+  },
+  {
+    what: "тот же список под обычным текстом — тоже с единицы (наша половина)",
+    doc: "просто строка\n", at: "просто строка\n".length, pasted: NINES,
+    on: "просто строка\n1. девятый\n2. десятый\n3. одиннадцатый",
+    off: "просто строка\n" + NINES,
+  },
+  {
+    what: "тот же список ПОД имеющимся — счёт продолжается (половина платформы)",
+    doc: "1. один\n2. два\n", at: "1. один\n2. два\n".length, pasted: NINES,
+    on: "1. один\n2. два\n3. девятый\n4. десятый\n5. одиннадцатый",
+    off: "1. один\n2. два\n3. девятый\n4. десятый\n5. одиннадцатый",
+  },
+  {
+    what: "его пример: `1. text` в пустой пункт `2. ` (наша половина)",
+    doc: "1. один\n2. ", at: "1. один\n2. ".length, pasted: "1. text",
+    on: "1. один\n2. text",
+    off: "1. один\n2. 1. text",
+  },
+  {
+    what: "его пример: `1. text` в непустой пункт `2. aaa` (наша половина)",
+    doc: "1. один\n2. aaa", at: "1. один\n2. aaa".length, pasted: "1. text",
+    on: "1. один\n2. aaa text",
+    off: "1. один\n2. aaa1. text",
+  },
+  {
+    what: "обычный текст в обычную строку: не трогаем ни мы, ни платформа",
+    doc: "просто строка", at: "просто строка".length, pasted: " и ещё",
+    on: "просто строка и ещё",
+    off: "просто строка и ещё",
+  },
+];
+
 function main(argv) {
   const asar = findAsar(argv[0]);
   const filter = buildRenumberFilter(readAppJs(asar));
@@ -244,8 +328,27 @@ function main(argv) {
       console.log("    вышло: " + JSON.stringify(cur));
     }
   }
-  console.log(bad ? "\nрасхождений " + bad + " из " + CASES.length
-    : "\nвсе " + CASES.length + " случаев совпали с ожидаемым");
+  console.log("\nвставка из буфера (`З-31`, `З-32`):");
+  for (const c of PASTE_CASES) {
+    const on = pasteThrough(filter, c.doc, c.at, c.pasted, true);
+    const off = pasteThrough(filter, c.doc, c.at, c.pasted, false);
+    const okOn = on.text === c.on;
+    const okOff = off.text === c.off;
+    if (!okOn || !okOff) bad++;
+    console.log((okOn && okOff ? "  ok   " : "  FAIL ") + c.what);
+    if (!okOn) {
+      console.log("    включено, ждали: " + JSON.stringify(c.on));
+      console.log("    включено, вышло: " + JSON.stringify(on.text));
+    }
+    if (!okOff) {
+      console.log("    выключено, ждали: " + JSON.stringify(c.off));
+      console.log("    выключено, вышло: " + JSON.stringify(off.text));
+    }
+  }
+
+  const total = CASES.length + PASTE_CASES.length;
+  console.log(bad ? "\nрасхождений " + bad + " из " + total
+    : "\nвсе " + total + " случаев совпали с ожидаемым");
   process.exit(bad ? 1 : 0);
 }
 

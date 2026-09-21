@@ -30,6 +30,11 @@ function getSmartEnterEngine() {
   return require("./features/smart_enter_engine.js");
 }
 
+/** Вставка из буфера по своим правилам — `З-31` и `З-32`. */
+function getSmartPasteEngine() {
+  return require("./features/smart_paste_engine.js");
+}
+
 
 class InlineOverhaulPlugin extends Plugin {
   /**
@@ -151,6 +156,15 @@ class InlineOverhaulPlugin extends Plugin {
 
   handleSmartEnterKeymap() {
     return getSmartEnterEngine().handleSmartEnterKeymap(this);
+  }
+
+  /*
+   * Тот же шов, но вход у него не клавиша, а событие платформы
+   * (`editor-paste`): `Ctrl+V` до keymap не доходит, вставку Obsidian отдаёт
+   * своим событием. `false` значит «вставка обычная».
+   */
+  handleSmartPaste(evt, editor) {
+    return getSmartPasteEngine().handleSmartPaste(this, evt, editor);
   }
 
   getActiveEditor() {

@@ -128,6 +128,9 @@ it to one that already exists. Off out of the box.
 - **Smart Delete\Backspace** — `Del` at the end of a line and `Backspace` at the start
   bring up the words without the indent and the Prefix. The two switch on separately.
 - **Smart Enter** — `Enter` adds a line below instead of splitting the one you are on.
+- **Smart paste** — a pasted numbered list is counted from one, unless it lands under a
+  list you already have, and then that count carries on. A pasted `1. text` dropped into a
+  line that already starts with a number loses its marker.
 - **Binder** — your own insert commands: a row defines a snippet and gets a command.
   `Smart bracket` ships with the plugin and cycles the brackets around the cursor or
   selection.

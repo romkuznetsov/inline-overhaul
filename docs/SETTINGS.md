@@ -103,6 +103,18 @@ nothing but a Prefix goes whole.
 
 On a line without a Separator of yours the key stays Obsidian's own.
 
+### Global hotkeys → Smart paste
+
+| Control | Default | What it does |
+|---|---|---|
+| `Smart paste` | off | A pasted numbered list is counted from one, and a pasted marker is dropped where the line already has one |
+
+Paste a list you cut from somewhere else and it arrives carrying the numbers it had there.
+With this on it starts at one — and pasting it right under a list you already have carries
+that list's count on instead. Pasting `1. text` into a line that already starts with a
+number drops the pasted marker, so you get `2. text` rather than `2. 1. text`. Anything
+else you paste is untouched.
+
 ### Binder (custom insert commands)
 
 A table. Each row is a piece of text and a command that drops it in at the cursor. One row

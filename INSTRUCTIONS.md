@@ -257,6 +257,25 @@ The key is **off** by default and stays Obsidian's own everywhere else: in any l
 carries no Separator of yours, outside your text when `Where it works` says so, with a
 selection, or with more than one cursor.
 
+### Smart paste
+
+Under **Keyboard → Smart paste**, `Ctrl/Cmd + V` learns two things about lists.
+
+Cut a numbered list out of one note and paste it into another, and it arrives carrying the
+numbers it had where it came from: a list that started at nine goes on starting at nine.
+With the toggle on it is counted from one instead. Paste it directly under a list you
+already have and it does the opposite — the count of that list carries on through it,
+which is what Obsidian does by itself and what the toggle leaves alone.
+
+The other half is the single item. Paste `1. text` into a line that already starts with a
+number and you get `2. 1. text`, two markers in a row, and the second one stops being a
+marker at all. With the toggle on the pasted marker is dropped: `2. ` becomes `2. text`,
+and `2. aaa` becomes `2. aaa text`.
+
+The key is **off** by default. With it on, a paste that neither starts a numbered list nor
+lands on a line that already carries a marker is not touched at all — plain text, a link
+or a table arrives exactly as it always did.
+
 ### Where the view goes when a line moves
 
 Under **Navigation → Moving lines**, `Follow the moved line` decides whether the note scrolls after a move at all, and `Where the line lands` decides where the line ends up: the center, the top or the bottom of the screen. Before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Turn the toggle off and the view does not move at all, which also means a line pushed past the edge goes on moving out of sight.

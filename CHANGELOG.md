@@ -33,6 +33,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 10. ✨ **The sections of that column fold.** `Values`, `Behavior`, `YAML property` and `Commands` each carry the same triangle the settings headings do, and each remembers whether you left it open.
 11. 🐛 **A word of yours no longer sits among the Values.** `Importance next` on `- [[a note]] :: your text` left the link where it was; now it moves into your text, the way the picker has always moved it: `- #high :: [[a note]] your text`. Any word the plugin does not recognise as a Value is yours, and it belongs on your side of the Separator.
 12. 🎨 **A tag is drawn the size Obsidian draws it.** In the editor a tag used to take the size of the text beside it, which made it larger than the same tag in reading mode. It now takes the size your theme gives a tag, so both modes agree. Inside a Block it still sits centred on the line; in your own text it sits on the baseline, the way a tag does everywhere else.
+13. ✨ **New: `Smart paste`.** A numbered list you paste is counted from one instead of carrying the numbers it had where you cut it — unless it lands under a list you already have, and then that list's count carries on. Pasting `1. text` into a line that already starts with a number drops the pasted marker: `2. text`, not `2. 1. text`. Off by default.
+14. 🎨 **The picker's opening Field moved in with the rest of it.** `Visual → tagWheel opening` was a heading of its own; its three settings now stand at the foot of `Visual → tagWheel` under a subheading of the same name, the way the scroller settings stand under `Scroller`. Nothing changed but where they are.
+15. 🎨 **One label, one answer.** `Tags & PKM → Cursor after an action` offered `End of your text (recommended) (default)` — the panel's own mark for the standard choice, and mine for the same thing, read one after the other. Mine is gone; the row's tip still says which one you usually want.
 
 ## 0.5.1
 

@@ -74,6 +74,20 @@ function mountExtensions(plugin) {
       run: () => plugin.handleSmartEnterKeymap(),
     },
   ])));
+  /*
+   * Smart paste (`З-31`, `З-32`). Единственный из перехватов, который стоит
+   * **не** в keymap: `Ctrl+V` до него не доходит вовсе — вставку Obsidian
+   * отдаёт событием `editor-paste`, и оно же несёт содержимое буфера, до
+   * которого из keymap не дотянуться.
+   *
+   * Подписка снимается вместе с плагином: `registerEvent` — шов платформы,
+   * и своя уборка тут была бы вторым объявлением того же правила.
+   */
+  if (plugin.app && plugin.app.workspace && typeof plugin.registerEvent === "function") {
+    plugin.registerEvent(plugin.app.workspace.on("editor-paste", (evt, editor) => {
+      plugin.handleSmartPaste(evt, editor);
+    }));
+  }
   plugin._tagwheelHeaderExtension = createTagwheelHeaderDecorationExtension(plugin);
   plugin._tagVisualExtension = createTagVisualDecorationExtension(plugin);
   plugin._stripExtension = createStripDecorationExtension(plugin);
