@@ -44,6 +44,9 @@ const orderCfg = require(path.join(ROOT, "src", "core", "pkm_order_config.js"));
 const registry = require(path.join(ROOT, "src", "features", "command_registry.js"));
 
 const panelBench = require(path.join(ROOT, "tests", "harness", "panel_bench.js"));
+/* Экран считается тем же помощником, каким его считает панель: своё «убрать
+   спрятанное» было бы вторым объявлением одного правила (У-32). */
+const panelWrite = require(path.join(ROOT, "src", "core", "panel_line_write.js"));
 
 
 function loadCfg() {
@@ -312,6 +315,18 @@ async function openSession(cfg, side, line, ch) {
     const st = global.window.__tagWheelState;
     out.opened = !!(st && st.active === true);
     out.control = editor.getLine();
+    /*
+     * Место каретки при **открытой** панели и план записи — часть ответа, а не
+     * подробность. Что Obsidian прячет на экране, решает перекрытие выделения
+     * с узлом разметки, и край считается перекрытием (У-256): без этих двух
+     * чисел замечание «полоса открывается со знаками `====`» разбирается
+     * чтением кода, то есть догадкой.
+     */
+    out.cursor = editor.getCursor().ch;
+    out.plan = st && st.panelPlan ? st.panelPlan : null;
+    out.screen = out.plan
+      ? panelWrite.withoutRanges(String(out.control), out.plan.hidden)
+      : out.control;
     out.parsed = st && st.parsedLine ? st.parsedLine : null;
     out.selected = st && st.session && st.session.selected ? st.session.selected : {};
     if (st && typeof st.cancel === "function") st.cancel();
@@ -434,7 +449,28 @@ async function main() {
     const out = await openSession(cfg, side, line || "", String(line || "").length);
     console.log("открытие панели " + (side || "left") + " на " + JSON.stringify(line || ""));
     console.log("  открылась : " + out.opened);
-    console.log("  вид       : " + JSON.stringify(out.control));
+    /*
+     * **В документе и на экране — два разных ответа, и печатать надо оба.**
+     *
+     * Строка, которую стенд читает у редактора, — это план записи целиком:
+     * вставка панели стоит в ней **рядом** со значениями человека, а не вместо
+     * них (решение заказчика 2026-09-13). То, что человек видит, получается из
+     * неё снятием спрятанных отрезков — маску рисует `panel_mask.js`.
+     *
+     * Пока здесь печаталась одна строка под именем «вид», она обещала экран, а
+     * показывала документ: значение, у которого с полосой совпала часть слов,
+     * читалось как напечатанное дважды (У-173 — своя карта отвечает на свой
+     * вопрос).
+     */
+    console.log("  на экране : " + JSON.stringify(out.screen));
+    console.log("  в документе: " + JSON.stringify(out.control));
+    console.log("  каретка   : " + out.cursor);
+    if (out.plan) {
+      console.log("  спрятано  : " + JSON.stringify(out.plan.hidden));
+      console.log("  вставлено : " + JSON.stringify(out.plan.inserted));
+    } else {
+      console.log("  плана нет : строка писалась целиком");
+    }
     console.log("  после Esc : " + JSON.stringify(out.afterCancel));
     if (out.parsed) {
       console.log("  разбор    : tags=" + JSON.stringify(out.parsed.tags)
