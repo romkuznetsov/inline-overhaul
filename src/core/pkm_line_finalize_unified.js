@@ -1686,6 +1686,27 @@ function stripSyntheticPrefixForPlainSource(rawLine, line) {
   return rawIndent + body;
 }
 
+/**
+ * Слово человека уходит из зоны значений в свой слот — **и когда слот занят**.
+ *
+ * Его заказ `З-39`, первая половина: «`- [[test1]] :: текст` + `Importance
+ * next` сейчас даёт `- #high [[test1]] :: текст`, а должно —
+ * `- #high :: [[test1]] текст`, как у панели. Это же относится к любой прозе:
+ * `- слово :: текст`».
+ *
+ * **Что здесь было.** Правило работало только на строке с **пустым** слотом
+ * текста: занятый слот означал «трогать нечего», и слово человека оставалось
+ * стоять между значениями. Панель при этом переносила его всегда — отсюда и
+ * два расхождения обхода, последние из ста тридцати пяти.
+ *
+ * **Порядок склейки — его пример:** перенесённое встаёт **перед** тем, что в
+ * слоте уже написано (`[[test1]] текст`, а не `текст [[test1]]`). Так слово
+ * остаётся там же, где человек его видел, — слева от текста.
+ *
+ * Условия переноса не тронуты ни одно: в левой зоне обязано быть хотя бы одно
+ * значение, всё после последнего значения обязано значением **не** быть, и
+ * первым словом зоны перенос не начинается (`lastControlIdx >= 0`).
+ */
 function normalizeLeftTextSpill(options) {
   const opts = options && typeof options === "object" ? options : {};
   const line = String(opts.line || "");
@@ -1696,7 +1717,7 @@ function normalizeLeftTextSpill(options) {
   if (!sep1 || line.indexOf(sep1) === -1) return line;
 
   const seg = splitThreeSegments(line, rules, sep1, sep2);
-  if (String(seg.text || "").trim()) return line;
+  const keptText = String(seg.text || "").trim();
 
   const leftParts = splitLeftDecorators(seg.left);
   const body = String(leftParts.body || "").trim();
@@ -1719,8 +1740,9 @@ function normalizeLeftTextSpill(options) {
   if (!controlTokens.length) return line;
 
   const nextLeft = joinLeftDecorators(leftParts, controlTokens.join(" "));
-  const nextText = spill.join(" ").trim();
-  if (!nextText) return line;
+  const moved = spill.join(" ").trim();
+  if (!moved) return line;
+  const nextText = keptText ? moved + " " + keptText : moved;
 
   let out = nextLeft + " " + sep1;
   out += " " + nextText;

@@ -854,6 +854,69 @@ async function testQuotedLineSurvivesTextSpillRebuild() {
 }
 
 /*
+ * **`З-39`, первая половина: слово человека уходит из зоны значений и тогда,
+ * когда слот текста занят.**
+ *
+ * Его слова: «`- [[test1]] :: текст` + `Importance next` сейчас даёт
+ * `- #high [[test1]] :: текст`, а должно — `- #high :: [[test1]] текст`, как у
+ * панели. Это же относится к любой прозе: `- слово :: текст`».
+ *
+ * До правки доводка работала **только** на пустом слоте: занятый означал
+ * «трогать нечего». Это и были два последних расхождения обхода строки
+ * (`node tools/line_matrix.js`, 4 из 135 → 2, и оба оставшихся — известное
+ * свойство про пробел).
+ *
+ * **Спрашиваются обе стороны пары** (У-147): проза и ссылка, не названная
+ * значением, — переезжают; **значение** поля не переезжает никогда, иначе
+ * правило уносило бы из Block то, что Block и рисует.
+ */
+async function testHumanWordLeavesValueZoneWithTextPresent() {
+  const finalize = require(path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js"));
+  const rules = require(path.join(__dirname, "..", "fixtures", "rules_synthetic.js"));
+  const sep1 = rules.io.separator1;
+  /*
+   * Значения берутся из самой фикстуры: литерал разошёлся бы с ней молча
+   * (У-2). Пустая первая позиция в списке значений — это «поле не заполнено»,
+   * и токеном она не является; отбор идёт по непустому токену.
+   */
+  const tokensOf = (field) => (field && Array.isArray(field.values) ? field.values : [])
+    .map(v => String(v && v.token ? v.token : "").trim())
+    .filter(Boolean);
+  /*
+   * Как значение написано **в строке**. В этой фикстуре часть токенов лежит с
+   * решёткой (`#/1`), часть без (`todo`), а на строке тег стоит с решёткой
+   * всегда — так его пишут и остальные проверки этого файла. Ссылка своей
+   * формой уже названа и приставки не получает.
+   */
+  const asWritten = (t) => (/^(#|\[\[)/.test(t) ? t : "#" + t);
+  const value = asWritten(tokensOf(rules.leftMode.fields[0])[0] || "");
+  assertTrue(!!value, "контроль: у фикстуры нет значения левого поля — проверять нечего");
+
+  const moves = [
+    { word: "слово", why: "проза" },
+    { word: "[[333/имя]]", why: "ссылка, не названная значением" },
+  ];
+  for (const c of moves) {
+    const line = "- " + value + " " + c.word + " " + sep1 + " текст";
+    const out = finalize.applyUnifiedPostFinalize({ rawLine: "- текст", line, rules, mode: "off" });
+    assertEq(out, "- " + value + " " + sep1 + " " + c.word + " текст",
+      "слово человека не уехало в занятый слот текста (" + c.why + "): из "
+      + JSON.stringify(line) + " вышло " + JSON.stringify(out));
+  }
+
+  /*
+   * Отрицательный контроль: второе **значение** остаётся в зоне значений.
+   * Без него «всё после первого значения уезжает» было бы зелёным.
+   */
+  const second = asWritten(tokensOf(rules.leftMode.fields[1])[0] || "");
+  assertTrue(!!second && second !== value,
+    "контроль: у фикстуры нет второго поля со значением — отрицательный контроль пуст");
+  const kept = "- " + value + " " + second + " " + sep1 + " текст";
+  assertEq(finalize.applyUnifiedPostFinalize({ rawLine: "- текст", line: kept, rules, mode: "off" }), kept,
+    "значение второго поля уехало из зоны значений вместе со словом человека");
+}
+
+/*
  * **Пустой слот за знаком задачи держится при любом разделителе.**
  *
  * Правило было написано двумя образцами с литеральным `||` в доводке строки и
@@ -3219,7 +3282,16 @@ async function testStatusTagsRightOrderUsesRuntimeDateMarkerConfig() {
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/::\s+1\s+::\s+📅2026-04-27(?:\s+\[\[[^\]]+\]\])+\s+⛏️001/.test(line), "status_tags right segment follows configured right order due -> clients -> effort1; line=" + line);
+  /*
+   * **Предмет утверждения — порядок правого сегмента**, и он проверяется сам
+   * по себе. Слот текста в образец больше не входит: с `З-39` слово человека,
+   * оставшееся в зоне значений, уезжает в свой слот, и `[[EntityThree]]` —
+   * ссылка, не названная значением ни одного поля, — встаёт перед `1`.
+   * Пришитый к образцу слот делал утверждение о двух вещах разом, и одна из
+   * них была старым поведением (У-207).
+   */
+  assertTrue(/::\s+📅2026-04-27(?:\s+\[\[[^\]]+\]\])+\s+⛏️001\s*$/.test(line), "status_tags right segment follows configured right order due -> clients -> effort1; line=" + line);
+  assertTrue(/::\s+\[\[EntityThree\]\]\s+1\s+::/.test(line), "`З-39`: слово человека из зоны значений встало в слот текста перед написанным; line=" + line);
 }
 
 async function testStatusTagsImportanceMinimalOffNoTrailingSeparator() {
@@ -4246,6 +4318,7 @@ async function run() {
   await testEmptyTextSlotSurvivesQuoteAndCallout();
   await testEmptyTextSlotHoldsAtAnySeparator();
   await testQuotedLineSurvivesTextSpillRebuild();
+  await testHumanWordLeavesValueZoneWithTextPresent();
   await testHeadingLineKeepsItsFieldValue();
   await testLineStartBelongsToThePlatform();
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();

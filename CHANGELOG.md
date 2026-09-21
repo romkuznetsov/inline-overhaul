@@ -31,6 +31,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 8. 🎨 **Four commands read the way they work.** `Jump back` and `Jump next` are now `Jump up` and `Jump down`; the two that open the picker are now `tagWheel Left` and `tagWheel Right`. The picker is written `tagWheel` everywhere you see it, the way `inlineOverhaul` is. Names only — the command identifiers are the same, so your hotkeys stay put.
 9. ✨ **Every Field lists its own commands, with the keys they are on.** The right-hand column of `Tags & PKM → Fields` ends with `Commands`: the Field's own `next` and `previous`, its child Field's pair, and the key each one carries. Press a key cell and Obsidian's `Hotkeys` screen opens at that command. Rename a Field and the list follows at once.
 10. ✨ **The sections of that column fold.** `Values`, `Behavior`, `YAML property` and `Commands` each carry the same triangle the settings headings do, and each remembers whether you left it open.
+11. 🐛 **A word of yours no longer sits among the Values.** `Importance next` on `- [[a note]] :: your text` left the link where it was; now it moves into your text, the way the picker has always moved it: `- #high :: [[a note]] your text`. Any word the plugin does not recognise as a Value is yours, and it belongs on your side of the Separator.
 
 ## 0.5.1
 
