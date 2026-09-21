@@ -131,7 +131,7 @@ Every command the plugin has, the key bound to it now, and a click through to Ob
 
 A command with no key reads as an empty slot: a dashed outline and faint `not set`.
 
-Commands are named after the area they belong to — `Navigation: Move line up`,
+Commands are named after the area they belong to — `Navigation: Move up`,
 `Tags & PKM: Category next` — which is what makes that filter exact.
 
 > [!IMPORTANT]
@@ -144,7 +144,7 @@ Commands are named after the area they belong to — `Navigation: Move line up`,
 
 Moving lines, text and the cursor without reaching for the mouse.
 
-### Moving lines (up and down)
+### Move lines (up\down)
 
 | Control | Default | What it does |
 |---|---|---|
@@ -156,11 +156,11 @@ Moving lines, text and the cursor without reaching for the mouse.
 | `Follow the moved line` | on | Scrolls the note to the line you moved |
 | `Where the line lands` | `center` | The place on screen the moved line is scrolled to |
 
-Commands: `Move line up`, `Move line down`.
+Commands: `Move up`, `Move down`.
 
 See it in motion: [Move lines and trees](SHOWCASE.md#move-linestrees).
 
-### Move left and move right
+### Move lines (left\right)
 
 Two keys doing three jobs, decided by what is selected: move the highlighted text, cycle
 the line Prefix, or change the indent. The order in which the three are tried is set at the
@@ -182,7 +182,7 @@ Commands: `Move left`, `Move right`.
 See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-text) and
 [Prefix cycle and indent fallback](SHOWCASE.md#prefix-cycleindent-fallback).
 
-### Moving cursor inside a line
+### Jump inside line (left\right)
 
 | Control | Default | What it does |
 |---|---|---|
@@ -191,11 +191,11 @@ See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-t
 | `Continue past Separators` | off | Lets the cursor leave your text and walk into the Blocks at either end |
 | `What to do at the end` | `wrap` | When there is nowhere further to go in the line |
 
-Commands: `Move cursor left in line`, `Move cursor right in line`.
+Commands: `Jump left`, `Jump right`.
 
 See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigation).
 
-### Moving cursor inside a note
+### Jump inside note (up\down)
 
 | Control | Default | What it does |
 |---|---|---|
@@ -492,7 +492,7 @@ See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping
 
 See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
 
-### Links in the notes you mention
+### Auto-MOC in your Links
 
 | Control | Default | What it does |
 |---|---|---|

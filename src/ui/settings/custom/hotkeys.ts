@@ -201,7 +201,7 @@ export function hotkeyQueryFor(
   /*
    * **Общее начало имён — кандидат сильнее общего слова**, и решает это знак
    * препинания. С 2026-09-20 имя команды начинается с её области
-   * (`Navigation: Move line up`), и слово `navigation` встречается ещё и у
+   * (`Navigation: Move up`), и слово `navigation` встречается ещё и у
    * тумблера модуля — `General: Toggle Navigation module`. А начало
    * `Navigation:` вместе с двоеточием есть только у своей области.
    *

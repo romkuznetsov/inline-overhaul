@@ -212,14 +212,14 @@ export interface CommandArea {
 
 export const COMMAND_TEXTS: readonly CommandArea[] = [
   { area:"Navigation", list:[
-    { name:"Move line up",              does:"Move the line you are on, or its whole tree, up" },
-    { name:"Move line down",            does:"The same, downwards" },
+    { name:"Move up",                   does:"Move the line you are on, or its whole tree, up" },
+    { name:"Move down",                 does:"The same, downwards" },
     { name:"Move left",                 does:"Move selected text, cycle the line Prefix, or unindent" },
     { name:"Move right",                does:"Move selected text, cycle the line Prefix, or indent" },
     { name:"Jump up",                 does:"Move the cursor to the heading or line above" },
     { name:"Jump down",                 does:"Move the cursor to the heading or line below" },
-    { name:"Move cursor left in line",  does:"Step the cursor back through the parts of the line" },
-    { name:"Move cursor right in line", does:"Step the cursor on through the parts of the line" }
+    { name:"Jump left",                 does:"Step the cursor back through the parts of the line" },
+    { name:"Jump right",                does:"Step the cursor on through the parts of the line" }
   ]},
   /* Две части, и подписи у них видимые, поэтому живут здесь (Р8).
      Стандартные команды — те, что есть всегда; ваши — пара на каждый Field,

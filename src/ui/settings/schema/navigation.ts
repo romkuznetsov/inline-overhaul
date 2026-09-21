@@ -19,10 +19,10 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
-  id: "move-lines", tab: "navigation", order: 100, heading: "Moving lines (up and down)",
+  id: "move-lines", tab: "navigation", order: 100, heading: "Move lines (up\\down)",
   intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
   tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
-  commands: ["Move line up", "Move line down"],
+  commands: ["Move up", "Move down"],
   items: [
     { kind:"toggle", id:"move-lines-enabled", path:"navigation.moveLine.enabled", default:true,
       name:"Move lines", desc:"Let the keys pick up a line and move it",
@@ -61,7 +61,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "left-right", tab: "navigation", order: 200, heading: "Move left and move right",
+  id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left\\right)",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
   tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
@@ -112,10 +112,10 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "in-line", tab: "navigation", order: 400, heading: "Moving cursor inside a line",
+  id: "in-line", tab: "navigation", order: 400, heading: "Jump inside line (left\\right)",
   intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
   tip: "A tagged line has three parts: what comes before your text, your text, and what comes after. The arrow keys treat all of it as one long string and walk through the tags character by character. These two keys hop instead — word, sentence, or straight to one end of your text — and by default they stop at the Separators, so the cursor stays in the sentence you are writing and never lands inside a tag by accident",
-  commands: ["Move cursor left in line", "Move cursor right in line"],
+  commands: ["Jump left", "Jump right"],
   items: [
     { kind:"toggle", id:"in-line-enabled", path:"navigation.navigateInline.enabled", default:true,
       name:"Move cursor inside a line", desc:"Let the keys walk the cursor along the line",
@@ -140,7 +140,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "heading-jumps", tab: "navigation", order: 500, heading: "Moving cursor inside a note",
+  id: "heading-jumps", tab: "navigation", order: 500, heading: "Jump inside note (up\\down)",
   intro: "Skip through a long note by its headings instead of scrolling",
   tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
   commands: ["Jump up", "Jump down"],
@@ -167,7 +167,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
                 {value:"section-start",label:"Start of your text"},
                 {value:"section-end",label:"End of your text"} ],
-      tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Move cursor right in line</code> drops you when you step in from the tags",
+      tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags",
       seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } },
     { kind:"toggle", id:"heading-jumps-center", path:"navigation.jumpToHeader.centerCursor", default:true,
       name:"Follow the jump target", desc:"After a jump, scroll the note so the line you landed on is on screen",

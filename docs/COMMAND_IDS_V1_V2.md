@@ -17,19 +17,19 @@ the keys again from the table below. The full identifier in the hotkey manager r
 ## Renamed commands
 
 Names below are written without the area in front. In the command palette and in
-Obsidian's `Hotkeys` screen each one carries it — `Navigation: Move line up` — and
+Obsidian's `Hotkeys` screen each one carries it — `Navigation: Move up` — and
 Obsidian puts the plugin name before that.
 
 | Was | Now | Name |
 |---|---|---|
-| `inlineOverhaul_Navigation_MoveUp` | `move-line-up` | `Move line up` |
-| `inlineOverhaul_Navigation_MoveDown` | `move-line-down` | `Move line down` |
+| `inlineOverhaul_Navigation_MoveUp` | `move-line-up` | `Move up` |
+| `inlineOverhaul_Navigation_MoveDown` | `move-line-down` | `Move down` |
 | `inlineOverhaul_Navigation_MoveLeft` | `move-left` | `Move left` |
 | `inlineOverhaul_Navigation_MoveRight` | `move-right` | `Move right` |
 | `inlineOverhaul_Navigation_JumpHeaderUp` | `jump-back` | `Jump up` |
 | `inlineOverhaul_Navigation_JumpHeaderDown` | `jump-next` | `Jump down` |
-| `inlineOverhaul_Navigation_InlineLeft` | `move-cursor-left-in-line` | `Move cursor left in line` |
-| `inlineOverhaul_Navigation_InlineRight` | `move-cursor-right-in-line` | `Move cursor right in line` |
+| `inlineOverhaul_Navigation_InlineLeft` | `move-cursor-left-in-line` | `Jump left` |
+| `inlineOverhaul_Navigation_InlineRight` | `move-cursor-right-in-line` | `Jump right` |
 | `inlineOverhaul_Hotkey_tagwheel_left` | `open-tagwheel-left` | `tagWheel Left` |
 | `inlineOverhaul_Hotkey_tagwheel_right` | `open-tagwheel-right` | `tagWheel Right` |
 | `inlineOverhaul_Transform_inline2note` | `transform-inline-to-note` | `Transform inline to note` |

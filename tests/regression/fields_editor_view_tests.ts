@@ -2765,7 +2765,7 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
     { id: "status-previous", name: "Tags & PKM: Status previous", group: "status" },
     { id: "status-sub-next", name: "Tags & PKM: Status-sub next", group: "status" },
     { id: "due-next", name: "Tags & PKM: Due next", group: "due" },
-    { id: "move-line-up", name: "Navigation: Move line up" },
+    { id: "move-line-up", name: "Navigation: Move up" },
   ];
   const v = makeView({
     commands,

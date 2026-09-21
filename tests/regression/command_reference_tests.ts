@@ -365,7 +365,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   assert.deepEqual(d.rows.filter(r => !r.button).map(r => r.name), [],
     "строка без кнопки хоткея — это строка без команды за ней");
   /* Область при этом не пустеет: стандартные команды на месте. */
-  assert.ok(names.includes("Navigation: Move line up"), "стандартные команды пропали вместе с шаблонными");
+  assert.ok(names.includes("Navigation: Move up"), "стандартные команды пропали вместе с шаблонными");
   ok("пустая семья: строки нет, и ни одной строки без команды не осталось");
 }
 
@@ -382,7 +382,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    */
   const cfg = makeConfig();
   const full = ownCommands(cfg);
-  const without = full.filter((c: Any) => String(c.name) !== "Navigation: Move line up");
+  const without = full.filter((c: Any) => String(c.name) !== "Navigation: Move up");
   assert.equal(without.length, full.length - 1, "не нашёл команду, которую убираю");
 
   const host = makeNode("div");
@@ -410,9 +410,9 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   walk(host);
   close();
 
-  assert.ok(!names.includes("Navigation: Move line up"),
+  assert.ok(!names.includes("Navigation: Move up"),
     "справочник показал команду, которой плагин не регистрирует: " + names.join(", "));
-  assert.ok(names.includes("Navigation: Move line down"), "и заодно потерял соседнюю: " + names.join(", "));
+  assert.ok(names.includes("Navigation: Move down"), "и заодно потерял соседнюю: " + names.join(", "));
   ok("команды нет — строки нет: справочник не обещает лишнего (З8)");
 }
 
@@ -430,14 +430,14 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   });
   const byName = new Map(d.rows.map(r => [r.name, r]));
 
-  assert.equal(byName.get("Navigation: Move line up")?.hotkey, "Alt + ArrowUp",
-    "назначенный хоткей не показан: " + byName.get("Navigation: Move line up")?.hotkey);
+  assert.equal(byName.get("Navigation: Move up")?.hotkey, "Alt + ArrowUp",
+    "назначенный хоткей не показан: " + byName.get("Navigation: Move up")?.hotkey);
   /* `Mod` показывается словом платформы: `hotkeys.ts` переводит его в `Ctrl`. */
   assert.equal(byName.get("Tags & PKM: date_due next")?.hotkey, "Ctrl + ]",
     "хоткей команды поля не показан: " + byName.get("Tags & PKM: date_due next")?.hotkey);
-  assert.equal(byName.get("Navigation: Move line down")?.hotkey, "not set",
+  assert.equal(byName.get("Navigation: Move down")?.hotkey, "not set",
     "у команды без хоткея должен быть прочерк словами");
-  assert.equal(byName.get("Navigation: Move line down")?.disabled, false,
+  assert.equal(byName.get("Navigation: Move down")?.disabled, false,
     "кнопка активна, когда приватное API на месте");
   ok("К-2: назначенный хоткей показан, у остальных прочерк словами");
 }
@@ -885,7 +885,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     { name: "Type next", id: "type-next" },
     { name: "Type previous", id: "type-previous" },
     { name: "Type-sub next", id: "type-sub-next" },
-    { name: "Move line up", id: "move-line-up" },
+    { name: "Move up", id: "move-line-up" },
     { name: ids.commandName("open-tagwheel-left"), id: "open-tagwheel-left" },
   ];
   const typed = all.filter(c => /^Type/.test(c.name));
@@ -901,7 +901,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   /* Само правило отбора: слова через И, имя или идентификатор, регистр не в счёт. */
   assert.equal(matchesHotkeyQuery("inlineoverhaul type", "inlineOverhaul: Type next", "x"), true,
     "оба слова в имени — команда видна");
-  assert.equal(matchesHotkeyQuery("inlineoverhaul type", "inlineOverhaul: Move line up", "x"), false,
+  assert.equal(matchesHotkeyQuery("inlineoverhaul type", "inlineOverhaul: Move up", "x"), false,
     "второго слова в имени нет — команда скрыта");
   assert.equal(matchesHotkeyQuery("type-next", "чужое имя", "inline-overhaul:type-next"), true,
     "идентификатор отвечает наравне с именем");

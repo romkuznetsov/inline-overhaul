@@ -10,12 +10,14 @@
  * условия Smart Rules).
  *
  * **Вечером того же дня он дописал в свой файл ещё пять кусков**, и они здесь:
- * группа настроек у `Move line up` и `Move line down`, закрытие tagWheel тем же
+ * группа настроек у `Move up` и `Move down`, закрытие tagWheel тем же
  * хоткеем, порядок Fields и колонки цвета, как Value делается дочерним и когда
  * дочерний доезжает до tagWheel, и целый абзац про команды, которые Field
  * заводит себе сам. Имена контролов при переносе приведены к панели: у Field
  * тумблер называется `Child Field`, а не `Child Fields`, и команды строки
- * называются `Move line up` и `Move line down`, а не `Move up` и `Move down`.
+ * назывались `Move line up` и `Move line down` — до 2026-09-22, когда он
+ * переименовал их своим пунктом 4 ровно в те `Move up` и `Move down`, которыми
+ * и писал их сам.
  *
  * **Пути к настройкам сверяются со схемой, а не вычиткой** (`actions_tests.ts`).
  * Три устаревших пути в присланном тексте нашлись глазами, то есть случайно;
@@ -110,9 +112,9 @@ function firstSteps(): string {
     "\t2. `Move left` and `Move right` do three things at once: they move selected text",
     "\t   inside a line, change the indent of a line, and cycle the line Prefix.",
     "\t   (*I use `Shift + Ctrl + Arrow left` and `Shift + Ctrl + Arrow right`*)",
-    "\t3. `Move line up` and `Move line down` move the line you are on. Whether its tree",
+    "\t3. `Move up` and `Move down` move the line you are on. Whether its tree",
     "\t   comes along, and whether a heading takes its whole section with it, is yours to",
-    "\t   set in `Navigation → Moving lines (up and down)`.",
+    "\t   set in `Navigation → Move lines (up\\down)`.",
     "\t   (*I use `Shift + Ctrl + Arrow up` and `Shift + Ctrl + Arrow down`*)",
     "2. **Look at your Fields.** A fresh install comes with four of them: `Status` and",
     "   `Priority` before your text, `Due` and `Project` after it. Open",
@@ -133,8 +135,8 @@ function firstSteps(): string {
     "   order is the left column of `Tags & PKM → Fields`: drag a Field there, or use the",
     "   arrow buttons if you prefer, and the line follows. The colours come from the",
     "   `Fill` and `Text` columns of that Field `Values` table.",
-    "5. **Type a few more lines.** Try `Move left`, `Move right`, `Move line up` and",
-    "   `Move line down` on them. They are close to intuitive, and every part of them is",
+    "5. **Type a few more lines.** Try `Move left`, `Move right`, `Move up` and",
+    "   `Move down` on them. They are close to intuitive, and every part of them is",
     "   adjustable in `inlineOverhaul → Navigation`. Worth doing: change one option, then",
     "   go straight back to a real note and try it out.",
     "",

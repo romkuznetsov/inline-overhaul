@@ -80,7 +80,7 @@ place, without a dialog and without your hands moving.
 
 ## 5. Move the line without losing its structure
 
-Give **Navigation: Move line down** a key the same way — use `Alt+Down`.
+Give **Navigation: Move down** a key the same way — use `Alt+Down`.
 
 Type two more lines under the first one, any text, then put the cursor back on the
 original line and press `Alt+Down` twice.

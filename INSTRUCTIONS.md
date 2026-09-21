@@ -107,21 +107,21 @@ Each module also has an exact command-palette toggle:
 
 ## Commands & Hotkeys
 
-The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian's Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move line up`. The list below repeats it for reading offline, by the part that says what the command does.
+The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian's Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move up`. The list below repeats it for reading offline, by the part that says what the command does.
 
 > [!WARNING]
 > **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/COMMAND_IDS_V1_V2.md`](docs/COMMAND_IDS_V1_V2.md), and the plugin prints it once to the developer console.
 
 ### Navigation
 
-- **Move line up**
-- **Move line down**
+- **Move up**
+- **Move down**
 - **Move left**
 - **Move right**
 - **Jump up**
 - **Jump down**
-- **Move cursor left in line**
-- **Move cursor right in line**
+- **Jump left**
+- **Jump right**
 
 ### Tags & PKM
 
@@ -150,7 +150,7 @@ Because Field commands are generated from your current Fields, their names are n
 
 ### Move lines and trees
 
-**Move line up** and **Move line down** move selected full lines. With no selection, **No-selection mode** chooses between only the current line and the current line plus indentation-based children. Header handling can move only the header line or its entire section. **Cross-section allowed** controls whether movement crosses headers. **Highlight moved lines** selects normalized moved lines afterward.
+**Move up** and **Move down** move selected full lines. With no selection, **No-selection mode** chooses between only the current line and the current line plus indentation-based children. Header handling can move only the header line or its entire section. **Cross-section allowed** controls whether movement crosses headers. **Highlight moved lines** selects normalized moved lines afterward.
 
 Copyable example:
 
@@ -199,7 +199,7 @@ The line-start target is immediately after the structural prefix, such as indent
 
 ### Navigate within inline text
 
-**Move cursor left in line** and **Move cursor right in line** use the active generated PKM rules and Separators. Step mode can move by word, sentence, or directly between zone boundaries. Separator crossing can be strict or allowed. At a boundary, navigation can stay, wrap, or continue on the next/previous line.
+**Jump left** and **Jump right** use the active generated PKM rules and Separators. Step mode can move by word, sentence, or directly between zone boundaries. Separator crossing can be strict or allowed. At a boundary, navigation can stay, wrap, or continue on the next/previous line.
 
 Inline navigation is currently reliable when both boundaries use the same separator. A distinct **Separator 2** is supported by the line model but may produce incorrect inline boundary navigation; test that configuration on disposable text before relying on it.
 
@@ -282,7 +282,7 @@ Under **Navigation → Moving lines**, `Follow the moved line` decides whether t
 
 ### Where the view goes when you jump to a heading
 
-Under **Navigation → Moving cursor inside a note**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Moving lines` has, and it works the same way.
+Under **Navigation → Jump inside note (up\down)**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Move lines (up\down)` has, and it works the same way.
 
 ### The edge of a Block in tagWheel
 

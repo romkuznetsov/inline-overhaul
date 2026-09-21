@@ -98,8 +98,9 @@ description: Единые правила всего, что видит чело�
 - второе лицо, настоящее время: «Add a Field and two commands appear»;
 - путь к настройке жирным со стрелкой: **Keyboard → Smart Enter**;
 - идентификаторы в `code`: `#todo`, `[[Project A]]`, `default.js`;
-- термины панели с заглавной: Field, Value, Tag Bars, Prefix, Separator, Transform,
-  TagWheel;
+- термины панели с заглавной: Field, Value, Tag Bars, Prefix, Separator, Transform;
+- **`tagWheel` и `inlineOverhaul` — со строчной**: его слово В-166 от 2026-09-21,
+  и прежнее написание запрещено сторожем `docs_terms_tests.ts`;
 - **названия элементов интерфейса — как в самом Obsidian**, то есть первое слово с
   заглавной, остальные строчные: `Community plugins`, не `Community Plugins`;
 - без восклицательных знаков; предупреждения конкретные: «Back up your vault before

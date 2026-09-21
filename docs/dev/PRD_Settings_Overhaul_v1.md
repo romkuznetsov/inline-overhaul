@@ -10273,25 +10273,25 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:2043 | `Use multi-press delay` | `editor.selectAll.useDelay` | Count presses by timer (`select-all-timer`, Global hotkeys) |
 | перенесено | R:2053 | `Multi-press delay` | `editor.selectAll.delayMs` | Time between presses (`select-all-delay`, Global hotkeys) |
 | перенесено | R:2066 | `Last press clears selection` | `editor.selectAll.clearOnLast` | Last press clears highlighting (`select-all-clear`, Global hotkeys) |
-| перенесено | R:1688 | `Enable Move Line` / `Command IDs: …` | `navigation.moveLine.enabled` | Move lines (`move-lines-enabled`, Moving lines (up and down)) |
-| перенесено | R:1698 | `No-selection mode` | `navigation.moveLine.noSelectionMode` | Moving behavior (`move-lines-no-selection`, Moving lines (up and down)) |
-| перенесено | R:1709 | `Header mode` | `navigation.moveLine.headerMode` | Moving headers (`move-lines-heading`, Moving lines (up and down)) |
-| перенесено | R:1720 | `Cross-section allowed` | `navigation.moveLine.crossSectionAllowed` | Cross heading boundaries (`move-lines-cross`, Moving lines (up and down)) |
-| перенесено | R:1730 | `Highlight moved lines` | `navigation.moveLine.highlightMovedLines` | Highlight after moving (`move-lines-select`, Moving lines (up and down)) |
-| перенесено | R:1746 | `Enable inline text move` / `Command IDs: …` | `navigation.moveSelection.inlineEnabled` | Move selected text (`move-text-enabled`, Move left and move right) |
-| перенесено | R:1754 | `Inline move mode` | `navigation.moveSelection.inlineMoveMode` | Movement step (`move-text-step`, Move left and move right) |
-| перенесено | R:1771 | `Enable PrefixCycler` | `navigation.moveSelection.prefixCyclerEnabled` | Cycle line Prefixes (`prefix-cycle-enabled`, Move left and move right) |
-| перенесено | R:1791 | `On cycle end` | `navigation.moveSelection.onCycleEnd` | After the last one (`prefix-cycle-end`, Move left and move right) |
-| перенесено | R:1802 | `Indent fallback` | `navigation.moveSelection.indentFallbackEnabled` | Change the indent (`indent-fallback`, Move left and move right) |
-| перенесено | R:1817 | `Enable Jump To Header` / `Command IDs: …` | `navigation.jumpToHeader.enabled` | Jump between headings (`heading-jumps-enabled`, Moving cursor inside a note) |
-| перенесено | R:1825 | `Center cursor` | `navigation.jumpToHeader.centerCursor` | Follow the jump target (`heading-jumps-center`, Moving cursor inside a note) |
-| перенесено | R:1833 | `Jump mode` | `navigation.jumpToHeader.jumpMode` | Jump target (`heading-jumps-mode`, Moving cursor inside a note) |
-| перенесено | R:1845 | `Edge behavior` | `navigation.jumpToHeader.edgeMode` | Where in the section (`heading-jumps-edge`, Moving cursor inside a note) |
-| перенесено | R:1858 | `Jump cursor position` | `navigation.jumpToHeader.jumpCursorPosition` | Cursor position after jumping (`heading-jumps-cursor`, Moving cursor inside a note) |
-| перенесено | R:1871 | `Enable Navigate Inline` / `Command IDs: …` | `navigation.navigateInline.enabled` | Move cursor inside a line (`in-line-enabled`, Moving cursor inside a line) |
-| перенесено | R:1879 | `Step mode` | `navigation.navigateInline.stepMode` | Step size (`in-line-step`, Moving cursor inside a line) |
-| перенесено | R:1891 | `Allow crossing separators` | `navigation.navigateInline.boundaryJump` | Continue past Separators (`in-line-cross`, Moving cursor inside a line) |
-| перенесено | R:1899 | `On boundary` | `navigation.navigateInline.onBoundary` | What to do at the end (`in-line-boundary`, Moving cursor inside a line) |
+| перенесено | R:1688 | `Enable Move Line` / `Command IDs: …` | `navigation.moveLine.enabled` | Move lines (`move-lines-enabled`, Move lines (up\down)) |
+| перенесено | R:1698 | `No-selection mode` | `navigation.moveLine.noSelectionMode` | Moving behavior (`move-lines-no-selection`, Move lines (up\down)) |
+| перенесено | R:1709 | `Header mode` | `navigation.moveLine.headerMode` | Moving headers (`move-lines-heading`, Move lines (up\down)) |
+| перенесено | R:1720 | `Cross-section allowed` | `navigation.moveLine.crossSectionAllowed` | Cross heading boundaries (`move-lines-cross`, Move lines (up\down)) |
+| перенесено | R:1730 | `Highlight moved lines` | `navigation.moveLine.highlightMovedLines` | Highlight after moving (`move-lines-select`, Move lines (up\down)) |
+| перенесено | R:1746 | `Enable inline text move` / `Command IDs: …` | `navigation.moveSelection.inlineEnabled` | Move selected text (`move-text-enabled`, Move lines (left\right)) |
+| перенесено | R:1754 | `Inline move mode` | `navigation.moveSelection.inlineMoveMode` | Movement step (`move-text-step`, Move lines (left\right)) |
+| перенесено | R:1771 | `Enable PrefixCycler` | `navigation.moveSelection.prefixCyclerEnabled` | Cycle line Prefixes (`prefix-cycle-enabled`, Move lines (left\right)) |
+| перенесено | R:1791 | `On cycle end` | `navigation.moveSelection.onCycleEnd` | After the last one (`prefix-cycle-end`, Move lines (left\right)) |
+| перенесено | R:1802 | `Indent fallback` | `navigation.moveSelection.indentFallbackEnabled` | Change the indent (`indent-fallback`, Move lines (left\right)) |
+| перенесено | R:1817 | `Enable Jump To Header` / `Command IDs: …` | `navigation.jumpToHeader.enabled` | Jump between headings (`heading-jumps-enabled`, Jump inside note (up\down)) |
+| перенесено | R:1825 | `Center cursor` | `navigation.jumpToHeader.centerCursor` | Follow the jump target (`heading-jumps-center`, Jump inside note (up\down)) |
+| перенесено | R:1833 | `Jump mode` | `navigation.jumpToHeader.jumpMode` | Jump target (`heading-jumps-mode`, Jump inside note (up\down)) |
+| перенесено | R:1845 | `Edge behavior` | `navigation.jumpToHeader.edgeMode` | Where in the section (`heading-jumps-edge`, Jump inside note (up\down)) |
+| перенесено | R:1858 | `Jump cursor position` | `navigation.jumpToHeader.jumpCursorPosition` | Cursor position after jumping (`heading-jumps-cursor`, Jump inside note (up\down)) |
+| перенесено | R:1871 | `Enable Navigate Inline` / `Command IDs: …` | `navigation.navigateInline.enabled` | Move cursor inside a line (`in-line-enabled`, Jump inside line (left\right)) |
+| перенесено | R:1879 | `Step mode` | `navigation.navigateInline.stepMode` | Step size (`in-line-step`, Jump inside line (left\right)) |
+| перенесено | R:1891 | `Allow crossing separators` | `navigation.navigateInline.boundaryJump` | Continue past Separators (`in-line-cross`, Jump inside line (left\right)) |
+| перенесено | R:1899 | `On boundary` | `navigation.navigateInline.onBoundary` | What to do at the end (`in-line-boundary`, Jump inside line (left\right)) |
 | перенесено | R:5922 | `Separator 1` (описание за тумблером подсказок) | `pkm.lineFormat.separator1` | First Separator (`separator-1`, Separators) |
 | перенесено | R:5941 | `Separator 2` | `pkm.lineFormat.separator2` | Second Separator (`separator-2`, Separators) |
 | перенесено | R:6707 | `Subtag format` / `… status_tags commands` | `pkm.behavior.childTagFormat` | Child tag format (`child-tag-format`, Writing rules) |
@@ -10373,12 +10373,12 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Global hotkeys |
 | `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Global hotkeys |
 | `editor.smartPaste.enabled` | Smart paste (`smart-paste-enabled`) | Global hotkeys |
-| `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
-| `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
-| `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
-| `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
-| `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
-| `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Move lines (up\down) |
+| `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Move lines (up\down) |
+| `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move lines (left\right) |
+| `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move lines (left\right) |
+| `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move lines (left\right) |
+| `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Jump inside note (up\down) |
 | `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.direction` | Stripe direction (`tags-block-fill-direction`) | Inline appearance |
@@ -10426,10 +10426,10 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.sourceProcessing.visual.enabled` | Dim transformed line (`source-dim`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.opacity` | Opacity of transformed line (`source-dim-opacity`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.color` | Color of transformed line (`source-dim-color`) | Source line |
-| `transform.inline2note.backlink.enabled` | Link the notes you mention (`backlink-enabled`) | Links in the notes you mention |
-| `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Links in the notes you mention |
-| `transform.inline2note.backlink.placement.targetHeader` | Type name of header (`backlink-target-header`) | Links in the notes you mention |
-| `transform.inline2note.backlink.placement.fallback` | If header not found (`backlink-header-missing`) | Links in the notes you mention |
+| `transform.inline2note.backlink.enabled` | Link the notes you mention (`backlink-enabled`) | Auto-MOC in your Links |
+| `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Auto-MOC in your Links |
+| `transform.inline2note.backlink.placement.targetHeader` | Type name of header (`backlink-target-header`) | Auto-MOC in your Links |
+| `transform.inline2note.backlink.placement.fallback` | If header not found (`backlink-header-missing`) | Auto-MOC in your Links |
 | `advanced.backups.folder` | Backup folder (`backup-folder`) | Backup |
 | `advanced.backups.autosave` | Autosave (`backup-autosave`) | Backup |
 | `advanced.backups.beforeRestore` | Save a backup before restoring (`backup-before-restore`) | Backup |
@@ -17682,10 +17682,10 @@ python tests/prototype/update_prd.py
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `nav-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 100 | `move-lines` | Moving lines (up and down) | Reorder a note without cutting and pasting: pick up a line and walk it up or down | да | — |
-| 200 | `left-right` | Move left and move right | Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected — the two lists below spell it out | да | — |
-| 400 | `in-line` | Moving cursor inside a line | A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line | да | — |
-| 500 | `heading-jumps` | Moving cursor inside a note | Skip through a long note by its headings instead of scrolling | да | — |
+| 100 | `move-lines` | Move lines (up\down) | Reorder a note without cutting and pasting: pick up a line and walk it up or down | да | — |
+| 200 | `left-right` | Move lines (left\right) | Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected — the two lists below spell it out | да | — |
+| 400 | `in-line` | Jump inside line (left\right) | A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line | да | — |
+| 500 | `heading-jumps` | Jump inside note (up\down) | Skip through a long note by its headings instead of scrolling | да | — |
 
 **Tags & PKM** (`pkm`)
 
@@ -17719,7 +17719,7 @@ python tests/prototype/update_prd.py
 | 200 | `naming` | New note naming | The new note needs a name. This block defines how to choose a name of a new note | да | `transform.inline2note.enabled` |
 | 300 | `note-content` | Note content | What the note looks like inside: where your text goes, and what sits above it | да | `transform.inline2note.enabled` |
 | 400 | `source-line` | Source line | What happens to the line you pressed on, once the note is safely written | да | `transform.inline2note.enabled` |
-| 450 | `backlinks` | Links in the notes you mention | A line that points at other notes can leave a pointer back in each of them | да | `transform.inline2note.enabled` |
+| 450 | `backlinks` | Auto-MOC in your Links | A line that points at other notes can leave a pointer back in each of them | да | `transform.inline2note.enabled` |
 | 500 | `smart-rules` | Smart Rules | Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it | да | `transform.inline2note.enabled` |
 
 **Advanced** (`advanced`)
@@ -17946,7 +17946,7 @@ _Tip:_ One row per command this build actually registers, so the list answers tw
 
 - **`nav-callout`** — свой блок, рендерер `renderTabCallout`
 
-#### Moving lines (up and down) — `move-lines` (вкладка `navigation`)
+#### Move lines (up\down) — `move-lines` (вкладка `navigation`)
 
 _Intro:_ Reorder a note without cutting and pasting: pick up a line and walk it up or down
 
@@ -17991,7 +17991,7 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
   - выключена если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Scroll position», «Center on move»
 
-#### Move left and move right — `left-right` (вкладка `navigation`)
+#### Move lines (left\right) — `left-right` (вкладка `navigation`)
 
 _Intro:_ Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected — the two lists below spell it out
 
@@ -18041,7 +18041,7 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - tip: On, the keys always do something. Off, they sit quiet unless there is text to move or a marker to change — pick that if you indent with Tab and would rather these keys never touched it
   - старые названия для поиска: «Indent fallback»
 
-#### Moving cursor inside a line — `in-line` (вкладка `navigation`)
+#### Jump inside line (left\right) — `in-line` (вкладка `navigation`)
 
 _Intro:_ A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line
 
@@ -18069,7 +18069,7 @@ _Tip:_ A tagged line has three parts: what comes before your text, your text, an
   - выключена если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «On boundary», «At the far end»
 
-#### Moving cursor inside a note — `heading-jumps` (вкладка `navigation`)
+#### Jump inside note (up\down) — `heading-jumps` (вкладка `navigation`)
 
 _Intro:_ Skip through a long note by its headings instead of scrolling
 
@@ -18094,7 +18094,7 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - старые названия для поиска: «Edge behavior»
 - **Cursor position after jumping** — `heading-jumps-cursor`, `dropdown`, path `navigation.jumpToHeader.jumpCursorPosition`, default `section-end`
   - desc: Where on that line the cursor ends up
-  - tip: <b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Move cursor right in line</code> drops you when you step in from the tags
+  - tip: <b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags
   - варианты: `start` Line start · `end` Line end · `section-start` Start of your text · `section-end` End of your text
   - выключена если: `navigation.jumpToHeader.enabled`
   - см. также: `separator-2` — Where your text ends is set by the second Separator
@@ -18385,7 +18385,7 @@ _Tip:_ The note is written first, and only then is your line touched, so nothing
   - видна если: `transform.inline2note.sourceProcessing.token, transform.inline2note.sourceProcessing.visual.enabled`
   - старые названия для поиска: «Color of a filed line»
 
-#### Links in the notes you mention — `backlinks` (вкладка `transform`)
+#### Auto-MOC in your Links — `backlinks` (вкладка `transform`)
 
 _Intro:_ A line that points at other notes can leave a pointer back in each of them
 
@@ -18773,7 +18773,7 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
   - старые названия для поиска: «Do not flash on every jump», «Quiet time»
 - **Use inside current line** — `jump-flash-inline`, `toggle`, path `visual.jumpFlash.inLine`, default `false`
   - desc: Also mark the cursor when it hops between the parts of one line
-  - tip: <code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too
+  - tip: <code>Jump left</code> and <code>Jump right</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too
   - видна если: `visual.jumpFlash.enabled`
   - старые названия для поиска: «Flash on in-line jumps»
 - **`jump-flash-preview`** — свой блок, рендерер `renderJumpFlashPreview`

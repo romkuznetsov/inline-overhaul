@@ -387,7 +387,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"jump-flash-inline", path:"visual.jumpFlash.inLine", default:false,
       name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
       searchTerms:["Flash on in-line jumps"],
-      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      tip:"<code>Jump left</code> and <code>Jump right</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
       visible: on("visual.jumpFlash.enabled") },
     { kind:"custom", id:"jump-flash-preview", render: jumpFlashPreview,
       visible: on("visual.jumpFlash.enabled") }

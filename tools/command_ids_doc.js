@@ -64,7 +64,7 @@ the keys again from the table below. The full identifier in the hotkey manager r
 ## Renamed commands
 
 Names below are written without the area in front. In the command palette and in
-Obsidian's \`Hotkeys\` screen each one carries it — \`Navigation: Move line up\` — and
+Obsidian's \`Hotkeys\` screen each one carries it — \`Navigation: Move up\` — and
 Obsidian puts the plugin name before that.
 
 | Was | Now | Name |

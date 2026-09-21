@@ -2049,10 +2049,10 @@ const SCHEMA = [
   items: [ { kind:"custom", id:"advanced-callout", render: renderTabCallout } ],
   visible: on("general.help.showCallouts") },
 {
-  id: "move-lines", tab: "navigation", order: 100, heading: "Moving lines (up and down)",
+  id: "move-lines", tab: "navigation", order: 100, heading: "Move lines (up\\down)",
   intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
   tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
-  commands: ["Move line up", "Move line down"],
+  commands: ["Move up", "Move down"],
   items: [
     { kind:"toggle", id:"move-lines-enabled", path:"navigation.moveLine.enabled", default:true,
       name:"Move lines", desc:"Let the keys pick up a line and move it",
@@ -2094,7 +2094,7 @@ const SCHEMA = [
   ]
 },
 {
-  id: "left-right", tab: "navigation", order: 200, heading: "Move left and move right",
+  id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left\\right)",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
   tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
@@ -2148,7 +2148,7 @@ const SCHEMA = [
   ]
 },
 {
-  id: "heading-jumps", tab: "navigation", order: 500, heading: "Moving cursor inside a note",
+  id: "heading-jumps", tab: "navigation", order: 500, heading: "Jump inside note (up\\down)",
   intro: "Skip through a long note by its headings instead of scrolling",
   tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
   commands: ["Jump up", "Jump down"],
@@ -2175,7 +2175,7 @@ const SCHEMA = [
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
                 {value:"section-start",label:"Start of your text"},
                 {value:"section-end",label:"End of your text"} ],
-      tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Move cursor right in line</code> drops you when you step in from the tags",
+      tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags",
       seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } },
     /* \u041c\u0435\u0441\u0442\u043e \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0430: \u0437\u0430\u043a\u0430\u0437 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-09-06, \u00ab\u0442\u0430\u043a\u0430\u044f \u0436\u0435
        \u043e\u043f\u0446\u0438\u044f, \u043a\u0430\u043a \u0443 \u043f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u043e\u043a\u0438\u00bb (PRD 10.13.37). \u0422\u0443\u043c\u0431\u043b\u0435\u0440 \u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u0438 \u043a\u043b\u044e\u0447
@@ -2197,10 +2197,10 @@ const SCHEMA = [
   ]
 },
 {
-  id: "in-line", tab: "navigation", order: 400, heading: "Moving cursor inside a line",
+  id: "in-line", tab: "navigation", order: 400, heading: "Jump inside line (left\\right)",
   intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
   tip: "A tagged line has three parts: what comes before your text, your text, and what comes after. The arrow keys treat all of it as one long string and walk through the tags character by character. These two keys hop instead — word, sentence, or straight to one end of your text — and by default they stop at the Separators, so the cursor stays in the sentence you are writing and never lands inside a tag by accident",
-  commands: ["Move cursor left in line", "Move cursor right in line"],
+  commands: ["Jump left", "Jump right"],
   items: [
     { kind:"toggle", id:"in-line-enabled", path:"navigation.navigateInline.enabled", default:true,
       name:"Move cursor inside a line", desc:"Let the keys walk the cursor along the line",
@@ -2812,7 +2812,7 @@ const SCHEMA = [
 /*
  * Подсветка места, куда прыгнул курсор, переехала сюда его словом
  * 2026-09-17: "перенеси все настройки jump-flash в Visual отдельным блоком
- * настроек". Прежде она стояла внизу группы `Moving cursor inside a note`,
+ * настроек". Прежде она стояла внизу группы `Jump inside note`,
  * и там её попросил он же (Н5, 2026-09-16) — это не спор с собой: тогда
  * речь шла о прыжках по заголовкам, а у круга поводов два, и второй —
  * шаг внутри строки.
@@ -2864,7 +2864,7 @@ const SCHEMA = [
     { kind:"toggle", id:"jump-flash-inline", path:"visual.jumpFlash.inLine", default:false,
       name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
       searchTerms:["Flash on in-line jumps"],
-      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      tip:"<code>Jump left</code> and <code>Jump right</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
       visible: on("visual.jumpFlash.enabled") },
     { kind:"custom", id:"jump-flash-preview", render: renderJumpFlashPreview,
       visible: on("visual.jumpFlash.enabled") }
@@ -3116,7 +3116,7 @@ const SCHEMA = [
  * настоящий, и на него отвечают три строки, ровно те же, что у `Note content`.
  */
 {
-  id: "backlinks", tab: "transform", order: 450, heading: "Links in the notes you mention",
+  id: "backlinks", tab: "transform", order: 450, heading: "Auto-MOC in your Links",
   intro: "A line that points at other notes can leave a pointer back in each of them",
   tip: "A line often names the notes it belongs to — a project, a person, a place. Turn it into a note and those notes learn nothing about it. With this on, each of them gets a link to the new note, so the project note slowly becomes a list of everything filed under it without you keeping that list by hand. Only a link that is a Value of a Field counts: a link you typed inside your own sentence is your word, and nothing is written into it",
   visible: on("transform.inline2note.enabled"),
@@ -3378,14 +3378,14 @@ const CYCLE_ORDER = ["#", "##", "###", "####", "#####", "1. ", "", "- "].map(t =
    which is what the two tagwheel command definitions actually differ by. */
 const COMMANDS = [
   { area:"Navigation", list:[
-    { name:"Move line up",              does:"Move the line you are on, or its whole tree, up" },
-    { name:"Move line down",            does:"The same, downwards" },
+    { name:"Move up",                   does:"Move the line you are on, or its whole tree, up" },
+    { name:"Move down",                 does:"The same, downwards" },
     { name:"Move left",                 does:"Move selected text, cycle the line Prefix, or unindent" },
     { name:"Move right",                does:"Move selected text, cycle the line Prefix, or indent" },
     { name:"Jump up",                 does:"Move the cursor to the heading or line above" },
     { name:"Jump down",                 does:"Move the cursor to the heading or line below" },
-    { name:"Move cursor left in line",  does:"Step the cursor back through the parts of the line" },
-    { name:"Move cursor right in line", does:"Step the cursor on through the parts of the line" }
+    { name:"Jump left",                 does:"Step the cursor back through the parts of the line" },
+    { name:"Jump right",                does:"Step the cursor on through the parts of the line" }
   ]},
   /* Две части, и подписи у них видимые, поэтому живут здесь (Р8).
      Стандартные команды — те, что есть всегда; ваши — пара на каждый Field,
@@ -4842,7 +4842,7 @@ const TAB_CALLOUTS = {
 /* Субхедер внутри группы: подпись, делящая длинную группу на части.
    Ни настройки, ни пути за ним нет — только вёрстка, поэтому это свой блок,
    а не вид контрола. Замечание заказчика 2026-09-04 про группу
-   `Move left and move right`: в ней два разных дела, и на глаз они слитые.
+   `Move lines (left\\right)`: в ней два разных дела, и на глаз они слитые.
 
    Подсказка — второй аргумент, и «?» стоит рядом с подписью, как у заголовка
    группы (замечание того же дня, вторая половина G3). Открывается она **под
@@ -7086,8 +7086,8 @@ function renderExport() {
 
 const MOCK_HOTKEYS = {
   "Smart bracket": "Ctrl + Alt + B",
-  "Move line up": "Alt + Up",
-  "Move line down": "Alt + Down",
+  "Move up": "Alt + Up",
+  "Move down": "Alt + Down",
   "tagWheel Left": "Ctrl + Alt + W"
 };
 

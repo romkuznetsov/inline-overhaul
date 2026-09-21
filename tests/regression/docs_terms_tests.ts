@@ -151,6 +151,20 @@ const GUIDES = ["README.md", "INSTRUCTIONS.md"];
        нигде не видит. Запрет по слову, а не по списку контролов, — потому что
        слово стоит и в именах строк, и в заголовке группы, и в прозе (У-229). */
     ["TagWheel", "В-166: человек видит `tagWheel`, как и `inlineOverhaul`"],
+    /* Четыре команды и пять заголовков переименованы его пунктом 4,
+       2026-09-22. Идентификаторы команд не тронуты — Р3 даёт один разрыв
+       совместимости, а не два. Прежние имена в документе посылают человека
+       искать в палитре и в панели строку, которой там нет; запрет снимается,
+       только если он вернёт прежние подписи. */
+    ["Move line up", "его пункт 4: команда переименована в Move up"],
+    ["Move line down", "его пункт 4: команда переименована в Move down"],
+    ["Move cursor left in line", "его пункт 4: команда переименована в Jump left"],
+    ["Move cursor right in line", "его пункт 4: команда переименована в Jump right"],
+    ["Moving lines (up and down)", "его пункт 4: заголовок стал Move lines (up\\down)"],
+    ["Move left and move right", "его пункт 4: заголовок стал Move lines (left\\right)"],
+    ["Moving cursor inside a line", "его пункт 4: заголовок стал Jump inside line (left\\right)"],
+    ["Moving cursor inside a note", "его пункт 4: заголовок стал Jump inside note (up\\down)"],
+    ["Links in the notes you mention", "его пункт 4: заголовок стал Auto-MOC in your Links"],
   ];
 
   /*

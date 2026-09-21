@@ -71,14 +71,14 @@ Eight commands, each aware that a line has structure.
 
 | Command | What it does |
 |---|---|
-| `Move line up` | Move the line you are on, or its whole tree, up |
-| `Move line down` | The same, downwards |
+| `Move up` | Move the line you are on, or its whole tree, up |
+| `Move down` | The same, downwards |
 | `Move left` | Move selected text, cycle the line Prefix, or unindent |
 | `Move right` | Move selected text, cycle the line Prefix, or indent |
 | `Jump up` | Move the cursor to the heading or line above |
 | `Jump down` | Move the cursor to the heading or line below |
-| `Move cursor left in line` | Step the cursor back through the parts of the line |
-| `Move cursor right in line` | Step the cursor on through the parts of the line |
+| `Jump left` | Step the cursor back through the parts of the line |
+| `Jump right` | Step the cursor on through the parts of the line |
 
 A move can carry the indented tree with the line, cross a heading boundary or stop at it,
 highlight what landed, and scroll the note so the line is at the centre, the top or the
@@ -163,21 +163,21 @@ it to one that already exists. Off out of the box.
 
 ## The full command list
 
-Commands are named after the area they belong to — `Navigation: Move line up`,
+Commands are named after the area they belong to — `Navigation: Move up`,
 `Tags & PKM: Category next` — so Obsidian's `Hotkeys` screen can be filtered to one area.
 
 Thirteen commands exist always:
 
 | Command | Area |
 |---|---|
-| `Move line up` | Navigation |
-| `Move line down` | Navigation |
+| `Move up` | Navigation |
+| `Move down` | Navigation |
 | `Move left` | Navigation |
 | `Move right` | Navigation |
 | `Jump up` | Navigation |
 | `Jump down` | Navigation |
-| `Move cursor left in line` | Navigation |
-| `Move cursor right in line` | Navigation |
+| `Jump left` | Navigation |
+| `Jump right` | Navigation |
 | `tagWheel Left` | Tags & PKM |
 | `tagWheel Right` | Tags & PKM |
 | `Transform inline to note` | Transform |

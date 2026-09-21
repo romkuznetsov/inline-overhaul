@@ -214,7 +214,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "backlinks", tab: "transform", order: 450, heading: "Links in the notes you mention",
+  id: "backlinks", tab: "transform", order: 450, heading: "Auto-MOC in your Links",
   intro: "A line that points at other notes can leave a pointer back in each of them",
   tip: "A line often names the notes it belongs to — a project, a person, a place. Turn it into a note and those notes learn nothing about it. With this on, each of them gets a link to the new note, so the project note slowly becomes a list of everything filed under it without you keeping that list by hand. Only a link that is a Value of a Field counts: a link you typed inside your own sentence is your word, and nothing is written into it",
   visible: on("transform.inline2note.enabled"),

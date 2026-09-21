@@ -92,14 +92,14 @@ const RENAME_RULES = [
  * ровно столько, сколько предмет, иначе оно переживает его молча (У-71).
  */
 const NAMES = {
-  "move-line-up": "Move line up",
-  "move-line-down": "Move line down",
+  "move-line-up": "Move up",
+  "move-line-down": "Move down",
   "move-left": "Move left",
   "move-right": "Move right",
   "jump-back": "Jump up",
   "jump-next": "Jump down",
-  "move-cursor-left-in-line": "Move cursor left in line",
-  "move-cursor-right-in-line": "Move cursor right in line",
+  "move-cursor-left-in-line": "Jump left",
+  "move-cursor-right-in-line": "Jump right",
   "open-tagwheel-left": "tagWheel Left",
   "open-tagwheel-right": "tagWheel Right",
   "transform-inline-to-note": "Transform inline to note",
