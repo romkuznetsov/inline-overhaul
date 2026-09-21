@@ -21,11 +21,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. 🎨 **Four commands and five headings read the way you say them.** `Move up`, `Move down`, `Jump left` and `Jump right` replace their longer names, and the four `Navigation` headings plus `Auto-MOC in your Links` follow suit. Names only — the identifiers are the same, so your hotkeys stay put.
-2. 🐛 **`not set` in a hotkey column is grey again.** Obsidian paints every button of its own, and its rule was stronger than ours: an unassigned key was drawn in ordinary text on an ordinary button fill, and only the italics told it apart. It is now grey on nothing, the way it was meant to be — in `Command reference`, in `Binder` and in the `Commands` section of a Field.
-3. 🎨 **`Show option IDs in tips` moved to `Advanced → Diagnostics`.** It had a heading to itself for one row; ids and the developer log answer the same question, so they now stand together.
-4. 🎨 **A command list no longer repeats its own heading.** Under `Command reference` and in the `Commands` section of a Field the area stood in front of every row — `Navigation: Move left` under a heading that already said `Navigation`. The column shows `Move left` now; the command itself keeps its full name, and pressing a key cell still opens Obsidian's `Hotkeys` screen at it.
-5. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
+1. ✨ **Every subheading in the settings folds.** `Line view`, `Tag view`, `Link view`, `Panel`, `Scroller`, `Move text` and the rest carry the same triangle the group headings do, and each remembers whether you left it open. It is what makes a long group readable: fold what you are not changing and the preview at the top of it stays in view.
+2. 🎨 **The tagWheel group is two halves now.** What the picker draws stands under `Panel`, the box of neighbouring Values under `Scroller`. The opening-Field rows moved into `Panel` under `Show tag markers`, `tagWheel opening` is gone, and so is the arrow behaviour's stay in the scroller half. No setting changed its value.
+3. 🎨 **Four commands and five headings read the way you say them.** `Move up`, `Move down`, `Jump left` and `Jump right` replace their longer names, and the four `Navigation` headings plus `Auto-MOC in your Links` follow suit. Names only — the identifiers are the same, so your hotkeys stay put.
+4. 🐛 **`not set` in a hotkey column is grey again.** Obsidian paints every button of its own, and its rule was stronger than ours: an unassigned key was drawn in ordinary text on an ordinary button fill, and only the italics told it apart. It is now grey on nothing, the way it was meant to be — in `Command reference`, in `Binder` and in the `Commands` section of a Field.
+5. 🎨 **`Show option IDs in tips` moved to `Advanced → Diagnostics`.** It had a heading to itself for one row; ids and the developer log answer the same question, so they now stand together.
+6. 🎨 **A command list no longer repeats its own heading.** Under `Command reference` and in the `Commands` section of a Field the area stood in front of every row — `Navigation: Move left` under a heading that already said `Navigation`. The column shows `Move left` now; the command itself keeps its full name, and pressing a key cell still opens Obsidian's `Hotkeys` screen at it.
+7. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
 
 ## 0.6.0
 

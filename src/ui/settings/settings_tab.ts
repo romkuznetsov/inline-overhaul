@@ -15,6 +15,7 @@ import type { El } from "./custom/dom.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { fieldOptions } from "./custom/preview_data.ts";
 import { themeVarFor } from "./custom/theme_colors.ts";
+import { paintSubheaders } from "./custom/subheader.ts";
 import { templateOptions } from "./templates.ts";
 /* Подсказчик папок и список папок vault — общий дом с блоком Smart Rules. */
 import { attachFolderSuggest } from "./custom/smart_rules.ts";
@@ -1149,6 +1150,18 @@ export class SettingsPane {
   /** Свёрнута ли группа. Нужно проверке: своего состояния у неё нет. */
   isFolded(groupId: string): boolean {
     return this.folded.has(groupId);
+  }
+
+  /**
+   * Докрасить субхедеры, отрисованные последним заходом (его пункт 1,
+   * 2026-09-22). Своих строк у субхедера нет: он прячет соседей по группе, а
+   * в тот миг, когда платформа зовёт его `render`, соседей ниже ещё нет.
+   * Шва «панель дорисована» у платформы тоже нет — поэтому в живой панели
+   * красильщик зовётся микрозадачей, а здесь стоит вход, которым его зовут
+   * нарочно: проверка не должна зависеть от такта (У-212).
+   */
+  paintSubheaders(): void {
+    paintSubheaders();
   }
 
   /**

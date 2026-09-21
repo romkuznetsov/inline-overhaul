@@ -374,7 +374,17 @@ Field you are on running down.
 
 | Control | Default | What it does |
 |---|---|---|
+The group has two subheadings, `Panel` and `Scroller`, and each folds away with the
+triangle beside it, so the preview at the top stays in view while you work.
+
+**Panel**
+
+| Control | Default | What it does |
+|---|---|---|
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
+| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
+| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
+| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
 | `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color your tags`, or both |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
@@ -382,19 +392,18 @@ Field you are on running down.
 | `Active Field text color` | unset | The Field you are on |
 | `Chosen Value text color` | unset | A Field that already carries a Value |
 | `Background color` | unset | Behind the picker |
+| `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
+
+**Scroller**
+
+| Control | Default | What it does |
+|---|---|---|
 | `Scroller` | off | Shows the next and previous Values around the current one |
 | `Scroller opening direction` | `full` | Which way the Values unroll |
 | `Scroller Value names` | `Default name` | Whether the box shows a neighbouring Value as written, as the custom text from `Color your tags`, or both |
 | `Scroller background color` | unset | Behind the box of neighbouring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighbouring Values stay visible |
-| `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
-| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
-| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
-| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
-
-The last three sit under `tagWheel opening`, a subheading inside this group, the way
-the scroller rows sit under `Scroller`.
 
 Commands: `tagWheel Left`, `tagWheel Right`.
 

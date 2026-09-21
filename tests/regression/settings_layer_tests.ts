@@ -19,6 +19,8 @@ import { SCHEMA, TABS, groupsFor, activeTabs } from "../../src/ui/settings/schem
 import { buildDefaultConfig, getIn, isBound } from "../../src/ui/settings/types.ts";
 import { MemoryStore } from "../../src/ui/settings/store.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
+import { isSubheaderShut, paintSubheaders, resetSubheaders, subheader, subheaderId }
+  from "../../src/ui/settings/custom/subheader.ts";
 import { richParts } from "../../src/ui/settings/describe.ts";
 import { findScrollHost } from "../../src/ui/settings/custom/dom.ts";
 import { tabStripRow } from "../../src/ui/settings/custom/tab_strip.ts";
@@ -3155,7 +3157,90 @@ async function main(): Promise<void> {
    * и над первой из них обязана стоять подпись — своим блоком, а не строкой
    * настройки (У-44, У-5).
    */
-  await test("строки открытия панели стоят под субхедером внутри группы tagWheel", () => {
+  await test("субхедер сворачивается и прячет свой раздел, а не чужой", () => {
+    /*
+     * Его пункт 1, 2026-09-22: «хочу, чтобы все субхедеры были
+     * сворачиваемыми». Причина — его же: «в tag-appearance слишком много
+     * настроек и это мешает смотреть на live preview».
+     *
+     * Прячется не обёртка, а соседи: подпись и строки под ней лежат в группе
+     * братьями. Поэтому проверка строит ту же разметку, какую строит
+     * платформа, — подпись, её строки, следующая подпись, её строки, — и
+     * спрашивает у каждой строки, спряталась ли она.
+     */
+    resetSubheaders();
+    const box = makeNode("div");
+    const row = (cls?: string): StubNode => {
+      const node = makeNode("div");
+      if (cls) node.classList.add(cls);
+      box.appendChild(node as never);
+      return node;
+    };
+    const drawSubInto = (host: StubNode, label: string): StubNode => {
+      const close = subheader(label, "tip of " + label)(host as never, {
+        get: () => undefined,
+      } as never);
+      assert.equal(typeof close, "function", "свой блок обязан вернуть функцию очистки (С5)");
+      return host;
+    };
+
+    const firstHost = row();
+    drawSubInto(firstHost, "Panel");
+    const mine1 = row("setting-item");
+    const mine2 = row("setting-item");
+    const secondHost = row();
+    drawSubInto(secondHost, "Scroller");
+    const theirs = row("setting-item");
+
+    const shut = (n: StubNode): boolean => n.classList.contains("io-subshut");
+    const mark = (host: StubNode): StubNode =>
+      host.querySelectorAll("BUTTON").find(
+        (n: StubNode) => String((n as Any).className || "").includes("io-fold")) as StubNode;
+
+    paintSubheaders();
+    assert.deepEqual([shut(mine1), shut(mine2), shut(theirs)], [false, false, false],
+      "до нажатия спрятано то, чего никто не сворачивал");
+    assert.ok(mark(firstHost), "у субхедера нет знака сворачивания");
+
+    mark(firstHost).dispatch("click");
+    assert.deepEqual([shut(mine1), shut(mine2)], [true, true],
+      "свёрнутый субхедер не спрятал свои строки");
+    assert.equal(shut(theirs), false,
+      "свёрнутый субхедер утащил с собой строки соседнего раздела");
+    assert.equal(shut(secondHost), false, "подпись соседнего раздела тоже спряталась");
+    assert.equal(isSubheaderShut(subheaderId("Panel")), true,
+      "состояние свёрнутости не записалось");
+    assert.equal(isSubheaderShut(subheaderId("Scroller")), false,
+      "соседний субхедер свернулся заодно");
+
+    /* Перерисовка: состояние взгляда живёт дольше узлов. */
+    const box2 = makeNode("div");
+    const host2 = makeNode("div");
+    box2.appendChild(host2 as never);
+    drawSubInto(host2, "Panel");
+    const again = makeNode("div");
+    again.classList.add("setting-item");
+    box2.appendChild(again as never);
+    assert.equal(shut(again), false,
+      "строка спряталась до того, как панель дорисована, — раздела в тот миг ещё нет");
+    paintSubheaders();
+    assert.equal(shut(again), true,
+      "после перерисовки свёрнутый раздел раскрылся сам");
+
+    mark(host2).dispatch("click");
+    assert.equal(shut(again), false, "второе нажатие не раскрыло раздел");
+    assert.equal(isSubheaderShut(subheaderId("Panel")), false, "состояние не снялось");
+    resetSubheaders();
+  });
+
+  await test("строки открытия панели стоят в разделе Panel группы tagWheel", () => {
+    /*
+     * Своя группа `tagWheel opening` снята 2026-09-21 (его пункт 11), а сам
+     * субхедер того же имени — 2026-09-22 (его пункт 1.1.1): «перенеси в него
+     * wheel-active-field — под panel-markers (субхедер io-tip-sub-
+     * tagwheel-opening не нужен, можешь его удалить)». Три строки остались на
+     * месте, сменился только раздел, в котором они стоят.
+     */
     const { pane } = makePane();
     assert.equal(groupOf(pane, "visual", "tagWheel opening"), undefined,
       "своей группы `tagWheel opening` на вкладке остаться не должно");
@@ -3167,16 +3252,33 @@ async function main(): Promise<void> {
       assert.ok(items.some((d: Def) => d.name === name),
         "строка «" + name + "» не доехала до группы tagWheel");
     }
-    const at = items.findIndex((d: Def) => d.name === "Active Field on opening");
-    assert.ok(at > 0, "строка открытия стоит первой в группе — подписи над ней нет");
-    const sub = items[at - 1] as Def;
-    assert.equal(typeof sub.render, "function",
-      "над строкой открытия стоит не свой блок, а строка настройки");
+    /* Раздел строки — ближайшая подпись над ней. */
+    const sectionOf = (name: string): string => {
+      const at = items.findIndex((d: Def) => d.name === name);
+      assert.ok(at > 0, "строка «" + name + "» стоит первой в группе — подписи над ней нет");
+      for (let i = at - 1; i >= 0; i--) {
+        const d = items[i] as Def;
+        if (typeof d.render !== "function") continue;
+        const text = String(drawBlock(d).querySelector(".io-sub__text")?.textContent || "");
+        if (text) return text;
+      }
+      return "";
+    };
+    assert.equal(sectionOf("Active Field on opening"), "Panel",
+      "ведущее поле панели стоит не в разделе `Panel`");
+    assert.equal(sectionOf("Show tag markers"), "Panel",
+      "положительный контроль: в `Panel` не попала даже та строка, под которую его просили");
+    assert.equal(sectionOf("Scroller size"), "Scroller",
+      "отрицательный контроль: раздел `Scroller` втянул в себя строки панели");
+    const subs = items.filter((d: Def) => typeof d.render === "function")
+      .map((d: Def) => String(drawBlock(d).querySelector(".io-sub__text")?.textContent || ""))
+      .filter(Boolean);
+    assert.deepEqual(subs, ["Panel", "Scroller"],
+      "подписи группы tagWheel не те и не в том порядке: " + subs.join(" | "));
+    const sub = items.find((d: Def) => typeof d.render === "function"
+      && String(drawBlock(d).querySelector(".io-sub__text")?.textContent || "") === "Panel") as Def;
     assert.equal(sub.searchable, false, "субхедер не должен попадать в поиск");
     assert.equal(sub.control, undefined, "у субхедера нет контрола");
-    assert.equal(
-      String(drawBlock(sub).querySelector(".io-sub__text")?.textContent || ""),
-      "tagWheel opening", "подпись обязана назваться так же, как звалась группа");
   });
 
   /* Переименование группы переходов по заголовкам (замечание заказчика

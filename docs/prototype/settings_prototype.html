@@ -2608,10 +2608,41 @@ const SCHEMA = [
   commands: ["tagWheel Left", "tagWheel Right"],
   items: [
     { kind:"custom", id:"wheel-preview", render: renderWheelPreview },
+    /*
+     * **Субхедер `Panel`** — его пункт 1.1.1 от 2026-09-22: «под
+     * io-tip-wheel-preview сделай субхедер `Panel` (в него входят все
+     * настройки до субхедера `Scroller`)». Причина названа им же: «в
+     * tag-appearance слишком много настроек и это мешает смотреть на live
+     * preview» — свёрнутый раздел возвращает предпросмотр на экран.
+     */
+    { kind:"custom", id:"panel-sub", render: renderSubheader("Panel",
+      "The strip the picker draws over your line: which Field it opens on, what each cell prints, and the colors the whole strip is painted in. The box of neighbouring Values has its own half below") },
     { kind:"toggle", id:"panel-markers", path:"visual.tagWheel.showMarkers", default:true,
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],
       tip:"A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way" },
+    /* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5).
+       Ключ в модели был, а контрола не было — и писать его было некому.
+       Разбор и правка — 10.13.76. */
+    { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
+      name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
+      searchTerms:["Lead Field","Starting Field","Active Field"],
+      options:[ {value:"first",label:"First Field of the Block"},
+                {value:"middle",label:"Middle Field of the Block"},
+                {value:"custom",label:"A Field you choose"} ],
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+    { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
+      name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
+      searchTerms:["Lead Field left"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
+    { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
+      name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
+      searchTerms:["Lead Field right"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did" },
     /* Чем подписано значение в самой полосе панели — его заказ 2026-09-21
        (`З-38`), прочитанный по его же тесту 5: «подпись значения в самой полосе
        панели, с тремя вариантами — Only custom name, Default name,
@@ -2670,6 +2701,19 @@ const SCHEMA = [
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
       tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color", allowReset:true },
+    /*
+     * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
+     * коробке соседних значений отношения не имеет: пока субхедеры были
+     * подписями, это было незаметно, а свёрнутый раздел делает это видимым.
+     * Строка переехала в `Panel` вместе со знаком сворачивания (его пункт 1,
+     * 2026-09-22); ключ, умолчание и подпись не тронуты.
+     */
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" },
     /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
        он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
     /*
@@ -2730,45 +2774,6 @@ const SCHEMA = [
       name:"Scroller size", desc:"How many neighboring Values stay visible around the current one",
       tip:"How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has",
       searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
-    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
-      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" },
-    /*
-     * **Открытие панели — субхедер, а не своя группа** (его слово 2026-09-21,
-     * пункт 11: «tagwheel-opening сделать субхедером в хедере tagwheel (как
-     * scroller)»). Своя группа завелась 2026-09-11 от предела в двенадцать
-     * строк — «три новые туда не помещаются», — а предел он и тогда решил
-     * подписью внутри группы (так стоит `Scroller`): Г11 считает настройки в
-     * **разделе**, и субхедер раздел начинает заново. Цена, названная той
-     * записью, оказалась моей формой варианта, а не свойством панели (У-156).
-     */
-    { kind:"custom", id:"wheel-opening-sub", render: renderSubheader("tagWheel opening",
-      "tagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it") },
-    /* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5).
-       Ключ в модели был, а контрола не было — и писать его было некому.
-       Разбор и правка — 10.13.76. */
-    { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
-      name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
-      searchTerms:["Lead Field","Starting Field","Active Field"],
-      options:[ {value:"first",label:"First Field of the Block"},
-                {value:"middle",label:"Middle Field of the Block"},
-                {value:"custom",label:"A Field you choose"} ],
-      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
-    { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
-      name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
-      searchTerms:["Lead Field left"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
-      visible: eq("visual.tagWheel.activeField.mode","custom"),
-      tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
-    { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
-      name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
-      searchTerms:["Lead Field right"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
-      visible: eq("visual.tagWheel.activeField.mode","custom"),
-      tip:"Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did" }
   ]
 },
 /* Заказ заказчика 2026-09-05, вечер (PRD 10.13.33). Последняя группа вкладки:
@@ -3717,6 +3722,7 @@ function renderContent(resetScroll) {
   host.textContent = "";
   bindings.clear();
   previewRefreshers = [];
+  headPaints = [];
   document.querySelectorAll(".io-scrim").forEach(n => n.remove());
   queueMicrotask(() => { host.scrollTop = keepScroll; });
 
@@ -3775,6 +3781,10 @@ function renderContent(resetScroll) {
     }
     for (const item of group.items) renderItem(g, item);
   }
+  /* Субхедеры красятся после того, как вкладка дорисована: свой раздел каждый
+     из них ищет соседями, а соседей в миг отрисовки подписи ещё нет. */
+  for (const paint of headPaints) paint();
+  headPaints = [];
   if (dialog) renderDialog();
 }
 
@@ -4848,6 +4858,24 @@ const TAB_CALLOUTS = {
    группы (замечание того же дня, вторая половина G3). Открывается она **под
    подписью**, а не внутри неё: строка подписи узкая, и раскрытие внутри
    растолкало бы её пополам. */
+/*
+ * Ключ субхедера. Один на три дела: идентификатор подсказки, который человек
+ * видит в `Advanced → Diagnostics`, ключ свёрнутого состояния и то, чем его
+ * спрашивает проверка. Второе объявление разошлось бы молча (У-32).
+ */
+function subheaderId(label) {
+  return "io-tip-sub-" + String(label).toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/*
+ * Свёрнутые субхедеры групп. Состояние взгляда, а не настройка: в конфиг не
+ * пишется и в отмену не попадает — как `FOLDED` у заголовков.
+ */
+const FOLDED_HEADS = new Set();
+/* Красильщики субхедеров: раздела в миг отрисовки подписи ещё нет. */
+let headPaints = [];
+
 function renderSubheader(label, tip) {
   return function (host) {
     /* Субхедер прижимается к тому, что под ним: своя пометка на вместилище,
@@ -4856,7 +4884,35 @@ function renderSubheader(label, tip) {
        висят в воздухе — у них слишком большое расстояние строки настроек». */
     if (host.classList) host.classList.add("io-custom--sub");
     const row = el("div", "io-sub io-sub--group", host);
+    const id = subheaderId(label);
+    /*
+     * Знак сворачивания — его пункт 1 от 2026-09-22: «хочу, чтобы все
+     * субхедеры были сворачиваемыми». Прячется не обёртка, а соседи: подпись
+     * и строки под ней лежат в группе братьями, и конец раздела спрашивается
+     * у разметки — следующий субхедер, — а не задаётся списком.
+     */
+    const mark = el("button", "io-fold", row);
+    mark.type = "button";
+    const paint = () => {
+      const shut = FOLDED_HEADS.has(id);
+      mark.textContent = shut ? "\u25B8" : "\u25BE";
+      mark.classList.toggle("io-fold--shut", shut);
+      mark.setAttribute("aria-expanded", shut ? "false" : "true");
+      mark.setAttribute("aria-label", (shut ? "Expand " : "Collapse ") + label);
+      let n = host.nextElementSibling;
+      while (n && !n.classList.contains("io-custom--sub")) {
+        n.classList.toggle("io-subshut", shut);
+        n = n.nextElementSibling;
+      }
+    };
+    mark.addEventListener("click", () => {
+      if (FOLDED_HEADS.has(id)) FOLDED_HEADS.delete(id); else FOLDED_HEADS.add(id);
+      paint();
+    });
     el("span", "io-sub__text", row, label);
+    /* Красится не здесь: раздела ещё нет. Зовёт `renderContent`, дорисовав
+       вкладку, — и это не `setTimeout`: такта дымовой рендер не ждёт (У-212). */
+    headPaints.push(paint);
     attachTip(row, tip, label, host, row);
   };
 }

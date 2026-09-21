@@ -10393,18 +10393,18 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
+| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel |
+| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel |
+| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel |
 | `visual.tagWheel.valueNames` | tagWheel Value names (`panel-value-names`) | tagWheel |
 | `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | tagWheel |
 | `visual.tagWheel.highlightLine` | Highlight the tagWheel line (`panel-highlight`) | tagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | tagWheel |
 | `visual.tagWheel.chosenValueColor` | Chosen Value text color (`panel-chosen-color`) | tagWheel |
+| `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel |
 | `visual.tagWheel.scroller.labels` | Scroller Value names (`scroller-labels`) | tagWheel |
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | tagWheel |
 | `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | tagWheel |
-| `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel |
-| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel |
-| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel |
-| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel |
 | `visual.caret.enabled` | Color the text cursor (`caret-enabled`) | Text cursor |
 | `visual.caret.color` | Cursor color (`caret-color`) | Text cursor |
 | `visual.caret.shapeEnabled` | Shape the text cursor (`caret-shape`) | Text cursor |
@@ -18614,10 +18614,28 @@ _Intro:_ tagWheel opens over the line and lays your Fields out across it, with t
 _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up to more keys than anyone remembers. tagWheel is the way round that: one command opens a picker over the line, with your Fields laid out across it and the Values of the Field you are on running down it, so you choose by looking instead of by memory. Steer it with the arrow keys: left and right move between Fields, up and down between that Field’s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything. The settings below decide how the picker looks, and whether the neighboring Values stay in sight as you move
 
 - **`wheel-preview`** — свой блок, рендерер `renderWheelPreview`
+- **`panel-sub`** — свой блок, рендерер `?`
 - **Show tag markers** — `panel-markers`, `toggle`, path `visual.tagWheel.showMarkers`, default `true`
   - desc: Show the hash and emoji in the picker, or just the words
   - tip: A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way
   - старые названия для поиска: «Show Prefix»
+- **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
+  - desc: Which Field the picker lands on when it opens
+  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
+  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
+  - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
+- **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
+  - desc: The Field tagWheel lands on when it opens on the left
+  - tip: Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field left»
+- **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
+  - desc: The Field tagWheel lands on when it opens on the right
+  - tip: Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field right»
 - **tagWheel Value names** — `panel-value-names`, `dropdown`, path `visual.tagWheel.valueNames`, default `default`
   - desc: What the picker prints for a Field that already carries a Value
   - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
@@ -18648,6 +18666,11 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: The color behind the picker, while the line is marked
   - tip: Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color
   - старые названия для поиска: «Background»
+- **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
+  - desc: What the arrow keys do when there is no next Field on this side
+  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
+  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
+  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
 - **`scroller-sub`** — свой блок, рендерер `?`
 - **Scroller** — `scroller-enabled`, `toggle`, path `visual.tagWheel.scroller.enabled`, default `false`
   - desc: Show the next and previous Values around the current one
@@ -18681,29 +18704,6 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - диапазон: 1–20, шаг 1
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Values per side»
-- **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
-  - desc: What the arrow keys do when there is no next Field on this side
-  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
-  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
-  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
-- **`wheel-opening-sub`** — свой блок, рендерер `?`
-- **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
-  - desc: Which Field the picker lands on when it opens
-  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
-  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
-  - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
-- **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
-  - desc: The Field tagWheel lands on when it opens on the left
-  - tip: Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first
-  - варианты: `` First Field of the Block
-  - видна если: `visual.tagWheel.activeField.mode`
-  - старые названия для поиска: «Lead Field left»
-- **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
-  - desc: The Field tagWheel lands on when it opens on the right
-  - tip: Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did
-  - варианты: `` First Field of the Block
-  - видна если: `visual.tagWheel.activeField.mode`
-  - старые названия для поиска: «Lead Field right»
 
 #### Text cursor — `text-cursor` (вкладка `visual`)
 

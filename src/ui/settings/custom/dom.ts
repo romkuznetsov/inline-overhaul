@@ -54,6 +54,13 @@ export interface El {
   insertBefore?(node: El, before: El | null): unknown;
   parentElement?: El | null;
   nextSibling?: El | null;
+  /*
+   * Соседи по родителю. Нужны ровно одному делу — свёрнутому субхедеру: его
+   * раздел лежит в группе братьями, и конец раздела спрашивается у разметки.
+   * Необязательны по той же причине, что `hidden`: заглушка узла в гейте их
+   * может и не завести, и тогда раздела просто не видно как раздела.
+   */
+  children?: { length: number; [index: number]: El };
   style: { setProperty(name: string, value: string): void };
   /**
    * Классы состояния. Перетаскивание держит их на узле, а не в CSS-переменных:
