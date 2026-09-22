@@ -256,10 +256,18 @@ const EDITOR_INJECTIONS = {
    * Правило «врозь» при этом выглядит работающим — цвет на экране есть, — и
    * различают их только разведённые значения в настройках страницы (У-147).
    */
+  /*
+   * Адрес подмены берёт **две** строки: с одной она перестала быть уникальной
+   * в тот день, когда рядом завелась гиперссылка (`В-181`) — её строка та же,
+   * только на два пробела правее, и короткий образец находился внутри неё.
+   * Поймал это сторож адресата у самого реестра подмен (У-265).
+   */
   "link-written-one-color": {
     file: "src/ui/editor/decorations.js",
-    find: "                attributes: { style: \"--io-link-brackets: \" + visuals.linkBracketsColor + \";\" },",
-    replace: "                attributes: { style: \"--io-link-brackets: \" + visuals.linkTargetColor + \";\" },",
+    find: "                class: LINK_BRACKETS_CLASS,\n"
+      + "                attributes: { style: \"--io-link-brackets: \" + visuals.linkBracketsColor + \";\" },",
+    replace: "                class: LINK_BRACKETS_CLASS,\n"
+      + "                attributes: { style: \"--io-link-brackets: \" + visuals.linkTargetColor + \";\" },",
   },
   /*
    * Третья: цвет объявлен в коде и не доезжает до вёрстки — правило стилей
