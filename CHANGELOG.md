@@ -35,6 +35,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 12. 🐛 **Moving text stops where your line's markup begins.** A bullet, a checkbox or a list number is not a word to trade places with: text stuck to it and, one press on, tore it in half. An opening bracket keeps its side too, so a word leaving one reads `- слово3 (слово1 слово2)`.
 13. 🎨 **The "what changed" window opens with a count, not a paragraph.** Each release now starts with how many fixes, visible changes and new things it carries, and a bulleted list of what is new — instead of one block of prose. The counts are built from the entries themselves, so they cannot drift.
 14. ✨ **A link takes your colours anywhere in a note.** `Link target color` paints what you read — the name in `[[…]]`, the text of `[a link](…)`, a bare `www.…` — and `Link brackets color` paints the markup around it. Leave a colour unset and nothing is painted, as before.
+15. 🐛 **Moving text no longer scrolls the note away.** The command used to write the whole document back for a change inside one line, and anything anchored to a range of the note went with it — a folded section above your line sprang open, the note grew, and the screen jumped. It writes only the part of the line that changed now, so folds stay folded and the view stays put.
 
 ## 0.6.0
 

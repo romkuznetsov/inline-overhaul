@@ -792,6 +792,37 @@ function decideMoveMode(doc, a, b, direction, inlineMoveMode, wordEscape) {
   return "word";
 }
 function everyChar(str, fn) { for (let i = 0; i < str.length; i++) if (!fn(str[i])) return false; return true; }
+
+/**
+ * Запись переноса текста: **только изменившееся окно**, а не документ целиком.
+ *
+ * Его замечание 2026-09-22: «при переносе выделенного текста move left\right
+ * прыгает экран — так быть не должно, он должен оставаться где и был».
+ *
+ * `Editor.setValue` в `app.js` 1.13.7 — это
+ * `dispatch({changes:{from:0,to:doc.length,insert:e}})`, то есть замена
+ * **всего** документа. Сама по себе прокрутку она не двигает — это измерено, а
+ * не выведено: на заметке без свёрнутых кусков экран стоит на месте при любой
+ * из двух записей. Двигает её то, что через такое изменение **нечего
+ * перенести**: всё, что живёт отрезками документа, схлопывается, и первой —
+ * свёртка. Свёрнутый кусок выше рабочей строки от одного нажатия
+ * разворачивался весь, заметка вырастала, и экран уезжал на его высоту.
+ * Измерено стендом `node tools/move_scroll_bench.js`: свёрток 1 → 0, прокрутка
+ * 1006 → 2840.
+ *
+ * Окно пишется `replaceRange`, и это тот же вызов и то же правило, каким с
+ * 2026-09-20 пишет перенос строк (исключение № 135): изменение внутри строки
+ * переносить свёртку не мешает, а `scrollIntoView` «ближайшее» на строке,
+ * которая уже на экране, значит «никуда».
+ *
+ * Перенос текста живёт в одной строке — стену ставит `moveTextBounds`, — так
+ * что окно никогда не шире строки.
+ */
+function writeMovedWindow(editor, doc, from, to, insert) {
+  if (doc.slice(from, to) === insert) return;
+  editor.replaceRange(insert, editor.offsetToPos(from), editor.offsetToPos(to));
+}
+
 function bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds) {
   const sel = doc.slice(a, b); if (!sel) return;
   if (direction === "left") {
@@ -799,16 +830,14 @@ function bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds) {
     /* Тумблер `Continue past a Separator` выключен: за разделитель не ходим. */
     if (bounds && prevStart < bounds.lo) return;
     const before = doc.slice(prevStart, a); if (!before) return;
-    const newDoc = doc.slice(0, prevStart) + sel + before + doc.slice(b);
-    if (newDoc !== doc) editor.setValue(newDoc);
+    writeMovedWindow(editor, doc, prevStart, b, sel + before);
     editor.setSelection(editor.offsetToPos(prevStart), editor.offsetToPos(prevStart + sel.length));
     return;
   }
   const nextEnd = nextCodePointEnd(doc, b); if (nextEnd == null) return;
   if (bounds && nextEnd > bounds.hi) return;
   const after = doc.slice(b, nextEnd); if (!after) return;
-  const newDoc = doc.slice(0, a) + after + sel + doc.slice(nextEnd);
-  if (newDoc !== doc) editor.setValue(newDoc);
+  writeMovedWindow(editor, doc, a, nextEnd, after + sel);
   const newA = a + after.length;
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + sel.length));
 }
@@ -964,8 +993,7 @@ function jumpByWordToken(doc, editor, a, b, direction, bounds) {
     let q = b; while (q < hi && isHorizSpace(doc[q])) q++;
     const after = doc.slice(b, q);
     const slots = planGaps(before, gap, after, token, phrase);
-    const newDoc = doc.slice(0, p) + slots[0] + phrase + slots[1] + token + slots[2] + doc.slice(q);
-    if (newDoc !== doc) editor.setValue(newDoc);
+    writeMovedWindow(editor, doc, p, q, slots[0] + phrase + slots[1] + token + slots[2]);
     const at = p + slots[0].length;
     editor.setSelection(editor.offsetToPos(at), editor.offsetToPos(at + phrase.length));
     return;
@@ -981,8 +1009,7 @@ function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   let q = tEnd; while (q < hi && isHorizSpace(doc[q])) q++;
   const after = doc.slice(tEnd, q);
   const slots = planGaps(before, gap, after, token, phrase);
-  const newDoc = doc.slice(0, p) + slots[0] + token + slots[1] + phrase + slots[2] + doc.slice(q);
-  if (newDoc !== doc) editor.setValue(newDoc);
+  writeMovedWindow(editor, doc, p, q, slots[0] + token + slots[1] + phrase + slots[2]);
   const newA = p + slots[0].length + token.length + slots[1].length;
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + phrase.length));
 }

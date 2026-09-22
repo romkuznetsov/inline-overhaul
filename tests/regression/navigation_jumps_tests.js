@@ -346,6 +346,23 @@ async function jump(text, line, direction, over) {
    *
    * Одиннадцатое исключение к З3, разрешение 2026-09-02.
    */
+  /*
+   * **Замена документа целиком роняет прогон, и это сторож, а не украшение.**
+   *
+   * Его замечание 2026-09-22: «при переносе выделенного текста move left\right
+   * прыгает экран». `Editor.setValue` у Obsidian — это замена всего документа
+   * (`app.js` 1.13.7), а CodeMirror держит прокрутку за опорным местом и
+   * переносит его через изменение: место внутри заменённого отрезка уезжает в
+   * его начало, то есть в начало заметки.
+   *
+   * Подделка, у которой `setValue` работает, к этому слепа: текст выходит тот
+   * же, и прогон зелёный (У-45). Поэтому здесь она **громко отказывает**, и
+   * любая новая дорога переноса, написанная заменой документа, роняет набор в
+   * том же прогоне, где её завели. Прокрутку как таковую меряет браузер —
+   * `node tools/move_scroll_bench.js`.
+   */
+  const WHOLE_DOC_WRITE = "перенос текста написал документ целиком — прокрутка уедет в начало заметки";
+
   const moveTextIn = (line, phrase, direction, presses, over, lineFormat) => {
     let text = line;
     for (let n = 0; n < presses; n++) {
@@ -356,7 +373,7 @@ async function jump(text, line, direction, over) {
         lastLine: () => 0,
         getLine: () => state.text,
         getValue: () => state.text,
-        setValue: (v) => { state.text = String(v); },
+        setValue: () => { throw new Error(WHOLE_DOC_WRITE); },
         getSelection: () => state.text.slice(state.from.ch, state.to.ch),
         getCursor: (which) => (which === "to" ? { ...state.to } : { ...state.from }),
         setCursor: () => {},
@@ -367,7 +384,9 @@ async function jump(text, line, direction, over) {
         getScrollInfo: () => ({ top: 0, left: 0 }),
         scrollTo: () => {},
         setLine: (_n, t) => { state.text = String(t); },
-        replaceRange: () => {},
+        replaceRange: (insert, x, y) => {
+          state.text = state.text.slice(0, x.ch) + String(insert) + state.text.slice(y.ch);
+        },
         focus: () => {},
         scrollIntoView: () => {},
       };
@@ -525,7 +544,7 @@ async function jump(text, line, direction, over) {
       lastLine: () => lines().length - 1,
       getLine: (n) => lines()[n],
       getValue: () => state.text,
-      setValue: (v) => { state.text = String(v); },
+      setValue: () => { throw new Error(WHOLE_DOC_WRITE); },
       getSelection: () => state.text.slice(offsetOf(state.from), offsetOf(state.to)),
       getCursor: (which) => (which === "to" ? { ...state.to } : { ...state.from }),
       setCursor: () => {},
@@ -536,7 +555,11 @@ async function jump(text, line, direction, over) {
       getScrollInfo: () => ({ top: 0, left: 0 }),
       scrollTo: () => {},
       setLine: () => {},
-      replaceRange: () => {},
+      replaceRange: (insert, x, y) => {
+        const at = offsetOf(x);
+        const end = offsetOf(y);
+        state.text = state.text.slice(0, at) + String(insert) + state.text.slice(end);
+      },
       focus: () => {},
       scrollIntoView: () => {},
     };
