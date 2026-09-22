@@ -19,6 +19,7 @@ import { SCHEMA, TABS, groupsFor, activeTabs } from "../../src/ui/settings/schem
 import { buildDefaultConfig, getIn, isBound } from "../../src/ui/settings/types.ts";
 import { MemoryStore } from "../../src/ui/settings/store.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
+import { THEME_COLOR_VARS, themeVarFor } from "../../src/ui/settings/custom/theme_colors.ts";
 import { isSubheaderShut, paintSubheaders, resetSubheaders, subheader, subheaderId }
   from "../../src/ui/settings/custom/subheader.ts";
 import { richParts } from "../../src/ui/settings/describe.ts";
@@ -3157,6 +3158,49 @@ async function main(): Promise<void> {
    * и над первой из них обязана стоять подпись — своим блоком, а не строкой
    * настройки (У-44, У-5).
    */
+  await test("у каждого поля цвета есть цвет темы, и чёрного среди них нет", () => {
+    /*
+     * Его замечание к тесту 6, 2026-09-22: «при восстановлении цвета по
+     * умолчанию цвет становится hex #000000 — я хочу, чтобы он становился
+     * дефолтным цветом obsidian».
+     *
+     * Причина у чёрного одна и та же: поле выбора цвета платформы принимает
+     * только `#rrggbb`, пустую строку рисует чёрным, а запасное значение ему
+     * даёт `themeColorFor` — по карте `THEME_COLOR_VARS`. Шесть полей в этой
+     * карте не значились, и каждое показывало чёрное.
+     *
+     * Спрашивается **свойство**, а не список: «у всякого поля цвета, чьё
+     * умолчание пусто, переменная темы есть». Список пропустил бы следующее
+     * поле молча (правило 151).
+     */
+    const missing: string[] = [];
+    const colors: string[] = [];
+    for (const group of SCHEMA) {
+      for (const raw of group.items) {
+        const it = raw as unknown as Def;
+        if (it.kind !== "color") continue;
+        const path = String(it.path || "");
+        colors.push(path);
+        if (String(it.default || "")) continue;
+        if (!themeVarFor(path)) missing.push(group.id + " → " + it.id + " (" + path + ")");
+      }
+    }
+    assert.ok(colors.length >= 10,
+      "положительный контроль: полей цвета в схеме почти нет — искать нечего (" + colors.length + ")");
+    assert.deepEqual(missing, [],
+      "эти поля цвета показывают человеку чёрное вместо цвета темы:\n  " + missing.join("\n  "));
+
+    /*
+     * И обратное: карта не переживает своё поле. Переменная, у которой в схеме
+     * не осталось поля цвета, — это правило, которое уже ничего не решает, и
+     * читается оно как живое (У-71).
+     */
+    const known = new Set(colors);
+    const stale = Object.keys(THEME_COLOR_VARS).filter(p => !known.has(p));
+    assert.deepEqual(stale, [],
+      "в карте цветов темы остались пути без поля в панели: " + stale.join(", "));
+  });
+
   await test("субхедер сворачивается и прячет свой раздел, а не чужой", () => {
     /*
      * Его пункт 1, 2026-09-22: «хочу, чтобы все субхедеры были

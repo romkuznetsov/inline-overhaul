@@ -1194,6 +1194,40 @@ function heightBtn(host: StubNode): StubNode {
   ok("Ф6: маркер element пишется той же записью");
 }
 {
+  /*
+   * Его пункт 14, 2026-09-22: «я хочу, чтобы у всех обязательных настроек была
+   * красная рамка… пока пользователь не вставит туда значение, затем она
+   * должна меняться на обычный цвет».
+   *
+   * Обязательное здесь одно — знак Field типа `element`, и цена пустого
+   * измерена: на его `data.json` того же дня у Field `Due` знак пуст, и обход
+   * строки получает **пустой** круг полей с обеих сторон, то есть панель не
+   * открывается вовсе. Он пришёл ровно с этим: «при активации tagwheel я
+   * получу ошибку `these fields need an Emoji`».
+   */
+  const v = makeView();
+  const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
+  one(due, "io-fields__pick").click();
+  const inputBy = (prefix: string): StubNode => all(v.host, "io-text--mono").find(n =>
+    String(n.getAttribute("aria-label") || "").startsWith(prefix)) as StubNode;
+  const needed = (n: StubNode): boolean => n.classList.contains("io-text--needed");
+
+  const marker = inputBy("Emoji-prefix for");
+  assert.equal(marker.value, "!", "положительный контроль: знак в фикстуре непустой");
+  assert.equal(needed(marker), false, "заполненный знак обведён как пустой");
+  /* Отрицательный контроль: соседнее поле обязательным не объявлено. */
+  assert.equal(needed(inputBy("Value format for")), false,
+    "красная рамка досталась полю, без которого Field работает");
+
+  marker.value = "   ";
+  marker.dispatch("input");
+  assert.equal(needed(marker), true, "стёртый знак не обвёлся красным");
+  marker.value = "📅";
+  marker.dispatch("input");
+  assert.equal(needed(marker), false, "рамка не снялась на первом же знаке");
+  ok("его пункт 14: знак element обведён красным, пока он пуст");
+}
+{
   const v = makeView();
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();

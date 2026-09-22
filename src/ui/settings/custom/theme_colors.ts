@@ -40,6 +40,37 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
   "visual.tagWheel.fillColor": "--text-highlight-bg",
   "visual.tagWheel.scroller.fillColor": "--background-primary",
   "visual.tagWheel.scroller.textColor": "--text-normal",
+  /*
+   * Остальные шесть полей цвета жили без переменной, и поле показывало им
+   * чёрное — его замечание к тесту 6, 2026-09-22: «мне не нравится, что при
+   * восстановлении цвета по умолчанию цвет становится hex #000000 — я хочу,
+   * чтобы он становился дефолтным цветом obsidian (для кавычек — серый, для
+   * ссылки — стальной)».
+   *
+   * Каждая пара взята **у того, кто рисует, когда цвет не задан**, а не
+   * подобрана: иначе поле обещало бы одно, а строка показывала другое.
+   */
+  /* Полоса Block: `buildBlockFillStyleCss` пишет `var(--text-accent)`. */
+  "visual.tags.blockFill.color": "--text-accent",
+  /*
+   * Имя внутри `[[…]]` и сами скобки. Наши правила при пустом значении ставят
+   * `inherit`, то есть отдают цвет тому, кто красил ссылку до нас, — а это
+   * сама Obsidian: `--link-color` у имени (`app.css` 1.13.7, строка 2424:
+   * `--link-color: var(--text-accent)`) и `--text-faint` у скобок
+   * (`span.cm-formatting-link`, строка 13465). Ровно те «стальной» и «серый»,
+   * которые он и назвал.
+   */
+  "visual.tags.linkAsWritten.targetColor": "--link-color",
+  "visual.tags.linkAsWritten.bracketsColor": "--text-faint",
+  /* Каретка: `.io-caret` в стилях берёт `var(--text-normal)`. */
+  "visual.caret.color": "--text-normal",
+  /* Круг при прыжке: `.io-jumpflash` берёт `var(--interactive-accent)`. */
+  "visual.jumpFlash.color": "--interactive-accent",
+  /*
+   * Перенесённая строка: при пустом значении декорация не пишет `color`
+   * вовсе, и строка остаётся обычного цвета текста.
+   */
+  "transform.inline2note.sourceProcessing.visual.color": "--text-normal",
 };
 
 /** Переменная темы для настройки; пусто — у настройки её нет. */

@@ -156,10 +156,40 @@ export function textInput(parent: El, cls: string, o: {
   value: string;
   label: string;
   placeholder?: string;
+  /**
+   * Поле, без которого то, что человек настраивает, не работает вовсе (его
+   * пункт 14, 2026-09-22): «я хочу, чтобы у всех обязательных настроек была
+   * красная рамка… пока пользователь не вставит туда значение, затем она
+   * должна меняться на обычный цвет». Пустое такое поле обводится сразу, и
+   * рамка снимается на первом же знаке — не по `change`, а по `input`: ждать
+   * ухода фокуса значит держать красное там, где уже всё написано.
+   */
+  needed?: boolean;
 }): ElInput {
   const opts: ElOpts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
   if (o.placeholder !== undefined) opts.placeholder = o.placeholder;
-  return parent.createEl("input", opts) as ElInput;
+  const node = parent.createEl("input", opts) as ElInput;
+  if (o.needed) markNeeded(node);
+  return node;
+}
+
+/** Класс обязательного незаполненного поля. Одно имя на код и стили (У-103). */
+export const NEEDED_CLASS = "io-text--needed";
+
+/**
+ * Обвести поле, пока оно пустое, и снять обводку, как только в нём что-то
+ * есть. Своё правило «пусто ли» тут одно на все такие поля: у каждого
+ * второго оно разошлось бы с первым молча (У-32).
+ */
+export function markNeeded(node: ElInput): void {
+  const paint = (): void => {
+    if (!node.classList || typeof node.classList.add !== "function") return;
+    if (String(node.value || "").trim()) node.classList.remove(NEEDED_CLASS);
+    else node.classList.add(NEEDED_CLASS);
+  };
+  paint();
+  node.addEventListener("input", paint as never);
+  node.addEventListener("change", paint as never);
 }
 
 /**

@@ -27,7 +27,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 4. 🐛 **`not set` in a hotkey column is grey again.** Obsidian paints every button of its own, and its rule was stronger than ours: an unassigned key was drawn in ordinary text on an ordinary button fill, and only the italics told it apart. It is now grey on nothing, the way it was meant to be — in `Command reference`, in `Binder` and in the `Commands` section of a Field.
 5. 🎨 **`Show option IDs in tips` moved to `Advanced → Diagnostics`.** It had a heading to itself for one row; ids and the developer log answer the same question, so they now stand together.
 6. 🎨 **A command list no longer repeats its own heading.** Under `Command reference` and in the `Commands` section of a Field the area stood in front of every row — `Navigation: Move left` under a heading that already said `Navigation`. The column shows `Move left` now; the command itself keeps its full name, and pressing a key cell still opens Obsidian's `Hotkeys` screen at it.
-7. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
+7. ✨ **A setting nothing works without is outlined in red until you fill it.** `Emoji-prefix` of an `Emoji` Field is one: leave it empty and the picker refuses to open at all, with `these fields need an Emoji`. The outline goes the moment you type. The same goes for the text a Binder row inserts.
+8. 🐛 **Every color field offers the theme's color, not black.** Six of them had no colour to fall back on, so the picker showed `#000000`: the Stripe, both halves of a link Value, the caret, the jump circle and a transformed line. Each now opens on what actually paints it when you leave it unset.
+9. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
 
 ## 0.6.0
 

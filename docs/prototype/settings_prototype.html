@@ -277,6 +277,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* Свёрнутый раздел правой колонки Fields (`З-34`): остаётся одна подпись со
    знаком, всё до следующей подписи уходит с глаз. */
 .io-subshut { display: none; }
+/* Обязательное поле, пока оно пустое (его пункт 14, 2026-09-22). Класс
+   удвоен: у Obsidian на `input[type='text']` стоит своя рамка, и она
+   специфичнее одиночного класса. */
+.io-text--needed.io-text--needed {
+  border-color: var(--text-error);
+  box-shadow: 0 0 0 1px var(--text-error);
+}
 /* Вводная фраза группы: тот же коллаут, что и вводный у вкладки, только
    поуже и без шапки. Одно объявление вида на оба (У-32) — своё держит только
    отступ. */
@@ -3590,10 +3597,22 @@ function selectEl(parent, options, value, label, cls) {
   s.value = value;
   return s;
 }
-function textEl(parent, value, ph, label, cls) {
+function textEl(parent, value, ph, label, cls, needed) {
   const i = el("input", cls || "io-text", parent);
   i.type = "text"; i.value = value; if (ph) i.placeholder = ph;
   i.setAttribute("aria-label", label);
+  /*
+   * Обязательное поле обводится красным, пока оно пустое (его пункт 14,
+   * 2026-09-22), и обводка снимается на первом же знаке — по `input`, а не по
+   * `change`: ждать ухода фокуса значит держать красное там, где уже всё
+   * написано.
+   */
+  if (needed) {
+    const paint = () => i.classList.toggle("io-text--needed", !String(i.value || "").trim());
+    paint();
+    i.addEventListener("input", paint);
+    i.addEventListener("change", paint);
+  }
   return i;
 }
 function iconBtn(parent, glyph, label, title) {
@@ -5520,11 +5539,14 @@ function elementRows(host, f) {
       s.addEventListener("change", () => { apply(s.value); renderContent(); });
       return;
     }
-    const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono");
+    const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono",
+      r.needed === true);
     input.addEventListener("input", () => { apply(input.value); refreshPreviews(); });
   };
 
-  row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji",
+  /* Знак обязателен: Field типа `element` без него не даёт панели открыться
+     вовсе — измерено на его `data.json` от 2026-09-22. */
+  row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji", needed:true,
     desc:"The character that stands in front of the Value in the line",
     tip:"This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one" },
     f.marker, v => { f.marker = v; });

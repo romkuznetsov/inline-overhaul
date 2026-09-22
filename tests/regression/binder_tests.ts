@@ -459,9 +459,21 @@ const ARROW_ROW = {
 
   const inputs = all(box, "io-text");
   assert.equal(inputs.length, 3, "три поля: вставка, имя, описание");
+  /*
+   * Его пункт 14, 2026-09-22: обязательное поле обведено красным, пока оно
+   * пустое. Обязательным здесь объявлено ровно то, из-за которого кнопка
+   * `Add` и молчит, — и оба утверждения стоят рядом нарочно: рамка, снятая с
+   * другого поля, зелена и без них.
+   */
+  assert.equal((inputs[0] as StubNode).classList.contains("io-text--needed"), true,
+    "поле вставки пусто, а красной рамки на нём нет");
+  assert.equal((inputs[1] as StubNode).classList.contains("io-text--needed"), false,
+    "красная рамка досталась полю, без которого строка заводится");
   (inputs[0] as StubNode).value = "✔";
   (inputs[0] as StubNode).dispatch("input");
   assert.equal(add.disabled, false, "с текстом вставки кнопка оживает");
+  assert.equal((inputs[0] as StubNode).classList.contains("io-text--needed"), false,
+    "рамка не снялась, когда текст вставки появился");
   (inputs[1] as StubNode).value = "Check";
   (inputs[2] as StubNode).value = "Tick";
   add.click();

@@ -208,7 +208,8 @@ export function renderAddForm(box: El, o: {
   el(box, "h4", "io-dlg__title", say("NEW_TITLE"));
   el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
-  const field = (name: string, desc: string, placeholder: string): { input: ElInput; warn: El } => {
+  const field = (name: string, desc: string, placeholder: string,
+    needed?: boolean): { input: ElInput; warn: El } => {
     const row = el(box, "div", "io-item");
     const info = el(row, "div", "io-item__info");
     el(info, "div", "io-item__name", name);
@@ -217,6 +218,7 @@ export function renderAddForm(box: El, o: {
       value: "",
       label: say("NEW_FIELD_ARIA", name),
       placeholder,
+      needed: needed === true,
     });
     /* Причина отказа стоит под своим полем, а не над панелью: человек читает
        её там, где печатает (C13). Пустая строка ничего не занимает. */
@@ -224,7 +226,12 @@ export function renderAddForm(box: El, o: {
     return { input, warn };
   };
 
-  const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"));
+  /*
+   * Обводится ровно то поле, без которого кнопка `Add` не работает (его
+   * пункт 14, 2026-09-22). Признак не выдуман рядом: `recheck` ниже гасит
+   * кнопку по тому же самому вопросу — «есть ли текст вставки».
+   */
+  const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"), true);
   const command = field(say("NEW_NAME_LABEL"), say("NEW_NAME_DESC"), say("NEW_NAME_HINT"));
   const note = field(say("NEW_DESC_LABEL"), say("NEW_DESC_DESC"), "");
 

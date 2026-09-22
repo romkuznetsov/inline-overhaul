@@ -1803,15 +1803,19 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   const sec = el(host, "div", "io-fields__sec");
   foldableSub(valueHead, sec, "element-value", "Value", valueHeadTip);
 
-  /** Строка с полем ввода. */
+  /**
+   * Строка с полем ввода. `needed` — поле, без которого Field не работает:
+   * пустое оно обводится красным (его пункт 14, 2026-09-22).
+   */
   const line = (name: string, desc: string, tip: string, tipId: string, value: string,
-    placeholder: string, save: (v: string) => void): void => {
+    placeholder: string, save: (v: string) => void, needed?: boolean): void => {
     const item = itemRow(sec, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
     closers.push(item.closeTip);
     const input = textInput(item.control, "io-text io-text--mono", {
       value,
       placeholder,
       label: name + " for " + row.strictName,
+      needed: needed === true,
     });
     input.disabled = !o.enabled;
     input.addEventListener("change", (() => {
@@ -1821,8 +1825,15 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     }) as never);
   };
 
+  /*
+   * Знак — обязателен, и цена пустого измерена, а не выведена: на его
+   * `data.json` от 2026-09-22 у Field `Due` знак пуст, и панель не открывается
+   * **вовсе** — обход строки получает пустой круг полей с обеих сторон. Он
+   * пришёл ровно с этим: «при активации tagwheel я получу ошибку `these fields
+   * need an Emoji`. Это не интуитивно».
+   */
   line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
-    say("ELEMENT_EMOJI_HINT"), v => ed.setEmoji(v));
+    say("ELEMENT_EMOJI_HINT"), v => ed.setEmoji(v), true);
   line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
     say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
 
