@@ -284,6 +284,25 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   border-color: var(--text-error);
   box-shadow: 0 0 0 1px var(--text-error);
 }
+/* Выбиралка эмодзи под знаком Field (`В-182`, его пункт 10). Встаёт последним
+   ребёнком строки и переносится на свою строчку, как подсказка; сетка
+   прокручивается сама. Та же вёрстка, что в панели (`styles.css`). */
+.io-pick {
+  flex-basis: 100%; margin-top: 6px; padding: 6px;
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+.io-pick__search { width: 100%; margin-bottom: 6px; }
+.io-pick__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 2px; max-height: 180px; overflow-y: auto;
+}
+.io-pick__item.io-pick__item {
+  height: 32px; padding: 0; font-size: 1.2em; background: transparent; box-shadow: none;
+  border: 0; cursor: pointer;
+}
+.io-pick__item:hover { background: var(--background-modifier-hover); }
+.io-pick__empty { grid-column: 1 / -1; color: var(--text-muted); padding: 4px; }
 /* Вводная фраза группы: тот же коллаут, что и вводный у вкладки, только
    поуже и без шапки. Одно объявление вида на оба (У-32) — своё держит только
    отступ. */
@@ -3663,6 +3682,67 @@ function textEl(parent, value, ph, label, cls, needed) {
   }
   return i;
 }
+/*
+ * Выбиралка эмодзи под знаком Field (`В-182`, его пункт 10): «при нажатии на
+ * панель ввода открывался выпадающий список с эмодзи — пользователь может
+ * ткнуть в понравившийся, а может сам вставить что хочет». Список — копия
+ * `PICK_SETS.emoji` из `char_picker.ts`, и равенство держит
+ * `char_picker_tests.ts`: две отрисовки, одна правда.
+ */
+const PICK_EMOJI = [
+  ["😀","Grinning face"], ["😂","Tears of joy"], ["🙂","Slight smile"], ["😉","Wink"], ["😍","Heart eyes"], ["🤔","Thinking"],
+  ["😎","Cool"], ["😴","Sleeping"], ["😢","Crying"], ["😡","Angry"], ["🤯","Mind blown"], ["🥳","Party"],
+  ["👍","Thumbs up"], ["👎","Thumbs down"], ["👏","Clap"], ["🙏","Pray"], ["💪","Muscle"], ["👀","Eyes"],
+  ["🧠","Brain"], ["❤️","Red heart"], ["💔","Broken heart"], ["⭐","Star"], ["🌟","Glowing star"], ["✨","Sparkles"],
+  ["🔥","Fire"], ["💥","Collision"], ["⚡","Lightning"], ["💡","Idea"], ["📌","Pin"], ["📍","Round pin"],
+  ["📎","Paperclip"], ["🔗","Link"], ["📅","Calendar"], ["📆","Tear-off calendar"], ["🗓️","Spiral calendar"], ["⏰","Alarm clock"],
+  ["⏳","Hourglass"], ["⌛","Hourglass done"], ["🕐","Clock"], ["⏱️","Stopwatch"], ["✅","Check mark button"], ["☑️","Check box"],
+  ["✔️","Check mark"], ["❌","Cross mark"], ["❎","Cross button"], ["❓","Question"], ["❔","White question"], ["❗","Exclamation"],
+  ["‼️","Double exclamation"], ["⚠️","Warning"], ["🚫","Prohibited"], ["⛔","No entry"], ["🛑","Stop sign"], ["🔴","Red circle"],
+  ["🟠","Orange circle"], ["🟡","Yellow circle"], ["🟢","Green circle"], ["🔵","Blue circle"], ["🟣","Purple circle"], ["⚫","Black circle"],
+  ["⚪","White circle"], ["🟥","Red square"], ["🟩","Green square"], ["🟦","Blue square"], ["🏁","Finish flag"], ["🚩","Red flag"],
+  ["🎯","Target"], ["🏆","Trophy"], ["🥇","Gold medal"], ["🎉","Celebration"], ["🎁","Gift"], ["📝","Memo"],
+  ["✏️","Pencil"], ["🖊️","Pen"], ["📖","Open book"], ["📚","Books"], ["📓","Notebook"], ["📄","Page"],
+  ["📁","Folder"], ["📂","Open folder"], ["🗂️","Card index"], ["🗃️","Card box"], ["📦","Package"], ["📥","Inbox"],
+  ["📤","Outbox"], ["📧","Email"], ["💬","Speech bubble"], ["💭","Thought bubble"], ["📢","Loudspeaker"], ["🔔","Bell"],
+  ["🔕","Bell off"], ["🔒","Locked"], ["🔓","Unlocked"], ["🔑","Key"], ["🔍","Magnifier"], ["⚙️","Gear"],
+  ["🛠️","Tools"], ["🔧","Wrench"], ["🔨","Hammer"], ["🧪","Test tube"], ["🧩","Puzzle"], ["🐛","Bug"],
+  ["🚀","Rocket"], ["✈️","Airplane"], ["🚗","Car"], ["🏠","House"], ["🏢","Office"], ["🏥","Hospital"],
+  ["🏫","School"], ["🛒","Cart"], ["💰","Money bag"], ["💵","Banknote"], ["💳","Credit card"], ["📈","Chart up"],
+  ["📉","Chart down"], ["📊","Bar chart"], ["🧾","Receipt"], ["👤","Person"], ["👥","People"], ["🤝","Handshake"],
+  ["📞","Phone"], ["📱","Mobile"], ["💻","Laptop"], ["🌐","Globe"], ["☀️","Sun"], ["🌙","Moon"],
+  ["☁️","Cloud"], ["❄️","Snowflake"], ["🌈","Rainbow"], ["🌱","Seedling"], ["🌳","Tree"], ["🍀","Clover"],
+  ["🍎","Apple"], ["☕","Coffee"], ["🎵","Music"], ["🎬","Clapper"], ["🎮","Game"], ["📷","Camera"],
+  ["🎨","Palette"], ["🏃","Runner"], ["💤","Zzz"], ["🔄","Repeat"], ["♻️","Recycle"], ["➕","Plus"],
+  ["➖","Minus"], ["🆕","New"], ["🆗","OK"], ["💯","Hundred"],
+];
+function attachEmojiPicker(input, host, apply) {
+  const panel = el("div", "io-pick", host);
+  panel.hidden = true;
+  panel.tabIndex = -1;
+  const search = el("input", "io-pick__search", panel);
+  search.type = "search"; search.placeholder = "Search by name";
+  search.setAttribute("aria-label", "Search by name");
+  const grid = el("div", "io-pick__grid", panel);
+  const draw = () => {
+    grid.textContent = "";
+    const q = search.value.trim().toLowerCase();
+    const items = PICK_EMOJI.filter(([c, n]) => !q || c === q || n.toLowerCase().includes(q));
+    if (!items.length) el("div", "io-pick__empty", grid, "Nothing by that name \u2014 paste your own character into the field");
+    for (const [c, n] of items) {
+      const b = el("button", "io-pick__item", grid, c);
+      b.type = "button"; b.setAttribute("aria-label", n);
+      b.addEventListener("click", () => { input.value = c; panel.hidden = true; apply(c); });
+    }
+  };
+  const open = () => { if (panel.hidden) { panel.hidden = false; draw(); } };
+  input.addEventListener("focus", open);
+  input.addEventListener("click", open);
+  search.addEventListener("input", draw);
+  const leave = e => { const to = e.relatedTarget; if (!to || (to !== input && !panel.contains(to))) panel.hidden = true; };
+  input.addEventListener("focusout", leave);
+  panel.addEventListener("focusout", leave);
+}
 function iconBtn(parent, glyph, label, title) {
   const b = el("button", "io-icon", parent, glyph);
   b.type = "button";
@@ -5612,11 +5692,12 @@ function elementRows(host, f) {
     const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono",
       r.needed === true);
     input.addEventListener("input", () => { apply(input.value); refreshPreviews(); });
+    if (r.picker) attachEmojiPicker(input, item, v => { apply(v); renderContent(); });
   };
 
   /* Знак обязателен: Field типа `element` без него не даёт панели открыться
      вовсе — измерено на его `data.json` от 2026-09-22. */
-  row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji", needed:true,
+  row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji", needed:true, picker:true,
     desc:"The character that stands in front of the Value in the line",
     tip:"This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one" },
     f.marker, v => { f.marker = v; });

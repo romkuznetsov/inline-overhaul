@@ -174,6 +174,10 @@ export const BLOCK_TEXTS = {
     ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
     ELEMENT_EMOJI_TIP: "This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one",
     ELEMENT_EMOJI_HINT: "one character or emoji",
+    /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10). Вкладка одна, и
+       подписи ей не нужно: строки ниже — поиск и пустой ответ. */
+    PICK_SEARCH: "Search by name",
+    PICK_EMPTY: "Nothing by that name — paste your own character into the field",
     ELEMENT_FORMAT_NAME: "Value format",
     ELEMENT_FORMAT_DESC: "The shape of the Value: a date, a time or a number",
     ELEMENT_FORMAT_HINT: "YYYY-MM-DD / HHmm / 1",
@@ -401,6 +405,16 @@ export const BLOCK_TEXTS = {
     NEW_INSERTS_DESC: "The text this command drops in at the cursor",
     NEW_NAME_LABEL: "Command name",
     NEW_NAME_DESC: "What to call it in Obsidian's list of hotkeys",
+    /* Имя, которое окно предлагает само, когда вставленного знака нет в
+       выбиралке (его пункт 9.4: «дефолтное название всегда должно быть
+       предложено»). У знака из выбиралки имя своё — `Arrow right` у `→`. */
+    NEW_NAME_AUTO: "Insert {0}",
+    /* Выбиралка знака под полем `Inserts` (`В-182`). */
+    PICK_EMOJI: "Emoji",
+    PICK_SYMBOLS: "Symbols",
+    PICK_FACES: "Text faces",
+    PICK_SEARCH: "Search by name",
+    PICK_EMPTY: "Nothing by that name — type your own text into the field",
     NEW_DESC_LABEL: "Description",
     NEW_DESC_DESC: "A note to yourself about what the row is for",
     NEW_FIELD_ARIA: "{0} of the new command",

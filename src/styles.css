@@ -1376,6 +1376,41 @@
   border-color: var(--text-error);
   box-shadow: 0 0 0 1px var(--text-error);
 }
+/*
+ * Выбиралка знака (`В-182`): под полем `Inserts` окна Binder и под знаком
+ * Field. Встаёт последним ребёнком строки и переносится на свою строчку, как
+ * подсказка; сетка прокручивается сама, а не растягивает окно — его пункт 9:
+ * «не из тупого вертикального списка, а… возможность скроллинга».
+ */
+.io-pick {
+  flex-basis: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+.io-pick__tabs { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.io-pick__tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.io-pick__search { width: 100%; margin-bottom: 6px; }
+.io-pick__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.io-pick__item.io-pick__item {
+  height: 32px;
+  padding: 0;
+  font-size: 1.2em;
+  background: transparent;
+  box-shadow: none;
+}
+.io-pick__item:hover { background: var(--background-modifier-hover); }
+/* Рожица длиннее клетки: берёт строку сетки на несколько колонок. */
+.io-pick__item--wide.io-pick__item--wide { grid-column: span 4; font-size: 1em; }
+.io-pick__empty { grid-column: 1 / -1; color: var(--text-muted); padding: 4px; }
 /* Таблица команд Field (`З-33`): две колонки, а не три — описания тут нет,
    его место занимает сам раздел. Правило стоит ПОСЛЕ общего нарочно:
    специфичность одна, решает порядок (У-67). */

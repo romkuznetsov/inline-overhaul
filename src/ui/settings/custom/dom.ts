@@ -177,16 +177,23 @@ export function textInput(parent: El, cls: string, o: {
 export const NEEDED_CLASS = "io-text--needed";
 
 /**
+ * Перекрасить рамку по нынешнему значению. Отдельно от `markNeeded` затем, что
+ * значение, положенное кодом (выбиралка знака), событий `input` и `change` не
+ * порождает, и рамка без этого вызова оставалась бы красной над знаком.
+ */
+export function paintNeeded(node: ElInput): void {
+  if (!node.classList || typeof node.classList.add !== "function") return;
+  if (String(node.value || "").trim()) node.classList.remove(NEEDED_CLASS);
+  else node.classList.add(NEEDED_CLASS);
+}
+
+/**
  * Обвести поле, пока оно пустое, и снять обводку, как только в нём что-то
  * есть. Своё правило «пусто ли» тут одно на все такие поля: у каждого
  * второго оно разошлось бы с первым молча (У-32).
  */
 export function markNeeded(node: ElInput): void {
-  const paint = (): void => {
-    if (!node.classList || typeof node.classList.add !== "function") return;
-    if (String(node.value || "").trim()) node.classList.remove(NEEDED_CLASS);
-    else node.classList.add(NEEDED_CLASS);
-  };
+  const paint = (): void => { paintNeeded(node); };
   paint();
   node.addEventListener("input", paint as never);
   node.addEventListener("change", paint as never);

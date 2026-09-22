@@ -14,7 +14,8 @@
  *   * сетка таблицы живёт в CSS, а не в атрибутах узлов (Б4).
  */
 
-import { el, btn, textInput, tipBelow, type El, type ElInput } from "./dom.ts";
+import { el, btn, textInput, tipBelow, paintNeeded, type El, type ElInput } from "./dom.ts";
+import { attachPicker, pickName } from "./char_picker.ts";
 import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
@@ -209,7 +210,7 @@ export function renderAddForm(box: El, o: {
   el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
   const field = (name: string, desc: string, placeholder: string,
-    needed?: boolean): { input: ElInput; warn: El } => {
+    needed?: boolean): { input: ElInput; warn: El; row: El } => {
     const row = el(box, "div", "io-item");
     const info = el(row, "div", "io-item__info");
     el(info, "div", "io-item__name", name);
@@ -223,7 +224,7 @@ export function renderAddForm(box: El, o: {
     /* Причина отказа стоит под своим полем, а не над панелью: человек читает
        её там, где печатает (C13). Пустая строка ничего не занимает. */
     const warn = el(info, "div", "io-item__warn");
-    return { input, warn };
+    return { input, warn, row };
   };
 
   /*
@@ -263,6 +264,34 @@ export function renderAddForm(box: El, o: {
     add.disabled = !String(draft.insertText || "").trim() || Boolean(clash);
   };
 
+  /*
+   * Имя команды предлагается само (его пункт 9.4, 2026-09-22): «дефолтное
+   * название всегда должно быть предложено», и человек может его поправить.
+   * Предложенное держится, пока его не тронули: стоит в поле ровно то, что
+   * окно подставило в прошлый раз (или пусто), — значит, его можно сменить;
+   * набрал своё — окно его больше не трогает.
+   */
+  let suggested = "";
+  const suggest = (): void => {
+    const now = command.input.value;
+    if (now.trim() && now !== suggested) return;
+    const text = insert.input.value.trim();
+    suggested = text ? (pickName(text) || say("NEW_NAME_AUTO", text)) : "";
+    command.input.value = suggested;
+  };
+
+  attachPicker(insert.input, insert.row, {
+    kinds: ["emoji", "symbols", "faces"],
+    say,
+    onPick: char => {
+      insert.input.value = char;
+      suggest();
+      recheck();
+      paintNeeded(insert.input);
+    },
+  });
+
+  insert.input.addEventListener("input", (() => { suggest(); }) as never);
   for (const f of [insert, command, note]) {
     f.input.addEventListener("input", (() => { recheck(); }) as never);
   }

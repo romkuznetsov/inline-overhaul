@@ -19,6 +19,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. ✨ **Pick what Binder inserts instead of hunting for it.** Press `Inserts` in the new-command window and a picker opens under it: `Emoji`, `Symbols` and `Text faces`, with a search by name. The command name fills itself in — `→` becomes `Arrow right` — and stays yours to change. Typing your own text still works, and gets a name too.
+2. ✨ **A Field's emoji has the same picker.** Press `Emoji-prefix` and choose from the emoji, or paste your own character as before.
+
 ## 0.7.0
 
 _2026-09-22 · [all changes since 0.6.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.6.0...0.7.0)_

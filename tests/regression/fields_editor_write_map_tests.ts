@@ -332,6 +332,23 @@ function scenarios(rows: string[]): void {
       ? live.writes.map(w => w.reason + " -> " + w.paths.join(", ")).join(" | ") || "без записи"
       : "не нашёл строку предусловия"));
   }
+  {
+    /*
+     * Выбиралка эмодзи под знаком (`В-182`). Кнопки знаков рисуются только
+     * раскрытой выбиралкой, и обход по одной отрисовке до них не доходит:
+     * сценарий раскрывает её фокусом, как человек, и жмёт первый знак. Запись
+     * обязана лечь туда же, куда ложится знак, набранный руками.
+     */
+    const writes: Write[] = [];
+    const host = render("due", writes);
+    rows.push("сценарий [выбрать знак Field due из выбиралки]");
+    const input = controls(host).find(n => String(n.getAttribute("aria-label") || "") === "Emoji-prefix for due");
+    if (input) input.dispatch("focus");
+    const cell = controls(host).find(n => String(n.className || "").includes("io-pick__item"));
+    if (cell) cell.dispatch("click");
+    rows.push("    " + (!input ? "не нашёл поле знака" : !cell ? "выбиралка не раскрылась"
+      : writes.map(w => w.reason + " -> " + w.paths.join(", ")).join(" | ") || "без записи"));
+  }
 }
 
 /**

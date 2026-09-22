@@ -1,0 +1,217 @@
+/**
+ * Выбиралка знака (`В-182`, его пункты 9 и 10 от 2026-09-22).
+ *
+ * Что здесь настоящее: окно новой строки Binder — `renderAddForm`, тот самый,
+ * что рисует Obsidian в модальном окне, и сама выбиралка. Подделан DOM
+ * (`dom_stub.ts`): блок рисуется в Obsidian, нажать его иначе нечем.
+ *
+ * Ожидания выписаны из его слов, а не из кода: «при `→` должно быть
+ * `Arrow right`», «пользователь может скорректировать его», «дефолтное
+ * название всегда должно быть предложено», «он по прежнему может вписать в
+ * text block что угодно». У знака Field — «выпадающий список с эмодзи».
+ */
+
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
+import { makeNode, type StubNode } from "../harness/dom_stub.ts";
+import { setupGlobals } from "../harness/obsidian_stub.ts";
+import { renderAddForm } from "../../src/ui/settings/custom/binder_view.ts";
+import { attachPicker, pickFilter, pickName, PICK_SETS, type PickKind } from "../../src/ui/settings/custom/char_picker.ts";
+import type { El, ElInput } from "../../src/ui/settings/custom/dom.ts";
+
+setupGlobals();
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+let passed = 0;
+function ok(label: string): void {
+  passed++;
+  console.log("  ok " + label);
+}
+
+function all(node: StubNode, cls: string): StubNode[] {
+  const out: StubNode[] = [];
+  const walk = (n: StubNode): void => {
+    if (n.classList.contains(cls)) out.push(n);
+    n.children.forEach(walk);
+  };
+  walk(node);
+  return out;
+}
+const byLabel = (node: StubNode, label: string): StubNode | undefined =>
+  all(node, "io-pick__item").concat(all(node, "io-pick__tab"))
+    .find(n => String(n.getAttribute("aria-label") || "") === label);
+
+/* `hidden` у заглушки узла не объявлен: его ставит сам блок (`dom.ts`). */
+const shut = (n: StubNode): boolean => Boolean((n as unknown as { hidden?: boolean }).hidden);
+
+function form(): { box: StubNode; insert: StubNode; name: StubNode; panel: () => StubNode; got: () => unknown } {
+  const box = makeNode("div");
+  let got: unknown = null;
+  renderAddForm(box as unknown as El, { add: d => { got = d; }, cancel: () => {} });
+  const inputs = all(box, "io-text");
+  assert.equal(inputs.length, 3, "поле поиска выбиралки не должно считаться полем окна");
+  return {
+    box,
+    insert: inputs[0] as StubNode,
+    name: inputs[1] as StubNode,
+    panel: () => all(box, "io-pick")[0] as StubNode,
+    got: () => got,
+  };
+}
+
+/* ---- данные ------------------------------------------------------------- */
+
+{
+  const chars = new Set<string>();
+  const names = new Set<string>();
+  for (const kind of Object.keys(PICK_SETS) as PickKind[]) {
+    assert.ok(PICK_SETS[kind].length >= 20, "вкладка " + kind + " почти пуста");
+    for (const [char, name] of PICK_SETS[kind]) {
+      assert.ok(char.trim() && name.trim(), "у знака пустое имя или сам знак");
+      assert.ok(!chars.has(char), "знак дважды: " + char);
+      /* Имя — ещё и имя команды: два одинаковых имени дали бы окну повтор,
+         который оно тут же назвало бы ошибкой. */
+      assert.ok(!names.has(name.toLowerCase()), "имя дважды: " + name);
+      chars.add(char);
+      names.add(name.toLowerCase());
+    }
+  }
+  assert.equal(pickName("→"), "Arrow right", "его пример из пункта 9.4");
+  assert.equal(pickName("  → "), "Arrow right", "пробелы по краям имени не меняют");
+  assert.equal(pickName("abc"), "", "чужой текст имени из выбиралки не получает");
+  ok("знаки и имена не повторяются, и `→` зовётся `Arrow right`");
+}
+
+{
+  const found = pickFilter(["emoji", "symbols", "faces"], "emoji", "arrow");
+  assert.ok(found.length >= 5, "поиск по слову не нашёл стрелок");
+  assert.ok(found.every(([, name]) => /arrow/i.test(name)), "поиск принёс лишнее");
+  assert.ok(found.some(([c]) => c === "→"), "поиск ищет по всем вкладкам, а не по открытой");
+  assert.deepEqual(pickFilter(["emoji"], "emoji", "arrow"), [],
+    "у знака Field только эмодзи — стрелки из символов туда приезжать не должны");
+  assert.equal(pickFilter(["emoji"], "emoji", "").length, PICK_SETS.emoji.length, "пустой запрос — вся вкладка");
+  ok("поиск ищет по имени во всех вкладках этой выбиралки и только в них");
+}
+
+/* ---- окно Binder -------------------------------------------------------- */
+
+{
+  const f = form();
+  assert.equal(shut(f.panel()), true, "выбиралка раскрыта до нажатия");
+  f.insert.dispatch("focus");
+  assert.equal(shut(f.panel()), false, "нажатие в поле выбиралку не раскрыло");
+  assert.deepEqual(all(f.box, "io-pick__tab").map(t => t.getAttribute("aria-label")),
+    ["Emoji", "Symbols", "Text faces"], "три вкладки его пункта 9");
+
+  (byLabel(f.box, "Symbols") as StubNode).dispatch("click");
+  const arrow = byLabel(f.box, "Arrow right");
+  assert.ok(arrow, "во вкладке символов нет стрелки");
+  arrow.dispatch("click");
+  assert.equal(f.insert.value, "→", "знак не лёг в поле");
+  assert.equal(f.name.value, "Arrow right", "имя команды не предложено");
+  assert.equal(shut(f.panel()), true, "выбрал — выбиралка обязана свернуться");
+  assert.equal(f.insert.classList.contains("io-text--needed"), false,
+    "красная рамка осталась над выбранным знаком");
+  const add = all(f.box, "io-btn--cta").find(n => n.getAttribute("aria-label") === "Add command") as StubNode;
+  assert.equal(add.disabled, false, "с выбранным знаком `Add` обязана ожить");
+  add.click();
+  assert.deepEqual(f.got(), { insertText: "→", commandName: "Arrow right", description: "" },
+    "окно отдало не то, что показало");
+  ok("выбранный знак ложится в поле, а имя команды предлагается само");
+}
+
+{
+  const f = form();
+  f.insert.dispatch("focus");
+  (byLabel(f.box, "Fire") as StubNode).dispatch("click");
+  assert.equal(f.name.value, "Fire");
+  /* Второй выбор меняет и имя: предложенное им не тронуто. */
+  f.insert.dispatch("focus");
+  (byLabel(f.box, "Rocket") as StubNode).dispatch("click");
+  assert.equal(f.name.value, "Rocket", "предложенное имя не сменилось вслед за знаком");
+  /* А своё имя человека окно не трогает. */
+  f.name.value = "My launch";
+  f.name.dispatch("input");
+  f.insert.dispatch("focus");
+  (byLabel(f.box, "Star") as StubNode).dispatch("click");
+  assert.equal(f.name.value, "My launch", "окно переписало имя, набранное человеком");
+  ok("предложенное имя едет за знаком, набранное человеком — остаётся");
+}
+
+{
+  const f = form();
+  f.insert.value = "→";
+  f.insert.dispatch("input");
+  assert.equal(f.name.value, "Arrow right", "знак, набранный руками, тоже узнаётся");
+  f.insert.value = "см. выше";
+  f.insert.dispatch("input");
+  assert.equal(f.name.value, "Insert см. выше", "для своего текста имя обязано быть предложено всё равно");
+  f.insert.value = "";
+  f.insert.dispatch("input");
+  assert.equal(f.name.value, "", "стёр текст — стёрлось и предложенное имя");
+  ok("своё можно вписать всегда, и имя предлагается и ему");
+}
+
+{
+  const f = form();
+  f.insert.dispatch("focus");
+  const search = all(f.box, "io-pick__search")[0] as StubNode;
+  search.value = "zzzz";
+  search.dispatch("input");
+  assert.equal(all(f.box, "io-pick__item").length, 0);
+  assert.equal(all(f.box, "io-pick__empty").length, 1, "пустой поиск молчит пустотой (У-80)");
+  search.value = "check";
+  search.dispatch("input");
+  assert.ok(all(f.box, "io-pick__item").length >= 3, "поиск по слову не нашёл галочек");
+  f.insert.dispatch("focusout", { relatedTarget: null });
+  assert.equal(shut(f.panel()), true, "фокус ушёл из окна, а выбиралка осталась раскрытой");
+  ok("поиск отвечает и тогда, когда ответа нет, а уход фокуса сворачивает");
+}
+
+/* ---- знак Field --------------------------------------------------------- */
+
+{
+  const row = makeNode("div");
+  const input = row.createEl("input", { cls: "io-text", type: "text" }) as unknown as StubNode;
+  let got = "";
+  attachPicker(input as unknown as ElInput, row as unknown as El, {
+    kinds: ["emoji"],
+    say: n => n,
+    onPick: c => { got = c; },
+  });
+  input.dispatch("click");
+  assert.equal(all(row, "io-pick__tabs").length, 0, "у одной вкладки полосы вкладок быть не должно");
+  assert.equal(all(row, "io-pick__item").length, PICK_SETS.emoji.length, "показаны не все эмодзи");
+  (all(row, "io-pick__item")[0] as StubNode).dispatch("click");
+  assert.equal(got, PICK_SETS.emoji[0]![0], "выбранный знак не отдан");
+  ok("у знака Field одни эмодзи, без вкладок");
+}
+
+{
+  /*
+   * Прототип нормативен и рисует ту же выбиралку сам (У-116): список там —
+   * копия, и разойтись ей не на чем, кроме этой сверки. Слова пустого ответа
+   * и поиска сверяются с каталогом того блока, что рисует знак.
+   */
+  const html = fs.readFileSync(path.join(root, "docs", "prototype", "settings_prototype.html"), "utf8");
+  const m = /const PICK_EMOJI = (\[[\s\S]*?\n\]);/.exec(html);
+  assert.ok(m, "в прототипе нет списка эмодзи — сверять не с чем");
+  const proto = JSON.parse(m[1]!.replace(/,\s*\]$/, "]")) as string[][];
+  assert.ok(proto.length > 100, "из прототипа прочитано подозрительно мало");
+  assert.deepEqual(proto, PICK_SETS.emoji.map(([c, n]) => [c, n]), "эмодзи прототипа разошлись с панелью");
+  const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
+  for (const name of ["PICK_SEARCH", "PICK_EMPTY"]) {
+    const text = String(own[name] || "");
+    assert.ok(text, "в каталоге редактора Fields нет " + name);
+    /* Прототип пишет тире escape-последовательностью, как и все свои тексты. */
+    assert.ok(html.includes(text.replace("—", "\\u2014")),
+      "прототип говорит не то, что каталог: " + name);
+  }
+  ok("список эмодзи и слова выбиралки в прототипе те же, что в панели");
+}
+
+console.log("\n" + passed + " passed");

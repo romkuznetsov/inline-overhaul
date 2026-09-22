@@ -121,6 +121,10 @@ A table. Each row is a piece of text and a command that drops it in at the curso
 ships with the plugin — `Smart bracket`, which cycles `text`, `[text]`, `[[text]]` and
 back.
 
+A new row starts in a small window. Press `Inserts` and a picker opens under it — emoji,
+symbols and text faces, with a search by name; the command name fills itself in from what you
+pick, and you can change it. A Field's `Emoji-prefix` opens the same picker with the emoji only.
+
 See it in motion: [Smart bracket](SHOWCASE.md#smart-bracket).
 
 ### Commands & Hotkeys

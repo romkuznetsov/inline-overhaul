@@ -21,6 +21,7 @@ import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
+import { attachPicker } from "./char_picker.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 import { TYPE_COLOR, bareToken, typeColor } from "./preview_data.ts";
 /*
@@ -738,7 +739,7 @@ function itemRow(host: El, o: {
   tipId?: string;
   showTips: boolean;
   showIds?: boolean;
-}): { control: El; info: El; closeTip: () => void } {
+}): { control: El; info: El; row: El; closeTip: () => void } {
   const row = el(host, "div", "io-item");
   const info = el(row, "div", "io-item__info");
   const nameRow = el(info, "div", "io-item__namerow");
@@ -759,7 +760,7 @@ function itemRow(host: El, o: {
   rich(el(info, "div", "io-item__desc"), o.desc);
   /* `info` отдаётся наружу: под описанием иногда встаёт предупреждение — оно
      принадлежит строке, а не колонке контролов (B21). */
-  return { control: el(row, "div", "io-item__control"), info, closeTip };
+  return { control: el(row, "div", "io-item__control"), info, row, closeTip };
 }
 
 /**
@@ -1808,7 +1809,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
    * пустое оно обводится красным (его пункт 14, 2026-09-22).
    */
   const line = (name: string, desc: string, tip: string, tipId: string, value: string,
-    placeholder: string, save: (v: string) => void, needed?: boolean): void => {
+    placeholder: string, save: (v: string) => void, needed?: boolean): { input: ElInput; row: El } => {
     const item = itemRow(sec, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
     closers.push(item.closeTip);
     const input = textInput(item.control, "io-text io-text--mono", {
@@ -1823,6 +1824,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       save(input.value);
       o.redraw();
     }) as never);
+    return { input, row: item.row };
   };
 
   /*
@@ -1832,8 +1834,25 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
    * пришёл ровно с этим: «при активации tagwheel я получу ошибку `these fields
    * need an Emoji`. Это не интуитивно».
    */
-  line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
+  const marker = line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
     say("ELEMENT_EMOJI_HINT"), v => ed.setEmoji(v), true);
+  /*
+   * Выбиралка эмодзи под знаком (`В-182`, его пункт 10): «при нажатии на
+   * панель ввода открывался выпадающий список с эмодзи — пользователь может
+   * ткнуть в понравившийся, а может сам вставить что хочет». Вкладка одна:
+   * знак Field — один знак, и символы с рожицами ему не годятся по его же
+   * слову. Выбранное пишется той же дорогой, что и набранное руками.
+   */
+  if (o.enabled) {
+    attachPicker(marker.input, marker.row, {
+      kinds: ["emoji"],
+      say,
+      onPick: char => {
+        ed.setEmoji(char);
+        o.redraw();
+      },
+    });
+  }
   line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
     say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
 
