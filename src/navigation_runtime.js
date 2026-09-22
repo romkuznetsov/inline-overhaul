@@ -633,6 +633,21 @@ function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fro
 /*
  * Границы, за которые перенос выделенного текста не выходит.
  *
+ * **Стена у оформления строки стоит всегда** — его замечание 2026-09-22
+ * («при переносе текста влево, оно втыкается в префикс»). Знак списка, задача,
+ * номер, цитата и решётки заголовка тексту не принадлежат: они принадлежат
+ * строке, и меняться с ними местами нечему. Измерено до правки: четвёртое
+ * нажатие давало `слово3- ( ...`, `- [слово3 ] ...` и `1слово3. ...`, то есть
+ * рвало сам знак, а посимвольный шаг с включённым `Step out of the word`
+ * уезжал через перевод строки в соседнюю (`- одиндв\n- а`). Конец строки
+ * стеной был и раньше — перенос строки токеном не считается, — а начала у
+ * стены не было вовсе.
+ *
+ * Тумблер `Continue past a Separator` эту стену не отменяет: он про
+ * разделители, а не про разметку Obsidian. Начало строки спрашивается у
+ * общего дома (`lineStartOf` в `shared_utils`), а не считается здесь заново
+ * (У-150).
+ *
  * Замечание заказчика 2026-09-04: у курсора внутри строки такая опция есть
  * (`Continue past a Separator`), а у переноса текста не было, и выделенная
  * фраза уезжала за первый разделитель в теги и за второй в даты.
@@ -642,30 +657,33 @@ function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fro
  * первого. Разделителя нет — с этой стороны границей становится сама строка:
  * за её край перенос всё равно не ходит.
  *
- * `null` значит «границ нет» — тумблер включён, и поведение то же, что было
- * до правки.
+ * Границы возвращаются всегда: тумблер решает только, сужать ли их
+ * разделителями.
  */
 function moveTextBounds(editor, line, rules) {
-  if (!rules || rules.inlineBoundaryJump === true) return null;
   const s = txt(editor, line);
   const lineStart = editor.posToOffset({ line: line, ch: 0 });
-  const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : __sharedUtils.DEFAULT_SEPARATORS.separator1;
-  const sep2 = typeof rules.separator2 === "string" && rules.separator2 ? rules.separator2 : sep1;
-  let loRel = 0;
+  /* Оформление начала строки тексту не принадлежит — стена стоит всегда. */
+  let loRel = __sharedUtils.linePrefixLength(s, true);
   let hiRel = s.length;
-  const first = s.indexOf(sep1);
-  if (first !== -1) {
-    loRel = first + sep1.length;
-    const second = s.indexOf(sep2, first + sep1.length);
-    if (second !== -1) hiRel = second;
-  } else if (sep2 !== sep1) {
-    /*
-     * Та же строка без зоны тегов, что и у курсора на прибытии: первого
-     * разделителя нет, второй есть — значит текст кончается на нём, и
-     * переносить фразу дальше нельзя (2026-09-11).
-     */
-    const only = s.indexOf(sep2);
-    if (only !== -1) hiRel = only;
+  if (loRel > hiRel) loRel = hiRel;
+  if (rules && rules.inlineBoundaryJump !== true) {
+    const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : __sharedUtils.DEFAULT_SEPARATORS.separator1;
+    const sep2 = typeof rules.separator2 === "string" && rules.separator2 ? rules.separator2 : sep1;
+    const first = s.indexOf(sep1);
+    if (first !== -1) {
+      if (first + sep1.length > loRel) loRel = first + sep1.length;
+      const second = s.indexOf(sep2, first + sep1.length);
+      if (second !== -1 && second < hiRel) hiRel = second;
+    } else if (sep2 !== sep1) {
+      /*
+       * Та же строка без зоны тегов, что и у курсора на прибытии: первого
+       * разделителя нет, второй есть — значит текст кончается на нём, и
+       * переносить фразу дальше нельзя (2026-09-11).
+       */
+      const only = s.indexOf(sep2);
+      if (only !== -1 && only < hiRel) hiRel = only;
+    }
   }
   /*
    * Зазор у разделителя в зону не входит. Иначе посимвольный шаг менял текст
@@ -881,61 +899,91 @@ function edgeStep(token, direction) {
 }
 
 /**
- * Пробел, стоящий перед парой, и пробел между её половинами меняются местами
- * вместе с самими половинами — но только когда одна из половин целиком из
- * знаков выше.
+ * С какой стороны знак держится за текст.
+ *
+ * Скобка, кавычка и точка стоят вплотную к тому, что обрамляют, и сторона у
+ * каждой своя: `)` `,` `.` держатся за текст **слева**, `(` `[` `«` — за текст
+ * **справа**. Пока сторона была одна на всех, открывающая скобка уводила
+ * пробел не туда, и слово прилипало к соседу слева: `- (слово3 слово1)` шагом
+ * влево давало `-слово3 ( слово1)` — его замечание 2026-09-22, «при переносе
+ * текста влево, оно втыкается в префикс».
+ *
+ * Кавычки `"` и `'` стороны не имеют, и им оставлена прежняя — левая: менять
+ * принятое поведение там, где замечания не было, значило бы чинить не
+ * спрошенное.
+ */
+const OPEN_MARKS = "([{«„";
+function edgeSide(str) {
+  if (!allEdgeMarks(str)) return "";
+  return OPEN_MARKS.indexOf(str[0]) >= 0 ? "open" : "close";
+}
+
+/**
+ * Куда встанут три промежутка, когда фраза и сосед поменяются местами.
+ *
+ * Промежутков у пары ровно три — до неё, между её половинами и после неё, — и
+ * правило их **переставляет**, не добавляя и не убирая ни одного. Знак уносит
+ * с собой тот промежуток, которым держится за текст:
+ *
+ *   * левой стороной — `(слово1 слово2 слово3)` шагом `)` влево даёт
+ *     `(слово1 слово2) слово3`;
+ *   * правой — `- (слово3 слово1)` шагом `слово3` влево даёт
+ *     `- слово3 (слово1)`.
+ *
+ * В обычном тексте знака нет, промежутки остаются на своих местах, и перенос
+ * слова со словом не меняется — это и есть отрицательный контроль правила.
  *
  * Его слова: «я хочу испытывать комфорт от этой команды, чтобы мне не
- * приходилось руками корректировать текст». Оба его примера — про это:
- * `(слово1 слово3 слово2)` + шаг вправо обязано дать `(слово1 слово3) слово2`,
- * а `)` шагом влево — `(слово1 слово2) слово3`.
- *
- * **Чего правило не делает.** Оно не добавляет пробелов и не убирает их: два
- * промежутка **меняются местами**, и если они одинаковы — а так в обычном
- * тексте и бывает, — не меняется ничего. Слова со словами меняются как
- * менялись: правило спрашивает про знак, а не про перенос вообще.
+ * приходилось руками корректировать текст».
  */
-function edgeSwapsGaps(one, two) {
-  return allEdgeMarks(one) || allEdgeMarks(two);
+function planGaps(before, gap, after, token, phrase) {
+  /* Решает тот, кто целиком из знаков; когда оба — сосед, через которого шаг. */
+  const side = edgeSide(token) || edgeSide(phrase);
+  if (side === "close") return [gap, before, after];
+  if (side === "open") return [before, after, gap];
+  return [before, gap, after];
 }
 
 function jumpByWordToken(doc, editor, a, b, direction, bounds) {
+  /* Стена строки: ниже её начала и выше её конца перенос не ходит. */
+  const lo = bounds && Number.isFinite(bounds.lo) ? bounds.lo : 0;
+  const hi = bounds && Number.isFinite(bounds.hi) ? bounds.hi : doc.length;
   while (a < b && isHorizSpace(doc[a])) a++;
   while (b > a && isHorizSpace(doc[b - 1])) b--;
   const phrase = doc.slice(a, b); if (!phrase) return;
   if (direction === "left") {
-    let i = a; while (i > 0 && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
-    const tEnd = i; while (i > 0 && isTokenChar(doc[i - 1])) i--; let tStart = i;
+    let i = a; while (i > lo && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
+    const tEnd = i; while (i > lo && isTokenChar(doc[i - 1])) i--; let tStart = i;
     if (tStart === tEnd) return;
     tStart = tEnd - edgeStep(doc.slice(tStart, tEnd), "left");
     const token = doc.slice(tStart, tEnd);
-    /* Соседний токен лежит за разделителем — меняться с ним нечем. */
-    if (bounds && tStart < bounds.lo) return;
-    let p = tStart; while (p > 0 && isHorizSpace(doc[p - 1])) p--;
+    /* Соседний токен лежит за разделителем или в оформлении строки. */
+    if (tStart < lo) return;
+    let p = tStart; while (p > lo && isHorizSpace(doc[p - 1])) p--;
     const before = doc.slice(p, tStart);
-    const swap = edgeSwapsGaps(token, phrase);
-    const lead = swap ? gap : before;
-    const mid = swap ? before : gap;
-    const newDoc = doc.slice(0, p) + lead + phrase + mid + token + doc.slice(b);
+    let q = b; while (q < hi && isHorizSpace(doc[q])) q++;
+    const after = doc.slice(b, q);
+    const slots = planGaps(before, gap, after, token, phrase);
+    const newDoc = doc.slice(0, p) + slots[0] + phrase + slots[1] + token + slots[2] + doc.slice(q);
     if (newDoc !== doc) editor.setValue(newDoc);
-    const at = p + lead.length;
+    const at = p + slots[0].length;
     editor.setSelection(editor.offsetToPos(at), editor.offsetToPos(at + phrase.length));
     return;
   }
-  let i = b; while (i < doc.length && isHorizSpace(doc[i])) i++; const gap = doc.slice(b, i);
-  const tStart = i; while (i < doc.length && isTokenChar(doc[i])) i++; let tEnd = i;
+  let i = b; while (i < hi && isHorizSpace(doc[i])) i++; const gap = doc.slice(b, i);
+  const tStart = i; while (i < hi && isTokenChar(doc[i])) i++; let tEnd = i;
   if (tStart === tEnd) return;
   tEnd = tStart + edgeStep(doc.slice(tStart, tEnd), "right");
   const token = doc.slice(tStart, tEnd);
-  if (bounds && tEnd > bounds.hi) return;
-  let p = a; while (p > 0 && isHorizSpace(doc[p - 1])) p--;
+  if (tEnd > hi) return;
+  let p = a; while (p > lo && isHorizSpace(doc[p - 1])) p--;
   const before = doc.slice(p, a);
-  const swap = edgeSwapsGaps(token, phrase);
-  const lead = swap ? gap : before;
-  const mid = swap ? before : gap;
-  const newDoc = doc.slice(0, p) + lead + token + mid + phrase + doc.slice(tEnd);
+  let q = tEnd; while (q < hi && isHorizSpace(doc[q])) q++;
+  const after = doc.slice(tEnd, q);
+  const slots = planGaps(before, gap, after, token, phrase);
+  const newDoc = doc.slice(0, p) + slots[0] + token + slots[1] + phrase + slots[2] + doc.slice(q);
   if (newDoc !== doc) editor.setValue(newDoc);
-  const newA = p + lead.length + token.length + mid.length;
+  const newA = p + slots[0].length + token.length + slots[1].length;
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + phrase.length));
 }
 function getIndent(line) { const m = line.match(/^(\s*)/); return m ? m[1].length : 0; }

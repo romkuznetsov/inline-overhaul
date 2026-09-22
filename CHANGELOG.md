@@ -31,6 +31,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 8. 🐛 **`Restore default` on a color no longer gives you black.** The plugin read your theme's colour as text, and `hsl(0, calc(0% - 20%), …)` is not something it could parse — so it declared no default and the picker fell to `#000000`. It asks the browser for the computed colour now: on `Minimal` that was eleven fields of twelve.
 9. 🐛 **Moving a word past a bracket steps onto the bracket, not over it.** The closing bracket used to travel with the neighbouring word. A step now takes a bracket or a sentence mark on its own, and the space between the two moves with it: `(слово1 слово3) слово2`. Nothing is added or removed — two gaps trade places.
 10. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
+11. 🐛 **Moving text stops where your line's markup begins.** A bullet, a checkbox or a list number is not a word to trade places with: text stuck to it and, one press on, tore it in half. An opening bracket keeps its side too, so a word leaving one reads `- слово3 (слово1 слово2)`.
 
 ## 0.6.0
 
