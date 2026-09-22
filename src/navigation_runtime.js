@@ -824,28 +824,118 @@ function isTokenChar(ch) {
   return !isHorizSpace(ch);
 }
 
+/*
+ * Знаки, которые не едут вместе со словом.
+ *
+ * Его пункт 7, 2026-09-22: «если в предложении `(слово1 слово2 слово3)`
+ * выделить `слово2` и move right, то получается `(слово1 слово3) слово2`, а я
+ * бы хотел, чтобы перенос был до символа». Причина была ровно в мере соседа:
+ * соседом считалось всё до пробела, и закрывающая скобка уезжала со словом.
+ *
+ * **Список закрытый и короткий нарочно.** В нём только скобки, кавычки и
+ * знаки конца предложения. Ни `#`, ни `/`, ни `-`, ни `|` в него не входят:
+ * они стоят внутри того, что пишет плагин, — `#todo`, `#/1`, `📅2026-09-02`,
+ * разделитель `::` из его настроек, — и разбить их значило бы починить одно и
+ * сломать принятое (У-218).
+ */
+const EDGE_MARKS = "()[]{}\u00ab\u00bb\u201c\u201d\u201e" + String.fromCharCode(34) + "'" + ",.;:!?\u2026";
+function isEdgeMark(ch) { return ch != null && EDGE_MARKS.indexOf(ch) >= 0; }
+function allEdgeMarks(str) {
+  if (!str) return false;
+  for (let i = 0; i < str.length; i++) if (!isEdgeMark(str[i])) return false;
+  return true;
+}
+
+/** Парный знак: `(` закрывается `)`, кавычка сама собой. */
+const EDGE_PAIRS = { "(": ")", "[": "]", "{": "}", "\u00ab": "\u00bb", "\u201c": "\u201d", "\u201e": "\u201c" };
+function edgeMirrors(head, tail) {
+  if (!head || head.length !== tail.length) return false;
+  for (let i = 0; i < head.length; i++) {
+    const open = head[i];
+    const want = Object.prototype.hasOwnProperty.call(EDGE_PAIRS, open) ? EDGE_PAIRS[open] : open;
+    if (tail[tail.length - 1 - i] !== want) return false;
+  }
+  return true;
+}
+
+/**
+ * Сколько знаков соседа берёт один шаг.
+ *
+ * Сосед — по-прежнему всё до пробела, и это **не** разбор языка: от него
+ * отделяется только край из знаков выше, и только тот край, который к
+ * выделенному ближе. `[[test1]]` при этом остаётся целым — его края парные, —
+ * и целым остаётся `(слово)`: человек написал скобки вокруг слова, а не рядом
+ * с ним.
+ */
+function edgeStep(token, direction) {
+  const src = String(token || "");
+  if (!src || allEdgeMarks(src)) return src.length;
+  let h = 0; while (h < src.length && isEdgeMark(src[h])) h++;
+  let t = src.length; while (t > h && isEdgeMark(src[t - 1])) t--;
+  const head = src.slice(0, h);
+  const tail = src.slice(t);
+  if (!head && !tail) return src.length;
+  if (edgeMirrors(head, tail)) return src.length;
+  if (direction === "right") return head ? head.length : t;
+  return tail ? tail.length : src.length - h;
+}
+
+/**
+ * Пробел, стоящий перед парой, и пробел между её половинами меняются местами
+ * вместе с самими половинами — но только когда одна из половин целиком из
+ * знаков выше.
+ *
+ * Его слова: «я хочу испытывать комфорт от этой команды, чтобы мне не
+ * приходилось руками корректировать текст». Оба его примера — про это:
+ * `(слово1 слово3 слово2)` + шаг вправо обязано дать `(слово1 слово3) слово2`,
+ * а `)` шагом влево — `(слово1 слово2) слово3`.
+ *
+ * **Чего правило не делает.** Оно не добавляет пробелов и не убирает их: два
+ * промежутка **меняются местами**, и если они одинаковы — а так в обычном
+ * тексте и бывает, — не меняется ничего. Слова со словами меняются как
+ * менялись: правило спрашивает про знак, а не про перенос вообще.
+ */
+function edgeSwapsGaps(one, two) {
+  return allEdgeMarks(one) || allEdgeMarks(two);
+}
+
 function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   while (a < b && isHorizSpace(doc[a])) a++;
   while (b > a && isHorizSpace(doc[b - 1])) b--;
   const phrase = doc.slice(a, b); if (!phrase) return;
   if (direction === "left") {
     let i = a; while (i > 0 && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
-    const tEnd = i; while (i > 0 && isTokenChar(doc[i - 1])) i--; const tStart = i;
-    if (tStart === tEnd) return; const token = doc.slice(tStart, tEnd);
+    const tEnd = i; while (i > 0 && isTokenChar(doc[i - 1])) i--; let tStart = i;
+    if (tStart === tEnd) return;
+    tStart = tEnd - edgeStep(doc.slice(tStart, tEnd), "left");
+    const token = doc.slice(tStart, tEnd);
     /* Соседний токен лежит за разделителем — меняться с ним нечем. */
     if (bounds && tStart < bounds.lo) return;
-    const newDoc = doc.slice(0, tStart) + phrase + gap + token + doc.slice(b);
+    let p = tStart; while (p > 0 && isHorizSpace(doc[p - 1])) p--;
+    const before = doc.slice(p, tStart);
+    const swap = edgeSwapsGaps(token, phrase);
+    const lead = swap ? gap : before;
+    const mid = swap ? before : gap;
+    const newDoc = doc.slice(0, p) + lead + phrase + mid + token + doc.slice(b);
     if (newDoc !== doc) editor.setValue(newDoc);
-    editor.setSelection(editor.offsetToPos(tStart), editor.offsetToPos(tStart + phrase.length));
+    const at = p + lead.length;
+    editor.setSelection(editor.offsetToPos(at), editor.offsetToPos(at + phrase.length));
     return;
   }
   let i = b; while (i < doc.length && isHorizSpace(doc[i])) i++; const gap = doc.slice(b, i);
-  const tStart = i; while (i < doc.length && isTokenChar(doc[i])) i++; const tEnd = i;
-  if (tStart === tEnd) return; const token = doc.slice(tStart, tEnd);
+  const tStart = i; while (i < doc.length && isTokenChar(doc[i])) i++; let tEnd = i;
+  if (tStart === tEnd) return;
+  tEnd = tStart + edgeStep(doc.slice(tStart, tEnd), "right");
+  const token = doc.slice(tStart, tEnd);
   if (bounds && tEnd > bounds.hi) return;
-  const newDoc = doc.slice(0, a) + token + gap + phrase + doc.slice(tEnd);
+  let p = a; while (p > 0 && isHorizSpace(doc[p - 1])) p--;
+  const before = doc.slice(p, a);
+  const swap = edgeSwapsGaps(token, phrase);
+  const lead = swap ? gap : before;
+  const mid = swap ? before : gap;
+  const newDoc = doc.slice(0, p) + lead + token + mid + phrase + doc.slice(tEnd);
   if (newDoc !== doc) editor.setValue(newDoc);
-  const newA = a + token.length + gap.length;
+  const newA = p + lead.length + token.length + mid.length;
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + phrase.length));
 }
 function getIndent(line) { const m = line.match(/^(\s*)/); return m ? m[1].length : 0; }

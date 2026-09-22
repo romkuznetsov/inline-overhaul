@@ -29,7 +29,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 6. 🎨 **A command list no longer repeats its own heading.** Under `Command reference` and in the `Commands` section of a Field the area stood in front of every row — `Navigation: Move left` under a heading that already said `Navigation`. The column shows `Move left` now; the command itself keeps its full name, and pressing a key cell still opens Obsidian's `Hotkeys` screen at it.
 7. ✨ **A setting nothing works without is outlined in red until you fill it.** `Emoji-prefix` of an `Emoji` Field is one: leave it empty and the picker refuses to open at all, with `these fields need an Emoji`. The outline goes the moment you type. The same goes for the text a Binder row inserts.
 8. 🐛 **`Restore default` on a color no longer gives you black.** The plugin read your theme's colour as text, and `hsl(0, calc(0% - 20%), …)` is not something it could parse — so it declared no default and the picker fell to `#000000`. It asks the browser for the computed colour now: on `Minimal` that was eleven fields of twelve.
-9. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
+9. 🐛 **Moving a word past a bracket steps onto the bracket, not over it.** The closing bracket used to travel with the neighbouring word. A step now takes a bracket or a sentence mark on its own, and the space between the two moves with it: `(слово1 слово3) слово2`. Nothing is added or removed — two gaps trade places.
+10. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
 
 ## 0.6.0
 
