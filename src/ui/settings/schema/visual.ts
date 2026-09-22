@@ -130,9 +130,9 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       tip:"The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
       allowReset:true },
     { kind:"color", id:"hyperlink-target-color", path:"visual.tags.hyperlink.targetColor", default:"",
-      name:"Hyperlink target color", desc:"What you read in a hyperlink: the text of <code>[a link](…)</code>, or a bare address whole",
+      name:"Hyperlink target color", desc:"The text you read in a markdown link — what stands between the square brackets",
       searchTerms:["Hyperlink color", "External link color", "URL color"],
-      tip:"A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
+      tip:"A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own. This paints the text of the first kind — what stands between the square brackets. <b>Addresses are the row below:</b> both the one inside the round brackets and one written on its own take <code>Hyperlink address color</code>. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
       allowReset:true },
     { kind:"color", id:"hyperlink-brackets-color", path:"visual.tags.hyperlink.bracketsColor", default:"",
       name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the round ones, without the address",
@@ -140,9 +140,9 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       tip:"The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
       allowReset:true },
     { kind:"color", id:"hyperlink-address-color", path:"visual.tags.hyperlink.addressColor", default:"",
-      name:"Hyperlink address color", desc:"The address itself, between the round brackets of a markdown link",
+      name:"Hyperlink address color", desc:"The address itself — inside the round brackets, or written on its own",
       searchTerms:["Address color", "URL color", "Link href color"],
-      tip:"The address inside <code>[a link](an address)</code>, painted apart from the brackets around it and from the text you read. <b>An address written on its own is not this one:</b> there it is what you read, and <code>Hyperlink target color</code> paints it. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on. Empty means the color your theme gives it",
+      tip:"Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you will see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it",
       allowReset:true },
     { kind:"custom", id:"link-preview", render: linkPreview }
   ]

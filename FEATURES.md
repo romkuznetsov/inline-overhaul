@@ -94,7 +94,7 @@ Drawing only: the file on disk is untouched.
   corners for tags, and a coloured Stripe behind one Block or both.
 - **Link view** — the page preview on hover and dragging, for a Value shown as your own
   text; and colours for links: two for a wikilink (the name and the brackets) and three for
-  a hyperlink (the text, the brackets and the address).
+  a hyperlink (the text of a markdown link, its brackets, and every address).
 - **Color your Tags** — a colour per tag for tags no Field owns.
 - **Tag Bars** — a Bar in the margin drawn from the Values of one tag Field, down a line
   and everything nested under it.

@@ -964,13 +964,24 @@ function scanHyperlinksInLine(text) {
     while (end > m.index && LINK_TAIL_MARKS.indexOf(src[end - 1]) >= 0) end--;
     if (end <= m.index) continue;
     if (!free(m.index, end)) continue;
+    /*
+     * **Голый адрес — адрес, а не подпись** (его слово 2026-09-22, вечер: «я
+     * передумал, теперь я хочу, чтобы `[подпись](адрес)` (часть адреса) и
+     * просто ссылка в тексте управлялись одним контролом
+     * `hyperlink-address-color`»).
+     *
+     * До этого он отвечал обратное (`В-191`), и решение поменял он сам, а не я
+     * перечитал: подписи у голого адреса нет вовсе, и `labelFrom` равен
+     * `labelTo` — красить цветом подписи нечего.
+     */
     out.push({
       kind: "bare",
       start: m.index,
       end,
       labelFrom: m.index,
-      labelTo: end,
+      labelTo: m.index,
       marks: [],
+      address: { from: m.index, to: end },
     });
     claimed.push({ start: m.index, end });
   }

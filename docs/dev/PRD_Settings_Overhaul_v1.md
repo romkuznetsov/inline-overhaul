@@ -2371,6 +2371,19 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 **Что отменено.** Утверждение «слово в своих скобках — одно целое: края парные». Оно было моим, он попросил обратного, и на его месте стоит новое с ссылкой на его слова (правило 170: у отменённого правила надо пройти по его сторожам).
 
 
+#### 10.13.249 Голый адрес — адрес, а не подпись (2026-09-22, вечер)
+
+**Его слова:** «я передумал, теперь я хочу, чтобы `[подпись](https://example.com/a)` (часть `https://example.com/a`) и просто ссылка в тексте `https://example.com/a` управлялись одним контролом hyperlink-address-color».
+
+**Это отмена его же ответа `В-191`, данного тем же днём, и отменил его он сам.** Правило 154 требует спросить, когда новое слово переворачивает прежнее без объяснения; здесь объяснение есть в самой фразе — «я передумал», — и спрашивать нечего.
+
+**Что изменилось.** У голого адреса больше нет подписи: `labelFrom` равен `labelTo`, а весь отрезок — кусок `address`. Цвет подписи до него не доходит ни на знак, цвет адреса красит его целиком. У разметки всё как было: подпись — текст между квадратными скобками, знаки — свои, адрес — свой.
+
+**Подписи контролов переписаны обе:** `Hyperlink target color` теперь про текст разметки и только про него, `Hyperlink address color` — про оба рода адреса. Прежние подсказки обещали обратное, и оставить их значило бы соврать на экране.
+
+**Чем закреплено.** В наборе — «подпись голого адреса пуста» и «весь он кусок адреса», плюс прежнее утверждение про точку в конце предложения, переведённое на новый кусок. В браузерном шаге — голый адрес в двух положениях каретки, с утверждением «не взял цвет подписи»; подмена `bare-link-takes-target` возвращает прежний код и роняет его.
+
+
 #### 10.13.248 У адреса ссылки свой цвет (2026-09-22)
 
 **Его слова:** «мне не нравится что в `[hyper](link)` цвет `link` управляется hyperlink-brackets-color — сделай отдельный контрол на него».
@@ -18914,16 +18927,16 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
   - старые названия для поиска: «Bracket color», «Wikilink brackets»
 - **Hyperlink target color** — `hyperlink-target-color`, `color`, path `visual.tags.hyperlink.targetColor`, default `""`
-  - desc: What you read in a hyperlink: the text of <code>[a link](…)</code>, or a bare address whole
-  - tip: A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
+  - desc: The text you read in a markdown link — what stands between the square brackets
+  - tip: A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own. This paints the text of the first kind — what stands between the square brackets. <b>Addresses are the row below:</b> both the one inside the round brackets and one written on its own take <code>Hyperlink address color</code>. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
   - старые названия для поиска: «Hyperlink color», «External link color», «URL color»
 - **Hyperlink brackets color** — `hyperlink-brackets-color`, `color`, path `visual.tags.hyperlink.bracketsColor`, default `""`
   - desc: The markup around it: the square brackets and the round ones, without the address
   - tip: The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
   - старые названия для поиска: «Hyperlink brackets», «URL markup color», «Address color»
 - **Hyperlink address color** — `hyperlink-address-color`, `color`, path `visual.tags.hyperlink.addressColor`, default `""`
-  - desc: The address itself, between the round brackets of a markdown link
-  - tip: The address inside <code>[a link](an address)</code>, painted apart from the brackets around it and from the text you read. <b>An address written on its own is not this one:</b> there it is what you read, and <code>Hyperlink target color</code> paints it. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on. Empty means the color your theme gives it
+  - desc: The address itself — inside the round brackets, or written on its own
+  - tip: Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you will see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it
   - старые названия для поиска: «Address color», «URL color», «Link href color»
 - **`link-preview`** — свой блок, рендерер `renderLinkPreview`
 

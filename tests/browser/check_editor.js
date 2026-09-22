@@ -1534,9 +1534,15 @@ async function main() {
      * строке, которой плагин не распоряжается вовсе — «в любой заметке» это
      * про неё.
      */
+    /*
+     * Голый адрес из этого цикла ушёл 2026-09-22, вечером: его слово «просто
+     * ссылка в тексте должна управляться одним контролом
+     * `hyperlink-address-color`». Подписи у него больше нет вовсе, и
+     * спрашивать у него цвет подписи значило бы спрашивать про пустоту
+     * (У-113). Его цвет проверяется ниже, вместе с адресом разметки.
+     */
     for (const probe of [
       { needle: "[hyper](", where: "разметка `[hyper](…)`" },
-      { needle: "www.example.com", where: "голый адрес" },
     ]) {
       for (const inside of [false, true]) {
         const seen = await page.evaluate((a) => window.__ioExtLinkColors(a.needle, a.inside),
@@ -1590,7 +1596,9 @@ async function main() {
      * Утверждений два, и второе — про то, что он не взял цвет соседа: на
      * одном цвете «отдельный контрол» выполнялось бы совпадением (У-147).
      */
-    const mdAddr = await page.evaluate(() => window.__ioExtLinkAddressColor("[hyper](", true));
+    const mdAddr = await page.evaluate((a) =>
+      window.__ioExtLinkAddressColor(a.needle, true, a.address),
+    { needle: "[hyper](", address: "https://" });
     if (!mdAddr.found) {
       bad("адреса гиперссылки на странице нет — цвет проверять не на чем");
     } else {
@@ -1600,6 +1608,29 @@ async function main() {
       }
       if (mdAddr.address === RGB_EXT_BRACKETS) {
         bad("адрес взял цвет скобок: " + mdAddr.address + " — контрол снова общий");
+      }
+    }
+    /*
+     * **И голый адрес — тем же контролом** (его слово 2026-09-22, вечер).
+     * Утверждений два: свой цвет и **не** цвет подписи. Второе важнее: до
+     * его слова голый адрес красила именно подпись, и на совпавших цветах
+     * переворот правила прошёл бы незамеченным (У-147).
+     */
+    for (const inside of [false, true]) {
+      const bareAddr = await page.evaluate((a) =>
+        window.__ioExtLinkAddressColor(a.needle, a.inside, a.address),
+      { needle: "www.example.com", inside, address: "www.example.com" });
+      const at = "голый адрес" + (inside ? ", каретка на строке" : ", каретка вне строки");
+      if (!bareAddr.found) {
+        bad("голого адреса на странице нет (" + at + ") — цвет проверять не на чем");
+        continue;
+      }
+      if (bareAddr.address !== RGB_EXT_ADDRESS) {
+        bad("голый адрес нарисован не цветом адреса (" + at + "): " + bareAddr.address
+          + ", а ждали " + RGB_EXT_ADDRESS + "; на буквах «" + bareAddr.addressText + "»");
+      }
+      if (bareAddr.address === RGB_EXT_TARGET) {
+        bad("голый адрес взял цвет подписи (" + at + ") — он снова на прежнем контроле");
       }
     }
     if (mdInside.found && mdInside.marks === mdInside.target) {

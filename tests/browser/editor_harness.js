@@ -309,6 +309,16 @@ const EDITOR_INJECTIONS = {
    * управляется hyperlink-brackets-color». Порог проверяется возвратом
    * прежнего кода, а не рассуждением (У-223).
    */
+  /*
+   * Голый адрес обратно красится цветом подписи — состояние до его слова
+   * 2026-09-22, вечер («я передумал»). Без этой подмены утверждение о голом
+   * адресе было бы зелёным и у прежнего кода.
+   */
+  "bare-link-takes-target": {
+    file: "src/core/editor_visuals_config.js",
+    find: "      labelTo: m.index,\n      marks: [],\n      address: { from: m.index, to: end },",
+    replace: "      labelTo: end,\n      marks: [],\n      address: { from: end, to: end },",
+  },
   "ext-link-address-shares-brackets": {
     file: "src/core/editor_visuals_config.js",
     find: "    hyperlinkAddressColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.hyperlink.addressColor\")),",

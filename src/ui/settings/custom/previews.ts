@@ -972,10 +972,11 @@ export const linkPreview: CustomRender = (host, ctx) => {
     linkPreviewVars(mdBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
     linkPreviewVars(mdAddr, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.addressColor");
 
+    /* Голый адрес — адрес, а не подпись (его слово 2026-09-22, вечер). */
     const bare = el(holder, "div");
     const bareBox = el(bare, "span", "io-link");
-    el(bareBox, "span", "io-link__target", askText(ctx, previewKey("link-preview", "bare"), text ? text.bare || "" : ""));
-    linkPreviewVars(bareBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+    el(bareBox, "span", "io-link__mark", askText(ctx, previewKey("link-preview", "bare"), text ? text.bare || "" : ""));
+    linkPreviewVars(bareBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.addressColor");
   };
 
   draw();

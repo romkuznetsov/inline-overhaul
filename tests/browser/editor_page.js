@@ -627,11 +627,15 @@ window.__ioExtLinkColors = async function (needle, caretInside) {
  *
  * Отдельная проба, а не поле соседней: у `__ioExtLinkColors` предмет — первый
  * непустой кусок разметки, то есть `[`, и спрашивать у неё про адрес значило
- * бы сменить её предмет. Адрес узнаётся по тому, что в нём написано —
- * `://` есть в нём и нет ни в одном знаке разметки, — а не по месту в списке:
- * порядок кусков меняется (У-5).
+ * бы сменить её предмет.
+ *
+ * **Какой кусок адрес, говорит зовущий**, а не признак внутри пробы. Первая
+ * версия узнавала адрес по `://` — написанному в той единственной ссылке, на
+ * которой её писали, — и на `www.example.com` ослепла молча (У-201). Теперь
+ * текст адреса приходит доводом, и не найденный кусок — громкий отказ, а не
+ * ноль.
  */
-window.__ioExtLinkAddressColor = async function (needle, caretInside) {
+window.__ioExtLinkAddressColor = async function (needle, caretInside, addressText) {
   let lineNo = 0;
   for (let n = 1; n <= view.state.doc.lines; n++) {
     if (view.state.doc.line(n).text.includes(needle)) { lineNo = n; break; }
@@ -644,8 +648,11 @@ window.__ioExtLinkAddressColor = async function (needle, caretInside) {
   await settled();
   const host = document.querySelectorAll(".cm-line")[lineNo - 1];
   if (!host) return { found: false };
-  let node = Array.from(host.querySelectorAll(".io-linkwritten__mark"))
-    .find((n) => (n.textContent || "").includes("://"));
+  const wanted = String(addressText || "");
+  let node = wanted
+    ? Array.from(host.querySelectorAll(".io-linkwritten__mark"))
+      .find((n) => (n.textContent || "").includes(wanted))
+    : null;
   if (!node) return { found: false };
   for (;;) {
     const inner = Array.from(node.children)
