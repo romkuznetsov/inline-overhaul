@@ -822,6 +822,120 @@ function writtenLinkParts(token, from, to) {
   };
 }
 
+/*
+ * Гиперссылки в любой заметке — его заказ `В-181`, 2026-09-22.
+ *
+ * Его слова: «должны краситься гиперссылки в любой заметке (по аналогии как
+ * сейчас реализовано с wikilink)… пусть гиперссылки будут не только формата
+ * `[hyper](link)`, но и просто ссылки (кроме wikilink). Если я просто вставлю
+ * в строку `www.example.com`, то цвет ссылки будет как у контрола на цвет
+ * текста ссылки».
+ *
+ * **Этот разбор ничего не решает о Block.** Он живёт рядом со
+ * `scanLineVisualTokens`, но в него не входит: там решается, что считается
+ * значением Block — кегль, прозрачность, полоса, — и вписать туда ссылку
+ * значило бы поменять ответ на вопрос, которого он не задавал. Здесь только
+ * два цвета и ни одного следствия.
+ *
+ * **Что считается ссылкой.** Разметка `[подпись](адрес)` и голый адрес: схема
+ * с двумя косыми (`https://…`), `mailto:` и начало с `www.`. Wikilink сюда не
+ * входит нарочно — его красит прежняя дорога, по значению Field.
+ */
+const BARE_LINK_RE = /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|mailto:|www\.)[^\s<>"'`]+/g;
+const MD_LINK_RE = /(!?)\[([^\][\n]*)\]\(([^()\s]*(?:\([^()\s]*\)[^()\s]*)*)\)/g;
+/*
+ * Знаки, которые в конце голого адреса принадлежат предложению, а не ссылке.
+ * Список закрытый: `/`, `#` и `=` в конце адреса законны и остаются.
+ */
+const LINK_TAIL_MARKS = ".,;:!?" + String.fromCharCode(34) + "')]}»";
+
+/** Отрезки, закрытые обратными кавычками: внутри кода ссылок не бывает. */
+function inlineCodeSpans(src) {
+  const out = [];
+  const re = /`+/g;
+  let open = null;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    if (!open) { open = { at: m.index, len: m[0].length }; continue; }
+    if (m[0].length !== open.len) continue;
+    out.push({ start: open.at, end: m.index + m[0].length });
+    open = null;
+  }
+  return out;
+}
+
+function insideAny(spans, at) {
+  for (const s of spans) if (at >= s.start && at < s.end) return true;
+  return false;
+}
+
+/**
+ * Ссылки строки: у каждой — отрезок подписи (его красит цвет текста ссылки) и
+ * отрезки самой разметки (их красит цвет скобок).
+ *
+ * Голый адрес подписью считается целиком: читаемого и служебного в нём не
+ * разделить, и человек видит его именно так.
+ */
+function scanHyperlinksInLine(text) {
+  const src = String(text || "");
+  const code = inlineCodeSpans(src);
+  const out = [];
+  const claimed = [];
+  const free = (start, end) => {
+    if (insideAny(code, start)) return false;
+    for (const c of claimed) if (start < c.end && end > c.start) return false;
+    return true;
+  };
+  /* Wikilink — чужая дорога: его отрезки закрываются до всякого разбора. */
+  const wiki = /\[\[[^\][\n]*\]\]/g;
+  let w;
+  while ((w = wiki.exec(src)) !== null) claimed.push({ start: w.index, end: w.index + w[0].length });
+
+  let m;
+  MD_LINK_RE.lastIndex = 0;
+  while ((m = MD_LINK_RE.exec(src)) !== null) {
+    const start = m.index;
+    const end = start + m[0].length;
+    if (!free(start, end)) continue;
+    /* `![…](…)` — вставка картинки, а не ссылка: читать там нечего. */
+    if (m[1]) { claimed.push({ start, end }); continue; }
+    const labelFrom = start + 1 + m[1].length;
+    const labelTo = labelFrom + String(m[2] || "").length;
+    out.push({
+      kind: "md",
+      start,
+      end,
+      labelFrom,
+      labelTo,
+      marks: [
+        { from: start, to: labelFrom },
+        { from: labelTo, to: end },
+      ],
+    });
+    claimed.push({ start, end });
+  }
+
+  BARE_LINK_RE.lastIndex = 0;
+  while ((m = BARE_LINK_RE.exec(src)) !== null) {
+    let end = m.index + m[0].length;
+    while (end > m.index && LINK_TAIL_MARKS.indexOf(src[end - 1]) >= 0) end--;
+    if (end <= m.index) continue;
+    if (!free(m.index, end)) continue;
+    out.push({
+      kind: "bare",
+      start: m.index,
+      end,
+      labelFrom: m.index,
+      labelTo: end,
+      marks: [],
+    });
+    claimed.push({ start: m.index, end });
+  }
+
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
 /** Нужен ли этому куску класс «значение в Block». Ответ один на все дороги. */
 function blockValueClassFor(entry, visuals) {
   return tagVisualSizingForZone(String(entry && entry.zone || ""), visuals).inBlock
@@ -2297,6 +2411,7 @@ module.exports = {
   LINK_TARGET_CLASS,
   LINK_BRACKETS_CLASS,
   writtenLinkParts,
+  scanHyperlinksInLine,
   lineBelongsToPlugin,
   formatTagwheelDisplayToken,
   TAGWHEEL_FILL_STYLE_CSS,

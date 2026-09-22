@@ -254,6 +254,22 @@ const LINES = [
    *     предмета (У-113).
    */
   "- [ ] #todo " + SEP + " own text " + SEP + " [[shown1]]",
+  /*
+   * 15-16. **Гиперссылки** — его заказ `В-181`, 2026-09-22: «должны краситься
+   *     гиперссылки в любой заметке… не только формата `[hyper](link)`, но и
+   *     просто ссылки». Две строки, потому что два предмета: разметка внутри
+   *     строки плагина и голый адрес в строке, которой плагин не
+   *     распоряжается вовсе — «в любой заметке» это про неё.
+   */
+  "- [ ] #todo " + SEP + " see [hyper](https://example.com/a) here " + SEP + " #processed",
+  "a plain line of yours with www.example.com in it",
+  /*
+   * 17. **Контроль к ним же.** Вставка картинки ссылкой не считается: читать в
+   *     ней нечего, и наш цвет туда не идёт. Строка нужна затем, чтобы на
+   *     странице остался узел ссылки, которого мы **не** трогаем, — иначе
+   *     «красим ссылки» выполнялось бы и правилом «красим всё подряд» (У-113).
+   */
+  "an image ![pic](https://img.example/a.png) stays the platform's",
 ];
 
 /*
@@ -279,6 +295,53 @@ const headingStandIn = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = buildHeadingLines(view); }
   update(u) { this.decorations = buildHeadingLines(u.view); }
 }, { decorations: (v) => v.decorations });
+
+/*
+ * ПОДДЕЛКА OBSIDIAN, И ОНА НАЗВАНА (У-1). Гиперссылку в Live Preview рисует
+ * Obsidian, а его тут нет. **Форма списана у оригинала** (У-170): в `app.css`
+ * 1.13.7 подпись разметки несёт `span.cm-link`, адрес — `span.cm-url`, внутри
+ * подписи стоит `.cm-underline`, и метки разметки платформа прячет, пока
+ * выделение не перекрывает узел (У-256) — тем же правилом, что у wikilink.
+ *
+ * Без этой подделки «наш цвет доехал» проверялось бы отсутствием предмета:
+ * выигрывать было бы не у кого (У-88).
+ */
+const extLinkStandIn = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = buildExtLinkMarks(view); }
+  update(u) { this.decorations = buildExtLinkMarks(u.view); }
+}, { decorations: (v) => v.decorations });
+
+function buildExtLinkMarks(view) {
+  const out = [];
+  const touched = (from, to) => view.state.selection.ranges.some((r) => r.from <= to && r.to >= from);
+  for (let n = 1; n <= view.state.doc.lines; n++) {
+    const line = view.state.doc.line(n);
+    const md = /\[([^\][\n]*)\]\(([^()\s]*)\)/g;
+    let m;
+    while ((m = md.exec(line.text)) !== null) {
+      const start = line.from + m.index;
+      const end = start + m[0].length;
+      const labelFrom = start + 1;
+      const labelTo = labelFrom + m[1].length;
+      if (labelTo <= labelFrom) continue;
+      const hide = !touched(start, end);
+      if (hide) out.push(Decoration.replace({}).range(start, labelFrom));
+      out.push(Decoration.mark({ class: "cm-link" }).range(labelFrom, labelTo));
+      out.push(Decoration.mark({ class: "cm-underline" }).range(labelFrom, labelTo));
+      if (hide) out.push(Decoration.replace({}).range(labelTo, end));
+      else out.push(Decoration.mark({ class: "cm-url" }).range(labelTo, end));
+    }
+    const bare = /(?:https?:\/\/|www\.)[^\s]+/g;
+    while ((m = bare.exec(line.text)) !== null) {
+      const from = line.from + m.index;
+      const to = from + m[0].length;
+      out.push(Decoration.mark({ class: "cm-url" }).range(from, to));
+      out.push(Decoration.mark({ class: "cm-underline" }).range(from, to));
+    }
+  }
+  out.sort((a, b) => a.from - b.from || a.to - b.to);
+  return Decoration.set(out, true);
+}
 
 function buildHeadingLines(view) {
   const out = [];
@@ -341,6 +404,7 @@ const view = new EditorView({
       EditorView.lineWrapping,
       decorations.createTagVisualDecorationExtension(plugin),
       linkStandIn,
+      extLinkStandIn,
       headingStandIn,
       /* Кнопка `→` — наш же виджет, и здесь он настоящий. */
       decorations.createSourceMarkDecorationExtension(plugin),
@@ -486,6 +550,69 @@ window.__ioLinkColors = async function (needle, caretInside) {
     target: pick(".io-linkwritten__target"),
     brackets: pick(".io-linkwritten__mark"),
     shown: deepest(),
+  };
+};
+
+/**
+ * Цвет гиперссылки на экране — его заказ `В-181`.
+ *
+ * Спрашивается **самый глубокий узел с теми же буквами**, а не тот, чей класс
+ * удобнее: у подписи ссылки узлов трое — наш, `cm-link` и `cm-underline`
+ * внутри него, — и решает тот, что лежит внутри (У-67, У-173). Второе число —
+ * цвет узла платформы на той же строке **вне** нашей пометки: без него
+ * «наш цвет виден» выполнялось бы и правилом, которое красит всё подряд.
+ */
+window.__ioExtLinkColors = async function (needle, caretInside) {
+  let lineNo = 0;
+  for (let n = 1; n <= view.state.doc.lines; n++) {
+    if (view.state.doc.line(n).text.includes(needle)) { lineNo = n; break; }
+  }
+  if (!lineNo) return { found: false };
+  const line = view.state.doc.line(lineNo);
+  const at = line.from + line.text.indexOf(needle);
+  const head = caretInside ? at + 1 : line.from;
+  view.dispatch({ selection: { anchor: head, head } });
+  await settled();
+  /*
+   * Строка берётся по номеру, а не по тексту: у разметки ссылки платформа
+   * прячет и скобку, и адрес, пока каретка не на ней, — искать по написанному
+   * значило бы не найти ровно то состояние, ради которого проверка заведена.
+   */
+  const host = document.querySelectorAll(".cm-line")[lineNo - 1];
+  if (!host) return { found: false };
+  const deepestIn = (sel) => {
+    let node = Array.from(host.querySelectorAll(sel))
+      .find((n) => (n.textContent || "").length > 0);
+    if (!node) return null;
+    for (;;) {
+      const inner = Array.from(node.children)
+        .find((c) => (c.textContent || "") === (node.textContent || ""));
+      if (!inner) break;
+      node = inner;
+    }
+    return { color: getComputedStyle(node).color, text: node.textContent, tag: node.className };
+  };
+  const ours = deepestIn(".io-linkwritten__target");
+  const marks = deepestIn(".io-linkwritten__mark");
+  /*
+   * Контроль — узел платформы, **которого наша пометка не касается вовсе**:
+   * ни внутри неё, ни снаружи вокруг неё. Первая версия брала предка нашей
+   * пометки и отвечала цветом платформы на том же отрезке — то есть числом,
+   * к вопросу отношения не имеющим (У-173).
+   */
+  const platform = Array.from(document.querySelectorAll(".cm-link, .cm-url"))
+    .filter((n) => !n.querySelector(".io-linkwritten__target, .io-linkwritten__mark"))
+    .filter((n) => !n.closest(".io-linkwritten__target") && !n.closest(".io-linkwritten__mark"))
+    .map((n) => getComputedStyle(n).color);
+  return {
+    found: true,
+    text: host.textContent,
+    target: ours ? ours.color : null,
+    targetText: ours ? ours.text : null,
+    marks: marks ? marks.color : null,
+    marksText: marks ? marks.text : null,
+    outside: platform,
+    html: host.innerHTML.slice(0, 600),
   };
 };
 

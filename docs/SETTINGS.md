@@ -334,8 +334,8 @@ Obsidian, and two colours for a link Value left as it is written.
 |---|---|---|
 | `Preview on hover` | off | Hovering opens the page preview — hold `Ctrl` while hovering |
 | `Drag to move` | off | The Value can be dragged into another note |
-| `Link target color` | unset | The name inside `[[the note name]]` |
-| `Link brackets color` | unset | The `[[` and `]]` around it |
+| `Link target color` | unset | What you read in a link: the name in `[[…]]`, the text of `[a link](…)`, a bare address |
+| `Link brackets color` | unset | The markup around it: `[[` and `]]`, or the brackets and address of `[a link](…)` |
 
 The two colours apply to a link Value left on `Show` = `default`, the one your line carries
 as `[[the note name]]`. Links you typed into a note yourself are not Values of anything and

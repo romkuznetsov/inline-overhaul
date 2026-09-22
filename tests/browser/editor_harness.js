@@ -272,6 +272,28 @@ const EDITOR_INJECTIONS = {
     replace: ".io-linkwritten__target:not(*) { color: var(--io-link-target, inherit); }",
   },
   /*
+   * **Гиперссылка в любой заметке** (его заказ `В-181`) обратно остаётся без
+   * нашего цвета. Ломается правило, а не скорость (правило 144): разбор ничего
+   * не находит, и красить становится нечего.
+   */
+  "ext-link-not-painted": {
+    file: "src/core/editor_visuals_config.js",
+    find: "function scanHyperlinksInLine(text) {",
+    replace: "function scanHyperlinksInLine(text) {\n  if (text !== null) return [];",
+  },
+  /*
+   * И вторая беда того же места: подпись и разметка красятся **одним** цветом.
+   * На экране цвет при этом есть, и различают их только разведённые значения в
+   * настройках страницы (У-147).
+   */
+  "ext-link-one-color": {
+    file: "src/ui/editor/decorations.js",
+    /* Отступ в восемнадцать пробелов принадлежит этому месту и только ему:
+       у ссылки, показанной как написано, та же строка стоит на два левее. */
+    find: "                  attributes: { style: \"--io-link-brackets: \" + visuals.linkBracketsColor + \";\" },",
+    replace: "                  attributes: { style: \"--io-link-brackets: \" + visuals.linkTargetColor + \";\" },",
+  },
+  /*
    * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал
    * пузырьком — этого не должно быть».
    */
@@ -673,6 +695,24 @@ const PAGE_CSS = [
    * `--link-color`, то есть акцент темы.
    */
   ".io-probe-link { color: #705dcf; }",
+  /*
+   * ПОДДЕЛКА OBSIDIAN: как она красит **гиперссылку**. Числа и селекторы
+   * списаны у оригинала, а не выведены из слова «ссылка» (У-170): в `app.css`
+   * 1.13.7 подпись несёт `span.cm-link`, адрес — `span.cm-url`, и у обоих
+   * `color: var(--link-external-color)`; а **внутри** подписи стоит ещё один
+   * узел, `.cm-underline`, со своим правилом в три класса —
+   * `.markdown-source-view.mod-cm6 .cm-link .cm-underline`.
+   *
+   * Три объявления, а не одно, и это и есть предмет: наш цвет обязан выиграть
+   * у каждого. Без самого глубокого узла правило проверялось бы у того, кто и
+   * так уступает наследованию (У-88).
+   */
+  ":root { --link-external-color: #0b6bcb; }",
+  ".markdown-source-view.mod-cm6 .cm-link, .markdown-source-view.mod-cm6 .cm-url"
+    + " { color: var(--link-external-color); }",
+  ".markdown-source-view.mod-cm6 .cm-link .cm-underline,"
+    + " .markdown-source-view.mod-cm6 .cm-url .cm-underline"
+    + " { color: var(--link-external-color); }",
   /*
    * ПОДДЕЛКА OBSIDIAN: строка-заголовок. Подделаны два свойства, и оба
    * обмерены по его скриншотам 2026-09-13: кегль крупнее соседнего текста и

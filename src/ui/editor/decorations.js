@@ -86,6 +86,7 @@ const {
   resolveTagwheelPaintColors,
   lineBelongsToPlugin,
   scanLineVisualTokens,
+  scanHyperlinksInLine,
   buildBlockKindsFromConfig,
   buildWikilinkValueTestFromConfig,
   tagVisualSizingForZone,
@@ -878,6 +879,62 @@ function buildTagVisualLayer(view, plugin) {
               to,
               deco: cmView.Decoration.mark({ attributes: { style: `color: ${sep2Color};` } }),
             });
+          }
+        }
+      }
+
+      /*
+       * **Гиперссылки в любой заметке** — его заказ `В-181`, 2026-09-22:
+       * «должны краситься гиперссылки в любой заметке (по аналогии как сейчас
+       * реализовано с wikilink)… не только формата `[hyper](link)`, но и
+       * просто ссылки (кроме wikilink)».
+       *
+       * Цвета те же два, что у ссылки, показанной как написано: подпись берёт
+       * `Link target color`, сама разметка — `Link brackets color`. У голого
+       * адреса разметки нет вовсе, и он весь подпись.
+       *
+       * **Ни один цвет не задан — не рисуется ничего**, и это единственный
+       * выключатель: пустое поле цвета значит «взять у темы», а тема красит
+       * ссылку сама. Отдельного тумблера он не просил, и заводить его значило
+       * бы решать за него (У-156).
+       *
+       * **Ссылка, на которую претендует наш токен, пропускается целиком.**
+       * `#todo` внутри адреса разбор строки считает тегом и рисует пузырь;
+       * красить под пузырём нечего, а спорить за отрезок — значит городить
+       * второе правило о том, чей это знак.
+       */
+      if (visuals.linkTargetColor || visuals.linkBracketsColor) {
+        for (const link of scanHyperlinksInLine(text)) {
+          if (wheelSpan && link.start >= wheelSpan.start && link.start < wheelSpan.end) continue;
+          const from = line.from + link.start;
+          const to = line.from + link.end;
+          let taken = false;
+          for (const entry of tokenEntries) {
+            if (from < entry.to && to > entry.from) { taken = true; break; }
+          }
+          if (taken) continue;
+          if (visuals.linkTargetColor && link.labelTo > link.labelFrom) {
+            ranges.push({
+              from: line.from + link.labelFrom,
+              to: line.from + link.labelTo,
+              deco: cmView.Decoration.mark({
+                class: LINK_TARGET_CLASS,
+                attributes: { style: "--io-link-target: " + visuals.linkTargetColor + ";" },
+              }),
+            });
+          }
+          if (visuals.linkBracketsColor) {
+            for (const mark of link.marks) {
+              if (mark.to <= mark.from) continue;
+              ranges.push({
+                from: line.from + mark.from,
+                to: line.from + mark.to,
+                deco: cmView.Decoration.mark({
+                  class: LINK_BRACKETS_CLASS,
+                  attributes: { style: "--io-link-brackets: " + visuals.linkBracketsColor + ";" },
+                }),
+              });
+            }
           }
         }
       }

@@ -2343,6 +2343,22 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 перекрывает. Скриншот заказчика 12:15 воспроизводится **старым** деревом и не
 воспроизводится новым (правило 108, правило 173).
 
+#### 10.13.242 Гиперссылки красятся в любой заметке (`В-181`) (2026-09-22)
+
+**Его слова:** «должны краситься гиперссылки в любой заметке (по аналогии как сейчас реализовано с wikilink)… пусть гиперссылки будут не только формата `[hyper](link)`, но и просто ссылки (кроме wikilink). Если я просто вставлю в строку `www.example.com`, то цвет ссылки будет как у контрола на цвет текста ссылки».
+
+**Контролов новых нет, и это ответ на его же слова.** Цвет — тот, который он назвал: `Link target color` красит то, что человек читает (имя между скобками, подпись разметки, голый адрес целиком), `Link brackets color` — саму разметку (скобки и адрес в круглых). Оба пусты по умолчанию, и пустой цвет значит «не вмешиваемся»: пока он не задан, не рисуется ничего. Отдельный тумблер был бы решением за него (У-156).
+
+**Разбор заведён отдельный, и это главное решение правки.** `scanLineVisualTokens` решает, что считается значением Block — кегль, прозрачность, полоса, — и вписать туда ссылку значило бы поменять ответ на вопрос, которого он не задавал. `scanHyperlinksInLine` стоит рядом и не решает ничего, кроме двух цветов.
+
+**Цена измерена, а не названа на глаз** (правило 182). Обход строки на его конфиге — `node tools/line_matrix.js` — до правки и после дал **посимвольно совпавший вывод**; сверка сделана заменой файла разбора на его прежнюю версию в том же дереве, а не рассуждением. Сегодняшнее число обхода — 10 расхождений из 162, и оно не про эту правку: у него в `data.json` появился знак у `Due`, и панель снова открывается (прежние 109 из 135 были ровно об этом).
+
+**Что не считается ссылкой:** wikilink (его красит прежняя дорога, по значению Field), вставка картинки `![…](…)`, адрес внутри обратных кавычек и ссылка, на отрезок которой претендует наш токен — `#todo` внутри адреса разбор считает тегом и рисует пузырь, а спорить за отрезок значило бы городить второе правило о том, чей это знак.
+
+**Кто выигрывает цвет — измерено браузером** (У-67). Правило платформы `.markdown-source-view.mod-cm6 .cm-link .cm-underline` красит буквы подписи своим цветом в три класса; первая версия правки завела против него своё, с повтором класса. Браузерный шаг показал, что перевешивать нечего: наш узел ложится **внутрь** узлов платформы, ровно как у wikilink. Правило снято — правило, которое нельзя уронить подменой, это правило, которого нет (У-241).
+
+**Чем закреплено.** В наборе — разбор на девяти формах, из них пять отрицательных контролей. В браузерном шаге — четыре состояния (разметка и голый адрес × каретка на строке и вне её), у каждого контроль «на странице осталась ссылка платформы, которой мы не касаемся» (вставка картинки). Две подмены: разбор ничего не находит и обе половины красятся одним цветом.
+
 #### 10.13.241 Сводка выпуска считается по его пунктам (2026-09-22)
 
 **Его слова:** «в changelog мне не нравится как сделан коллаут — куча склеенного текста. Нужно сделать более общее overview того, что сделано, и сделать это более читаемым — буллиты, полужирный шрифт у ключевых слов, суммаризировать инфу (исправлено Х багов, сделано У улучшений интерфейса настроек, добавлены следующие возможности (список с буллитами))». Со снимком окна «что изменилось».
@@ -18694,12 +18710,12 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there
   - старые названия для поиска: «Link drag», «Custom link drag»
 - **Link target color** — `link-target-color`, `color`, path `visual.tags.linkAsWritten.targetColor`, default `""`
-  - desc: The name inside a link Value written as <code>[[the note name]]</code>
-  - tip: This paints the name between the brackets, and only for a Value of a link Field left on <code>Show</code> = <code>default</code> — the one your line carries as <code>[[the note name]]</code>. Ordinary links you typed into a note are not touched: they are not Values of anything. Empty means the color your theme gives a link
+  - desc: What you read in a link: the name in <code>[[…]]</code>, the text of <code>[a link](…)</code>, a bare address
+  - tip: This paints what you read in a link, wherever the link is. Three of them: the name between the brackets of a link Value left on <code>Show</code> = <code>default</code>, the text of <code>[a link](an address)</code> in any note of yours, and an address written on its own — <code>https://…</code> or <code>www.…</code> — painted whole. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
   - старые названия для поиска: «Link color», «Wikilink color», «Link text color»
 - **Link brackets color** — `link-brackets-color`, `color`, path `visual.tags.linkAsWritten.bracketsColor`, default `""`
-  - desc: The <code>[[</code> and <code>]]</code> around that name
-  - tip: The brackets are their own half of the link, and this colors them apart from the name. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes the brackets off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives them
+  - desc: The markup around it: <code>[[</code> and <code>]]</code>, or the brackets and address of <code>[a link](…)</code>
+  - tip: The markup is the other half of a link, and this colors it apart from what you read: the brackets of <code>[[the note name]]</code>, and the brackets with the address of <code>[a link](an address)</code>. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
   - старые названия для поиска: «Bracket color», «Wikilink brackets»
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)

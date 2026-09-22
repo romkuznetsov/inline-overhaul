@@ -242,6 +242,62 @@ const filled = (el: Any): boolean =>
   ok("ссылка `Inline to note` слева не получает ни кегля Block, ни его прозрачности");
 }
 
+/* ---- гиперссылки в любой заметке (его заказ `В-181`) ------------------- */
+
+/*
+ * Его слова 2026-09-22: «должны краситься гиперссылки в любой заметке (по
+ * аналогии как сейчас реализовано с wikilink)… пусть гиперссылки будут не
+ * только формата `[hyper](link)`, но и просто ссылки (кроме wikilink). Если я
+ * просто вставлю в строку `www.example.com`, то цвет ссылки будет как у
+ * контрола на цвет текста ссылки».
+ *
+ * Разбор отвечает на два вопроса: где подпись (её красит цвет текста ссылки) и
+ * где сама разметка (её красит цвет скобок). Отрицательные контроли тут
+ * важнее положительных: вокруг ровно те формы, которые похожи на ссылку и ею
+ * не являются.
+ */
+{
+  const of = (line: string): Any[] => I.scanHyperlinksInLine(line) as Any[];
+  const shown = (line: string, h: Any): string => line.slice(h.labelFrom, h.labelTo);
+  const marks = (line: string, h: Any): string[] =>
+    (h.marks as Any[]).map((m: Any) => line.slice(m.from, m.to));
+
+  const bare = "смотри www.example.com дальше";
+  assert.equal(of(bare).length, 1, "голый адрес найден один");
+  assert.equal(shown(bare, of(bare)[0]), "www.example.com",
+    "голый адрес весь подпись: красить в нём нечего врозь");
+  assert.deepEqual(marks(bare, of(bare)[0]), [],
+    "и разметки у него нет вовсе");
+
+  const md = "ссылка [hyper](https://example.com/a) в тексте";
+  assert.equal(shown(md, of(md)[0]), "hyper",
+    "у разметки подпись — то, что человек читает");
+  assert.deepEqual(marks(md, of(md)[0]), ["[", "](https://example.com/a)"],
+    "а разметка — скобки вместе с адресом: их Obsidian и прячет");
+
+  /* Точка в конце предложения адресу не принадлежит. */
+  const dotted = "адрес https://example.com/x?y=1. конец";
+  assert.equal(shown(dotted, of(dotted)[0]), "https://example.com/x?y=1",
+    "знак конца предложения в адрес не входит");
+
+  /*
+   * Отрицательные контроли. Без них «ссылки красятся» выполнялось бы и
+   * правилом, которое красит всё подряд.
+   */
+  assert.deepEqual(of("[[test1]] и [[Note#heading]]"), [],
+    "wikilink — чужая дорога: его красит значение Field, а не этот разбор");
+  assert.deepEqual(of("картинка ![alt](pic.png) в строке"), [],
+    "вставка картинки ссылкой не считается: читать в ней нечего");
+  assert.deepEqual(of("код `https://example.com` рядом"), [],
+    "внутри обратных кавычек ссылок не бывает");
+  assert.deepEqual(of("- [ ] #todo || текст || 📅2026-09-02"), [],
+    "чекбокс задачи на разметку ссылки не похож");
+  const mixed = "[[wiki]] и [подпись](https://a.b) рядом";
+  assert.equal(of(mixed).length, 1, "рядом с wikilink разметка находится: " + of(mixed).length);
+  assert.equal(shown(mixed, of(mixed)[0]), "подпись", "и подпись у неё своя");
+  ok("`В-181`: разбор находит обе формы гиперссылки и не трогает чужие");
+}
+
 {
   /* Решётка внутри ссылки — часть ссылки, а не отдельный тег. */
   const hits = I.scanLineVisualTokens("[[Note#heading]] #todo", "||", "||", []);
