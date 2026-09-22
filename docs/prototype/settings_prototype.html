@@ -3739,6 +3739,11 @@ function attachEmojiPicker(input, host, apply) {
   input.addEventListener("focus", open);
   input.addEventListener("click", open);
   search.addEventListener("input", draw);
+  /* `Escape` сворачивает выбиралку (`В-196`). В панели для этого ставится своя
+     область клавиш поверх окна (`escapeScope`); здесь окна нет, и хватает поля. */
+  const onKey = e => { if (e.key === "Escape" && !panel.hidden) { panel.hidden = true; e.stopPropagation(); } };
+  input.addEventListener("keydown", onKey);
+  panel.addEventListener("keydown", onKey);
   const leave = e => { const to = e.relatedTarget; if (!to || (to !== input && !panel.contains(to))) panel.hidden = true; };
   input.addEventListener("focusout", leave);
   panel.addEventListener("focusout", leave);
@@ -5908,7 +5913,7 @@ function placementRows(host, f) {
        Здесь до 2026-09-23 стояли два прежних — `Yes` и `No`. */
     row({ name:"Child Field", key:"child",
       desc:"When the child Field is offered: after a parent Value, always, while you hold Alt, or never",
-      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked. <b>Show always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>Show when press Alt</b> keeps it out of tagWheel until you hold <code>Alt</code> on the parent: it appears next to the parent and stays while you hold the key, so you can step onto it and pick a Value; let go and it hides again, and the Value you picked stays on the line. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
+      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked. <b>Show always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>Show when press Alt</b> keeps it out of tagWheel until you hold <code>Alt</code> on the parent: it appears next to the parent and stays while you hold the key, so you can step onto it and pick a Value \u2014 even before the parent has one, and then the Value stands without a parent. Let go and it hides again, and the Value you picked stays on the line. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
       options:[
         { value:"after-parent", label:"After parent" },
         { value:"always",       label:"Show always" },

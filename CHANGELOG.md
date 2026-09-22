@@ -21,9 +21,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **Pick what Binder inserts instead of hunting for it.** Press `Inserts` in the new-command window and a picker opens under it: `Emoji`, `Symbols` and `Text faces`, with a search by name. The command name fills itself in — `→` becomes `Arrow right` — and stays yours to change. Typing your own text still works, and gets a name too.
+1. ✨ **Pick what Binder inserts instead of hunting for it.** Press `Inserts` in the new-command window: `Emoji`, `Symbols` and `Text faces` open under it, with a search by name. The command name fills itself in — `→` becomes `Arrow right` — and stays yours to change. `Escape` folds the picker first, the window second.
 2. ✨ **A Field's emoji has the same picker.** Press `Emoji-prefix` and choose from the emoji, or paste your own character as before.
-3. ✨ **A child Field can wait for `Alt`.** `Child Field` has a fourth setting, `Show when press Alt`: tagWheel keeps the child out of sight until you hold `Alt` on its parent, then shows it next door so you can step onto it and pick. Let go and it hides again — the Value you picked stays on the line, and the child's commands work as before.
+3. ✨ **A child Field can wait for `Alt`.** `Child Field` has a fourth setting, `Show when press Alt`: tagWheel hides the child until you hold `Alt` on its parent, with or without a parent Value, and shows it next door to pick from. Let go and it hides; the Value you picked stays on the line.
 
 ## 0.7.0
 

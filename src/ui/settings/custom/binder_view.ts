@@ -204,7 +204,9 @@ export function renderAddForm(box: El, o: {
    */
   duplicateOf?: (draft: BinderDraft) => BinderClash | null;
   say?: Say;
-}): void {
+  /** `Escape` сворачивает выбиралку, а не окно (`В-196`); собирает окно. */
+  holdKeys?: (onEscape: () => void) => () => void;
+}): () => void {
   const say = o.say || PLAIN;
   el(box, "h4", "io-dlg__title", say("NEW_TITLE"));
   el(box, "p", "io-item__desc", say("NEW_NOTE"));
@@ -280,9 +282,10 @@ export function renderAddForm(box: El, o: {
     command.input.value = suggested;
   };
 
-  attachPicker(insert.input, insert.row, {
+  const picker = attachPicker(insert.input, insert.row, {
     kinds: ["emoji", "symbols", "faces"],
     say,
+    ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
     onPick: char => {
       insert.input.value = char;
       suggest();
@@ -303,4 +306,6 @@ export function renderAddForm(box: El, o: {
     if (o.duplicateOf && o.duplicateOf(draft)) return;
     o.add(draft);
   }) as never);
+  /* Окно закрыто мимо выбиралки — она обязана отдать `Escape` обратно. */
+  return () => { picker.close(); };
 }

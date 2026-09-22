@@ -321,6 +321,8 @@ export interface FieldsViewOpts {
   showIds?: boolean;
   /** Перерисовать редактор целиком: список зависит от порядка Fields. */
   redraw: () => void;
+  /** `Escape` сворачивает выбиралку знака, а не окно настроек (`В-196`). */
+  holdKeys?: (onEscape: () => void) => () => void;
   /** Показать сообщение человеку. Текст приходит от модели, показывает панель. */
   notice: (text: string) => void;
   /**
@@ -1848,14 +1850,17 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
    * слову. Выбранное пишется той же дорогой, что и набранное руками.
    */
   if (o.enabled) {
-    attachPicker(marker.input, marker.row, {
+    const picker = attachPicker(marker.input, marker.row, {
       kinds: ["emoji"],
       say,
+      ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
       onPick: char => {
         ed.setEmoji(char);
         o.redraw();
       },
     });
+    /* Перерисовка снимает строку — выбиралка обязана отдать `Escape`. */
+    closers.push(picker.close);
   }
   line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
     say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));

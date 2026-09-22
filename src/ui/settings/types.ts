@@ -93,6 +93,12 @@ export interface PlatformBits {
    * работает как обычное поле ввода, без подсказок.
    */
   AbstractInputSuggest?: unknown;
+  /**
+   * Область клавиш Obsidian (`Scope`, публичный API с 0.13.9). Нужна
+   * выбиралке знака: пока она раскрыта, `Escape` сворачивает её, а не окно
+   * (`В-196`). Нет — клавиша уходит окну, как до выбиралки.
+   */
+  Scope?: unknown;
   setIcon: (node: unknown, icon: string) => void;
   /**
    * Пути заметок vault. Синхронно и без чтения с диска: Obsidian держит

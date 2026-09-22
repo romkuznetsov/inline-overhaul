@@ -2978,6 +2978,27 @@ function runAltChildSuite() {
   core.sanitizeState(rules, stale.session)
   assertEq(stale.session.selected.importance_sub, '', 'a stale child Value is cleaned even while the child is hidden')
 
+  /*
+   * Родителя нет, `Alt` зажат (`В-195`, его ответ «показать все дочерние»).
+   * Поле встаёт и без значения у родителя, со всеми своими значениями;
+   * выбранное остаётся после отпускания, хотя поле снова ждёт родителя.
+   */
+  var bare = panel(rules, 'importance', true)
+  bare.session.selected.importance = ''
+  assertTrue(seq(bare).indexOf('importance_sub') !== -1,
+    'Alt held on a parent with no Value: the child still shows: ' + JSON.stringify(seq(bare)))
+  var bareShut = panel(rules, 'importance', false)
+  bareShut.session.selected.importance = ''
+  assertTrue(seq(bareShut).indexOf('importance_sub') === -1, 'and hides again once Alt is let go')
+  bare.session.activeFieldId = 'importance_sub'
+  core.cycleValue(rules, bare.session, 1)
+  var pickedBare = bare.session.selected.importance_sub
+  assertTrue(!!pickedBare, 'a child Value can be picked with no parent on the line')
+  tagwheel.holdAlt(bare, false)
+  core.sanitizeState(rules, bare.session)
+  assertEq(bare.session.selected.importance_sub, pickedBare, 'the Value picked with no parent stays after Alt is let go')
+  assertEq(bare.session.selected.importance, '', 'and no parent is added to it')
+
   console.log('  ok the Alt child shows while Alt is held on its parent, and only there')
 }
 

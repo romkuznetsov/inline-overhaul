@@ -37,6 +37,7 @@ import {
  */
 import deepStateModule from "../../../core/order_deep_editor_state.js";
 import { sayIn } from "../texts_blocks.ts";
+import { escapeScope } from "./char_picker.ts";
 
 const deepState = deepStateModule as unknown as DeepState;
 
@@ -333,6 +334,11 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         showTips: Boolean(ctx.get("general.help.showTips")),
         showIds: Boolean(ctx.get("advanced.showSettingIds")),
         redraw: () => { draw(); },
+        ...(() => {
+          /* Над окном настроек — область приложения: там живут хоткеи. */
+          const holdKeys = escapeScope(p.Scope, app, app && (app as { scope?: unknown }).scope);
+          return holdKeys ? { holdKeys } : {};
+        })(),
         notice,
         askNewField: done => askNewFieldModal(Modal, app, done, say),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),

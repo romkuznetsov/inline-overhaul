@@ -1121,11 +1121,26 @@ function isFieldSwitchedOn(mode, state, field, rules) {
 
 function isFieldEnabled(mode, state, field, rules) {
   if (!isFieldSwitchedOn(mode, state, field, rules)) return false
+  /*
+   * **Пока `Alt` открывает дочернее поле, родитель ему не нужен** (`В-195`,
+   * его ответ 2026-09-23: «показать все дочерние»). Поле встаёт под `Alt` и на
+   * строке без значения у родителя, со всеми своими значениями, — ровно как
+   * при `Show always`, но только на время, пока клавиша зажата. Спрашивается
+   * у того же предусловия, с тем же разрешением `freeOfParent`: своего
+   * правила «когда родитель не нужен» здесь не заводится.
+   *
+   * Отпустил — поле снова ждёт родителя и становится выключенным; выбранное
+   * значение при этом не пропадает: чистка выключенного поля не трогает, а
+   * применение пишет выбранное каждого поля (`collectSelectedTagEntries`).
+   */
+  var ask = field && field.showOnAlt === true && field.freeOfParent !== true && shownInPanel(state, field)
+    ? Object.assign({}, field, { freeOfParent: true })
+    : field
   /* Предусловие объявлено один раз — в `pkm_rules_runtime_helpers.js`, — и
      его же спрашивают команды поля. Здесь стояла копия, и командам она была
      недоступна: на пустой строке панель поле прятала, а команда писала
      значение (обход строки 2026-09-12). */
-  return __rulesRuntimeHelpers.isFieldPrerequisiteMet(field, state && state.selected)
+  return __rulesRuntimeHelpers.isFieldPrerequisiteMet(ask, state && state.selected)
 }
 
 function projectMatches(item, state) {

@@ -19,7 +19,7 @@ import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
 import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals } from "../harness/obsidian_stub.ts";
 import { renderAddForm } from "../../src/ui/settings/custom/binder_view.ts";
-import { attachPicker, pickFilter, pickName, PICK_SETS, type PickKind } from "../../src/ui/settings/custom/char_picker.ts";
+import { attachPicker, escapeScope, pickFilter, pickName, PICK_SETS, type PickKind } from "../../src/ui/settings/custom/char_picker.ts";
 import type { El, ElInput } from "../../src/ui/settings/custom/dom.ts";
 
 setupGlobals();
@@ -170,6 +170,64 @@ function form(): { box: StubNode; insert: StubNode; name: StubNode; panel: () =>
   f.insert.dispatch("focusout", { relatedTarget: null });
   assert.equal(shut(f.panel()), true, "фокус ушёл из окна, а выбиралка осталась раскрытой");
   ok("поиск отвечает и тогда, когда ответа нет, а уход фокуса сворачивает");
+}
+
+/* ---- `Escape` сворачивает выбиралку, а не окно (`В-196`) ---------------- */
+
+{
+  /*
+   * Подделаны `Scope` и `app.keymap` Obsidian — в Node их нет. Подделка
+   * запоминает всё, что keymap делает на самом деле (`app.js` 1.13.7): кто
+   * поставлен сверху, с каким родителем, и что вернул обработчик — `false`
+   * значит «клавиша погашена».
+   */
+  const stack: FakeScope[] = [];
+  let pops = 0;
+  class FakeScope {
+    parent: unknown;
+    keys: Array<{ key: string; fn: () => boolean | void }> = [];
+    constructor(parent?: unknown) { this.parent = parent; }
+    register(_mods: string[], key: string, fn: () => boolean | void): void { this.keys.push({ key, fn }); }
+  }
+  const app = { keymap: {
+    pushScope: (s: FakeScope) => { stack.push(s); },
+    popScope: (s: FakeScope) => { pops++; const i = stack.indexOf(s); if (i !== -1) stack.splice(i, 1); },
+  } };
+  const windowScope = { name: "окно Binder" };
+
+  assert.equal(escapeScope(undefined, app), undefined, "нет класса `Scope` — клавиша остаётся окну");
+  assert.equal(escapeScope(FakeScope, {}), undefined, "нет `keymap` — тоже");
+
+  const box = makeNode("div");
+  const drop = renderAddForm(box as unknown as El, {
+    add: () => {}, cancel: () => {},
+    holdKeys: escapeScope(FakeScope, app, windowScope)!,
+  });
+  const insert = all(box, "io-text")[0] as StubNode;
+  const panelOf = () => all(box, "io-pick")[0] as StubNode;
+
+  assert.equal(stack.length, 0, "свёрнутая выбиралка клавиш не берёт");
+  insert.dispatch("focus");
+  insert.dispatch("click");
+  assert.equal(stack.length, 1, "раскрытие ставит одну область, и повторное нажатие вторую не ставит");
+  assert.equal(stack[0]!.parent, windowScope, "остальные клавиши уходят окну: родитель — его область");
+  const esc = stack[0]!.keys.find(k => k.key === "Escape");
+  assert.ok(esc, "область берёт `Escape`");
+  assert.equal(esc!.fn(), false, "обработчик гасит клавишу — окно её не получит");
+  assert.equal(shut(panelOf()), true, "`Escape` свернул выбиралку");
+  assert.equal(stack.length, 0, "и отдал клавишу окну: второй `Escape` закроет окно");
+
+  insert.dispatch("focus");
+  (byLabel(box, "Fire") as StubNode).dispatch("click");
+  assert.equal(stack.length, 0, "выбор знака тоже отдаёт клавишу");
+  insert.dispatch("focus");
+  insert.dispatch("focusout", { relatedTarget: null });
+  assert.equal(stack.length, 0, "и уход фокуса");
+  insert.dispatch("focus");
+  drop();
+  assert.equal(stack.length, 0, "закрытое окно с раскрытой выбиралкой не оставляет пойманный `Escape`");
+  assert.equal(pops, 4, "каждое раскрытие снято ровно один раз");
+  ok("`Escape` сворачивает выбиралку, второй — окно, и область не переживает окна");
 }
 
 /* ---- знак Field --------------------------------------------------------- */

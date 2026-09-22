@@ -12,6 +12,7 @@ import {
   Notice,
   Platform,
   PluginSettingTab,
+  Scope,
   Setting as SettingCtor,
   setIcon,
 } from "obsidian";
@@ -850,6 +851,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
           Notice,
           Modal,
           AbstractInputSuggest,
+          Scope,
           setIcon: (node: unknown, icon: string) => { setIcon(node as HTMLElement, icon); },
           /*
            * Пути заметок vault: из них собирается список шаблонов (1.6.2.4).

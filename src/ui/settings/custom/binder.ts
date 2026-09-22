@@ -24,6 +24,7 @@ import { el, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { createBinderModel, type BinderClash, type BinderDraft, type BinderRow } from "./binder_model.ts";
 import { renderAddForm, renderBinder as drawBinder } from "./binder_view.ts";
+import { escapeScope } from "./char_picker.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
@@ -45,6 +46,8 @@ const BINDER_PATHS = ["editor.binder.rows"] as const;
 interface ModalCtor {
   new (app: unknown): {
     contentEl: El;
+    /** Область клавиш окна: над ней встаёт область выбиралки (`В-196`). */
+    scope?: unknown;
     open(): void;
     close(): void;
     onOpen?(): void;
@@ -59,8 +62,10 @@ function askAddModal(
   done: (draft: BinderDraft | null) => void,
   duplicateOf?: (draft: BinderDraft) => BinderClash | null,
   say?: (name: string, ...args: readonly (string | number)[]) => string,
+  Scope?: unknown,
 ): void {
   let answered = false;
+  let dropForm: () => void = () => {};
   const finish = (draft: BinderDraft | null): void => {
     if (answered) return;
     answered = true;
@@ -72,17 +77,20 @@ function askAddModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      renderAddForm(box, {
+      const holdKeys = escapeScope(Scope, app, this.scope);
+      dropForm = renderAddForm(box, {
         add: draft => { finish(draft); this.close(); },
         cancel: () => { finish(null); this.close(); },
         duplicateOf,
         ...(say ? { say } : {}),
+        ...(holdKeys ? { holdKeys } : {}),
       });
     }
 
     override onClose(): void {
       /* Закрытие мимо кнопок — это отказ, а не пустая строка. */
       finish(null);
+      dropForm();
       this.contentEl.empty();
     }
   }
@@ -164,7 +172,7 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
             const res = model.add(draft);
             if (!res.ok && res.error) notice(res.error);
           });
-        }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx)),
+        }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx), p.Scope),
       });
     } catch (e) {
       /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что

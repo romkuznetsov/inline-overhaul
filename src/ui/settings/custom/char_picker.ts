@@ -124,6 +124,38 @@ export interface PickerOpts {
   /** Подписи: вкладки `PICK_EMOJI`/`PICK_SYMBOLS`/`PICK_FACES`, поиск `PICK_SEARCH`, пусто `PICK_EMPTY`. */
   say: (name: string) => string;
   onPick: (char: string, name: string) => void;
+  /**
+   * Взять `Escape` себе, пока выбиралка раскрыта: зовётся на раскрытии с тем,
+   * что делать по клавише, и возвращает, как отдать её обратно. Нет —
+   * `Escape` уходит окну, как до выбиралки (заглушка гейта, проверки).
+   */
+  holdKeys?: (onEscape: () => void) => () => void;
+}
+
+/** То немногое от `Scope` и `app.keymap` Obsidian, что нужно выбиралке. */
+interface ScopeLike { register(mods: string[], key: string, fn: () => boolean | void): unknown }
+type ScopeCtor = new (parent?: unknown) => ScopeLike;
+interface KeymapLike { pushScope(scope: unknown): void; popScope(scope: unknown): void }
+
+/**
+ * Своя область клавиш поверх окна: `Escape` в ней сворачивает выбиралку и
+ * дальше не идёт — обработчик, вернувший `false`, keymap Obsidian гасит
+ * (`preventDefault` и `stopPropagation` в `onKeyEvent`, `app.js` 1.13.7).
+ * Остальные клавиши уходят `parent`: у окна Binder это его собственная
+ * область, у окна настроек — область приложения, где живут хоткеи.
+ *
+ * Нет класса или `keymap` — ответ «нет», и выбиралка остаётся без своей
+ * клавиши (проба платформы: ответ «нет» — это ответ).
+ */
+export function escapeScope(Scope: unknown, app: unknown, parent?: unknown): PickerOpts["holdKeys"] {
+  const keymap = (app as { keymap?: KeymapLike } | null | undefined)?.keymap;
+  if (typeof Scope !== "function" || !keymap || typeof keymap.pushScope !== "function") return undefined;
+  return (onEscape: () => void) => {
+    const scope = new (Scope as ScopeCtor)(parent);
+    scope.register([], "Escape", () => { onEscape(); return false; });
+    keymap.pushScope(scope);
+    return () => { keymap.popScope(scope); };
+  };
 }
 
 const TAB_TEXT: Readonly<Record<PickKind, string>> = {
@@ -138,13 +170,14 @@ const TAB_TEXT: Readonly<Record<PickKind, string>> = {
  * и сворачивается, когда знак выбран или фокус ушёл за пределы поля и
  * выбиралки.
  *
- * **`Escape` она не трогает, и это нарочно.** Клавиши Obsidian слушает на
- * окне с перехватом (`window.addEventListener("keydown", …, !0)` в `app.js`
- * 1.13.7, класс keymap) и отдаёт их верхней области — окну Binder или окну
- * настроек, — раньше, чем событие дойдёт до поля. Остановить его в поле
- * нельзя; свернуть одну выбиралку можно только своей областью поверх
- * (`app.keymap.pushScope`), а блоки платформы не знают. Цена названа:
- * `Escape` закрывает окно так же, как до выбиралки.
+ * **`Escape` сворачивает одну выбиралку** (`В-196`, его ответ 2026-09-23), а
+ * второй — окно. Клавиши Obsidian слушает на окне с перехватом
+ * (`window.addEventListener("keydown", …, !0)` в `app.js` 1.13.7, класс
+ * keymap) и отдаёт их **верхней** области — окну Binder или окну настроек —
+ * раньше, чем событие дойдёт до поля; остановить его в поле нельзя. Поэтому,
+ * пока выбиралка раскрыта, поверх ставится своя область (`holdKeys`), а
+ * блоки платформы не знают: область собирает тот, кто знает, — помощником
+ * `escapeScope` ниже.
  *
  * `host` — строка настройки: панель встаёт в неё последним ребёнком и
  * переносится на свою строчку, как подсказка (`flex-wrap` у `.io-item`).
@@ -160,6 +193,8 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
 
   let tab: PickKind = o.kinds[0] || "emoji";
   let query = "";
+  /* Как отдать `Escape` обратно окну; пусто — клавиша не взята. */
+  let release: (() => void) | null = null;
 
   /* Кнопки вкладок заводятся один раз и не пересобираются: пересобранная
      кнопка уносит фокус с собой, и уход фокуса наружу выбиралка бы не узнала. */
@@ -210,8 +245,18 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
     if (!panel.hidden) return;
     panel.hidden = false;
     draw();
+    if (o.holdKeys && !release) release = o.holdKeys(close);
   };
-  const close = (): void => { panel.hidden = true; };
+  /* Сворачивание отдаёт `Escape` окну всегда, каким бы путём оно ни пришло:
+     забытая область глотала бы клавишу и после того, как окна не стало. */
+  const close = (): void => {
+    panel.hidden = true;
+    if (release) {
+      const give = release;
+      release = null;
+      give();
+    }
+  };
 
   search.addEventListener("input", (() => {
     query = search.value;
