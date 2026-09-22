@@ -128,7 +128,26 @@ async function runSteps(cfg, steps, word, withPlugin) {
     undone.push(editor.doc());
     if (!ok) break;
   }
-  return { seen, undone };
+
+  /*
+   * И обратно — его пункт 13, 2026-09-22: «ctrl+y не антагонистичен ctrl+z…
+   * иногда я могу отменить ввод с ctrl+z, но потом ctrl+y не возвращает
+   * обратно».
+   *
+   * Мера у возврата своя и простая: сколько раз отменили, столько раз и
+   * вернули — документ обязан снова стать тем, что стоял перед первой
+   * отменой. Меряется **после** отмены на той же истории: своя история,
+   * заведённая ради проверки, отвечала бы на вопрос о себе (У-56).
+   */
+  const before = seen.length ? seen[seen.length - 1] : editor.doc();
+  const redone = [];
+  for (let i = 0; i < undone.length; i++) {
+    const ok = editor.redo();
+    redone.push(editor.doc());
+    if (!ok) break;
+  }
+  const back = editor.doc();
+  return { seen, undone, redone, before, back, restored: back === before };
 }
 
 /**
@@ -203,7 +222,11 @@ async function measure(cfg, steps, word) {
     if (!known) bad++;
     return "    " + (i + 1) + " " + (known ? "ok       " : "НЕ БЫЛО  ") + JSON.stringify(d);
   });
-  return { bad, rows, seen: r.seen };
+  return {
+    bad, rows, seen: r.seen,
+    restored: r.restored, before: r.before, back: r.back,
+    undos: r.undone.length, redos: r.redone.length,
+  };
 }
 
 async function main() {
@@ -220,7 +243,13 @@ async function main() {
     r.rows.forEach((l) => console.log(l.slice(2)));
     console.log("");
     console.log("состояний, которых на строке никогда не было: " + r.bad);
-    if (r.bad) process.exitCode = 1;
+    console.log("Ctrl+Y вернул строку: " + (r.restored ? "да" : "НЕТ")
+      + " (отмен " + r.undos + ", возвратов " + r.redos + ")");
+    if (!r.restored) {
+      console.log("  было перед отменой: " + JSON.stringify(r.before));
+      console.log("  стало после возврата: " + JSON.stringify(r.back));
+    }
+    if (r.bad || !r.restored) process.exitCode = 1;
     return;
   }
 
@@ -240,7 +269,13 @@ async function main() {
       try {
         const r = await measure(probe.cfg, s.steps, word);
         table.push({ scenario: s.id, mode, bad: r.bad });
-        console.log("  режим `" + mode + "`: состояний, которых не было — " + r.bad);
+        console.log("  режим `" + mode + "`: состояний, которых не было — " + r.bad
+          + "; Ctrl+Y вернул строку: " + (r.restored ? "да" : "НЕТ")
+          + " (отмен " + r.undos + ", возвратов " + r.redos + ")");
+        if (!r.restored) {
+          console.log("    было перед отменой: " + JSON.stringify(r.before));
+          console.log("    стало после возврата: " + JSON.stringify(r.back));
+        }
         console.log("    строка перед панелью: " + JSON.stringify(r.seen[r.seen.length - 2]));
         r.rows.forEach((l) => console.log(l));
       } finally {

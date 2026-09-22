@@ -136,6 +136,15 @@ function makeCmEditor(initial, existingView) {
     undo() {
       return cmCommands.undo({ state: view.state, dispatch: applyTransaction });
     },
+    /*
+     * Возврат отменённого. Заведён по его пункту 13, 2026-09-22: «сейчас
+     * обычный ctrl+y не антагонистичен ctrl+z… я могу отменить ввод с ctrl+z,
+     * но потом ctrl+y не возвращает обратно». Ответ на это меряется, а не
+     * выводится, и мерить его нечем, пока у стенда есть только отмена.
+     */
+    redo() {
+      return cmCommands.redo({ state: view.state, dispatch: applyTransaction });
+    },
   };
 }
 
