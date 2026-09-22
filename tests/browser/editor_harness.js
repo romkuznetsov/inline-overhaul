@@ -303,6 +303,17 @@ const EDITOR_INJECTIONS = {
    * работы с wikilinks и hyperlinks»). Порог проверяется возвратом прежнего
    * кода, а не рассуждением (У-223).
    */
+  /*
+   * Адрес обратно красится цветом скобок — то состояние, с которым он пришёл
+   * 2026-09-22: «мне не нравится что в `[hyper](link)` цвет `link`
+   * управляется hyperlink-brackets-color». Порог проверяется возвратом
+   * прежнего кода, а не рассуждением (У-223).
+   */
+  "ext-link-address-shares-brackets": {
+    file: "src/core/editor_visuals_config.js",
+    find: "    hyperlinkAddressColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.hyperlink.addressColor\")),",
+    replace: "    hyperlinkAddressColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.hyperlink.bracketsColor\")),",
+  },
   "ext-link-shares-wikilink": {
     file: "src/core/editor_visuals_config.js",
     find: "    hyperlinkTargetColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.hyperlink.targetColor\")),",

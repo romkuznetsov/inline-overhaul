@@ -1488,6 +1488,9 @@ async function main() {
      */
     const RGB_EXT_TARGET = "rgb(15, 122, 46)";   // #0f7a2e из настроек страницы
     const RGB_EXT_BRACKETS = "rgb(196, 106, 0)"; // #c46a00, тоже свой
+    /* Адрес отделён от скобок его замечанием 2026-09-22: пятый цвет, и он
+       тоже свой — на общем «адрес красится отдельно» было бы зелено само. */
+    const RGB_EXT_ADDRESS = "rgb(75, 46, 196)"; // #4b2ec4
     const away = await page.evaluate(() => window.__ioLinkColors("[[test1]]", false));
     if (!away.found) {
       bad("строки со ссылкой `[[test1]]` на странице нет — цвета проверять не на чем");
@@ -1580,6 +1583,24 @@ async function main() {
     if (mdInside.found && mdInside.marks === RGB_BRACKETS) {
       bad("скобки гиперссылки взяли цвет скобок wikilink: " + mdInside.marks
         + " — контролы снова общие");
+    }
+    /*
+     * **Адрес — свой цвет** (его замечание 2026-09-22 к тесту 2). Спрашивается
+     * у того же места и тем же способом: кто выиграл цвет у букв адреса.
+     * Утверждений два, и второе — про то, что он не взял цвет соседа: на
+     * одном цвете «отдельный контрол» выполнялось бы совпадением (У-147).
+     */
+    const mdAddr = await page.evaluate(() => window.__ioExtLinkAddressColor("[hyper](", true));
+    if (!mdAddr.found) {
+      bad("адреса гиперссылки на странице нет — цвет проверять не на чем");
+    } else {
+      if (mdAddr.address !== RGB_EXT_ADDRESS) {
+        bad("адрес гиперссылки нарисован не своим цветом: " + mdAddr.address
+          + ", а ждали " + RGB_EXT_ADDRESS + "; на буквах «" + mdAddr.addressText + "»");
+      }
+      if (mdAddr.address === RGB_EXT_BRACKETS) {
+        bad("адрес взял цвет скобок: " + mdAddr.address + " — контрол снова общий");
+      }
     }
     if (mdInside.found && mdInside.marks === mdInside.target) {
       bad("подпись и разметка гиперссылки нарисованы одним цветом: " + mdInside.target

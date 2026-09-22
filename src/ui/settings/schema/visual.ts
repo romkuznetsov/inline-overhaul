@@ -135,9 +135,14 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       tip:"A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
       allowReset:true },
     { kind:"color", id:"hyperlink-brackets-color", path:"visual.tags.hyperlink.bracketsColor", default:"",
-      name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the address in round ones",
+      name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the round ones, without the address",
       searchTerms:["Hyperlink brackets", "URL markup color", "Address color"],
-      tip:"The other half of <code>[a link](an address)</code>: the square brackets and the address in the round ones, painted apart from the text you read. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
+      tip:"The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
+      allowReset:true },
+    { kind:"color", id:"hyperlink-address-color", path:"visual.tags.hyperlink.addressColor", default:"",
+      name:"Hyperlink address color", desc:"The address itself, between the round brackets of a markdown link",
+      searchTerms:["Address color", "URL color", "Link href color"],
+      tip:"The address inside <code>[a link](an address)</code>, painted apart from the brackets around it and from the text you read. <b>An address written on its own is not this one:</b> there it is what you read, and <code>Hyperlink target color</code> paints it. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on. Empty means the color your theme gives it",
       allowReset:true },
     { kind:"custom", id:"link-preview", render: linkPreview }
   ]

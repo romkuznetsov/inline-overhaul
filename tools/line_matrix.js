@@ -497,6 +497,39 @@ function selfCheck(rules, cfg) {
       + wrongly.map(([l, a]) => JSON.stringify(l) + " -> " + JSON.stringify(a)).join("\n  ")
     );
   }
+  /*
+   * **Те же контроли — и у записи в `KNOWN`** (правило 125). Она стоит на том
+   * же свойстве, но спрашивает пару «команда против панели», а не пару
+   * «строка против пересборки», и это отдельный признак: у нового признака
+   * бывают только положительные контроли, и тогда он ловит не то, что назван
+   * ловить.
+   */
+  const pairsMustNotExcuse = [
+    /* Разница не в конце строки. */
+    { cmd: "- #work " + sep1 + " текст", panel: "- #work  " + sep1 + " текст" },
+    /* Разница в конце, но не пробел. */
+    { cmd: "- #work " + sep1, panel: "- #work " + sep1 + "x" },
+    /* Пробел в конце, но у строки есть текст. */
+    { cmd: "- #work " + sep1 + " текст", panel: "- #work " + sep1 + " текст " },
+    /* Пробел в конце, но строка не кончается разделителем. */
+    { cmd: "- текст", panel: "- текст " },
+    /* Панель и команда разошлись целым словом. */
+    { cmd: "- #work " + sep1, panel: "- #work #todo " + sep1 + " " },
+  ];
+  const excused = pairsMustNotExcuse.filter((row) => knownFor(row, rules));
+  if (excused.length) {
+    throw new Error(
+      "известное расхождение шире своего предмета:\n  "
+      + excused.map((r) => JSON.stringify(r.cmd) + " -> " + JSON.stringify(r.panel)).join("\n  ")
+    );
+  }
+  /* И положительный: предмет, ради которого запись заведена, ею и ловится. */
+  if (!knownFor({ cmd: "# #high #aaa " + sep1, panel: "# #high #aaa " + sep1 + " " }, rules)) {
+    throw new Error("известное расхождение не ловит собственный предмет — запись мертва");
+  }
+  /* Счётчик контроля не тратится на сам контроль: он про продукт, не про нас. */
+  for (const k of KNOWN) k.seen = 0;
+
   const bad = known.filter((line) => !fixpointOf(line, rules).rawStable);
   if (bad.length) {
     throw new Error(
@@ -516,16 +549,41 @@ function selfCheck(rules, cfg) {
  * он вправе сменить в любой день (У-182).
  */
 /**
- * **Известных расхождений нет.** Список пуст с 2026-09-15: то, ради чего он
- * заводился, починено (PRD 10.13.132). Пустым он и обязан остаться — запись
- * сюда значит «мы знаем и пока не чиним», и у неё обязаны быть признак, дата
- * и адрес разбора.
+ * **Запись сюда значит «мы знаем и пока не чиним»**, и у неё обязаны быть
+ * признак, дата и адрес разбора. Признак пишется **формой**, а не именем поля
+ * из его конфига: имя он вправе сменить в любой день (У-182).
+ *
+ * Список был пуст с 2026-09-15 по 2026-09-22.
  */
-const KNOWN = [];
+const KNOWN = [
+  {
+    /*
+     * **Тот же невидимый пробел, что и у пересборки** — его «Ок» от
+     * 2026-09-21 (`В-164`). Панель хвост оставляет, команда его обрезает, и
+     * различаются они ровно на один пробел в конце строки без текста. На
+     * экране этого не видно, а в счёте расхождений он занимал три строки из
+     * трёх — то есть прятал бы собой первую настоящую поломку.
+     *
+     * **Исключение уже, чем звучит:** оно требует, чтобы вся разница была
+     * пробелом в конце **и** чтобы ответ команды сам попадал под известное
+     * свойство сборки. Любая другая разница мимо него проходит.
+     */
+    why: "панель оставляет невидимый пробел за разделителем, команда его обрезает",
+    since: "2026-09-22",
+    where: "PRD 10.13.245, его «Ок» В-164 от 2026-09-21",
+    seen: 0,
+    when: (row, rules) => {
+      const cmd = String(row && row.cmd || "");
+      const panel = String(row && row.panel || "");
+      if (!cmd || panel !== cmd + " ") return false;
+      return fixpointOf(cmd, rules).knownProperty === true;
+    },
+  },
+];
 
-function knownFor(row) {
+function knownFor(row, rules) {
   for (const k of KNOWN) {
-    if (!k.when(row)) continue;
+    if (!k.when(row, rules)) continue;
     k.seen += 1;
     return k;
   }
@@ -721,7 +779,7 @@ async function main() {
       ? true
       : (same && (!wrote || fCmd.stable) && fPanel.stable && r.opened && r.inPanel
          && !addedCmd && !addedPanel);
-    const known = ok ? null : knownFor(r);
+    const known = ok ? null : knownFor(r, rules);
     if (ok && !SHOW_ALL) continue;
     if (!ok && !known) bad++;
     console.log((ok ? "ok  " : (known ? "известное расхождение " : "РАЗОШЛОСЬ "))
@@ -786,9 +844,16 @@ async function main() {
     const fA = fixpointOf(cmd2.line, rules);
     const fB = fixpointOf(panel2.line, rules);
     const ok = a === b && fA.stable && fB.stable;
+    /*
+     * Известное расхождение спрашивается **тем же реестром**, что у первого
+     * нажатия: второй список расходился бы с первым молча (У-32). Строка
+     * подаётся ему в той же форме — что написала команда и что панель.
+     */
+    const knownTwice = ok ? null : knownFor({ cmd: cmd2.line, panel: panel2.line }, rules);
     if (ok && !SHOW_ALL) continue;
-    if (!ok) badTwice++;
-    console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + "второе нажатие: " + r.field + " (" + r.side + "), строка " + r.source);
+    if (!ok && !knownTwice) badTwice++;
+    console.log((ok ? "ok  " : (knownTwice ? "известное расхождение " : "РАЗОШЛОСЬ ")) + "второе нажатие: " + r.field + " (" + r.side + "), строка " + r.source);
+    if (knownTwice) console.log("    " + knownTwice.why + " (с " + knownTwice.since + ", разбор: " + knownTwice.where + ")");
     console.log("    после первого, команда : " + JSON.stringify(r.cmd));
     console.log("    после второго, команда : " + JSON.stringify(cmd2.line) + "   форма " + JSON.stringify(a));
     console.log("    после второго, панель  : " + JSON.stringify(panel2.line) + "   форма " + JSON.stringify(b));

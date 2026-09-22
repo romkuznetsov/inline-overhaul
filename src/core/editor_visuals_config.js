@@ -150,6 +150,13 @@ function getTagVisualsFromConfig(cfg) {
      */
     hyperlinkTargetColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.hyperlink.targetColor")),
     hyperlinkBracketsColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.hyperlink.bracketsColor")),
+    /*
+     * Адрес внутри круглых скобок — его замечание 2026-09-22: «цвет `link`
+     * управляется hyperlink-brackets-color, сделай отдельный контрол на него».
+     * Голого адреса это не касается: там адрес — то, что человек читает, и его
+     * красит `Hyperlink target color`.
+     */
+    hyperlinkAddressColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.hyperlink.addressColor")),
     separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
     separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
     stripActive: strip.active === true,
@@ -923,6 +930,18 @@ function scanHyperlinksInLine(text) {
     if (m[1]) { claimed.push({ start, end }); continue; }
     const labelFrom = start + 1 + m[1].length;
     const labelTo = labelFrom + String(m[2] || "").length;
+    /*
+     * **Адрес отделён от скобок** — его замечание 2026-09-22: «мне не нравится,
+     * что в `[hyper](link)` цвет `link` управляется hyperlink-brackets-color,
+     * сделай отдельный контрол на него».
+     *
+     * Кусков в разметке поэтому три, а не два: `[`, `](` и `)` — это знаки, а
+     * между последними двумя стоит адрес. Границы считаются от уже известных
+     * мест (`labelTo` и `end`), а не вторым разбором той же строки: второе
+     * объявление одного правила расходится молча (У-32).
+     */
+    const addressFrom = Math.min(labelTo + 2, end);
+    const addressTo = Math.max(addressFrom, end - 1);
     out.push({
       kind: "md",
       start,
@@ -931,8 +950,10 @@ function scanHyperlinksInLine(text) {
       labelTo,
       marks: [
         { from: start, to: labelFrom },
-        { from: labelTo, to: end },
+        { from: labelTo, to: addressFrom },
+        { from: addressTo, to: end },
       ],
+      address: { from: addressFrom, to: addressTo },
     });
     claimed.push({ start, end });
   }

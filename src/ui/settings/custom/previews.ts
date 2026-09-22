@@ -961,8 +961,16 @@ export const linkPreview: CustomRender = (host, ctx) => {
     const mdBox = el(md, "span", "io-link");
     el(mdBox, "span", "io-link__mark", "[");
     el(mdBox, "span", "io-link__target", askText(ctx, previewKey("link-preview", "label"), text ? text.label || "" : ""));
-    el(mdBox, "span", "io-link__mark", "](" + askText(ctx, previewKey("link-preview", "address"), text ? text.address || "" : "") + ")");
+    el(mdBox, "span", "io-link__mark", "](");
+    /*
+     * Адрес — свой кусок и свой цвет (его замечание 2026-09-22). Переменная
+     * объявляется на нём самом: каскад отдаёт ближнему, и второго набора имён
+     * на тот же вопрос заводить не надо (У-32).
+     */
+    const mdAddr = el(mdBox, "span", "io-link__mark", askText(ctx, previewKey("link-preview", "address"), text ? text.address || "" : ""));
+    el(mdBox, "span", "io-link__mark", ")");
     linkPreviewVars(mdBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+    linkPreviewVars(mdAddr, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.addressColor");
 
     const bare = el(holder, "div");
     const bareBox = el(bare, "span", "io-link");

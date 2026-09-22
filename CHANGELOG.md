@@ -37,6 +37,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 14. ✨ **A link takes your colours anywhere in a note.** `Link target color` paints what you read — the name in `[[…]]`, the text of `[a link](…)`, a bare `www.…` — and `Link brackets color` paints the markup around it. Leave a colour unset and nothing is painted, as before.
 15. 🐛 **Moving text no longer scrolls the note away.** The command used to write the whole document back for a change inside one line, and anything anchored to a range of the note went with it — a folded section above your line sprang open, the note grew, and the screen jumped. It writes only the part of the line that changed now, so folds stay folded and the view stays put.
 16. ✨ **A hyperlink has its own two colours.** `Link target color` and `Link brackets color` now paint a wikilink only; the new `Hyperlink target color` and `Hyperlink brackets color` paint a markdown link and a bare address, in any note. Had the first pair set? The new one starts out the same. A live preview at the foot of `Link view` shows all three forms.
+17. 🐛 **A bracket is a step of its own now.** Moving selected text past `(a word)` used to jump the whole group in one press. It steps onto the bracket, into the group and out again — three presses, the way you laid them out. A link is the exception and stays whole: `[[a note]]`, and now `[a link](an address)` too, which a step used to tear in half.
+18. ✨ **The address of a link has a colour of its own.** `Hyperlink address color` paints what is inside the round brackets, apart from the brackets themselves. Had `Hyperlink brackets color` set? The new row starts out the same. An address written on its own is what you read, so `Hyperlink target color` still paints that.
 
 ## 0.6.0
 

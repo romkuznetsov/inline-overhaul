@@ -145,7 +145,7 @@ const CFG = {
        * четыре значения **разные**: пара, равная паре wikilink, оставила бы
        * «управляются отдельными контролами» зелёным от совпадения (У-147).
        */
-      hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00" },
+      hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00", addressColor: "#4b2ec4" },
       byTagTail: null,
       byTag: {
         type: { "#todo": { fillColor: "#0008f0", textColor: "#f0eaea", visibility: "default" } },
@@ -619,6 +619,44 @@ window.__ioExtLinkColors = async function (needle, caretInside) {
     marksText: marks ? marks.text : null,
     outside: platform,
     html: host.innerHTML.slice(0, 600),
+  };
+};
+
+/**
+ * Каким цветом нарисован **адрес** разметки ссылки.
+ *
+ * Отдельная проба, а не поле соседней: у `__ioExtLinkColors` предмет — первый
+ * непустой кусок разметки, то есть `[`, и спрашивать у неё про адрес значило
+ * бы сменить её предмет. Адрес узнаётся по тому, что в нём написано —
+ * `://` есть в нём и нет ни в одном знаке разметки, — а не по месту в списке:
+ * порядок кусков меняется (У-5).
+ */
+window.__ioExtLinkAddressColor = async function (needle, caretInside) {
+  let lineNo = 0;
+  for (let n = 1; n <= view.state.doc.lines; n++) {
+    if (view.state.doc.line(n).text.includes(needle)) { lineNo = n; break; }
+  }
+  if (!lineNo) return { found: false };
+  const line = view.state.doc.line(lineNo);
+  const at = line.from + line.text.indexOf(needle);
+  const head = caretInside ? at + 1 : line.from;
+  view.dispatch({ selection: { anchor: head, head } });
+  await settled();
+  const host = document.querySelectorAll(".cm-line")[lineNo - 1];
+  if (!host) return { found: false };
+  let node = Array.from(host.querySelectorAll(".io-linkwritten__mark"))
+    .find((n) => (n.textContent || "").includes("://"));
+  if (!node) return { found: false };
+  for (;;) {
+    const inner = Array.from(node.children)
+      .find((c) => (c.textContent || "") === (node.textContent || ""));
+    if (!inner) break;
+    node = inner;
+  }
+  return {
+    found: true,
+    address: getComputedStyle(node).color,
+    addressText: node.textContent,
   };
 };
 

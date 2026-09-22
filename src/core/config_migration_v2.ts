@@ -287,6 +287,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      нет, поэтому `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
   keepV2("visual.tags.hyperlink.targetColor"),
   keepV2("visual.tags.hyperlink.bracketsColor"),
+  keepV2("visual.tags.hyperlink.addressColor"),
   keepV2("visual.tags.opacityLeft"),
   keepV2("visual.tags.opacityRight"),
   keepV2("visual.tags.textSizePct"),
@@ -794,6 +795,8 @@ const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string | readonly string[]]
 const SPLIT_V2_KEYS: ReadonlyArray<readonly [string, string]> = [
   ["visual.tags.linkAsWritten.targetColor", "visual.tags.hyperlink.targetColor"],
   ["visual.tags.linkAsWritten.bracketsColor", "visual.tags.hyperlink.bracketsColor"],
+  /* Адрес отделён от скобок 2026-09-22: до этого его красили они. */
+  ["visual.tags.hyperlink.bracketsColor", "visual.tags.hyperlink.addressColor"],
 ];
 
 /**

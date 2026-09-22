@@ -911,7 +911,7 @@ function buildTagVisualLayer(view, plugin) {
        * красить под пузырём нечего, а спорить за отрезок — значит городить
        * второе правило о том, чей это знак.
        */
-      if (visuals.hyperlinkTargetColor || visuals.hyperlinkBracketsColor) {
+      if (visuals.hyperlinkTargetColor || visuals.hyperlinkBracketsColor || visuals.hyperlinkAddressColor) {
         for (const link of scanHyperlinksInLine(text)) {
           if (wheelSpan && link.start >= wheelSpan.start && link.start < wheelSpan.end) continue;
           const from = line.from + link.start;
@@ -943,6 +943,23 @@ function buildTagVisualLayer(view, plugin) {
                 }),
               });
             }
+          }
+          /*
+           * Адрес внутри круглых скобок — свой цвет (его замечание
+           * 2026-09-22). Класс и переменная те же, что у скобок: они отвечают
+           * на вопрос «каким цветом красить этот кусок», а не «из какой он
+           * настройки», и второй набор имён на тот же вопрос разошёлся бы с
+           * первым молча (У-32). У голого адреса `address` нет вовсе.
+           */
+          if (visuals.hyperlinkAddressColor && link.address && link.address.to > link.address.from) {
+            ranges.push({
+              from: line.from + link.address.from,
+              to: line.from + link.address.to,
+              deco: cmView.Decoration.mark({
+                class: LINK_BRACKETS_CLASS,
+                attributes: { style: "--io-link-brackets: " + visuals.hyperlinkAddressColor + ";" },
+              }),
+            });
           }
         }
       }

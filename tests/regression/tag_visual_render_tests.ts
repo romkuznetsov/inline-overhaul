@@ -320,6 +320,27 @@ const filled = (el: Any): boolean =>
   assert.equal(twice.hyperlinkTargetColor, "",
     "повторная запись настроек не заводит цвет заново");
 
+  /*
+   * **Третий цвет гиперссылки — адрес** (его замечание 2026-09-22 к тесту 2).
+   * Он тоже заводится от соседа: до этой строки адрес красили скобки.
+   */
+  const inheritedAddr = visualsOf({
+    schemaVersion: 2,
+    visual: { tags: { hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00" } } },
+  });
+  assert.equal(inheritedAddr.hyperlinkAddressColor, "#c46a00",
+    "цвет адреса заведён от цвета скобок, которыми он красился до разделения");
+  const apartAddr = visualsOf({
+    schemaVersion: 2,
+    visual: {
+      tags: {
+        hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00", addressColor: "#4b2ec4" },
+      },
+    },
+  });
+  assert.equal(apartAddr.hyperlinkBracketsColor, "#c46a00", "у скобок свой цвет");
+  assert.equal(apartAddr.hyperlinkAddressColor, "#4b2ec4", "у адреса свой");
+
   ok("его замечание к тесту 4: у гиперссылки своя пара цветов, и заведена она от прежней");
 }
 
@@ -353,8 +374,22 @@ const filled = (el: Any): boolean =>
   const md = "ссылка [hyper](https://example.com/a) в тексте";
   assert.equal(shown(md, of(md)[0]), "hyper",
     "у разметки подпись — то, что человек читает");
-  assert.deepEqual(marks(md, of(md)[0]), ["[", "](https://example.com/a)"],
-    "а разметка — скобки вместе с адресом: их Obsidian и прячет");
+  /*
+   * **Знаков три, а адрес отдельно** — его замечание 2026-09-22 к тесту 2:
+   * «мне не нравится что в `[hyper](link)` цвет `link` управляется
+   * hyperlink-brackets-color — сделай отдельный контрол на него». До этого
+   * адрес ехал вторым знаком, вместе с `](` и `)`.
+   */
+  assert.deepEqual(marks(md, of(md)[0]), ["[", "](", ")"],
+    "разметка — только знаки: адрес из них вынут");
+  const addr = (line: string, h: Any): string =>
+    (h.address ? line.slice(h.address.from, h.address.to) : "");
+  assert.equal(addr(md, of(md)[0]), "https://example.com/a",
+    "адрес — свой кусок, и он ровно между круглыми скобками");
+  /* Отрицательный контроль: у голого адреса своего куска нет вовсе — он весь
+     подпись, и его красит цвет подписи (сказано ему в подсказке). */
+  assert.equal(of(bare)[0].address, undefined,
+    "у голого адреса куска `address` нет: там адрес — то, что человек читает");
 
   /* Точка в конце предложения адресу не принадлежит. */
   const dotted = "адрес https://example.com/x?y=1. конец";

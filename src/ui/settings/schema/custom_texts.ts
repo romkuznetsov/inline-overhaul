@@ -148,7 +148,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   },
   "link-preview": {
     cap: "Live preview",
-    tip: "Three links, and two pairs of colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second and third are hyperlinks and take the two rows above this preview. A bare address has no markup, so only the first of that pair reaches it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    tip: "Three links and five colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second row is a markdown link: its text, its brackets and its address each take a row of their own above. The third is an address written on its own: it has no markup, so it is all text you read, and <code>Hyperlink target color</code> paints it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     wikilink: "[[the note name]]",
     label: "a link",
     address: "https://example.com",

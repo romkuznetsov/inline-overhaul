@@ -10659,7 +10659,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (74)
+### Пути, которых не было в описи v1.0 (75)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -10693,6 +10693,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tags.linkAsWritten.bracketsColor` | Link brackets color (`link-brackets-color`) | Inline appearance |
 | `visual.tags.hyperlink.targetColor` | Hyperlink target color (`hyperlink-target-color`) | Inline appearance |
 | `visual.tags.hyperlink.bracketsColor` | Hyperlink brackets color (`hyperlink-brackets-color`) | Inline appearance |
+| `visual.tags.hyperlink.addressColor` | Hyperlink address color (`hyperlink-address-color`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -17955,7 +17956,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 61 | 13 |
+| 5 | Visual | `features.visual.enabled` | 7 | 62 | 13 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
@@ -18831,9 +18832,13 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
   - старые названия для поиска: «Hyperlink color», «External link color», «URL color»
 - **Hyperlink brackets color** — `hyperlink-brackets-color`, `color`, path `visual.tags.hyperlink.bracketsColor`, default `""`
-  - desc: The markup around it: the square brackets and the address in round ones
-  - tip: The other half of <code>[a link](an address)</code>: the square brackets and the address in the round ones, painted apart from the text you read. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
+  - desc: The markup around it: the square brackets and the round ones, without the address
+  - tip: The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
   - старые названия для поиска: «Hyperlink brackets», «URL markup color», «Address color»
+- **Hyperlink address color** — `hyperlink-address-color`, `color`, path `visual.tags.hyperlink.addressColor`, default `""`
+  - desc: The address itself, between the round brackets of a markdown link
+  - tip: The address inside <code>[a link](an address)</code>, painted apart from the brackets around it and from the text you read. <b>An address written on its own is not this one:</b> there it is what you read, and <code>Hyperlink target color</code> paints it. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on. Empty means the color your theme gives it
+  - старые названия для поиска: «Address color», «URL color», «Link href color»
 - **`link-preview`** — свой блок, рендерер `renderLinkPreview`
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)
@@ -19222,6 +19227,7 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
 | `visual.tags.emptyBubblePct` | slider | `100` |
+| `visual.tags.hyperlink.addressColor` | color | `""` |
 | `visual.tags.hyperlink.bracketsColor` | color | `""` |
 | `visual.tags.hyperlink.targetColor` | color | `""` |
 | `visual.tags.linkAsWritten.bracketsColor` | color | `""` |

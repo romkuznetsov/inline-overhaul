@@ -337,12 +337,16 @@ Obsidian, and two pairs of colours: one pair for a wikilink, one for a hyperlink
 | `Link target color` | unset | The name you read between `[[` and `]]` |
 | `Link brackets color` | unset | The markup around it: `[[` and `]]` |
 | `Hyperlink target color` | unset | What you read in a hyperlink: the text of a markdown link, or a bare address whole |
-| `Hyperlink brackets color` | unset | The markup around it: the square brackets and the address in the round ones |
+| `Hyperlink brackets color` | unset | The markup around it: the square brackets and the round ones, without the address |
+| `Hyperlink address color` | unset | The address itself, between the round brackets |
 
 The first pair applies to a link Value left on `Show` = `default`, the one your line carries
 as `[[the note name]]`. The second applies to every hyperlink in every note, whether the
 plugin looks after that line or not: a markdown link and an address written on its
 own. A link inside backticks is code, and an image is not a link.
+
+An address written on its own is not markup — it is what you read — so `Hyperlink target color`
+paints it, not the address row.
 
 Markup is visible in the preview at the foot of this section and, in a note, on the line your
 cursor is on: everywhere else Obsidian takes it off the screen itself.

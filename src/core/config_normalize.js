@@ -998,6 +998,7 @@ function normalizeConfigV2(cfg) {
      `seedSplitKeys` в `config_migration_v2` (У-17). */
   hex("visual.tags.hyperlink.targetColor");
   hex("visual.tags.hyperlink.bracketsColor");
+  hex("visual.tags.hyperlink.addressColor");
   int("visual.tags.blockFill.opacity", 0, 100);
   /* На сколько подложка выходит за написанное (замечание по S7). Обе шкалы — в
      долях измеренного: высота — свободного места до краёв зрительной строки,

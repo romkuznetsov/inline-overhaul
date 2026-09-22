@@ -73,6 +73,12 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
    */
   "visual.tags.hyperlink.targetColor": "--link-external-color",
   "visual.tags.hyperlink.bracketsColor": "--text-faint",
+  /*
+   * Адрес внутри круглых скобок Obsidian рисует `span.cm-url`, и у него
+   * `--link-external-color` (`app.css` 1.13.7, строка 13448) — тот же, что у
+   * подписи, и **не** `--text-faint` соседних скобок.
+   */
+  "visual.tags.hyperlink.addressColor": "--link-external-color",
   /* Каретка: `.io-caret` в стилях берёт `var(--text-normal)`. */
   "visual.caret.color": "--text-normal",
   /* Круг при прыжке: `.io-jumpflash` берёт `var(--interactive-accent)`. */
