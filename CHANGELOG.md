@@ -19,7 +19,19 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.7.0
+
+_2026-09-22 · [all changes since 0.6.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.6.0...0.7.0)_
+
+> [!NOTE]
+> 🐛 **7** bug fixes · 🎨 **6** changes you can see · ✨ **5** new things
+>
+> **New in this release**
+> - **Every subheading in the settings folds**
+> - **A setting nothing works without is outlined in red until you fill it**
+> - **A link takes your colours anywhere in a note**
+> - **A hyperlink has its own two colours**
+> - **Addresses have a colour of their own**
 
 1. ✨ **Every subheading in the settings folds.** `Line view`, `Tag view`, `Link view`, `Panel`, `Scroller`, `Move text` and the rest carry the same triangle the group headings do, and each remembers whether you left it open. It is what makes a long group readable: fold what you are not changing and the preview at the top of it stays in view.
 2. 🎨 **The tagWheel group is two halves now.** What the picker draws stands under `Panel`, the box of neighbouring Values under `Scroller`. The opening-Field rows moved into `Panel` under `Show tag markers`, `tagWheel opening` is gone, and so is the arrow behaviour's stay in the scroller half. No setting changed its value.
