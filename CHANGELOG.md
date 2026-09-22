@@ -28,7 +28,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 5. 🎨 **`Show option IDs in tips` moved to `Advanced → Diagnostics`.** It had a heading to itself for one row; ids and the developer log answer the same question, so they now stand together.
 6. 🎨 **A command list no longer repeats its own heading.** Under `Command reference` and in the `Commands` section of a Field the area stood in front of every row — `Navigation: Move left` under a heading that already said `Navigation`. The column shows `Move left` now; the command itself keeps its full name, and pressing a key cell still opens Obsidian's `Hotkeys` screen at it.
 7. ✨ **A setting nothing works without is outlined in red until you fill it.** `Emoji-prefix` of an `Emoji` Field is one: leave it empty and the picker refuses to open at all, with `these fields need an Emoji`. The outline goes the moment you type. The same goes for the text a Binder row inserts.
-8. 🐛 **Every color field offers the theme's color, not black.** Six of them had no colour to fall back on, so the picker showed `#000000`: the Stripe, both halves of a link Value, the caret, the jump circle and a transformed line. Each now opens on what actually paints it when you leave it unset.
+8. 🐛 **`Restore default` on a color no longer gives you black.** The plugin read your theme's colour as text, and `hsl(0, calc(0% - 20%), …)` is not something it could parse — so it declared no default and the picker fell to `#000000`. It asks the browser for the computed colour now: on `Minimal` that was eleven fields of twelve.
 9. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
 
 ## 0.6.0

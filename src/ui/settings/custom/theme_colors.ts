@@ -95,16 +95,63 @@ export function setThemeReader(next: ThemeReader | null): void {
   reader = next;
 }
 
+/**
+ * Значение переменной темы, **разобранное браузером**, а не прочитанное как
+ * текст.
+ *
+ * `getPropertyValue` у своей переменной отдаёт не цвет, а то, что написано в
+ * теме, — и у его `Minimal` там `hsl( 0, calc(0% - 20%), calc(96% - 50%) )`,
+ * `white`, `rgba(...)`. Наш разбор цвета знает `#rgb`, `#rrggbb` и `rgb(...)`
+ * и на остальном честно отвечает «не разобрал» — то есть `defaultValue` у
+ * поля цвета оставалось пустым, и кнопка Obsidian «восстановить значение по
+ * умолчанию» ставила пустое, а поле рисовало его **чёрным**. Он пришёл с этим
+ * дважды, и вторым разом назвал `scroller-fill` — у которого переменная темы
+ * была с самого начала.
+ *
+ * Измерено на его теме: из восьми переменных семь приходят в форме, которую
+ * наш разбор не понимает, а через узел все восемь дают `rgb(...)`.
+ *
+ * Поэтому значение пропускается через настоящий узел: браузер считает
+ * `var(...)`, `calc(...)`, `hsl(...)` и `color-mix(...)` сам, и разбирать нам
+ * остаётся одну форму — ту, которую он и отдаёт.
+ *
+ * **Пустая переменная остаётся пустой.** `color: var(--нет-такой)` — это
+ * недействительное объявление, и узел унаследовал бы цвет родителя; поэтому
+ * сперва спрашивается, объявлена ли переменная вообще.
+ */
 function readVariable(variable: string): string {
   if (reader) return String(reader(variable) || "");
   const g = globalThis as unknown as {
-    getComputedStyle?: (el: unknown) => { getPropertyValue: (n: string) => string };
-    document?: { body?: unknown };
+    getComputedStyle?: (el: unknown) => { getPropertyValue: (n: string) => string; color?: string };
+    document?: {
+      body?: { appendChild?: (n: unknown) => unknown };
+      createElement?: (tag: string) => {
+        style: { setProperty: (n: string, v: string) => void };
+        remove?: () => void;
+      };
+    };
   };
-  if (typeof g.getComputedStyle !== "function" || !g.document || !g.document.body) return "";
+  const doc = g.document;
+  const body = doc && doc.body;
+  if (typeof g.getComputedStyle !== "function" || !doc || !body) return "";
   try {
-    return String(g.getComputedStyle(g.document.body).getPropertyValue(variable) || "");
+    const raw = String(g.getComputedStyle(body).getPropertyValue(variable) || "").trim();
+    if (!raw) return "";
+    if (typeof doc.createElement !== "function" || typeof body.appendChild !== "function") return raw;
+    /*
+     * Узел живёт внутри одного вызова: его добавляют, спрашивают и снимают,
+     * не отдав кадр, — то есть на экран он не попадает и прятать его нечем.
+     * Пустой `span` без текста места не занимает.
+     */
+    const probe = doc.createElement("span");
+    probe.style.setProperty("color", "var(" + variable + ")");
+    body.appendChild(probe);
+    const solved = String((g.getComputedStyle(probe) || {}).color || "").trim();
+    if (typeof probe.remove === "function") probe.remove();
+    return solved || raw;
   } catch (_err) {
+    /* Проба: узла, стилей или тела может не быть — «нет» здесь ответ, а не
+       отказ, и поле обходится тем, что было. */
     return "";
   }
 }
