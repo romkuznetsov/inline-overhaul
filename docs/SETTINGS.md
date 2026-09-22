@@ -232,7 +232,7 @@ The right column is everything about the Field picked on the left:
 | `Name in tagWheel` | A shorter name for the tagWheel row, where there is little room |
 | `Active` | `Yes`, `No`, or `Commands only` — whether the Field is offered, and where |
 | `Prefix behavior` | `Strict`, `Insert only` or `Free`; how the Field affects the line Prefix |
-| `Child Field` | `After parent`, `Show always` or `Hide` |
+| `Child Field` | `After parent`, `Show always`, `Show when press Alt` or `Hide` |
 | `Parent Value` | With `Show always`: leave the line alone, or also write the parent Value |
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |

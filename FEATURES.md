@@ -24,7 +24,8 @@ project link, an estimate. You define them; the plugin ships no methodology.
 - **Values.** Each Field holds an ordered list of Values, and each Value carries its own
   writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the
-  parent has a Value, `Show always` offers it on any line, `Hide` keeps it out.
+  parent has a Value, `Show always` offers it on any line, `Show when press Alt` keeps it
+  out of tagWheel until you hold `Alt` on the parent, `Hide` keeps it out.
 - **Prerequisites.** A Field can stay out of the line until another Field has a Value —
   any Value, or one you name.
 - **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,

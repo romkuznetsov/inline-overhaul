@@ -241,6 +241,7 @@ function ensureBehaviorModesFromOrder(cfg) {
           dependsOn: key,
           freeOfParent: subFreeOfParent(order, subKey),
           addsParentValue: subAddsParentValue(order, subKey),
+          showOnAlt: subShowsOnAlt(order, subKey),
           disabledForParentValues: [],
           placeholder: "sub",
           values: [""],
@@ -264,6 +265,7 @@ function ensureBehaviorModesFromOrder(cfg) {
           dependsOn: key,
           freeOfParent: subFreeOfParent(order, subKey),
           addsParentValue: subAddsParentValue(order, subKey),
+          showOnAlt: subShowsOnAlt(order, subKey),
         };
       }
       if (subKey && !Object.prototype.hasOwnProperty.call(order.active, subKey)) {
@@ -372,6 +374,7 @@ function makeDefaultPkmOrder() {
     enabled: {},
     subWithoutParent: {},
     subAddsParent: {},
+    subOnAlt: {},
     types: {},
     labels: {},
     strictNames: {},
@@ -398,6 +401,12 @@ function subFreeOfParent(order, subKey) {
 /** Дописывать ли родителя, когда такое поле получило значение. */
 function subAddsParentValue(order, subKey) {
   const bag = isObj(order) && isObj(order.subAddsParent) ? order.subAddsParent : {};
+  return bag[subKey] === true;
+}
+
+/** Видно ли поле в tagWheel только пока зажат `Alt` (`З-36`). */
+function subShowsOnAlt(order, subKey) {
+  const bag = isObj(order) && isObj(order.subOnAlt) ? order.subOnAlt : {};
   return bag[subKey] === true;
 }
 
@@ -471,7 +480,7 @@ function normalizePkmOrder(rawOrder) {
    * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
    * `left`/`right` нет нарочно.
    */
-  for (const mapKey of ["subWithoutParent", "subAddsParent"]) {
+  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt"]) {
     if (!isObj(rawOrder[mapKey])) continue;
     for (const k of orderKeys) {
       if (typeof rawOrder[mapKey][k] !== "boolean") continue;

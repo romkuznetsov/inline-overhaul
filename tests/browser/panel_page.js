@@ -173,6 +173,18 @@ window.__ioPanelKey = async function (key) {
 };
 
 /**
+ * Отпущенная клавиша — тоже настоящее событие окна (`З-36`): дочернее поле под
+ * `Alt` живёт, пока клавиша зажата, и отпускание панель ловит своим `keyup`.
+ */
+window.__ioPanelKeyUp = async function (key) {
+  window.dispatchEvent(new KeyboardEvent("keyup", {
+    key: String(key), code: String(key), bubbles: true, cancelable: true,
+  }));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return window.__ioPanelProbe();
+};
+
+/**
  * `Ctrl+Z` на настоящей истории CodeMirror — то самое нажатие заказчика.
  *
  * Стенд `tools/undo_bench.js` меряет это же в Node и на большем числе случаев;
@@ -206,6 +218,8 @@ window.__ioPanelProbe = function () {
   const line = view.state.doc.line(n + 1);
   return {
     active,
+    /* Зажат ли `Alt` в глазах панели (`З-36`). */
+    altHeld: !!(st && st.session && st.session.altHeld === true),
     said: said.slice(),
     lineNumber: n,
     lineText: line.text,

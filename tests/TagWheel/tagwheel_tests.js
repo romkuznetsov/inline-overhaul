@@ -2878,6 +2878,110 @@ function runChildFieldShortNameSuite() {
 }
 
 /**
+ * Дочернее поле под `Alt` (`З-36`, его пункт 11 от 2026-09-22 и `В-168`).
+ *
+ * Его слова: поле в положении `Show when press Alt` видно в панели, пока
+ * зажат `Alt`, «не переключателем»; отпустил — снова скрыто, выбранное
+ * значение остаётся на строке. Видно оно у ближайшего Field — того, на
+ * котором стоит курсор панели.
+ *
+ * Правила собираются тем же путём, каким их собирает плагин для дочернего
+ * поля: `parseOrderConfig` и `applyOrderToRules`. Признак `showOnAlt` кладётся
+ * на поле так, как его кладёт `pkm_order_config.js`; дорогу до него держит
+ * `rules_from_settings_tests.ts`.
+ */
+function runAltChildSuite() {
+  var path = require('path')
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var shared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+
+  function build(onAlt) {
+    var rules = {
+      behavior: { order: {} },
+      io: { separator1: '::', separator2: '::' },
+      inlineLayout: { techOrder: ['otherTags'] },
+      ui: {},
+      leftMode: {
+        fields: [
+          { id: 'importance', orderKey: 'importance', prefix: '#', placeholder: 'importance', values: [{ id: '', token: '' }, { id: 'p1', token: '#/1' }, { id: 'p2', token: '#/2' }] },
+          { id: 'importance_sub', orderKey: 'importance_sub', dependsOn: 'importance', showOnAlt: onAlt, prefix: '#', placeholder: 'sub', values: [{ id: '', token: '' }, { id: 'p1a', token: '#/1a', allowedParentValues: ['p1'] }] },
+          { id: 'category', orderKey: 'category', prefix: '#', placeholder: 'category', values: [{ id: '', token: '' }, { id: 'alpha', token: 'area-alpha' }] }
+        ]
+      },
+      rightMode: { fields: [] }
+    }
+    var orderCfg = shared.parseOrderConfig(JSON.stringify({
+      left: ['importance', 'importance_sub', 'category'],
+      right: [],
+      active: { importance: 'yes', importance_sub: 'yes', category: 'yes' },
+      enabled: { importance: true, importance_sub: true, category: true },
+      strictNames: { importance: 'importance', importance_sub: 'importance_sub', category: 'category' },
+      types: { importance: 'tag', importance_sub: 'tag', category: 'tag' }
+    }), function (k) { return String(k || '').trim() })
+    shared.applyOrderToRules(rules, orderCfg)
+    return rules
+  }
+  function panel(rules, activeId, held) {
+    var s = core.makeInitialState(rules, 'left')
+    s.mode = 'left'
+    s.selected.importance = 'p1'
+    s.activeFieldId = activeId
+    s.altHeld = held
+    return { rules: rules, session: s }
+  }
+  var seq = function (st) { return core.getNavigableFieldSequence(st.rules, st.session) }
+
+  /* Положительный контроль: без положения `Alt` дочернее поле видно после родителя. */
+  var plain = panel(build(false), 'importance', false)
+  assertTrue(seq(plain).indexOf('importance_sub') !== -1,
+    'without the Alt mode the child is on the strip once the parent has a Value: ' + JSON.stringify(seq(plain)))
+
+  var rules = build(true)
+  var shut = panel(rules, 'importance', false)
+  assertTrue(seq(shut).indexOf('importance_sub') === -1,
+    'Alt not held: the child is off the strip: ' + JSON.stringify(seq(shut)))
+  var held = panel(rules, 'importance', true)
+  assertArrayEq(seq(held), ['importance', 'importance_sub', 'category'],
+    'Alt held on the parent: the child stands right after it')
+  var elsewhere = panel(rules, 'category', true)
+  assertTrue(seq(elsewhere).indexOf('importance_sub') === -1,
+    'Alt held on another Field: only the nearest Field shows its child: ' + JSON.stringify(seq(elsewhere)))
+  var onChild = panel(rules, 'importance_sub', true)
+  assertTrue(seq(onChild).indexOf('importance_sub') !== -1, 'stepping onto the child keeps it in sight while Alt is held')
+
+  /* Полоса и стрелки отвечают одним вопросом: полоса показывает поле тогда же. */
+  var parsed = core.parseLine('- text', rules)
+  assertTrue(core.renderControlLine(rules, held.session, parsed).indexOf('sub') !== -1,
+    'the strip draws the child while Alt is held')
+  assertTrue(core.renderControlLine(rules, shut.session, parsed).indexOf('sub') === -1,
+    'and does not draw it once Alt is let go')
+
+  /* Отпустил на дочернем поле: курсор уходит на родителя, а значение остаётся. */
+  onChild.session.selected.importance_sub = 'p1a'
+  assertEq(tagwheel.holdAlt(onChild, false), true, 'letting go of Alt is a change')
+  assertEq(onChild.session.activeFieldId, 'importance', 'the cursor goes back to the parent, not to the first Field')
+  core.sanitizeState(rules, onChild.session)
+  assertEq(onChild.session.selected.importance_sub, 'p1a', 'the Value picked under Alt stays on the line')
+  assertEq(tagwheel.holdAlt(onChild, false), false, 'a second let-go changes nothing')
+
+  /*
+   * Отрицательный контроль к месту вопроса: спрятанное `Alt` поле панель
+   * **чистит** по-прежнему. Родитель сменился на тот, чьего ребёнка это
+   * значение не является, — устаревшее дочернее значение уходит, как и при
+   * `After parent`. Задай `Alt` свой вопрос в `isFieldEnabled`, чистка бы это
+   * поле пропускала.
+   */
+  var stale = panel(rules, 'importance', false)
+  stale.session.selected.importance_sub = 'p1a'
+  stale.session.selected.importance = 'p2'
+  core.sanitizeState(rules, stale.session)
+  assertEq(stale.session.selected.importance_sub, '', 'a stale child Value is cleaned even while the child is hidden')
+
+  console.log('  ok the Alt child shows while Alt is held on its parent, and only there')
+}
+
+/**
  * Левый блок строки не объявляется текстом человека.
  *
  * **Куплено двумя замечаниями одного вечера** (2026-09-12, строки S5 и S7
@@ -3110,6 +3214,7 @@ function runNode() {
   runUndoSeamSuite()
   runUndoAfterPanelSuite()
   runChildFieldShortNameSuite()
+  runAltChildSuite()
   runEdgeModeSuite()
   /* Применение TagWheel асинхронно — последней идёт та проверка, которая его
      и гоняет, и сводка печатается после неё. */

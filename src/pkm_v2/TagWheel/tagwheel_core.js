@@ -2616,6 +2616,31 @@ function valueLabelInStrip(token, labels) {
   return joinValueLabel(map ? map[raw.trim()] : '', raw, mode)
 }
 
+/**
+ * Видно ли поле в панели прямо сейчас (`З-36`, его пункт 11 от 2026-09-22).
+ *
+ * Дочернее поле в положении `Show when press Alt` панель показывает, только
+ * пока зажат `Alt`, и только у **ближайшего** Field: курсор панели стоит на его
+ * родителе или на нём самом. Отпустил — поле снова скрыто, а выбранное
+ * значение остаётся на строке.
+ *
+ * **Вопрос задаётся здесь, а не в `isFieldEnabled`, и это нарочно.** Тот
+ * отвечает ещё и чистке (`sanitizeState`) и раскладке токенов
+ * (`field_relocation`): спрятанное им поле панель перестала бы чистить при
+ * смене родителя, и устаревшее дочернее значение осталось бы на строке. Здесь
+ * же сходятся ровно показ полосы и список полей для стрелок — оба зовут
+ * `buildGroupDisplay`.
+ *
+ * `altHeld` ставит одна панель (`holdAlt` в `tagwheel.js`); у сессии команды
+ * его нет, и полосы она не рисует.
+ */
+function shownInPanel(state, field) {
+  if (!field || field.showOnAlt !== true) return true
+  if (!state || state.altHeld !== true) return false
+  var active = String(state.activeFieldId || '')
+  return active !== '' && (active === String(field.id || '') || active === String(field.dependsOn || ''))
+}
+
 function buildGroupDisplay(group, mode, state, rules, labels) {
   var tokens = []
   var hasActive = false
@@ -2633,6 +2658,7 @@ function buildGroupDisplay(group, mode, state, rules, labels) {
     if (!field) continue
     if (field.enabled === false) continue
     if (!isFieldEnabled(fieldMode, state, field, rules)) continue
+    if (!shownInPanel(state, field)) continue
     if (field.dependsOn) {
       var allowed = getAllowedValues(fieldMode, state, field, rules)
       var hasChildValues = false
@@ -3202,6 +3228,7 @@ module.exports = {
   cycleValue: cycleValue,
   nextField: nextField,
   getNavigableFieldSequence: getNavigableFieldSequence,
+  shownInPanel: shownInPanel,
   buildTags: buildTags,
   /* Правило «как значение поля выглядит в строке» отдаётся наружу с
      2026-09-15: у него было два объявления, и оба кормили один и тот же общий

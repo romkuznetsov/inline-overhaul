@@ -129,10 +129,13 @@ const RULES: readonly Rule[] = [
   {
     what: "слушатель на window мимо registerDomEvent",
     rx: /window\.addEventListener\s*\(/g,
-    ceiling: 1,
+    ceiling: 2,
     control: 'window.addEventListener("resize", onResize);',
-    why: "Б3: одно место в панели TagWheel под З3, и снимает его выгрузка "
-      + "(тридцать третье исключение). Разобрано и оставлено нарочно",
+    why: "Б3: перехват клавиш панели TagWheel под З3 — `keydown` и, с 2026-09-23, "
+      + "`keyup` для `Alt` (`З-36`, исключение № 148). Оба снимает одна уборка, "
+      + "`cleanupTagWheelState`, в том числе при выгрузке (тридцать третье "
+      + "исключение). Разобрано и оставлено нарочно; `blur` ради `Alt+Tab` "
+      + "не заведён — его заменяет `altKey` следующего нажатия",
   },
   {
     what: "печать в консоль журналом разработчика",

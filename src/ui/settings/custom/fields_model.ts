@@ -465,6 +465,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const key = String(subKey || "").trim();
     if (!key) return "after-parent";
     if (getSubActive(key) === "no") return "hide";
+    /* Четвёртое положение (`З-36`, его пункт 11 от 2026-09-22): `Show when
+       press Alt`. Спрашивается раньше `always`: оба ключа пишет одна запись,
+       и вместе они не стоят, но разобранный руками файл мог бы их свести. */
+    if (orderState.subOnAlt && orderState.subOnAlt[key] === true) return "alt";
     return (orderState.subWithoutParent && orderState.subWithoutParent[key] === true)
       ? "always"
       : "after-parent";
@@ -515,6 +519,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         subAddsParent: {
           ...current.subAddsParent,
           ...(p && p.subAddsParent ? p.subAddsParent : {}),
+        },
+        subOnAlt: {
+          ...current.subOnAlt,
+          ...(p && p.subOnAlt ? p.subOnAlt : {}),
         },
         types: { ...current.types, ...(p && p.types ? p.types : {}) },
         labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
@@ -797,6 +805,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       enabled: { ...(liveOrder.enabled || {}) },
       subWithoutParent: { ...(liveOrder.subWithoutParent || {}) },
       subAddsParent: { ...(liveOrder.subAddsParent || {}) },
+      subOnAlt: { ...(liveOrder.subOnAlt || {}) },
     };
     for (const t of targets) {
       delete nextOrder.labels[t];
@@ -807,6 +816,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       delete nextOrder.enabled[t];
       delete nextOrder.subWithoutParent[t];
       delete nextOrder.subAddsParent[t];
+      delete nextOrder.subOnAlt[t];
     }
     const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
     const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
@@ -1027,7 +1037,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * человека это один выбор, и в отмене он обязан быть одной ступенью.
    */
   const setSubMode = (subKey: string, rawMode: string): WriteResult => {
-    const mode: SubMode = rawMode === "always" || rawMode === "hide"
+    const mode: SubMode = rawMode === "always" || rawMode === "hide" || rawMode === "alt"
       ? rawMode
       : "after-parent";
     const on = mode !== "hide";
@@ -1038,6 +1048,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       ...(orderState.subWithoutParent || {}),
       [subKey]: mode === "always",
     };
+    orderState.subOnAlt = { ...(orderState.subOnAlt || {}), [subKey]: mode === "alt" };
     const leftMode = modeFields(behaviorOf(plugin.getConfig()), "leftMode");
     const idx = leftMode.findIndex(f => idOf(f) === subKey);
     if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: on };
@@ -1049,6 +1060,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       active: { [subKey]: next },
       enabled: { [subKey]: on },
       subWithoutParent: { [subKey]: mode === "always" },
+      subOnAlt: { [subKey]: mode === "alt" },
     }, "pkm:behavior:order:sub:" + subKey);
     return { ok: true };
   };

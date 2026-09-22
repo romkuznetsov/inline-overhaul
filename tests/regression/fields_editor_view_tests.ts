@@ -72,6 +72,8 @@ function normalizePkmOrder(raw: Any): Any {
        переносить их, как настоящий нормализатор: карта, которой подделка не
        знает, доезжает до конфига пустой, и проверка мерит подделку. */
     subWithoutParent: map(o.subWithoutParent), subAddsParent: map(o.subAddsParent),
+    /* Третья — положение `Show when press Alt` (`З-36`), по той же причине. */
+    subOnAlt: map(o.subOnAlt),
   };
 }
 
@@ -1540,7 +1542,8 @@ function heightBtn(host: StubNode): StubNode {
    * в новую вёрстку не попал, и сверка карт этого не поймала: `setSubMode`
    * пишет в те же ветки конфига, что и соседние контролы.
    *
-   * Положений у него три (его слово 2026-09-19), и умолчание — `after-parent`:
+   * Положений у него четыре — три его словом 2026-09-19 и `alt` его пунктом
+   * 11 от 2026-09-22 (`З-36`), — и умолчание — `after-parent`:
    * так поле работало всегда. **Первым в списке оно стоит с 2026-09-22** (его
    * пункт 12): первая строка списка читается как стандартная, и у соседних
    * списков этого блока умолчание тоже открывает список.
@@ -1552,8 +1555,8 @@ function heightBtn(host: StubNode): StubNode {
   assert.ok(childRow, "у Field с дочерним есть ряд Child Field");
   const pick = all(childRow, "io-select")[0] as StubNode;
   assert.deepEqual(pick.children.map(c => String(c.value || "")),
-    ["after-parent", "always", "hide"],
-    "умолчание открывает список: после родителя, всегда, не работает");
+    ["after-parent", "always", "alt", "hide"],
+    "умолчание открывает список: после родителя, всегда, пока зажат Alt, не работает");
   assert.equal(String(pick.children[0]?.value || ""), "after-parent",
     "его пункт 12: `After parent` стоит первым, потому что он и есть умолчание");
   assert.equal(pick.value, "after-parent",
@@ -1619,6 +1622,43 @@ function heightBtn(host: StubNode): StubNode {
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:sub-parent:status_sub"],
     "выбор про родителя — своя запись, и она одна");
   ok("замечание 6: `Show always` открывает ряд `Parent Value`, и тот пишет свой ключ");
+}
+{
+  /*
+   * `Show when press Alt` (`З-36`, его пункт 11 от 2026-09-22). Пишется той же
+   * парой записей, что и соседние положения: для человека это один выбор.
+   * Ключ свой — `subOnAlt`, а «работать без родителя» при нём снято: поле
+   * по-прежнему ждёт значения у родителя, и ряда `Parent Value` нет.
+   */
+  const v = makeView();
+  const childRow = all(v.host, "io-item").find(r =>
+    String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode;
+  const pick = all(childRow, "io-select")[0] as StubNode;
+  assert.equal(String(pick.children.find(c => String(c.value) === "alt")?.textContent || "").trim(),
+    "Show when press Alt", "положение названо его словами");
+  pick.value = "alt";
+  pick.dispatch("change");
+  assert.deepEqual(v.writes.map(w => w.reason),
+    ["pkm:behavior:leftmode:subtoggle:status_sub", "pkm:behavior:order:sub:status_sub"],
+    "`Show when press Alt` пишется теми же двумя записями");
+  const orderBag = (v.writes.find(w => w.reason === "pkm:behavior:order:sub:status_sub") as Write)
+    .patch["pkm"]["fields"]["order"];
+  assert.equal(orderBag["subOnAlt"]["status_sub"], true, "положение уехало в настройки своим ключом");
+  assert.equal(orderBag["subWithoutParent"]["status_sub"], false, "и «без родителя» при нём не стоит");
+  assert.equal(orderBag["active"]["status_sub"], "yes", "поле включено: его команды работают");
+  v.draw();
+  const again = all(all(v.host, "io-item").find(r =>
+    String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode, "io-select")[0] as StubNode;
+  assert.equal(again.value, "alt", "после перерисовки контрол показывает то, что записано");
+  const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
+  assert.ok(!names.includes("Parent Value"), "ряд про родителя — только у `Show always`");
+  v.writes.length = 0;
+  again.value = "after-parent";
+  again.dispatch("change");
+  const back = (v.writes.find(w => w.reason === "pkm:behavior:order:sub:status_sub") as Write)
+    .patch["pkm"]["fields"]["order"];
+  assert.equal(back["subOnAlt"]["status_sub"], false, "вернул `After parent` — ключ `Alt` снят");
+  ok("`Show when press Alt` пишется своим ключом и снимается обратным выбором");
 }
 
 {

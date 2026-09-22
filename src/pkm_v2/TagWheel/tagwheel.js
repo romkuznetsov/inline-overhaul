@@ -402,9 +402,40 @@ function getTagWheelEditor(app_) {
   return __activeEditorMod.activeEditorFrom(app_)
 }
 
+/**
+ * Зажат ли `Alt` (`З-36`). Возвращает, сменилось ли что-нибудь.
+ *
+ * Отпустил, стоя на дочернем поле, которое `Alt` и показывал, — курсор панели
+ * уходит на его родителя: поле сейчас исчезнет, и без этого
+ * `ensureActiveFieldId` поставил бы курсор на первое поле полосы, далеко от
+ * того места, где человек только что был.
+ */
+function holdAlt(state, held) {
+  var session = state && state.session
+  if (!session) return false
+  var now = held === true
+  if (session.altHeld === now) return false
+  session.altHeld = now
+  if (!now && state.rules) {
+    var id = String(session.activeFieldId || '')
+    var modes = [state.rules.leftMode, state.rules.rightMode]
+    var mi
+    for (mi = 0; mi < modes.length; mi++) {
+      var fields = modes[mi] && Array.isArray(modes[mi].fields) ? modes[mi].fields : []
+      var fi
+      for (fi = 0; fi < fields.length; fi++) {
+        var f = fields[fi]
+        if (f && f.id === id && f.showOnAlt === true && f.dependsOn) session.activeFieldId = String(f.dependsOn)
+      }
+    }
+  }
+  return true
+}
+
 function cleanupTagWheelState(state) {
   if (!state) return
   if (state.keyHandler) window.removeEventListener('keydown', state.keyHandler, true)
+  if (state.keyUpHandler) window.removeEventListener('keyup', state.keyUpHandler, true)
   try {
     if (state.scrollerOverlay && typeof state.scrollerOverlay.destroy === 'function') {
       state.scrollerOverlay.destroy()
@@ -2530,6 +2561,14 @@ async function runTagWheel(input, quickAddSettings) {
 
       var keymap = state.rules.behavior.keymap || {}
       var handled = false
+      /*
+       * `Alt`, отпущенный за пределами окна (`З-36`). После `Alt+Tab`
+       * отпускания панель не получит вовсе; следующее нажатие без `Alt` —
+       * первый знак, что клавиша уже не зажата. Слушателя `blur` ради этого
+       * не заводится: каталог Obsidian считает каждый слушатель на `window`
+       * мимо `registerDomEvent` (`catalog_rules_tests.ts`).
+       */
+      var released = e.key !== 'Alt' && e.altKey === false && holdAlt(state, false)
 
       try {
         if (e.key === (keymap.nextField || 'ArrowRight')) {
@@ -2557,6 +2596,13 @@ async function runTagWheel(input, quickAddSettings) {
           handled = true
         } else if (e.key === (keymap.cancel || 'Escape')) {
           cancelSelection(state)
+          handled = true
+        } else if (e.key === 'Alt') {
+          /* Дочернее поле в положении `Show when press Alt` видно, пока клавиша
+             зажата (`З-36`); отпускание ловит `keyUpHandler` ниже. Своя
+             обработка гасит и то, что Windows делает с одиночным `Alt`, —
+             фокус на меню окна. */
+          holdAlt(state, true)
           handled = true
         }
       } catch (err) {
@@ -2586,6 +2632,12 @@ async function runTagWheel(input, quickAddSettings) {
         }
         e.preventDefault()
         e.stopPropagation()
+      } else if (released && state.active) {
+        /* Клавиша не наша — её получит редактор, — но полоса уже другая. */
+        ensureActiveFieldId(state)
+        drawPanelLine(state, withKeptPrefix(state.originalLine,
+          state.core.renderControlLine(state.rules, state.session, state.parsedLine,
+            state.valueNamesCfg)))
       }
     }
 
@@ -2608,9 +2660,27 @@ async function runTagWheel(input, quickAddSettings) {
     state.cancel = function() {
       try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
     }
+    /*
+     * Отпущенный `Alt` (`З-36`): поле скрывается в тот же миг, а не со
+     * следующим нажатием. Живёт и снимается вместе с перехватом `keydown` —
+     * `cleanupTagWheelState`, в том числе при выгрузке плагина.
+     */
+    state.keyUpHandler = function(e) {
+      if (!e || e.key !== 'Alt' || !state.active) return
+      if (holdAlt(state, false)) {
+        ensureActiveFieldId(state)
+        drawPanelLine(state, withKeptPrefix(state.originalLine,
+          state.core.renderControlLine(state.rules, state.session, state.parsedLine,
+            state.valueNamesCfg)))
+      }
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    session.altHeld = false
     window.__tagWheelState = state
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)
+    window.addEventListener('keyup', state.keyUpHandler, true)
 
     drawPanelLine(state, withKeptPrefix(originalLine,
       core.renderControlLine(rules, session, parsedLine, valueNamesCfg)))
@@ -2678,6 +2748,7 @@ module.exports.entry = async function(QuickAdd, settings) {
 /* Решение о шаге стрелки — чистая функция, и проверяется она без Obsidian
    (10.13.35). Запись остаётся внутри, у `nextVirtualField`. */
 module.exports.planFieldStep = planFieldStep
+module.exports.holdAlt = holdAlt
 module.exports.normalizeEdgeMode = normalizeEdgeMode
 /* Запись строки мимо истории отмен — чистая функция над чужим редактором, и
    проверяется она без Obsidian (10.13.53). */

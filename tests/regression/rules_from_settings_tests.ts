@@ -171,6 +171,7 @@ const LINE = "- [ ] #todo || 1244";
   order.active[String(subKey)] = "yes";
   order.subWithoutParent = { [String(subKey)]: true };
   order.subAddsParent = { [String(subKey)]: true };
+  order.subOnAlt = { [String(subKey)]: true };
   internals.ensureBehaviorModesFromOrder(cfg);
   const rules = shape.buildRulesForEngines(cfg);
   const field = (rules.leftMode.fields as Any[]).find((f: Any) => String(f && f.id) === String(subKey));
@@ -179,6 +180,8 @@ const LINE = "- [ ] #todo || 1244";
     "«работает без родителя» доехало до поля: между настройкой и движком два переноса");
   assert.equal(field.addsParentValue, true,
     "«дописывать родителя» доехало тем же путём");
+  assert.equal(field.showOnAlt, true,
+    "`Show when press Alt` доехало тем же путём (`З-36`): четыре перечня, и любой молча выбросил бы его");
 
   /* Отрицательный контроль: без разрешений у поля стоит `false`, а не
      `undefined`, — движки спрашивают строгое равенство. */
@@ -189,6 +192,7 @@ const LINE = "- [ ] #todo || 1244";
     .find((f: Any) => String(f && f.id) === String(subKey));
   assert.equal(plainField.freeOfParent, false, "без настройки поле не работает без родителя");
   assert.equal(plainField.addsParentValue, false, "и родителя не дописывает");
+  assert.equal(plainField.showOnAlt, false, "и видно в панели всегда, а не только под `Alt`");
   ok("разрешения дочернего Field доезжают от настроек до поля в правилах");
 }
 

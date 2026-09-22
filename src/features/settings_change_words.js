@@ -64,6 +64,7 @@ const FIELD_PROP_NAMES = {
   enabledForParentValues: "PREREQ_VALUE_NAME",
   freeOfParent: "CHILD_NAME",
   addsParentValue: "CHILD_PARENT_NAME",
+  showOnAlt: "CHILD_NAME",
   yamlKey: "YAML_NAME",
   yamlCardinality: "YAML_KIND_NAME",
   yamlValueRule: "YAML_FORM_NAME",
@@ -134,6 +135,7 @@ const DERIVED_KEYS = { subtags: true, allowedParentValues: true };
 const FIELD_PROP_WORDS = {
   freeOfParent: { true: "CHILD_ALWAYS", false: "CHILD_AFTER_PARENT" },
   addsParentValue: { true: "CHILD_PARENT_ADD", false: "CHILD_PARENT_KEEP" },
+  showOnAlt: { true: "CHILD_ALT", false: "CHILD_AFTER_PARENT" },
 };
 
 /** Значение словами панели, если у этой настройки они свои. */

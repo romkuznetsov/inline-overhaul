@@ -351,7 +351,7 @@ export type FieldActiveMode = "yes" | "no" | "hotkey_only";
  * Положение дочернего Field (его слово 2026-09-19): спрятан, появляется
  * после значения родителя (так было всегда) или работает и без родителя.
  */
-export type SubMode = "hide" | "after-parent" | "always";
+export type SubMode = "hide" | "after-parent" | "always" | "alt";
 
 /** Как Value показывается в строке: как есть, только цветом, своим текстом (Ф9). */
 export type ValueVisibility = "default" | "empty" | "custom";
@@ -378,6 +378,8 @@ export interface OrderState {
   subWithoutParent: Record<string, boolean>;
   /** Дописывать ли родителя, когда такой Field получил значение. */
   subAddsParent: Record<string, boolean>;
+  /** Показывать ли дочерний Field в tagWheel только пока зажат `Alt` (`З-36`). */
+  subOnAlt: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
 }

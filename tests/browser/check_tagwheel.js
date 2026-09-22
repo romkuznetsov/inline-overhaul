@@ -259,6 +259,28 @@ async function main() {
         + JSON.stringify(bothTexts));
     }
 
+    /* ---- 11. `Alt` зажат, пока зажат (`З-36`, `В-168`) ---------------- */
+    /*
+     * Его слово: дочернее поле видно, пока зажат `Alt`, «не переключателем».
+     * Видимость поля спрашивает Node (`runAltChildSuite`); здесь — только то,
+     * до чего Node не достаёт: настоящие события окна доезжают до панели.
+     * Нажал — держится; отпустил — снялось; нажал и отпустил за пределами
+     * окна (`Alt+Tab`: отпускания не приходит) — снялось на следующем нажатии
+     * без `Alt`, иначе поле осталось бы на полосе.
+     */
+    const alt = await page.evaluate(async () => {
+      const down = await window.__ioPanelKey("Alt");
+      const up = await window.__ioPanelKeyUp("Alt");
+      await window.__ioPanelKey("Alt");
+      const blurred = await window.__ioPanelKey("ArrowUp");
+      return { opened: down.active, down: down.altHeld, up: up.altHeld, blurred: blurred.altHeld, active: blurred.active };
+    });
+    if (!alt.opened) bad("сессии нет — `Alt` проверять не на чем");
+    if (!alt.active) bad("`Alt` закрыл сессию панели, а должен был только показать дочернее поле");
+    if (!alt.down) bad("нажатый `Alt` до панели не доехал: сессия не считает его зажатым");
+    if (alt.up) bad("отпущенный `Alt` панель не заметила: дочернее поле осталось бы на полосе");
+    if (alt.blurred) bad("нажатие без `Alt` не сняло зажатый `Alt`: после `Alt+Tab` поле осталось бы на полосе");
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {

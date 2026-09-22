@@ -5903,12 +5903,20 @@ function placementRows(host, f) {
    * родительского значения, даже если значения у него заведены.
    */
   if (f.type === "tag") {
+    /* Четыре положения, как в панели (`CHILD_OPTIONS` в `fields_editor_view.ts`):
+       три его словом 2026-09-19 и `Show when press Alt` (`З-36`, 2026-09-22).
+       Здесь до 2026-09-23 стояли два прежних — `Yes` и `No`. */
     row({ name:"Child Field", key:"child",
-      desc:"Show the child Field in tagWheel once a parent Value is picked",
-      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. " +
-          "Switched off, tagWheel does not offer it even when its Values are set up",
-      options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" }] },
-      f.childOn === false ? "no" : "yes", v => { f.childOn = v !== "no"; });
+      desc:"When the child Field is offered: after a parent Value, always, while you hold Alt, or never",
+      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked. <b>Show always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>Show when press Alt</b> keeps it out of tagWheel until you hold <code>Alt</code> on the parent: it appears next to the parent and stays while you hold the key, so you can step onto it and pick a Value; let go and it hides again, and the Value you picked stays on the line. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
+      options:[
+        { value:"after-parent", label:"After parent" },
+        { value:"always",       label:"Show always" },
+        { value:"alt",          label:"Show when press Alt" },
+        { value:"hide",         label:"Hide" }
+      ] },
+      f.childMode || (f.childOn === false ? "hide" : "after-parent"),
+      v => { f.childMode = v; f.childOn = v !== "hide"; });
   }
 
   prerequisiteRows(host, f, row);

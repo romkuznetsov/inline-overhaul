@@ -177,6 +177,22 @@ const PANEL_INJECTIONS = {
     find: "  if (mode === 'both') return custom + ' ' + written",
     replace: "  if (mode === 'both') return custom",
   },
+  /*
+   * `Alt` отпущен, а панель не слышит (`З-36`): перехват `keyup` не поставлен.
+   * Нажатие при этом доезжает, и проверка, спрашивающая только «зажат ли»,
+   * осталась бы зелёной.
+   */
+  "alt-never-released": {
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
+    find: "    window.addEventListener('keyup', state.keyUpHandler, true)",
+    replace: "    if (!state) window.addEventListener('keyup', state.keyUpHandler, true)",
+  },
+  /* `Alt` отпущен за пределами окна, а следующее нажатие без него панель не читает. */
+  "alt-release-outside-missed": {
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
+    find: "      var released = e.key !== 'Alt' && e.altKey === false && holdAlt(state, false)",
+    replace: "      var released = false",
+  },
   "scroller-silent": {
     file: "src/ui/tagwheel_scroller_overlay.js",
     find: "function getAnchorRect(editor, lineNumber, controlLine) {\n  try {",

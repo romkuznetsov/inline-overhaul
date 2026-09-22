@@ -69,6 +69,9 @@ function normalizeField(field, modeName, idx, options) {
      */
     freeOfParent: field.freeOfParent === true,
     addsParentValue: field.addsParentValue === true,
+    /* Видно в tagWheel только пока зажат `Alt` (`З-36`). Тот же перечень: нет
+       свойства здесь — панель его не узнает. */
+    showOnAlt: field.showOnAlt === true,
     kind: typeof field.kind === "string" ? field.kind : "",
     marker: typeof field.marker === "string" ? field.marker : "",
     placeholder: typeof field.placeholder === "string" && field.placeholder ? field.placeholder : field.id,
