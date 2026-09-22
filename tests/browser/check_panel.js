@@ -371,8 +371,15 @@ async function rowsOnOneLine(width) {
           });
         const bandToggle = findBandToggle();
         if (bandToggle) {
+          /*
+           * Строка предпросмотра панели сюда не входит: заливки Block у неё
+           * нет вовсе, а своя полоса есть, и считать её наравне значило бы
+           * мерить одним числом два разных правила (его слово 2026-09-22).
+           * Её меряет `out.wheel` ниже, отдельно и своими вопросами.
+           */
           const sides = () => Array.from(document.querySelectorAll(
-            ".io-line__side--left, .io-line__side--right"));
+            ".io-line__side--left, .io-line__side--right"))
+            .filter((el) => !el.classList.contains("io-wheelline"));
           const painted = () => sides().filter((el) => {
             const bg = parseColor(getComputedStyle(el).backgroundColor);
             return !!bg && bg.a > 0.001;
@@ -542,6 +549,52 @@ async function rowsOnOneLine(width) {
             sel.value = dir;
             sel.dispatchEvent(new Event("change", { bubbles: true }));
             out.bandDirection[dir] = paintedSides();
+          }
+          /*
+           * **Полоса у строки панели — её обособление, а не заливка Block**
+           * (его слово 2026-09-22: «в io-tip-wheel-preview сейчас видна
+           * фиолетовая полоска tags-block-fill-color — это не правильно,
+           * поскольку в этом preview мы смотрим на tagwheel panel. Вместо неё
+           * должна быть полоска panel-background»).
+           *
+           * Обе полосы ложились на один узел, и подложка Block выигрывала
+           * каскад тремя классами против одного — то есть ответ на «какого
+           * цвета полоса» знал **только** браузер (У-67). Поэтому меряется он,
+           * а не дерево: заливка Block сейчас включена, и стороны строки панели
+           * обязаны остаться незакрашенными.
+           */
+          const wheelSides = () => Array.from(document.querySelectorAll(".io-wheelline"));
+          const wheelPainted = () => wheelSides().filter((el) => {
+            const bg = parseColor(getComputedStyle(el).backgroundColor);
+            return !!bg && bg.a > 0.001;
+          }).length;
+          const findLitToggle = () => Array.from(document.querySelectorAll("input[type=checkbox]"))
+            .find((el) => {
+              const item = el.closest(".io-item");
+              const name = item ? item.querySelector(".io-item__name") : null;
+              return !!name && (name.textContent || "").trim() === "Highlight the tagWheel line";
+            });
+          const findPanelColor = () => Array.from(document.querySelectorAll("input[type=color]"))
+            .find((el) => {
+              const item = el.closest(".io-item");
+              const name = item ? item.querySelector(".io-item__name") : null;
+              return !!name && (name.textContent || "").trim() === "Background color";
+            });
+          out.wheel = { sides: wheelSides().length, withBand: wheelPainted(), lit: "", off: -1 };
+          const panelColor = findPanelColor();
+          if (panelColor) {
+            panelColor.value = "#ffe100";
+            panelColor.dispatchEvent(new Event("input", { bubbles: true }));
+            panelColor.dispatchEvent(new Event("change", { bubbles: true }));
+            const side = wheelSides()[0];
+            out.wheel.lit = side ? getComputedStyle(side).backgroundColor : "";
+          }
+          const litToggle = findLitToggle();
+          if (litToggle && litToggle.checked) {
+            litToggle.click();
+            out.wheel.off = wheelPainted();
+            const back = findLitToggle();
+            if (back && !back.checked) back.click();
           }
           if (bandOnNode && bandOnNode.checked) {
             const back = findBandToggle();
@@ -920,6 +973,29 @@ async function rowsOnOneLine(width) {
       }
       if (b.bandBack !== 0) {
         bad("после выключения закрашенных сторон " + b.bandBack + ", а должно быть ноль");
+      }
+      /*
+       * **Полоса у строки панели — её обособление, а не заливка Block** (его
+       * слово 2026-09-22). Три вопроса, и ответ на каждый знает только
+       * браузер: обе полосы ложились на один узел, и подложка выигрывала
+       * каскад (У-67).
+       */
+      const w = b.wheel;
+      if (!w || !w.sides) {
+        bad("строки предпросмотра панели на вкладке не нашлось — полосу проверять не на чем");
+      } else {
+        if (w.withBand !== 0) {
+          bad("при включённой заливке Block закрашенных сторон у строки панели " + w.withBand
+            + ", а должно быть ноль: этот предпросмотр показывает панель, а не Block");
+        }
+        if (w.lit !== "rgb(255, 225, 0)") {
+          bad("полоса строки панели покрашена «" + String(w.lit)
+            + "», а обязана быть цветом `Background color` панели — rgb(255, 225, 0)");
+        }
+        if (w.off !== 0) {
+          bad("при выключенной подсветке закрашенных сторон у строки панели " + w.off
+            + ", а полосы там быть не должно вовсе");
+        }
       }
     }
     /* И контроль на сам список исключений: он пуст, и пустым обязан остаться. */

@@ -145,6 +145,16 @@ const INJECTIONS = {
     + " { padding-left: var(--io-blockfill-padx, 3px) !important;"
     + " margin-left: calc(-1 * var(--io-blockfill-padx, 3px)) !important; }",
   /*
+   * Полоса у строки предпросмотра панели (его слово 2026-09-22). Две подмены
+   * на две половины правила: заливка Block возвращается на строку панели —
+   * ровно то состояние, с которого он пришёл, — и полоса, которая не уходит
+   * от выключенной подсветки.
+   */
+  "wheel-band-back": ".io-line--blockfill .io-wheelline,"
+    + " .io-wheelline { background-color: rgb(209, 193, 245) !important; }",
+  "wheel-lit-always": ".io-wheelline"
+    + " { background: var(--io-wheel-lit, rgb(255, 225, 0)) !important; }",
+  /*
    * Два режима высоты таблицы Fields (заказ заказчика 2026-09-12). Четыре
    * подмены на четыре половины правила: высота не задана вовсе; шапка уезжает
    * вместе с содержимым; шапка закреплена, но сквозь неё видно текст; таблица

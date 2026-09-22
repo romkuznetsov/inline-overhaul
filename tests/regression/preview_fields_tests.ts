@@ -839,6 +839,66 @@ function realConfig(): Any {
 }
 
 /* ======================================================================
+ * 9а. Полоса у строки панели — её собственная, а не заливка Block.
+ * ====================================================================== */
+
+{
+  /*
+   * Его слово 2026-09-22: «в io-tip-wheel-preview сейчас видна фиолетовая
+   * полоска tags-block-fill-color — это не правильно, поскольку в этом preview
+   * мы смотрим на tagwheel panel. Вместо неё должна быть полоска
+   * panel-background (при panel-highlight=off этой полоски в preview быть не
+   * должно, а если on, то цвет должен определяться panel-background color)».
+   *
+   * Обе полосы ложились на **один и тот же узел** — контейнер стороны, — и
+   * подложка Block выигрывала каскад тремя классами против одного (У-67):
+   * цвет панели до экрана не доезжал ни при каком положении тумблера.
+   */
+  const band = {
+    "visual.tags.blockFill.enabled": true,
+    "visual.tags.blockFill.color": "#d1c1f5",
+    "visual.tags.blockFill.direction": "both",
+  };
+  const litSides = (over: Record<string, unknown>): StubNode[] => {
+    const host = makeNode("div");
+    const close = wheelPreview(host as unknown as El, makeCtx(realConfig(), Object.assign({}, band, over)));
+    const line = all(host, "io-line--wheel");
+    assert.ok(line.length, "строка предпросмотра панели нарисована");
+    for (const cls of ["io-line--blockfill", "io-line--blockfill-left", "io-line--blockfill-right"]) {
+      assert.ok(!line[0]!.classList.contains(cls),
+        "в предпросмотре панели строка не носит заливку Block: " + cls);
+    }
+    const sides = all(host, "io-wheelline");
+    assert.ok(sides.length, "стороны строки помечены как строка панели");
+    const lit = sides.filter(s => s.classList.contains("io-wheelline--lit"));
+    close();
+    return lit;
+  };
+
+  const on = litSides({ "visual.tagWheel.highlightLine": true, "visual.tagWheel.fillColor": "#ffe100" });
+  assert.ok(on.length, "при включённой подсветке полоса у строки панели есть");
+  for (const side of on) {
+    assert.equal(side.style.getPropertyValue("--io-wheel-lit"), "#ffe100",
+      "цвет полосы взят у панели, а не у Block");
+  }
+
+  const off = litSides({ "visual.tagWheel.highlightLine": false, "visual.tagWheel.fillColor": "#ffe100" });
+  assert.equal(off.length, 0, "при выключенной подсветке полосы у строки панели нет вовсе");
+
+  /*
+   * Отрицательный контроль: заливка Block снята **у одного** предпросмотра, а
+   * не выключена везде. Без него правка «не рисовать подложку» была бы зелёной
+   * и у той, что сломала бы З-7 целиком.
+   */
+  const tagHost = makeNode("div");
+  const closeTag = tagPreview(tagHost as unknown as El, makeCtx(realConfig(), band));
+  const tagLines = all(tagHost, "io-line--blockfill");
+  closeTag();
+  assert.ok(tagLines.length, "в предпросмотре тегов заливка Block осталась на месте");
+  ok("полоса строки панели — её обособление, а не заливка Block (его слово 2026-09-22)");
+}
+
+/* ======================================================================
  * 10. Предпросмотр `Source line` не склеен (B13).
  * ====================================================================== */
 

@@ -133,8 +133,17 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
  * Оформление тегов из настроек уезжает в CSS-переменные: проценты считаются
  * один раз здесь, а геометрию строит стиль. Так предпросмотр не задаёт ни
  * одного свойства кроме `--io-*` (Г1).
+ *
+ * Третий аргумент — то, чего у строки быть не должно: `{ blockFill: false }`
+ * оставляет переменные и снимает саму подложку Block. Нужен он одному
+ * предпросмотру — панели: «в io-tip-wheel-preview сейчас видна фиолетовая
+ * полоска tags-block-fill-color — это не правильно, поскольку в этом preview
+ * мы смотрим на tagwheel panel» (его слово 2026-09-22). Полоса Block и
+ * обособление панели ложились на **один и тот же узел**, и подложка выигрывала
+ * каскад тремя классами против одного: цвет панели до экрана не доезжал
+ * (У-67).
  */
-export function applyTagVars(node: El, ctx: SettingsCtx): void {
+export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: boolean }): void {
   cssVar(node, "--io-opacity-left", String(num(ctx, "visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(num(ctx, "visual.tags.opacityRight") / 100));
   cssVar(node, "--io-text-scale-left", String(num(ctx, "visual.tags.textSizePctLeft") / 100));
@@ -190,7 +199,7 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   const bandSepCh = sep(ctx, SEP1_PATH).length;
   cssVar(node, "--io-blockfill-padx",
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
-  if (ctx.get("visual.tags.blockFill.enabled") === true) {
+  if (!(opts && opts.blockFill === false) && ctx.get("visual.tags.blockFill.enabled") === true) {
     node.addClass("io-line--blockfill");
     /*
      * Сторона называется классом (З-12): при `both` их два, при `left` и
@@ -300,9 +309,10 @@ function structuralLine(
   fields: readonly PreviewField[],
   chipFor?: (side: El, f: PreviewField) => void,
   cls?: string,
+  opts?: { blockFill?: boolean },
 ): El {
   const line = el(parent, "div", "io-line" + (cls ? " " + cls : ""));
-  applyTagVars(line, ctx);
+  applyTagVars(line, ctx, opts);
   el(line, "span", "io-line__prefix", "- ");
 
   const put = (side: El, list: readonly PreviewField[]): void => {
@@ -536,8 +546,11 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      * коробки ехала за настройкой блока — «в io-tip-wheel-preview яркость
      * scroller ретушируется при изменении opacity» (B2, 2026-09-02). Коробка
      * показывает соседние значения, и гасить её нечему.
+     *
+     * Заливки Block здесь нет нарочно: этот предпросмотр показывает панель, и
+     * полоса у строки одна — её обособление. Его слово 2026-09-22.
      */
-    }, "io-line--wheel");
+    }, "io-line--wheel", { blockFill: false });
 
     if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };

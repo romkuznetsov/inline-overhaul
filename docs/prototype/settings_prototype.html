@@ -4269,7 +4269,18 @@ function previewShell(host, caption, tip) {
   attachTip(cap, tip, caption, box);
   return box;
 }
-function applyTagVars(node) {
+/*
+ * Переменные вида строки. Второй аргумент — то, чего у строки быть не должно:
+ * `{ blockFill: false }` оставляет переменные и снимает саму подложку Block.
+ *
+ * Нужен он одному предпросмотру — панели: «в io-tip-wheel-preview сейчас видна
+ * фиолетовая полоска tags-block-fill-color — это не правильно, поскольку в
+ * этом preview мы смотрим на tagwheel panel» (его слово 2026-09-22). Полоса
+ * Block и обособление панели ложились на **один и тот же узел**, и подложка
+ * выигрывала каскад тремя классами против одного: цвет панели до экрана не
+ * доезжал (У-67).
+ */
+function applyTagVars(node, opts) {
   cssVar(node, "--io-opacity-left",  String(val("visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(val("visual.tags.opacityRight") / 100));
   cssVar(node, "--io-text-scale-left",  String(val("visual.tags.textSizePctLeft") / 100));
@@ -4316,7 +4327,7 @@ function applyTagVars(node) {
   const bandSepCh = String(val("pkm.lineFormat.separator1") || "||").length;
   cssVar(node, "--io-blockfill-padx",
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
-  if (val("visual.tags.blockFill.enabled") === true) {
+  if (!(opts && opts.blockFill === false) && val("visual.tags.blockFill.enabled") === true) {
     node.classList.add("io-line--blockfill");
     /* Направление (З-12): `both` даёт оба класса, `left` и `right` — по
        одному. Незнакомое значение читается как `both`: полоса — украшение,
@@ -4367,10 +4378,11 @@ function fieldChip(parent, f) {
   cssVar(b, "--io-bubble-bg", fieldColor(f));
   return b;
 }
-/* The shape of a line: one chip per field, in writing order. */
-function structuralLine(parent, chipFor) {
+/* The shape of a line: one chip per field, in writing order. Третьим
+   аргументом идёт то, чего у строки быть не должно, — см. `applyTagVars`. */
+function structuralLine(parent, chipFor, opts) {
   const line = el("div", "io-line", parent);
-  applyTagVars(line);
+  applyTagVars(line, opts);
   el("span", "io-line__prefix", line, "- ");
   const put = (side, list) => list.forEach(f => (chipFor ? chipFor(side, f) : fieldChip(side, f)));
   const left = fieldsOn("Left");
@@ -4789,7 +4801,9 @@ function renderWheelPreview(host) {
       if (u) col.appendChild(u);
       const d = panel(down, "down");
       if (d) col.appendChild(d);
-    });
+    /* Заливки Block здесь нет нарочно: этот предпросмотр показывает панель, и
+       полоса у строки одна — её обособление. Его слово 2026-09-22. */
+    }, { blockFill: false });
   };
   draw();
   previewRefreshers.push(draw);
