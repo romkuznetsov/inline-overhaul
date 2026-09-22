@@ -33,13 +33,22 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 10. 🎨 **The child-Field list opens on `After parent`.** That is what it has always done by default; the list simply opened on another line, which reads as though that one were standard.
 11. 🐛 **The picker's preview shows the picker's own stripe.** The Block stripe was painted over the same line and won the cascade, so `Background color` never reached the screen there. The line carries one stripe now: on with `Highlight the tagWheel line`, in the colour you set, and gone when the toggle is off.
 12. 🐛 **Moving text stops where your line's markup begins.** A bullet, a checkbox or a list number is not a word to trade places with: text stuck to it and, one press on, tore it in half. An opening bracket keeps its side too, so a word leaving one reads `- слово3 (слово1 слово2)`.
+13. 🎨 **The "what changed" window opens with a count, not a paragraph.** Each release now starts with how many fixes, visible changes and new things it carries, and a bulleted list of what is new — instead of one block of prose. The counts are built from the entries themselves, so they cannot drift.
 
 ## 0.6.0
 
 _2026-09-21 · [all changes since 0.5.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.1...0.6.0)_
 
 > [!NOTE]
-> Five new controls and a key that learns about lists. `Smart paste` counts a pasted numbered list from one; a link Value can be coloured in two halves; the picker and its scroller can print a Value the way you named it rather than the way it is written; and every Field now lists its own commands with the keys they carry. Two things moved: a tag is drawn the size Obsidian draws it, so the editor and reading mode agree at last, and the picker's opening Field sits with the rest of the picker instead of in a heading of its own.
+> 🐛 **5** bug fixes · 🎨 **5** changes you can see · ✨ **6** new things
+>
+> **New in this release**
+> - **The scroller can label Values the way you print them**
+> - **The picker can label a chosen Value the way you print it**
+> - **Every Field lists its own commands, with the keys they are on**
+> - **The sections of that column fold**
+> - **New: `Smart paste`**
+> - **A link Value can be coloured in two halves**
 
 1. ✨ **The scroller can label Values the way you print them.** `Visual → tagWheel → Scroller Value names` chooses between the Value as it is written in the line, the custom text you gave it in `Color your tags`, or both at once — so the box shows `🎯`, `#todo`, or `🎯 #todo`. Where no custom text is set, the written Value is shown, so a Value never goes blank.
 2. 🐛 **A two-digit year is a year again — from the tagWheel too.** A Field whose `Value format` is `yy-mm-dd` wrote the letters `yy` into the line and then failed to recognise its own value. `YY` is now a token like `YYYY`, and the picker writes it the same way the commands do.
@@ -63,7 +72,12 @@ _2026-09-21 · [all changes since 0.5.1](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.5.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.0...0.5.1)_
 
 > [!NOTE]
-> Nothing changed inside the plugin: this release is about what you read. The README is a landing page now — the mark, the badges and a recording of the plugin at work before any prose — while the walk through the settings panel moved into a reference of its own, and a new tutorial takes you from install to a working line in about fifteen minutes. Every document written for you is named in capitals from this release on, so a link you saved to a lower-case name needs updating.
+> 🐛 **2** bug fixes · 🎨 **4** changes you can see · ✨ **3** new things
+>
+> **New in this release**
+> - **New: a tutorial**
+> - **New: a settings reference**
+> - **New: `CONTRIBUTING.md`, `SECURITY.md`, and issue and pull request templates**
 
 1. ✨ **New: a tutorial** — [`docs/TUTORIAL.md`](docs/TUTORIAL.md) walks from install to a working line in about fifteen minutes, one path and no choices to make.
 2. ✨ **New: a settings reference** — [`docs/SETTINGS.md`](docs/SETTINGS.md) lists every control of the panel, tab by tab, in the panel's own order, with the value each one starts at.
@@ -80,7 +94,13 @@ _2026-09-20 · [all changes since 0.5.0](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.4.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.4.0...0.5.0)_
 
 > [!NOTE]
-> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note, while the cursor and the mouse treat what you see as one piece. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
+> 🐛 **4** bug fixes · 🎨 **3** changes you can see · ✨ **4** new things · 🔧 **1** internal change
+>
+> **New in this release**
+> - **Every heading in `Commands & Hotkeys` has a `to hotkeys` button**
+> - **A dropdown says which of its values is the standard one**
+> - **A Field of type link can show its Values as anything you like**
+> - **New: `Link view`**
 
 1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen filtered to exactly that heading's commands.
 2. 🎨 **Each command is named after its area now**: `Navigation: Move line up`, `Tags & PKM: Category next`. That is what makes the filter above exact — Obsidian's `Hotkeys` search matches words in a name. Identifiers did not change, so every hotkey you have set keeps working.
@@ -100,7 +120,14 @@ _2026-09-20 · [all changes since 0.4.0](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.2...0.4.0)_
 
 > [!NOTE]
-> Five new things in the settings panel — Block text size split per side, `Stripe direction`, a child Field that works without its parent, `Parent Value` and `Autosave` for your settings — and the panel itself laid out in sections. Plus the TagWheel and Block fixes you reported, and a repository root with no plugin file in it.
+> 🐛 **8** bug fixes · 🎨 **5** changes you can see · ✨ **5** new things · 🔧 **3** internal changes
+>
+> **New in this release**
+> - **Block text size is set for each side on its own**
+> - **New: `Stripe direction`**
+> - **New: a `Changelog` button**
+> - **New: a child Field can work without its parent**
+> - **New: `Autosave`**
 
 ### Added
 
@@ -138,7 +165,7 @@ _2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-
 _2026-09-18 · [all changes since 0.3.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.1...0.3.2)_
 
 > [!NOTE]
-> A small release about settings that change behind the plugin's back: it re-reads the file, redraws everything and says so. The panel also opens on the tab you left it on, and TagWheel no longer stalls on a very long line.
+> 🐛 **1** bug fix · 🎨 **1** change you can see · 🚀 **1** speed-up · 🔧 **4** internal changes
 
 ### Changed
 
@@ -161,7 +188,7 @@ _2026-09-18 · [all changes since 0.3.1](https://github.com/romkuznetsov/inline-
 _2026-09-18 · [all changes since 0.3.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.0...0.3.1)_
 
 > [!NOTE]
-> One fix worth a release: a setting changed a moment before Obsidian closes is no longer lost. The rest is guards for exactly the shape that bug had.
+> 🐛 **1** bug fix · 🔧 **3** internal changes
 
 ### Fixed
 
@@ -178,7 +205,15 @@ _2026-09-18 · [all changes since 0.3.0](https://github.com/romkuznetsov/inline-
 _2026-09-17 · [all changes since 0.2.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.2.0...0.3.0)_
 
 > [!NOTE]
-> The largest release so far: five new things, among them a jump highlight and a link written back into the notes your line mentions, and twenty-five fixes — most of them about what counts as a Field Value and which Block it belongs to.
+> 🐛 **25** bug fixes · 🎨 **3** changes you can see · ✨ **6** new things
+>
+> **New in this release**
+> - **New: a jump can show you where the cursor landed**
+> - **New: `Chosen Value text color`**
+> - **New: the notes a line points at can learn about the note it became**
+> - **New: a window tells you what changed**
+> - **New: `Leave it, but not the name`**
+> - **A cross clears what you typed**
 
 ### Added
 
@@ -228,7 +263,13 @@ _2026-09-17 · [all changes since 0.2.0](https://github.com/romkuznetsov/inline-
 _2026-09-16 · [all changes since 0.1.0-beta.6](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.6...0.2.0)_
 
 > [!NOTE]
-> The first release outside the beta line. It carries everything published as `0.1.0-beta.7` plus the work of 2026-09-16; if you ran a beta, install this over it.
+> 🐛 **11** bug fixes · ✨ **4** new things · 🔧 **1** internal change
+>
+> **New in this release**
+> - **New: `Values in the other Block`**
+> - **New: `Active Field on opening`**
+> - **New: the Fields table has two heights**
+> - **New: `Smart Enter` adds a line instead of tearing the current one**
 
 ### Fixed
 
@@ -260,7 +301,10 @@ _2026-09-16 · [all changes since 0.1.0-beta.6](https://github.com/romkuznetsov/
 _2026-09-11 · [all changes since 0.1.0-beta.5](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.5...0.1.0-beta.6)_
 
 > [!NOTE]
-> Almost nothing to see: one list of what the plugin can do, written for people, and a lot of rules that were declared in two or three places at once became one each.
+> ✨ **1** new thing · 🔧 **1** internal change
+>
+> **New in this release**
+> - **New: `FEATURES.md`**
 
 1. ✨ **New: `FEATURES.md`** — a list of what the plugin can do, in words, kept honest by a guard that fails when a command or a panel area is missing from it.
 2. 🔧 Otherwise internal: rules that were declared in two or three places at once became one each, 23 dead declarations went, and every silent failure in the engines either speaks now or says in place why it is silent.
@@ -270,7 +314,7 @@ _2026-09-11 · [all changes since 0.1.0-beta.5](https://github.com/romkuznetsov/
 _2026-09-10 · [all changes since 0.1.0-beta.4](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.4...0.1.0-beta.5)_
 
 > [!NOTE]
-> The released build had no working commands at all — they are back, and five engines with them. Four more fixes about text the plugin used to eat.
+> 🐛 **6** bug fixes · 🚀 **1** speed-up
 
 1. 🐛 **The commands are back, and so are five engines.** In the released build the only path to the plugin's own modules used a variable, and the bundler substitutes a module only for a literal path — so the plugin looked switched on and did nothing.
 2. 🐛 **A checkbox is one character.** Brackets with a longer body are your text: `- [test-transform] test1 test2` no longer loses the words in brackets, and Transform no longer eats an explicit note name.
@@ -285,7 +329,12 @@ _2026-09-10 · [all changes since 0.1.0-beta.4](https://github.com/romkuznetsov/
 _2026-09-06 · [all changes since 0.1.0-beta.3](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.3...0.1.0-beta.4)_
 
 > [!NOTE]
-> The settings panel can speak your language: every visible line lives in a plain text file you copy and edit. Backups got the rest of the attention.
+> 🐛 **3** bug fixes · 🎨 **3** changes you can see · ✨ **3** new things
+>
+> **New in this release**
+> - **The settings panel can speak another language**
+> - **`texts/default.js` is written by the plugin and always current**
+> - **The windows the panel opens speak the chosen language too**
 
 1. ✨ **The settings panel can speak another language.** `General → Language` picks it, and the words behind every visible line live in a plain text file inside the plugin folder; a line with no translation keeps its English wording.
 2. ✨ **`texts/default.js` is written by the plugin and always current.** Copy it under a new name to start a language; that copy is yours and is never overwritten.
@@ -304,7 +353,11 @@ Known limitations: the Fields editor and its neighbours, the guide note and the 
 _2026-09-06 · [all changes since 0.1.0-beta.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.2...0.1.0-beta.3)_
 
 > [!NOTE]
-> The plugin is now called `inlineOverhaul`, with its id unchanged so your hotkeys keep working. Backups learned to ask what to save and what to restore.
+> 🐛 **4** bug fixes · 🎨 **1** change you can see · ✨ **2** new things
+>
+> **New in this release**
+> - **`Save a backup` asks what to save**
+> - **Restoring can free up keys other commands are holding**
 
 1. 🎨 **The plugin is now called `inlineOverhaul`.** Its id is unchanged, so every hotkey you have set keeps working; the guide note was renamed, and the old one still opens instead of a duplicate being made.
 2. ✨ **`Save a backup` asks what to save**: an optional comment, a checkbox per settings tab, and how much of your hotkeys to keep. Everything is picked by default.
@@ -321,7 +374,7 @@ Known limitations: unchanged from 0.1.0-beta.2.
 _2026-09-06 · [all changes since 0.1.0-beta.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.1...0.1.0-beta.2)_
 
 > [!NOTE]
-> A release made the way every later one is: cut by tag, built by CI, with all three assets attached.
+> 🔧 **2** internal changes
 
 1. 🔧 Released from the current code as a normal release with all three assets, so BRAT installs the plugin from one link.
 2. 🔧 Releases are cut by tag from then on: CI builds from the tagged commit, runs the whole suite and attaches the files.
@@ -331,7 +384,7 @@ _2026-09-06 · [all changes since 0.1.0-beta.1](https://github.com/romkuznetsov/
 _2026-08-08_
 
 > [!NOTE]
-> The first beta: a BRAT-ready release of the shared PKM, TagWheel and Transform runtime, with Transform off until you ask for it.
+> 🔧 **4** internal changes
 
 1. 🔧 Added BRAT-ready bundled release assets and release regressions.
 2. 🔧 Stabilized shared PKM, TagWheel, and Transform runtime paths for beta testing.
