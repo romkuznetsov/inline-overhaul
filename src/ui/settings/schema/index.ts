@@ -19,7 +19,7 @@ export const TABS: readonly TabDef[] = [
   { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
   { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },
   { id: "transform", label: "Transform", module: "features.transform.enabled", desc: "Turn a line you have already written into a note of its own" },
-  { id: "advanced", label: "Advanced", desc: "Housekeeping you will rarely need" },
+  { id: "advanced", label: "Advanced", desc: "Housekeeping you rarely need" },
 ];
 
 export const SCHEMA: readonly SettingsGroup[] = [

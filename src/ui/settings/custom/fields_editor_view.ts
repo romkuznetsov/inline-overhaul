@@ -23,7 +23,7 @@ import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { attachPicker } from "./char_picker.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
-import { TYPE_COLOR, bareToken, typeColor } from "./preview_data.ts";
+import { TYPE_COLOR, bareToken, typeColor, typeInk } from "./preview_data.ts";
 /*
  * Ключ вида у значения-ссылки — тот же, каким его ищет слой оформления
  * (`wikilinkVisualToken`, его заказ 2026-09-20, пункт 14). Объявление одно на
@@ -620,11 +620,9 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
 
       const pick = btn(item, "io-fields__pick", { label: say("SHOW_FIELD", row.label) });
       el(pick, "span", "io-fields__name", row.label);
-      cssVar(
-        el(pick, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind])),
-        "--io-chip-bg",
-        typeColor(row.kind),
-      );
+      const chip = el(pick, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind]));
+      cssVar(chip, "--io-chip-bg", typeColor(row.kind));
+      cssVar(chip, "--io-chip-fg", typeInk(row.kind));
       pick.addEventListener("click", (() => {
         o.state.selected = row.key;
         o.redraw();
@@ -891,11 +889,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    */
   const title = el(detail, "div", "io-fields__title");
   el(title, "h4", undefined, row.strictName);
-  cssVar(
-    el(title, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind])),
-    "--io-chip-bg",
-    typeColor(row.kind),
-  );
+  const typeChip = el(title, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind]));
+  cssVar(typeChip, "--io-chip-bg", typeColor(row.kind));
+  cssVar(typeChip, "--io-chip-fg", typeInk(row.kind));
   /*
    * Карандаш — слева от корзины (замечание заказчика 1.4.1.2.2). Системное
    * имя задавалось один раз в окне `Add a Field` и дальше не менялось: оно

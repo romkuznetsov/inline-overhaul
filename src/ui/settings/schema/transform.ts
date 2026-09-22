@@ -127,7 +127,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
                 {value:"none",label:"Nothing"} ] },
     { kind:"dropdown", id:"content-header-level", path:"transform.inline2note.placement.headerLevel", default:"3",
       name:"Line above is header", desc:"Make that line a heading you can fold, or leave it as plain text",
-      tip:"A heading can be folded, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
+      tip:"A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
       visible:{ deps:["transform.inline2note.placement.headerMode"],
                 test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
       options:[ {value:"0",label:"No (plain text)"}, {value:"1",label:"1"}, {value:"2",label:"2"},
@@ -146,7 +146,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
 {
   id: "source-line", tab: "transform", order: 400, heading: "Source line",
   intro: "What happens to the line you pressed on, once the note is safely written",
-  tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: your text can be swapped for a link to the new note, and a marker of your choosing can be added so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
+  tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: the plugin swaps your text for a link to the new note and adds a marker of your choosing so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
   visible: on("transform.inline2note.enabled"),
   items: [
     { kind:"custom", id:"source-preview", render: sourcePreview },

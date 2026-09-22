@@ -23,6 +23,7 @@ import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, rich, cssVar, tipBelow, type El } from "./dom.ts";
 import {
   fieldColor,
+  typeInk,
   fieldsOn,
   previewFields,
   resolveSlots,
@@ -295,6 +296,7 @@ function drawTagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
 function fieldChip(parent: El, f: PreviewField): El {
   const chip = el(parent, "span", "io-bubble", f.short || f.name);
   cssVar(chip, "--io-bubble-bg", fieldColor(f));
+  cssVar(chip, "--io-bubble-fg", typeInk(f.kind));
   return chip;
 }
 

@@ -173,7 +173,7 @@ export const BLOCK_TEXTS = {
     /* Раздел эмодзи-элемента. */
     ELEMENT_EMOJI_NAME: "Emoji-prefix",
     ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
-    ELEMENT_EMOJI_TIP: "This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one",
+    ELEMENT_EMOJI_TIP: "This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one",
     ELEMENT_EMOJI_HINT: "one character or emoji",
     /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10). Вкладка одна, и
        подписи ей не нужно: строки ниже — поиск и пустой ответ. */
@@ -228,7 +228,7 @@ export const BLOCK_TEXTS = {
     HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command",
     /* Раздел YAML. */
     YAML_HEAD: "YAML property",
-    YAML_HEAD_TIP: "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied",
+    YAML_HEAD_TIP: "<code>Inline to note</code> on the Transform tab turns a line into a note, and it writes any Field into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied",
     YAML_NAME: "Property",
     YAML_DESC: "If you use inline2note, to which YAML property this Field should go",
     YAML_TIP: "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers the names your vault already uses; you can also type a name that does not exist yet, and it appears the first time a note is written with it. Leave the box empty and this Field is simply not copied into the note. Two Fields may point at the same property — then <code>Property type</code> below decides whether it holds a list or a single Value",

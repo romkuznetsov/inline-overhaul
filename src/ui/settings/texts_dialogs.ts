@@ -41,7 +41,7 @@ export const DIALOG_TEXTS = {
     /** Оно же стояло абзацем под заголовком до 2026-09-06 (замечание заказчика). */
     SAVE_TIP: "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it",
     SAVE_COMMENT_LABEL: "What is this backup for",
-    SAVE_COMMENT_HINT: "Optional. You will see this line in `Restore a backup`",
+    SAVE_COMMENT_HINT: "Optional. This line shows up in `Restore a backup`",
     SAVE_PARTS_LABEL: "Choose modules you want to backup",
     SAVE_PARTS_TIP: "One box per tab of this plugin. A tab you leave unchecked is not written into this backup at all, and restoring it later leaves that tab exactly as you have it then",
     SAVE_HOTKEYS_LABEL: "Hotkeys to keep",

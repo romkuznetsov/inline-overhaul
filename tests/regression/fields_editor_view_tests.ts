@@ -25,6 +25,7 @@ import {
 } from "../../src/ui/settings/custom/fields_editor_view.ts";
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
 import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
+import { CONTRAST_FLOOR, contrastRatio } from "../../src/ui/settings/custom/contrast.ts";
 
 setupGlobals();
 
@@ -421,6 +422,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const chips = all(all(v.host, "io-fields__list")[0] as StubNode, "io-chip").map(c => ({
     text: String(c.textContent || "").trim(),
     bg: c.style.getPropertyValue("--io-chip-bg"),
+    fg: c.style.getPropertyValue("--io-chip-fg"),
   }));
   /* Подписи короткие: `Emoji` вместо `Element` — иначе чип съедал имя Field
      в узкой колонке (замечание заказчика 2026-08-27). В конфиге тип прежний. */
@@ -428,6 +430,33 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "тип показан подписью, а ссылка называется Link, хотя в конфиге wikilink");
   assert.equal(chips[0]?.bg, "var(--io-type-tag)", "цвет типа приходит переменной, а не литералом");
   assert.equal(chips[1]?.bg, "var(--io-type-element)", "у element свой цвет типа");
+  /* Бренд-бук (`В-198`): тег — янтарь, и белый на нём не читается. Текст чипа
+     приходит парой к заливке, и у тега он свой. */
+  assert.equal(chips[0]?.fg, "var(--io-type-tag-ink)", "на янтаре тега текст обязан быть тёмным");
+  assert.equal(chips[1]?.fg, "var(--text-on-accent)", "у остальных — белый темы");
+
+  /*
+   * Контраст пар спрашивается у самих значений в `styles.css`, тем же
+   * помощником, что проверяет цвета Value в панели. Белый темы на подложке
+   * акцента — `#ffffff` в теме Obsidian по умолчанию.
+   */
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
+  const hex = (name: string): string => {
+    const m = new RegExp("--" + name + ":\\s*(#[0-9a-fA-F]{6})").exec(css);
+    assert.ok(m, "в styles.css нет --" + name);
+    return m![1]!;
+  };
+  const pairs: Array<[string, string, string]> = [
+    ["тег", hex("io-type-tag"), hex("io-type-tag-ink")],
+    ["ссылка", hex("io-type-link"), "#ffffff"],
+    ["emoji", hex("io-type-element"), "#ffffff"],
+  ];
+  for (const [what, bg, fg] of pairs) {
+    const r = contrastRatio(bg, fg);
+    assert.ok(r >= CONTRAST_FLOOR, what + ": " + bg + " против " + fg + " — " + r.toFixed(2) + ":1, ниже порога " + CONTRAST_FLOOR);
+  }
+  assert.ok(contrastRatio(hex("io-type-tag"), "#ffffff") < CONTRAST_FLOOR,
+    "положительный контроль: белый на янтаре обязан проваливать порог — иначе свой текст тегу не нужен");
   ok("Ф4: тип показан чипом с цветом типа, цвет задан переменной");
 }
 

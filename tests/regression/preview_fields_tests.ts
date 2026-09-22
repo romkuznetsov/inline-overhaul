@@ -785,8 +785,15 @@ function realConfig(): Any {
   const stray = colors.filter(c => !allowed.includes(c));
   assert.deepEqual(stray, [],
     "чип красится только цветом вида: лишние цвета " + JSON.stringify(stray));
-  assert.ok(colors.includes("var(--io-type-tag)"), "тег коричневый: " + JSON.stringify(colors));
-  assert.ok(colors.includes("var(--io-type-link)"), "ссылка синяя: " + JSON.stringify(colors));
+  assert.ok(colors.includes("var(--io-type-tag)"), "тег янтарный (бренд, В-198): " + JSON.stringify(colors));
+  assert.ok(colors.includes("var(--io-type-link)"), "ссылка стальная: " + JSON.stringify(colors));
+  /* Текст идёт парой к заливке: белый на янтаре не читается (В-198). */
+  for (const n of chips) {
+    const bg = n.style.getPropertyValue("--io-bubble-bg");
+    const fg = n.style.getPropertyValue("--io-bubble-fg");
+    assert.equal(fg, bg === "var(--io-type-tag)" ? "var(--io-type-tag-ink)" : "var(--text-on-accent)",
+      "у чипа " + bg + " текст " + JSON.stringify(fg));
+  }
   ok("цвет чипа Field взят из карты видов: " + JSON.stringify(colors));
 }
 

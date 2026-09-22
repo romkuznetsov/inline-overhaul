@@ -212,10 +212,18 @@ const tipButton = (group: Def | undefined): Def | undefined =>
 const lastTooltip = (btn: Def): string | undefined =>
   (btn.calls as string[]).filter((c: string) => c.startsWith("tooltip:")).pop();
 
-/** Первая группа вкладки: у каждой вкладки это вводный коллаут. */
+/**
+ * Первая группа вкладки: у каждой вкладки это вводный коллаут (К1).
+ *
+ * Знак плагина (`brand-intro`, `В-198`, 2026-09-23) стоит над ним на `General`
+ * и в счёт не идёт: он не блок с содержимым, а картинка. Пересечение с К1
+ * названо ему вопросом в заметке тестов — оставить так или поставить знак под
+ * коллаутом.
+ */
+const BRAND_GROUP = "io-group-brand-intro";
 const firstGroup = (pane: SettingsPane, tab: string): Def => {
   pane.setActiveTab(tab as never);
-  const groups = allDefs(pane).filter((d: Def) => d.type === "group");
+  const groups = allDefs(pane).filter((d: Def) => d.type === "group" && d.cls !== BRAND_GROUP);
   return groups[0] as Def;
 };
 
@@ -264,7 +272,8 @@ async function main(): Promise<void> {
      * («перенеси этот блок над help»): язык решается до того, как читать
      * подсказки, — читать их человек будет уже на своём языке.
      */
-    assert.deepEqual(ids, ["general-intro", "language", "help", "modules"]);
+    /* Знак плагина — первым, над вводным коллаутом (`В-198`, 2026-09-23). */
+    assert.deepEqual(ids, ["brand-intro", "general-intro", "language", "help", "modules"]);
   });
 
   await test("все семь вкладок на месте и в порядке 6.1", () => {
@@ -273,8 +282,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 36,
-      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields, "
+    assert.equal(SCHEMA.length, 37,
+      "групп в схеме: 21 с настройками, 7 вводных коллаутов, знак плагина (с 2026-09-23, `В-198`: первым на `General`, без заголовка), группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Options IDs` добавлена 2026-08-28 по "
       + "заказу, Binder перенесён 2026-08-29, `Color your Tags` заведена в тот "
@@ -411,8 +420,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 36,
-      "36 групп прототипа разложены без остатка: группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside note (up\\down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your Links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
+    assert.equal(SCHEMA.length + AWAITED.length, 37,
+      "37 групп прототипа разложены без остатка: знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside note (up\\down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your Links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -538,7 +547,8 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     const list = allDefs(pane);
     assert.equal(pane.activeTab(), "general", "на старте открыта первая вкладка с группами");
-    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, "Language", "Help", "Modules"]);
+    /* Две группы без заголовка: знак плагина (`В-198`) и вводный коллаут. */
+    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, undefined, "Language", "Help", "Modules"]);
     for (const d of list) assert.equal(d.type, "group", "страниц-переходов больше нет");
   });
 
@@ -576,7 +586,9 @@ async function main(): Promise<void> {
     assert.equal(list[0]?.name, "", "первой идёт полоса");
     assert.equal(list[0]?.searchable, false, "полоса не должна попадать в поиск");
     assert.equal(typeof list[0]?.render, "function");
-    assert.equal(list[1]?.cls, "io-group-general-intro", "за полосой — группы вкладки");
+    /* Первой группой General с 2026-09-23 стоит знак плагина (`В-198`). */
+    assert.equal(list[1]?.cls, "io-group-brand-intro", "за полосой — группы вкладки");
+    assert.equal(list[2]?.cls, "io-group-general-intro", "за знаком — вводный коллаут");
     list[0].render();
     assert.equal(picked, "general");
   });
@@ -745,6 +757,24 @@ async function main(): Promise<void> {
     assert.equal(host.children.filter((n: StubNode) => n.classList.contains("io-tip")).length, 0,
       "повторное нажатие должно закрывать подсказку");
     assert.equal(mark?.getAttribute("aria-expanded"), "false");
+  });
+
+  await test("знак плагина — первым на General и только там (В-198)", () => {
+    const { pane } = makePane();
+    for (const tab of TABS) {
+      pane.setActiveTab(tab.id as never);
+      const groups = allDefs(pane).filter((d: Def) => d.type === "group");
+      const at = groups.findIndex((g: Def) => g.cls === BRAND_GROUP);
+      if (tab.id === "general") {
+        assert.equal(at, 0, "на General знак обязан стоять первым");
+        assert.equal(groups[0]?.heading, undefined, "у знака нет заголовка");
+        assert.equal(groups[0]?.visible, undefined, "знак не прячется вместе с коллаутами");
+        const host = drawBlock(groups[0]!.items[0]);
+        assert.equal(host.querySelectorAll(".io-brand").length, 1, "блок рисует узел знака");
+      } else {
+        assert.equal(at, -1, tab.id + ": знак только на General");
+      }
+    }
   });
 
   await test("в коллауте нет кнопки перехода (решение заказчика 2026-08-26)", () => {
@@ -2627,7 +2657,9 @@ async function main(): Promise<void> {
     /* И вводная группа вкладки закрыта тем же тумблером: заказчик просил
        «при off все коллауты должны быть скрыты, это относится и к главным
        коллаутам, которые сверху в каждой вкладке». */
-    const intros = allDefs(pane).filter((g: Def) => /-intro$/.test(String(g["cls"] || "")));
+    /* Знак плагина — не коллаут (`В-198`): тумблер коллаутов его не прячет. */
+    const intros = allDefs(pane).filter((g: Def) => /-intro$/.test(String(g["cls"] || "")) && g["cls"] !== BRAND_GROUP);
+    assert.ok(intros.length >= 1, "положительный контроль: у открытой вкладки вводный коллаут есть");
     for (const g of intros) {
       assert.equal((g["visible"] as () => boolean)(), false,
         "вводная группа вкладки осталась видимой: " + String(g["cls"]));

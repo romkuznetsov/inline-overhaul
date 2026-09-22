@@ -125,6 +125,11 @@ const CUSTOM_IMPL = {
     named: "commandReference",
     expr: () => "commandReference",
   },
+  renderBrandMark: {
+    module: "brand_mark.ts",
+    named: "brandMark",
+    expr: () => "brandMark",
+  },
   renderTabCallout: {
     module: "callouts.ts",
     named: "callout",

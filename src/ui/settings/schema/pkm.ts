@@ -37,7 +37,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       tip:"Pick something you would never type on purpose in a sentence. Two pipe characters are the default for exactly that reason \u2014 nobody writes them by accident" },
     { kind:"text", id:"separator-2", path:"pkm.lineFormat.separator2", default:"||", mono:true,
       name:"Second Separator", desc:"Goes at the end of your sentence, before the dates and links",
-      tip:"It can be exactly the same as the first one. Which is which is decided by where it sits on the line, not by what it looks like" }
+      tip:"Using exactly the same one as the first is fine. Which is which is decided by where it sits on the line, not by what it looks like" }
   ]
 },
 {
@@ -67,7 +67,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"text_end",label:"End of your text"},
                 {value:"current_position",label:"Leave it where it was"},
                 {value:"line_end",label:"End of the line"} ],
-      tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from" }
+      tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from" }
   ]
 },
 {

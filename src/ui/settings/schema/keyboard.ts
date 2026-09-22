@@ -40,7 +40,7 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
         { value:"word-line-tree-header-note", label:"Word, line, tree, heading, then note" },
         { value:"custom", label:"Custom" }
       ],
-      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note" },
     { kind:"note", id:"select-all-custom-head",
       name:"Steps to cycle through", desc:"Which of the five a press stops at",
       tip:"The order is fixed — word, line, tree, heading, note — and the ticks decide which of them a press stops at. Tick <b>word</b>, <b>line</b> and <b>note</b>, and the key goes from the word under the cursor to the whole line to the whole note, skipping the two in between. Tick nothing and the key stays Obsidian’s own: one press, the whole note",
@@ -111,7 +111,7 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
 {
   id: "binder", tab: "keyboard", order: 200, heading: "Binder (custom insert commands)",
   intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
-  tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+  tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Afterwards you change only the description \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
   items: [
     { kind:"custom", id:"binder-table", render: binderTable }
   ]

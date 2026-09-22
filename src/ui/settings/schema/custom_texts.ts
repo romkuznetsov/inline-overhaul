@@ -36,7 +36,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
+          "jumping between headings to navigate easier and much more. Try each group and keep what fits the way you write"
   },
   keyboard: {
     head: "Everything about keys lives here",
@@ -55,7 +55,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
   visual: {
     head: "How a tagged line looks while you are writing",
     tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this " +
-         "plugin and you will see plain text with ordinary tags",
+         "plugin and you see plain text with ordinary tags",
     body: "Draw tags as colored bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
           "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
   },
@@ -67,7 +67,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
           "filled in from the tags on that line \u2014 and the line itself left holding a link to it"
   },
   advanced: {
-    head: "Housekeeping you will rarely need",
+    head: "Housekeeping you rarely need",
     tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want " +
          "to look at what the plugin has written into your vault",
     body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to " +
@@ -109,7 +109,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   },
   "line-preview": {
     cap: "Live preview",
-    tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, " +
+    tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they are written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
     "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
     "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +

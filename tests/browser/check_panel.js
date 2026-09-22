@@ -234,6 +234,33 @@ async function rowsOnOneLine(width) {
     const tabs = await page.$$eval(".io-tabs .io-tab", (els) => els.length);
     if (tabs < 7) bad("вкладок в прототипе " + tabs + ", а их семь: страница не отрисовалась");
 
+    /*
+     * Знак плагина в начале General (`В-198`). Картинка вставлена строкой
+     * `data:`, и испорченная строка не показала бы ничего — молча: узел на
+     * месте, размер на месте, а на экране пусто. Поэтому спрашивается браузер,
+     * раскодировал ли он картинку, а не только есть ли узел.
+     */
+    const brand = await page.evaluate(async () => {
+      const n = document.querySelector(".io-brand");
+      if (!n) return { missing: true };
+      const r = n.getBoundingClientRect();
+      const bg = getComputedStyle(n).backgroundImage;
+      const m = /^url\("?([\s\S]*?)"?\)$/.exec(bg);
+      let natural = 0;
+      if (m) {
+        const img = document.createElement("img");
+        img.src = m[1];
+        try { await img.decode(); natural = img.naturalWidth; } catch (_) { natural = -1; }
+      }
+      return { missing: false, w: Math.round(r.width), h: Math.round(r.height), natural, isData: /^url\("?data:image\/svg\+xml;base64,/.test(bg) };
+    });
+    if (brand.missing) bad("знака плагина в начале General нет");
+    else {
+      if (!brand.isData) bad("знак плагина стоит не готовой картинкой из строки data:");
+      if (brand.natural <= 0) bad("картинка знака не раскодировалась: на экране пусто при узле " + brand.w + "×" + brand.h);
+      if (brand.w !== 360 || brand.h !== 47) bad("знак плагина " + brand.w + "×" + brand.h + ", а по бренд-буку 360×47");
+    }
+
     const totals = { tips: 0, heads: 0, values: 0, subs: 0, narrowAllowed: 0, unlocked: 0, steps: 0,
       leadUnlocked: 0, leadRows: -1, leadRowsBefore: -1,
       band: null };

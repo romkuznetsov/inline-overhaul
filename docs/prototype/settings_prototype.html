@@ -284,6 +284,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   border-color: var(--text-error);
   box-shadow: 0 0 0 1px var(--text-error);
 }
+/* Знак плагина в начале вкладки General (`В-198`). Файл из `docs/brand/`
+   как есть; тот же блок — в `styles.css`. */
+.io-brand {
+  width: 360px; height: 47px; margin: 31px 0;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTQuOSA2Ny43IiB3aWR0aD0iNTE0LjkiIGhlaWdodD0iNjcuNyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJpbmxpbmVPdmVyaGF1bCI+PHRpdGxlPmlubGluZU92ZXJoYXVsPC90aXRsZT48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNy4yNyA0Ni43MCkiPjxyZWN0IHg9Ii01LjI3IiB5PSItMzQuNzAiIHdpZHRoPSI5MS4yMCIgaGVpZ2h0PSI0My43NSIgcng9IjIxLjg3IiBmaWxsPSIjZmZiNTQ3Ii8+PHBhdGggZD0iTTIzLjY3IC0xNy4zNEMyMy42NyAtMTguNDggMjMuMTAgLTE5LjU0IDIwLjc3IC0xOS41NEgxOS42N0wyMC4yNCAtMjcuNTlDMjAuMjQgLTI4LjYwIDE5LjIzIC0yOS43MCAxOC4wNCAtMjkuNzBDMTYuOTQgLTI5LjcwIDE1Ljg4IC0yOS4yNiAxNS44MCAtMjYuOTNMMTUuMjcgLTE5LjU0SDEyLjE0TDEyLjY3IC0yNy40MUMxMi42NyAtMjguNjQgMTEuNzUgLTI5LjcwIDEwLjQ3IC0yOS43MEM5LjMzIC0yOS43MCA4LjMyIC0yOS4xMyA4LjIzIC0yNi45M0w3LjcwIC0xOS41NEg2LjU2QzQuMTggLTE5LjU0IDMuNjEgLTE4LjU3IDMuNjEgLTE3LjM0QzMuNjEgLTE2LjE5IDQuMTQgLTE1LjE0IDYuNTYgLTE1LjE0SDcuMzlMNy4wOCAtMTAuNDdINS42M0MzLjMwIC0xMC40NyAyLjczIC05LjQ2IDIuNzMgLTguMzJDMi43MyAtNy4xMyAzLjM0IC02LjEyIDUuNjMgLTYuMTJINi43OEw2LjI5IDAuOTdDNi4yNSAxLjI4IDYuMjUgMS41OCA2LjI1IDEuNzZDNi4yNSAzLjA4IDcuMTcgNC4wNSA4LjQ1IDQuMDVDOS45MCA0LjA1IDEwLjY1IDMuMDggMTAuNjUgMS4yOEwxMS4xOCAtNi4xMkgxNC4zNEwxMy43NyAxLjgwQzEzLjc3IDIuOTUgMTQuNjUgNC4wNSAxNS45MyA0LjA1QzE3LjAzIDQuMDUgMTguMDggMy4zOSAxOC4yMiAxLjI4TDE4LjcwIC02LjEySDE5Ljg5QzIyLjEzIC02LjEyIDIyLjc5IC03LjA0IDIyLjc5IC04LjI3QzIyLjc5IC05LjQyIDIyLjI2IC0xMC40NyAxOS44NCAtMTAuNDdIMTkuMDFMMTkuMzYgLTE1LjE0SDIwLjc3QzIzLjAxIC0xNS4xNCAyMy42NyAtMTYuMTAgMjMuNjcgLTE3LjM0Wk0xNC45NiAtMTUuMTQgMTQuNjUgLTEwLjQ3SDExLjQ4TDExLjg0IC0xNS4xNFoiIGZpbGw9IiMzYTI0MDAiLz48cGF0aCBkPSJNNTAuMDcgLTIuMjBDNTAuMDcgLTMuMzQgNDkuNTAgLTQuNDAgNDcuMTcgLTQuNDBINDEuODBWLTE5LjIzSDMzLjk3QzMxLjU5IC0xOS4yMyAzMS4wMiAtMTguMjYgMzEuMDIgLTE3LjAzQzMxLjAyIC0xNS44NCAzMS42OCAtMTQuODMgMzMuOTcgLTE0LjgzSDM3LjQwVi00LjQwSDMyLjAzQzI5LjcwIC00LjQwIDI5LjEzIC0zLjQzIDI5LjEzIC0yLjIwQzI5LjEzIC0xLjAxIDI5Ljc5IDAuMDAgMzIuMDMgMC4wMEg0Ny4xN0M0OS40MSAwLjAwIDUwLjA3IC0xLjAxIDUwLjA3IC0yLjIwWk00Mi4yNCAtMjUuNDhDNDIuMjQgLTI2Ljk3IDQxLjEwIC0yOC4xNiAzOS42MCAtMjguMTZDMzguMTUgLTI4LjE2IDM2Ljk2IC0yNi45NyAzNi45NiAtMjUuNTJDMzYuOTYgLTI0LjA3IDM4LjE1IC0yMi44OCAzOS42MCAtMjIuODhDNDEuMDUgLTIyLjg4IDQyLjI0IC0yNC4wNyA0Mi4yNCAtMjUuNDhaIiBmaWxsPSIjM2EyNDAwIi8+PHBhdGggZD0iTTc3LjkyIC0yLjIwQzc3LjkyIC0zLjYxIDc2Ljk2IC00LjQwIDc1LjI0IC00LjQwVi0xMi40MUM3NS4yNCAtMTcuMDcgNzEuODUgLTE5LjgwIDY3LjQxIC0xOS44MEM2NC45OSAtMTkuODAgNjMuNDkgLTE5LjE0IDYxLjM4IC0xNy4xMlYtMTkuMjNINTcuMjRDNTUuNDQgLTE5LjIzIDU0LjMwIC0xOC41MiA1NC4zMCAtMTcuMDNDNTQuMzAgLTE1LjYyIDU1LjI2IC0xNC44NyA1Ni45OCAtMTQuODNWLTQuNDBINTYuNzJDNTQuNDMgLTQuNDAgNTMuODEgLTMuNDMgNTMuODEgLTIuMjBDNTMuODEgLTAuOTcgNTQuNTIgMC4wMCA1Ni43MiAwLjAwSDYxLjY0QzYzLjg5IDAuMDAgNjQuNTUgLTAuOTcgNjQuNTUgLTIuMjBDNjQuNTUgLTMuMzQgNjMuOTggLTQuNDAgNjEuNjQgLTQuNDBINjEuMzhWLTEyLjQxQzYzLjQ1IC0xNC42NSA2NC44NiAtMTUuNDAgNjYuODggLTE1LjQwQzY5LjYxIC0xNS40MCA3MC44NCAtMTQuMzkgNzAuODQgLTEyLjIzVi00LjQwQzY5LjEyIC00LjQwIDY4LjE2IC0zLjYxIDY4LjE2IC0yLjIwQzY4LjE2IC0wLjc1IDY5LjEyIDAuMDAgNzEuMTAgMC4wMEg3NS4wMkM3Ny4yNiAwLjAwIDc3LjkyIC0wLjkyIDc3LjkyIC0yLjIwWiIgZmlsbD0iIzNhMjQwMCIvPjxwYXRoIGQ9Ik0xMTMuODcgLTIuMjBDMTEzLjg3IC0zLjM0IDExMy4zMCAtNC40MCAxMTAuOTcgLTQuNDBIMTA1LjYwVi0yNy40Nkg5Ny43N0M5NS40NCAtMjcuNDYgOTQuODIgLTI2LjUzIDk0LjgyIC0yNS4yNkM5NC44MiAtMjQuMTEgOTUuMzkgLTIzLjA2IDk3Ljc3IC0yMy4wNkgxMDEuMjBWLTQuNDBIOTUuODNDOTMuNTAgLTQuNDAgOTIuOTMgLTMuNDMgOTIuOTMgLTIuMjBDOTIuOTMgLTEuMDYgOTMuNTQgMC4wMCA5NS44MyAwLjAwSDExMC45N0MxMTMuMjEgMC4wMCAxMTMuODcgLTEuMDEgMTEzLjg3IC0yLjIwWiIgZmlsbD0iIzExMTExMSIvPjxwYXRoIGQ9Ik0xNDAuMjcgLTIuMjBDMTQwLjI3IC0zLjM0IDEzOS43MCAtNC40MCAxMzcuMzcgLTQuNDBIMTMyLjAwVi0xOS4yM0gxMjQuMTdDMTIxLjc5IC0xOS4yMyAxMjEuMjIgLTE4LjI2IDEyMS4yMiAtMTcuMDNDMTIxLjIyIC0xNS44NCAxMjEuODggLTE0LjgzIDEyNC4xNyAtMTQuODNIMTI3LjYwVi00LjQwSDEyMi4yM0MxMTkuOTAgLTQuNDAgMTE5LjMzIC0zLjQzIDExOS4zMyAtMi4yMEMxMTkuMzMgLTEuMDEgMTE5Ljk5IDAuMDAgMTIyLjIzIDAuMDBIMTM3LjM3QzEzOS42MSAwLjAwIDE0MC4yNyAtMS4wMSAxNDAuMjcgLTIuMjBaTTEzMi40NCAtMjUuNDhDMTMyLjQ0IC0yNi45NyAxMzEuMzAgLTI4LjE2IDEyOS44MCAtMjguMTZDMTI4LjM1IC0yOC4xNiAxMjcuMTYgLTI2Ljk3IDEyNy4xNiAtMjUuNTJDMTI3LjE2IC0yNC4wNyAxMjguMzUgLTIyLjg4IDEyOS44MCAtMjIuODhDMTMxLjI1IC0yMi44OCAxMzIuNDQgLTI0LjA3IDEzMi40NCAtMjUuNDhaIiBmaWxsPSIjMTExMTExIi8+PHBhdGggZD0iTTE2OC4xMiAtMi4yMEMxNjguMTIgLTMuNjEgMTY3LjE2IC00LjQwIDE2NS40NCAtNC40MFYtMTIuNDFDMTY1LjQ0IC0xNy4wNyAxNjIuMDUgLTE5LjgwIDE1Ny42MSAtMTkuODBDMTU1LjE5IC0xOS44MCAxNTMuNjkgLTE5LjE0IDE1MS41OCAtMTcuMTJWLTE5LjIzSDE0Ny40NEMxNDUuNjQgLTE5LjIzIDE0NC41MCAtMTguNTIgMTQ0LjUwIC0xNy4wM0MxNDQuNTAgLTE1LjYyIDE0NS40NiAtMTQuODcgMTQ3LjE4IC0xNC44M1YtNC40MEgxNDYuOTJDMTQ0LjYzIC00LjQwIDE0NC4wMSAtMy40MyAxNDQuMDEgLTIuMjBDMTQ0LjAxIC0wLjk3IDE0NC43MiAwLjAwIDE0Ni45MiAwLjAwSDE1MS44NEMxNTQuMDkgMC4wMCAxNTQuNzUgLTAuOTcgMTU0Ljc1IC0yLjIwQzE1NC43NSAtMy4zNCAxNTQuMTggLTQuNDAgMTUxLjg0IC00LjQwSDE1MS41OFYtMTIuNDFDMTUzLjY1IC0xNC42NSAxNTUuMDYgLTE1LjQwIDE1Ny4wOCAtMTUuNDBDMTU5LjgxIC0xNS40MCAxNjEuMDQgLTE0LjM5IDE2MS4wNCAtMTIuMjNWLTQuNDBDMTU5LjMyIC00LjQwIDE1OC4zNiAtMy42MSAxNTguMzYgLTIuMjBDMTU4LjM2IC0wLjc1IDE1OS4zMiAwLjAwIDE2MS4zMCAwLjAwSDE2NS4yMkMxNjcuNDYgMC4wMCAxNjguMTIgLTAuOTIgMTY4LjEyIC0yLjIwWiIgZmlsbD0iIzExMTExMSIvPjxwYXRoIGQ9Ik0xOTMuNjAgLTIuOTVDMTkzLjYwIC00LjE4IDE5Mi42OCAtNS4xNSAxOTEuNDkgLTUuMTVDMTkxLjA5IC01LjE1IDE5MC41NiAtNS4wNiAxOTAuMDQgLTQuOTNDMTg1Ljk5IC0zLjg3IDE4NC44OSAtMy43MCAxODIuODYgLTMuNzBDMTc4Ljk5IC0zLjcwIDE3Ni42NiAtNC45MyAxNzUuNjUgLTcuNTdIMTkzLjYwVi05LjI4QzE5My42MCAtMTUuMzYgMTg4Ljc2IC0xOS44MCAxODIuMjAgLTE5LjgwQzE3NS43OCAtMTkuODAgMTcwLjg1IC0xNS4zMSAxNzAuODUgLTkuNTBDMTcwLjg1IC0zLjUyIDE3NS42NSAwLjcwIDE4Mi40NyAwLjcwQzE4Ny40NCAwLjcwIDE5My42MCAtMC41MyAxOTMuNjAgLTIuOTVaTTE4OC43MiAtMTEuNDRIMTc1Ljc4QzE3Ni40NCAtMTMuODIgMTc5LjA0IC0xNS40MCAxODIuMjUgLTE1LjQwQzE4NS40NiAtMTUuNDAgMTg4LjAxIC0xMy44NiAxODguNzIgLTExLjQ0WiIgZmlsbD0iIzExMTExMSIvPjxwYXRoIGQ9Ik0yMTIuNDggNC4zMUMyMTIuNDggMy4xNyAyMTEuOTAgMi4xMSAyMDkuNTcgMi4xMUgyMDYuOThWLTIzLjE5SDIwOS41M0MyMTEuNzcgLTIzLjE5IDIxMi40MyAtMjQuMTYgMjEyLjQzIC0yNS4zOUMyMTIuNDMgLTI2LjU4IDIxMS45MCAtMjcuNTkgMjA5LjUzIC0yNy41OUgyMDIuNThWNi41MUgyMDkuNTdDMjExLjg2IDYuNTEgMjEyLjQ4IDUuNTAgMjEyLjQ4IDQuMzFaIiBmaWxsPSIjYWVjNGQyIi8+PHBhdGggZD0iTTIzMC40MyA0LjMxQzIzMC40MyAzLjE3IDIyOS44NiAyLjExIDIyNy41MiAyLjExSDIyNC45M1YtMjMuMTlIMjI3LjQ4QzIyOS43MiAtMjMuMTkgMjMwLjM4IC0yNC4xNiAyMzAuMzggLTI1LjM5QzIzMC4zOCAtMjYuNTggMjI5Ljg2IC0yNy41OSAyMjcuNDggLTI3LjU5SDIyMC41M1Y2LjUxSDIyNy41MkMyMjkuODEgNi41MSAyMzAuNDMgNS41MCAyMzAuNDMgNC4zMVoiIGZpbGw9IiNhZWM0ZDIiLz48cGF0aCBkPSJNMjU3LjE4IC0xMi42M0MyNTcuMTggLTIwLjI4IDI1MS41OSAtMjYuMjcgMjQ0LjkwIC0yNi4yN0MyMzguMTMgLTI2LjI3IDIzMi42MyAtMjAuMjQgMjMyLjYzIC0xMi44NUMyMzIuNjMgLTUuNDEgMjM4LjEzIDAuNjIgMjQ0LjkwIDAuNjJDMjUxLjU5IDAuNjIgMjU3LjE4IC01LjQxIDI1Ny4xOCAtMTIuNjNaTTI1Mi43OCAtMTIuNzJDMjUyLjc4IC03Ljg4IDI0OS4xNyAtMy43OCAyNDQuOTAgLTMuNzhDMjQwLjU5IC0zLjc4IDIzNy4wMyAtNy44OCAyMzcuMDMgLTEyLjg1QzIzNy4wMyAtMTcuNzggMjQwLjU5IC0yMS44NyAyNDQuOTAgLTIxLjg3QzI0OS4yNiAtMjEuODcgMjUyLjc4IC0xNy43OCAyNTIuNzggLTEyLjcyWiIgZmlsbD0iIzRhN2I5YiIvPjxwYXRoIGQ9Ik0yODQuNTAgLTE3LjAzQzI4NC41MCAtMTguMjIgMjgzLjkzIC0xOS4yMyAyODEuNjAgLTE5LjIzSDI3NS42NkMyNzMuMzcgLTE5LjIzIDI3Mi43NiAtMTguMjYgMjcyLjc2IC0xNy4wM0MyNzIuNzYgLTE1Ljg4IDI3My4zMyAtMTQuODMgMjc1LjY2IC0xNC44M0gyNzYuMTBMMjcxLjM5IC01LjM3TDI2Ni42MCAtMTQuODNIMjY3LjEyQzI2OS40MSAtMTQuODMgMjY5LjcyIC0xNS44MCAyNjkuNzIgLTE3LjAzQzI2OS43MiAtMTguMjIgMjY5LjE1IC0xOS4yMyAyNjYuODIgLTE5LjIzSDI2MS4wMUMyNTguNzIgLTE5LjIzIDI1OC4xMCAtMTguMjYgMjU4LjEwIC0xNy4wM0MyNTguMTAgLTE1Ljg4IDI1OC42OCAtMTQuODMgMjYxLjAxIC0xNC44M0gyNjEuNjJMMjY4Ljk3IDAuMDBIMjczLjU1TDI4MC45MCAtMTQuODNIMjgxLjYwQzI4My44OSAtMTQuODMgMjg0LjUwIC0xNS44MCAyODQuNTAgLTE3LjAzWiIgZmlsbD0iIzRhN2I5YiIvPjxwYXRoIGQ9Ik0zMDguNzAgLTIuOTVDMzA4LjcwIC00LjE4IDMwNy43OCAtNS4xNSAzMDYuNTkgLTUuMTVDMzA2LjIwIC01LjE1IDMwNS42NyAtNS4wNiAzMDUuMTQgLTQuOTNDMzAxLjA5IC0zLjg3IDI5OS45OSAtMy43MCAyOTcuOTcgLTMuNzBDMjk0LjEwIC0zLjcwIDI5MS43NiAtNC45MyAyOTAuNzUgLTcuNTdIMzA4LjcwVi05LjI4QzMwOC43MCAtMTUuMzYgMzAzLjg2IC0xOS44MCAyOTcuMzEgLTE5LjgwQzI5MC44OCAtMTkuODAgMjg1Ljk2IC0xNS4zMSAyODUuOTYgLTkuNTBDMjg1Ljk2IC0zLjUyIDI5MC43NSAwLjcwIDI5Ny41NyAwLjcwQzMwMi41NCAwLjcwIDMwOC43MCAtMC41MyAzMDguNzAgLTIuOTVaTTMwMy44MiAtMTEuNDRIMjkwLjg4QzI5MS41NCAtMTMuODIgMjk0LjE0IC0xNS40MCAyOTcuMzUgLTE1LjQwQzMwMC41NiAtMTUuNDAgMzAzLjEyIC0xMy44NiAzMDMuODIgLTExLjQ0WiIgZmlsbD0iIzRhN2I5YiIvPjxwYXRoIGQ9Ik0zMzYuMDMgLTE2LjAyQzMzNi4wMyAtMTguMDQgMzMyLjYwIC0xOS43NiAzMzAuNDggLTE5Ljc2QzMyOC4zMyAtMTkuNzYgMzI2LjY2IC0xOS4wMSAzMjMuMTQgLTE2LjM3Vi0xOS4yM0gzMTcuMjBDMzE1LjA0IC0xOS4yMyAzMTQuMjkgLTE4LjI2IDMxNC4yOSAtMTcuMDNDMzE0LjI5IC0xNS44NCAzMTQuOTUgLTE0LjgzIDMxNy4yMCAtMTQuODNIMzE4Ljc0Vi00LjQwSDMxNi4xOEMzMTMuODUgLTQuNDAgMzEzLjI4IC0zLjQzIDMxMy4yOCAtMi4yMEMzMTMuMjggLTEuMDEgMzEzLjk0IDAuMDAgMzE2LjE4IDAuMDBIMzI5LjI1QzMzMS41OCAwLjAwIDMzMi4yMCAtMC45NyAzMzIuMjAgLTIuMjBDMzMyLjIwIC0zLjM0IDMzMS42NyAtNC40MCAzMjkuMjUgLTQuNDBIMzIzLjE0Vi0xMC44N0MzMjcuMzIgLTE0LjMwIDMyOC45OSAtMTUuMzYgMzMwLjQwIC0xNS4zNkMzMzEuNDUgLTE1LjM2IDMzMi43MyAtMTMuNzcgMzMzLjgzIC0xMy43N0MzMzUuMDIgLTEzLjc3IDMzNi4wMyAtMTQuNzggMzM2LjAzIC0xNi4wMloiIGZpbGw9IiM0YTdiOWIiLz48cGF0aCBkPSJNMzYyLjg3IC0yLjIwQzM2Mi44NyAtMy4zOSAzNjIuMzQgLTQuNDAgMzU5Ljk2IC00LjQwSDM1OS43MFYtMTIuNTBDMzU5LjcwIC0xNi45MCAzNTYuNTggLTE5LjgwIDM1MS45MSAtMTkuODBDMzQ5LjYyIC0xOS44MCAzNDcuNjQgLTE4LjkyIDM0NS44OCAtMTcuMTJWLTI3LjQ2SDM0MC43OEMzMzguNDkgLTI3LjQ2IDMzNy44OCAtMjYuNDkgMzM3Ljg4IC0yNS4yNkMzMzcuODggLTI0LjA3IDMzOC40MCAtMjMuMDYgMzQwLjc4IC0yMy4wNkgzNDEuNDhWLTQuNDBIMzQxLjIyQzMzOC45MyAtNC40MCAzMzguMzIgLTMuNDMgMzM4LjMyIC0yLjIwQzMzOC4zMiAtMS4wNiAzMzguODkgMC4wMCAzNDEuMjIgMC4wMEgzNDYuMTVDMzQ4LjQ0IDAuMDAgMzQ5LjEwIC0wLjk3IDM0OS4xMCAtMi4yMEMzNDkuMTAgLTMuMzQgMzQ4LjU3IC00LjQwIDM0Ni4xNSAtNC40MEgzNDUuODhWLTEyLjQ1QzM0OC4zOSAtMTQuODcgMzQ5LjM2IC0xNS40MCAzNTEuNDMgLTE1LjQwQzM1My44NSAtMTUuNDAgMzU1LjMwIC0xNC42NSAzNTUuMzAgLTExLjkyVi00LjQwSDM1NS4wNEMzNTIuNjYgLTQuNDAgMzUyLjA5IC0zLjM5IDM1Mi4wOSAtMi4yMEMzNTIuMDkgLTEuMDEgMzUyLjY2IDAuMDAgMzU1LjA0IDAuMDBIMzU5Ljk2QzM2Mi4yMSAwLjAwIDM2Mi44NyAtMC45MiAzNjIuODcgLTIuMjBaIiBmaWxsPSIjNGE3YjliIi8+PHBhdGggZD0iTTM4OC44MyAtMi4yMEMzODguODMgLTMuMzkgMzg4LjMwIC00LjQwIDM4NS45MiAtNC40MEgzODUuMjJWLTEzLjI5QzM4NS4yMiAtMTcuMzggMzgxLjk2IC0xOS44MCAzNzYuNTUgLTE5LjgwQzM3NC4zNSAtMTkuODAgMzcxLjEwIC0xOS4yMyAzNjguOTggLTE4LjQ4QzM2OC4xMCAtMTguMTcgMzY3LjY2IC0xNy41NiAzNjcuNjYgLTE2LjYzQzM2Ny42NiAtMTUuMzYgMzY4LjU5IC0xNC4zOSAzNjkuODIgLTE0LjM5QzM3MC4yMiAtMTQuMzkgMzcwLjgzIC0xNC40OCAzNzEuNTggLTE0LjY1QzM3My42MCAtMTUuMTggMzc1LjIzIC0xNS40MCAzNzYuNjggLTE1LjQwQzM3OS41MCAtMTUuNDAgMzgwLjc4IC0xNC43NCAzODAuNzggLTEzLjI0Vi0xMi4yM0MzNzguOTcgLTEyLjU0IDM3Ny42MSAtMTIuNjcgMzc2LjIwIC0xMi42N0MzNzAuMzUgLTEyLjY3IDM2NS41NSAtOS41NSAzNjUuNTUgLTUuMjRDMzY1LjU1IC0xLjk4IDM2OS4xMiAwLjcwIDM3My40NyAwLjcwQzM3Ni4wNyAwLjcwIDM3OC42NiAwLjA5IDM4MC43OCAtMS4wMVYwLjAwSDM4NS45MkMzODguMjEgMC4wMCAzODguODMgLTAuOTcgMzg4LjgzIC0yLjIwWk0zODAuODIgLTUuOTRDMzc4LjQwIC00LjQ0IDM3NS45NCAtMy43MCAzNzMuNTYgLTMuNzBDMzcxLjY3IC0zLjcwIDM3MC4yMiAtNC40NCAzNzAuMjIgLTUuNDFDMzcwLjIyIC03LjA4IDM3Mi45NCAtOC42MiAzNzUuOTQgLTguNjJDMzc3LjQzIC04LjYyIDM3OS4wNiAtOC40NSAzODAuODIgLTguMTRaIiBmaWxsPSIjNGE3YjliIi8+PHBhdGggZD0iTTQxNS4yMyAtMi4yMEM0MTUuMjMgLTMuNjEgNDE0LjI2IC00LjQwIDQxMi41NCAtNC40MFYtMTkuMjNINDA2LjYwQzQwNC4zMiAtMTkuMjMgNDAzLjcwIC0xOC4yNiA0MDMuNzAgLTE3LjAzQzQwMy43MCAtMTUuODggNDA0LjMyIC0xNC44MyA0MDYuNjAgLTE0LjgzSDQwOC4xNFYtNi44MkM0MDUuODYgLTQuNDAgNDA0Ljc2IC0zLjgzIDQwMi41NiAtMy44M0MzOTkuOTIgLTMuODMgMzk4LjY4IC00Ljg0IDM5OC42OCAtNy4wMFYtMTkuMjNIMzkzLjU4QzM5MS4yOSAtMTkuMjMgMzkwLjY4IC0xOC4yNiAzOTAuNjggLTE3LjAzQzM5MC42OCAtMTUuNzEgMzkxLjc4IC0xNC43OCAzOTMuMTAgLTE0LjgzSDM5NC4yOFYtNi44NkMzOTQuMjggLTIuMTYgMzk3LjU4IDAuNTcgNDAyLjEyIDAuNTdDNDA0LjU0IDAuNTcgNDA1Ljk0IC0wLjA0IDQwOC4xNCAtMi4xMVYwLjAwSDQxMi4zMkM0MTQuNTcgMC4wMCA0MTUuMjMgLTAuOTcgNDE1LjIzIC0yLjIwWiIgZmlsbD0iIzRhN2I5YiIvPjxwYXRoIGQ9Ik00NDAuMTggLTIuMjBDNDQwLjE4IC0zLjM0IDQzOS42MCAtNC40MCA0MzcuMjcgLTQuNDBINDMxLjkwVi0yNy40Nkg0MjQuMDdDNDIxLjc0IC0yNy40NiA0MjEuMTIgLTI2LjUzIDQyMS4xMiAtMjUuMjZDNDIxLjEyIC0yNC4xMSA0MjEuNzAgLTIzLjA2IDQyNC4wNyAtMjMuMDZINDI3LjUwVi00LjQwSDQyMi4xNEM0MTkuODAgLTQuNDAgNDE5LjIzIC0zLjQzIDQxOS4yMyAtMi4yMEM0MTkuMjMgLTEuMDYgNDE5Ljg1IDAuMDAgNDIyLjE0IDAuMDBINDM3LjI3QzQzOS41MiAwLjAwIDQ0MC4xOCAtMS4wMSA0NDAuMTggLTIuMjBaIiBmaWxsPSIjNGE3YjliIi8+PHBhdGggZD0iTTQ1NC4wOCA2LjUxVi0yNy41OUg0NDcuMDhDNDQ0LjgwIC0yNy41OSA0NDQuMTggLTI2LjU4IDQ0NC4xOCAtMjUuMzlDNDQ0LjE4IC0yNC4yNCA0NDQuNzEgLTIzLjE5IDQ0Ny4wOCAtMjMuMTlINDQ5LjY4VjIuMTFINDQ3LjEzQzQ0NC44NCAyLjExIDQ0NC4yMiAzLjA4IDQ0NC4yMiA0LjMxQzQ0NC4yMiA1LjUwIDQ0NC43NSA2LjUxIDQ0Ny4xMyA2LjUxWiIgZmlsbD0iI2FlYzRkMiIvPjxwYXRoIGQ9Ik00NzIuMDMgNi41MVYtMjcuNTlINDY1LjA0QzQ2Mi43NSAtMjcuNTkgNDYyLjEzIC0yNi41OCA0NjIuMTMgLTI1LjM5QzQ2Mi4xMyAtMjQuMjQgNDYyLjY2IC0yMy4xOSA0NjUuMDQgLTIzLjE5SDQ2Ny42M1YyLjExSDQ2NS4wOEM0NjIuNzkgMi4xMSA0NjIuMTggMy4wOCA0NjIuMTggNC4zMUM0NjIuMTggNS41MCA0NjIuNzAgNi41MSA0NjUuMDggNi41MVoiIGZpbGw9IiNhZWM0ZDIiLz48cmVjdCB4PSI0ODAuNzgiIHk9Ii0yOC41OCIgd2lkdGg9IjQuODEiIGhlaWdodD0iMzIuMzciIGZpbGw9IiNjYjA2YzQiLz48L2c+PC9zdmc+") no-repeat left center / contain;
+}
+.theme-dark .io-brand { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTQuOSA2Ny43IiB3aWR0aD0iNTE0LjkiIGhlaWdodD0iNjcuNyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJpbmxpbmVPdmVyaGF1bCI+PHRpdGxlPmlubGluZU92ZXJoYXVsPC90aXRsZT48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNy4yNyA0Ni43MCkiPjxyZWN0IHg9Ii01LjI3IiB5PSItMzQuNzAiIHdpZHRoPSI5MS4yMCIgaGVpZ2h0PSI0My43NSIgcng9IjIxLjg3IiBmaWxsPSIjZmZiNTQ3Ii8+PHBhdGggZD0iTTIzLjY3IC0xNy4zNEMyMy42NyAtMTguNDggMjMuMTAgLTE5LjU0IDIwLjc3IC0xOS41NEgxOS42N0wyMC4yNCAtMjcuNTlDMjAuMjQgLTI4LjYwIDE5LjIzIC0yOS43MCAxOC4wNCAtMjkuNzBDMTYuOTQgLTI5LjcwIDE1Ljg4IC0yOS4yNiAxNS44MCAtMjYuOTNMMTUuMjcgLTE5LjU0SDEyLjE0TDEyLjY3IC0yNy40MUMxMi42NyAtMjguNjQgMTEuNzUgLTI5LjcwIDEwLjQ3IC0yOS43MEM5LjMzIC0yOS43MCA4LjMyIC0yOS4xMyA4LjIzIC0yNi45M0w3LjcwIC0xOS41NEg2LjU2QzQuMTggLTE5LjU0IDMuNjEgLTE4LjU3IDMuNjEgLTE3LjM0QzMuNjEgLTE2LjE5IDQuMTQgLTE1LjE0IDYuNTYgLTE1LjE0SDcuMzlMNy4wOCAtMTAuNDdINS42M0MzLjMwIC0xMC40NyAyLjczIC05LjQ2IDIuNzMgLTguMzJDMi43MyAtNy4xMyAzLjM0IC02LjEyIDUuNjMgLTYuMTJINi43OEw2LjI5IDAuOTdDNi4yNSAxLjI4IDYuMjUgMS41OCA2LjI1IDEuNzZDNi4yNSAzLjA4IDcuMTcgNC4wNSA4LjQ1IDQuMDVDOS45MCA0LjA1IDEwLjY1IDMuMDggMTAuNjUgMS4yOEwxMS4xOCAtNi4xMkgxNC4zNEwxMy43NyAxLjgwQzEzLjc3IDIuOTUgMTQuNjUgNC4wNSAxNS45MyA0LjA1QzE3LjAzIDQuMDUgMTguMDggMy4zOSAxOC4yMiAxLjI4TDE4LjcwIC02LjEySDE5Ljg5QzIyLjEzIC02LjEyIDIyLjc5IC03LjA0IDIyLjc5IC04LjI3QzIyLjc5IC05LjQyIDIyLjI2IC0xMC40NyAxOS44NCAtMTAuNDdIMTkuMDFMMTkuMzYgLTE1LjE0SDIwLjc3QzIzLjAxIC0xNS4xNCAyMy42NyAtMTYuMTAgMjMuNjcgLTE3LjM0Wk0xNC45NiAtMTUuMTQgMTQuNjUgLTEwLjQ3SDExLjQ4TDExLjg0IC0xNS4xNFoiIGZpbGw9IiMzYTI0MDAiLz48cGF0aCBkPSJNNTAuMDcgLTIuMjBDNTAuMDcgLTMuMzQgNDkuNTAgLTQuNDAgNDcuMTcgLTQuNDBINDEuODBWLTE5LjIzSDMzLjk3QzMxLjU5IC0xOS4yMyAzMS4wMiAtMTguMjYgMzEuMDIgLTE3LjAzQzMxLjAyIC0xNS44NCAzMS42OCAtMTQuODMgMzMuOTcgLTE0LjgzSDM3LjQwVi00LjQwSDMyLjAzQzI5LjcwIC00LjQwIDI5LjEzIC0zLjQzIDI5LjEzIC0yLjIwQzI5LjEzIC0xLjAxIDI5Ljc5IDAuMDAgMzIuMDMgMC4wMEg0Ny4xN0M0OS40MSAwLjAwIDUwLjA3IC0xLjAxIDUwLjA3IC0yLjIwWk00Mi4yNCAtMjUuNDhDNDIuMjQgLTI2Ljk3IDQxLjEwIC0yOC4xNiAzOS42MCAtMjguMTZDMzguMTUgLTI4LjE2IDM2Ljk2IC0yNi45NyAzNi45NiAtMjUuNTJDMzYuOTYgLTI0LjA3IDM4LjE1IC0yMi44OCAzOS42MCAtMjIuODhDNDEuMDUgLTIyLjg4IDQyLjI0IC0yNC4wNyA0Mi4yNCAtMjUuNDhaIiBmaWxsPSIjM2EyNDAwIi8+PHBhdGggZD0iTTc3LjkyIC0yLjIwQzc3LjkyIC0zLjYxIDc2Ljk2IC00LjQwIDc1LjI0IC00LjQwVi0xMi40MUM3NS4yNCAtMTcuMDcgNzEuODUgLTE5LjgwIDY3LjQxIC0xOS44MEM2NC45OSAtMTkuODAgNjMuNDkgLTE5LjE0IDYxLjM4IC0xNy4xMlYtMTkuMjNINTcuMjRDNTUuNDQgLTE5LjIzIDU0LjMwIC0xOC41MiA1NC4zMCAtMTcuMDNDNTQuMzAgLTE1LjYyIDU1LjI2IC0xNC44NyA1Ni45OCAtMTQuODNWLTQuNDBINTYuNzJDNTQuNDMgLTQuNDAgNTMuODEgLTMuNDMgNTMuODEgLTIuMjBDNTMuODEgLTAuOTcgNTQuNTIgMC4wMCA1Ni43MiAwLjAwSDYxLjY0QzYzLjg5IDAuMDAgNjQuNTUgLTAuOTcgNjQuNTUgLTIuMjBDNjQuNTUgLTMuMzQgNjMuOTggLTQuNDAgNjEuNjQgLTQuNDBINjEuMzhWLTEyLjQxQzYzLjQ1IC0xNC42NSA2NC44NiAtMTUuNDAgNjYuODggLTE1LjQwQzY5LjYxIC0xNS40MCA3MC44NCAtMTQuMzkgNzAuODQgLTEyLjIzVi00LjQwQzY5LjEyIC00LjQwIDY4LjE2IC0zLjYxIDY4LjE2IC0yLjIwQzY4LjE2IC0wLjc1IDY5LjEyIDAuMDAgNzEuMTAgMC4wMEg3NS4wMkM3Ny4yNiAwLjAwIDc3LjkyIC0wLjkyIDc3LjkyIC0yLjIwWiIgZmlsbD0iIzNhMjQwMCIvPjxwYXRoIGQ9Ik0xMTMuODcgLTIuMjBDMTEzLjg3IC0zLjM0IDExMy4zMCAtNC40MCAxMTAuOTcgLTQuNDBIMTA1LjYwVi0yNy40Nkg5Ny43N0M5NS40NCAtMjcuNDYgOTQuODIgLTI2LjUzIDk0LjgyIC0yNS4yNkM5NC44MiAtMjQuMTEgOTUuMzkgLTIzLjA2IDk3Ljc3IC0yMy4wNkgxMDEuMjBWLTQuNDBIOTUuODNDOTMuNTAgLTQuNDAgOTIuOTMgLTMuNDMgOTIuOTMgLTIuMjBDOTIuOTMgLTEuMDYgOTMuNTQgMC4wMCA5NS44MyAwLjAwSDExMC45N0MxMTMuMjEgMC4wMCAxMTMuODcgLTEuMDEgMTEzLjg3IC0yLjIwWiIgZmlsbD0iI2Y3ZjRmZiIvPjxwYXRoIGQ9Ik0xNDAuMjcgLTIuMjBDMTQwLjI3IC0zLjM0IDEzOS43MCAtNC40MCAxMzcuMzcgLTQuNDBIMTMyLjAwVi0xOS4yM0gxMjQuMTdDMTIxLjc5IC0xOS4yMyAxMjEuMjIgLTE4LjI2IDEyMS4yMiAtMTcuMDNDMTIxLjIyIC0xNS44NCAxMjEuODggLTE0LjgzIDEyNC4xNyAtMTQuODNIMTI3LjYwVi00LjQwSDEyMi4yM0MxMTkuOTAgLTQuNDAgMTE5LjMzIC0zLjQzIDExOS4zMyAtMi4yMEMxMTkuMzMgLTEuMDEgMTE5Ljk5IDAuMDAgMTIyLjIzIDAuMDBIMTM3LjM3QzEzOS42MSAwLjAwIDE0MC4yNyAtMS4wMSAxNDAuMjcgLTIuMjBaTTEzMi40NCAtMjUuNDhDMTMyLjQ0IC0yNi45NyAxMzEuMzAgLTI4LjE2IDEyOS44MCAtMjguMTZDMTI4LjM1IC0yOC4xNiAxMjcuMTYgLTI2Ljk3IDEyNy4xNiAtMjUuNTJDMTI3LjE2IC0yNC4wNyAxMjguMzUgLTIyLjg4IDEyOS44MCAtMjIuODhDMTMxLjI1IC0yMi44OCAxMzIuNDQgLTI0LjA3IDEzMi40NCAtMjUuNDhaIiBmaWxsPSIjZjdmNGZmIi8+PHBhdGggZD0iTTE2OC4xMiAtMi4yMEMxNjguMTIgLTMuNjEgMTY3LjE2IC00LjQwIDE2NS40NCAtNC40MFYtMTIuNDFDMTY1LjQ0IC0xNy4wNyAxNjIuMDUgLTE5LjgwIDE1Ny42MSAtMTkuODBDMTU1LjE5IC0xOS44MCAxNTMuNjkgLTE5LjE0IDE1MS41OCAtMTcuMTJWLTE5LjIzSDE0Ny40NEMxNDUuNjQgLTE5LjIzIDE0NC41MCAtMTguNTIgMTQ0LjUwIC0xNy4wM0MxNDQuNTAgLTE1LjYyIDE0NS40NiAtMTQuODcgMTQ3LjE4IC0xNC44M1YtNC40MEgxNDYuOTJDMTQ0LjYzIC00LjQwIDE0NC4wMSAtMy40MyAxNDQuMDEgLTIuMjBDMTQ0LjAxIC0wLjk3IDE0NC43MiAwLjAwIDE0Ni45MiAwLjAwSDE1MS44NEMxNTQuMDkgMC4wMCAxNTQuNzUgLTAuOTcgMTU0Ljc1IC0yLjIwQzE1NC43NSAtMy4zNCAxNTQuMTggLTQuNDAgMTUxLjg0IC00LjQwSDE1MS41OFYtMTIuNDFDMTUzLjY1IC0xNC42NSAxNTUuMDYgLTE1LjQwIDE1Ny4wOCAtMTUuNDBDMTU5LjgxIC0xNS40MCAxNjEuMDQgLTE0LjM5IDE2MS4wNCAtMTIuMjNWLTQuNDBDMTU5LjMyIC00LjQwIDE1OC4zNiAtMy42MSAxNTguMzYgLTIuMjBDMTU4LjM2IC0wLjc1IDE1OS4zMiAwLjAwIDE2MS4zMCAwLjAwSDE2NS4yMkMxNjcuNDYgMC4wMCAxNjguMTIgLTAuOTIgMTY4LjEyIC0yLjIwWiIgZmlsbD0iI2Y3ZjRmZiIvPjxwYXRoIGQ9Ik0xOTMuNjAgLTIuOTVDMTkzLjYwIC00LjE4IDE5Mi42OCAtNS4xNSAxOTEuNDkgLTUuMTVDMTkxLjA5IC01LjE1IDE5MC41NiAtNS4wNiAxOTAuMDQgLTQuOTNDMTg1Ljk5IC0zLjg3IDE4NC44OSAtMy43MCAxODIuODYgLTMuNzBDMTc4Ljk5IC0zLjcwIDE3Ni42NiAtNC45MyAxNzUuNjUgLTcuNTdIMTkzLjYwVi05LjI4QzE5My42MCAtMTUuMzYgMTg4Ljc2IC0xOS44MCAxODIuMjAgLTE5LjgwQzE3NS43OCAtMTkuODAgMTcwLjg1IC0xNS4zMSAxNzAuODUgLTkuNTBDMTcwLjg1IC0zLjUyIDE3NS42NSAwLjcwIDE4Mi40NyAwLjcwQzE4Ny40NCAwLjcwIDE5My42MCAtMC41MyAxOTMuNjAgLTIuOTVaTTE4OC43MiAtMTEuNDRIMTc1Ljc4QzE3Ni40NCAtMTMuODIgMTc5LjA0IC0xNS40MCAxODIuMjUgLTE1LjQwQzE4NS40NiAtMTUuNDAgMTg4LjAxIC0xMy44NiAxODguNzIgLTExLjQ0WiIgZmlsbD0iI2Y3ZjRmZiIvPjxwYXRoIGQ9Ik0yMTIuNDggNC4zMUMyMTIuNDggMy4xNyAyMTEuOTAgMi4xMSAyMDkuNTcgMi4xMUgyMDYuOThWLTIzLjE5SDIwOS41M0MyMTEuNzcgLTIzLjE5IDIxMi40MyAtMjQuMTYgMjEyLjQzIC0yNS4zOUMyMTIuNDMgLTI2LjU4IDIxMS45MCAtMjcuNTkgMjA5LjUzIC0yNy41OUgyMDIuNThWNi41MUgyMDkuNTdDMjExLjg2IDYuNTEgMjEyLjQ4IDUuNTAgMjEyLjQ4IDQuMzFaIiBmaWxsPSIjNDQ2NDg1Ii8+PHBhdGggZD0iTTIzMC40MyA0LjMxQzIzMC40MyAzLjE3IDIyOS44NiAyLjExIDIyNy41MiAyLjExSDIyNC45M1YtMjMuMTlIMjI3LjQ4QzIyOS43MiAtMjMuMTkgMjMwLjM4IC0yNC4xNiAyMzAuMzggLTI1LjM5QzIzMC4zOCAtMjYuNTggMjI5Ljg2IC0yNy41OSAyMjcuNDggLTI3LjU5SDIyMC41M1Y2LjUxSDIyNy41MkMyMjkuODEgNi41MSAyMzAuNDMgNS41MCAyMzAuNDMgNC4zMVoiIGZpbGw9IiM0NDY0ODUiLz48cGF0aCBkPSJNMjU3LjE4IC0xMi42M0MyNTcuMTggLTIwLjI4IDI1MS41OSAtMjYuMjcgMjQ0LjkwIC0yNi4yN0MyMzguMTMgLTI2LjI3IDIzMi42MyAtMjAuMjQgMjMyLjYzIC0xMi44NUMyMzIuNjMgLTUuNDEgMjM4LjEzIDAuNjIgMjQ0LjkwIDAuNjJDMjUxLjU5IDAuNjIgMjU3LjE4IC01LjQxIDI1Ny4xOCAtMTIuNjNaTTI1Mi43OCAtMTIuNzJDMjUyLjc4IC03Ljg4IDI0OS4xNyAtMy43OCAyNDQuOTAgLTMuNzhDMjQwLjU5IC0zLjc4IDIzNy4wMyAtNy44OCAyMzcuMDMgLTEyLjg1QzIzNy4wMyAtMTcuNzggMjQwLjU5IC0yMS44NyAyNDQuOTAgLTIxLjg3QzI0OS4yNiAtMjEuODcgMjUyLjc4IC0xNy43OCAyNTIuNzggLTEyLjcyWiIgZmlsbD0iIzZiYThkNiIvPjxwYXRoIGQ9Ik0yODQuNTAgLTE3LjAzQzI4NC41MCAtMTguMjIgMjgzLjkzIC0xOS4yMyAyODEuNjAgLTE5LjIzSDI3NS42NkMyNzMuMzcgLTE5LjIzIDI3Mi43NiAtMTguMjYgMjcyLjc2IC0xNy4wM0MyNzIuNzYgLTE1Ljg4IDI3My4zMyAtMTQuODMgMjc1LjY2IC0xNC44M0gyNzYuMTBMMjcxLjM5IC01LjM3TDI2Ni42MCAtMTQuODNIMjY3LjEyQzI2OS40MSAtMTQuODMgMjY5LjcyIC0xNS44MCAyNjkuNzIgLTE3LjAzQzI2OS43MiAtMTguMjIgMjY5LjE1IC0xOS4yMyAyNjYuODIgLTE5LjIzSDI2MS4wMUMyNTguNzIgLTE5LjIzIDI1OC4xMCAtMTguMjYgMjU4LjEwIC0xNy4wM0MyNTguMTAgLTE1Ljg4IDI1OC42OCAtMTQuODMgMjYxLjAxIC0xNC44M0gyNjEuNjJMMjY4Ljk3IDAuMDBIMjczLjU1TDI4MC45MCAtMTQuODNIMjgxLjYwQzI4My44OSAtMTQuODMgMjg0LjUwIC0xNS44MCAyODQuNTAgLTE3LjAzWiIgZmlsbD0iIzZiYThkNiIvPjxwYXRoIGQ9Ik0zMDguNzAgLTIuOTVDMzA4LjcwIC00LjE4IDMwNy43OCAtNS4xNSAzMDYuNTkgLTUuMTVDMzA2LjIwIC01LjE1IDMwNS42NyAtNS4wNiAzMDUuMTQgLTQuOTNDMzAxLjA5IC0zLjg3IDI5OS45OSAtMy43MCAyOTcuOTcgLTMuNzBDMjk0LjEwIC0zLjcwIDI5MS43NiAtNC45MyAyOTAuNzUgLTcuNTdIMzA4LjcwVi05LjI4QzMwOC43MCAtMTUuMzYgMzAzLjg2IC0xOS44MCAyOTcuMzEgLTE5LjgwQzI5MC44OCAtMTkuODAgMjg1Ljk2IC0xNS4zMSAyODUuOTYgLTkuNTBDMjg1Ljk2IC0zLjUyIDI5MC43NSAwLjcwIDI5Ny41NyAwLjcwQzMwMi41NCAwLjcwIDMwOC43MCAtMC41MyAzMDguNzAgLTIuOTVaTTMwMy44MiAtMTEuNDRIMjkwLjg4QzI5MS41NCAtMTMuODIgMjk0LjE0IC0xNS40MCAyOTcuMzUgLTE1LjQwQzMwMC41NiAtMTUuNDAgMzAzLjEyIC0xMy44NiAzMDMuODIgLTExLjQ0WiIgZmlsbD0iIzZiYThkNiIvPjxwYXRoIGQ9Ik0zMzYuMDMgLTE2LjAyQzMzNi4wMyAtMTguMDQgMzMyLjYwIC0xOS43NiAzMzAuNDggLTE5Ljc2QzMyOC4zMyAtMTkuNzYgMzI2LjY2IC0xOS4wMSAzMjMuMTQgLTE2LjM3Vi0xOS4yM0gzMTcuMjBDMzE1LjA0IC0xOS4yMyAzMTQuMjkgLTE4LjI2IDMxNC4yOSAtMTcuMDNDMzE0LjI5IC0xNS44NCAzMTQuOTUgLTE0LjgzIDMxNy4yMCAtMTQuODNIMzE4Ljc0Vi00LjQwSDMxNi4xOEMzMTMuODUgLTQuNDAgMzEzLjI4IC0zLjQzIDMxMy4yOCAtMi4yMEMzMTMuMjggLTEuMDEgMzEzLjk0IDAuMDAgMzE2LjE4IDAuMDBIMzI5LjI1QzMzMS41OCAwLjAwIDMzMi4yMCAtMC45NyAzMzIuMjAgLTIuMjBDMzMyLjIwIC0zLjM0IDMzMS42NyAtNC40MCAzMjkuMjUgLTQuNDBIMzIzLjE0Vi0xMC44N0MzMjcuMzIgLTE0LjMwIDMyOC45OSAtMTUuMzYgMzMwLjQwIC0xNS4zNkMzMzEuNDUgLTE1LjM2IDMzMi43MyAtMTMuNzcgMzMzLjgzIC0xMy43N0MzMzUuMDIgLTEzLjc3IDMzNi4wMyAtMTQuNzggMzM2LjAzIC0xNi4wMloiIGZpbGw9IiM2YmE4ZDYiLz48cGF0aCBkPSJNMzYyLjg3IC0yLjIwQzM2Mi44NyAtMy4zOSAzNjIuMzQgLTQuNDAgMzU5Ljk2IC00LjQwSDM1OS43MFYtMTIuNTBDMzU5LjcwIC0xNi45MCAzNTYuNTggLTE5LjgwIDM1MS45MSAtMTkuODBDMzQ5LjYyIC0xOS44MCAzNDcuNjQgLTE4LjkyIDM0NS44OCAtMTcuMTJWLTI3LjQ2SDM0MC43OEMzMzguNDkgLTI3LjQ2IDMzNy44OCAtMjYuNDkgMzM3Ljg4IC0yNS4yNkMzMzcuODggLTI0LjA3IDMzOC40MCAtMjMuMDYgMzQwLjc4IC0yMy4wNkgzNDEuNDhWLTQuNDBIMzQxLjIyQzMzOC45MyAtNC40MCAzMzguMzIgLTMuNDMgMzM4LjMyIC0yLjIwQzMzOC4zMiAtMS4wNiAzMzguODkgMC4wMCAzNDEuMjIgMC4wMEgzNDYuMTVDMzQ4LjQ0IDAuMDAgMzQ5LjEwIC0wLjk3IDM0OS4xMCAtMi4yMEMzNDkuMTAgLTMuMzQgMzQ4LjU3IC00LjQwIDM0Ni4xNSAtNC40MEgzNDUuODhWLTEyLjQ1QzM0OC4zOSAtMTQuODcgMzQ5LjM2IC0xNS40MCAzNTEuNDMgLTE1LjQwQzM1My44NSAtMTUuNDAgMzU1LjMwIC0xNC42NSAzNTUuMzAgLTExLjkyVi00LjQwSDM1NS4wNEMzNTIuNjYgLTQuNDAgMzUyLjA5IC0zLjM5IDM1Mi4wOSAtMi4yMEMzNTIuMDkgLTEuMDEgMzUyLjY2IDAuMDAgMzU1LjA0IDAuMDBIMzU5Ljk2QzM2Mi4yMSAwLjAwIDM2Mi44NyAtMC45MiAzNjIuODcgLTIuMjBaIiBmaWxsPSIjNmJhOGQ2Ii8+PHBhdGggZD0iTTM4OC44MyAtMi4yMEMzODguODMgLTMuMzkgMzg4LjMwIC00LjQwIDM4NS45MiAtNC40MEgzODUuMjJWLTEzLjI5QzM4NS4yMiAtMTcuMzggMzgxLjk2IC0xOS44MCAzNzYuNTUgLTE5LjgwQzM3NC4zNSAtMTkuODAgMzcxLjEwIC0xOS4yMyAzNjguOTggLTE4LjQ4QzM2OC4xMCAtMTguMTcgMzY3LjY2IC0xNy41NiAzNjcuNjYgLTE2LjYzQzM2Ny42NiAtMTUuMzYgMzY4LjU5IC0xNC4zOSAzNjkuODIgLTE0LjM5QzM3MC4yMiAtMTQuMzkgMzcwLjgzIC0xNC40OCAzNzEuNTggLTE0LjY1QzM3My42MCAtMTUuMTggMzc1LjIzIC0xNS40MCAzNzYuNjggLTE1LjQwQzM3OS41MCAtMTUuNDAgMzgwLjc4IC0xNC43NCAzODAuNzggLTEzLjI0Vi0xMi4yM0MzNzguOTcgLTEyLjU0IDM3Ny42MSAtMTIuNjcgMzc2LjIwIC0xMi42N0MzNzAuMzUgLTEyLjY3IDM2NS41NSAtOS41NSAzNjUuNTUgLTUuMjRDMzY1LjU1IC0xLjk4IDM2OS4xMiAwLjcwIDM3My40NyAwLjcwQzM3Ni4wNyAwLjcwIDM3OC42NiAwLjA5IDM4MC43OCAtMS4wMVYwLjAwSDM4NS45MkMzODguMjEgMC4wMCAzODguODMgLTAuOTcgMzg4LjgzIC0yLjIwWk0zODAuODIgLTUuOTRDMzc4LjQwIC00LjQ0IDM3NS45NCAtMy43MCAzNzMuNTYgLTMuNzBDMzcxLjY3IC0zLjcwIDM3MC4yMiAtNC40NCAzNzAuMjIgLTUuNDFDMzcwLjIyIC03LjA4IDM3Mi45NCAtOC42MiAzNzUuOTQgLTguNjJDMzc3LjQzIC04LjYyIDM3OS4wNiAtOC40NSAzODAuODIgLTguMTRaIiBmaWxsPSIjNmJhOGQ2Ii8+PHBhdGggZD0iTTQxNS4yMyAtMi4yMEM0MTUuMjMgLTMuNjEgNDE0LjI2IC00LjQwIDQxMi41NCAtNC40MFYtMTkuMjNINDA2LjYwQzQwNC4zMiAtMTkuMjMgNDAzLjcwIC0xOC4yNiA0MDMuNzAgLTE3LjAzQzQwMy43MCAtMTUuODggNDA0LjMyIC0xNC44MyA0MDYuNjAgLTE0LjgzSDQwOC4xNFYtNi44MkM0MDUuODYgLTQuNDAgNDA0Ljc2IC0zLjgzIDQwMi41NiAtMy44M0MzOTkuOTIgLTMuODMgMzk4LjY4IC00Ljg0IDM5OC42OCAtNy4wMFYtMTkuMjNIMzkzLjU4QzM5MS4yOSAtMTkuMjMgMzkwLjY4IC0xOC4yNiAzOTAuNjggLTE3LjAzQzM5MC42OCAtMTUuNzEgMzkxLjc4IC0xNC43OCAzOTMuMTAgLTE0LjgzSDM5NC4yOFYtNi44NkMzOTQuMjggLTIuMTYgMzk3LjU4IDAuNTcgNDAyLjEyIDAuNTdDNDA0LjU0IDAuNTcgNDA1Ljk0IC0wLjA0IDQwOC4xNCAtMi4xMVYwLjAwSDQxMi4zMkM0MTQuNTcgMC4wMCA0MTUuMjMgLTAuOTcgNDE1LjIzIC0yLjIwWiIgZmlsbD0iIzZiYThkNiIvPjxwYXRoIGQ9Ik00NDAuMTggLTIuMjBDNDQwLjE4IC0zLjM0IDQzOS42MCAtNC40MCA0MzcuMjcgLTQuNDBINDMxLjkwVi0yNy40Nkg0MjQuMDdDNDIxLjc0IC0yNy40NiA0MjEuMTIgLTI2LjUzIDQyMS4xMiAtMjUuMjZDNDIxLjEyIC0yNC4xMSA0MjEuNzAgLTIzLjA2IDQyNC4wNyAtMjMuMDZINDI3LjUwVi00LjQwSDQyMi4xNEM0MTkuODAgLTQuNDAgNDE5LjIzIC0zLjQzIDQxOS4yMyAtMi4yMEM0MTkuMjMgLTEuMDYgNDE5Ljg1IDAuMDAgNDIyLjE0IDAuMDBINDM3LjI3QzQzOS41MiAwLjAwIDQ0MC4xOCAtMS4wMSA0NDAuMTggLTIuMjBaIiBmaWxsPSIjNmJhOGQ2Ii8+PHBhdGggZD0iTTQ1NC4wOCA2LjUxVi0yNy41OUg0NDcuMDhDNDQ0LjgwIC0yNy41OSA0NDQuMTggLTI2LjU4IDQ0NC4xOCAtMjUuMzlDNDQ0LjE4IC0yNC4yNCA0NDQuNzEgLTIzLjE5IDQ0Ny4wOCAtMjMuMTlINDQ5LjY4VjIuMTFINDQ3LjEzQzQ0NC44NCAyLjExIDQ0NC4yMiAzLjA4IDQ0NC4yMiA0LjMxQzQ0NC4yMiA1LjUwIDQ0NC43NSA2LjUxIDQ0Ny4xMyA2LjUxWiIgZmlsbD0iIzQ0NjQ4NSIvPjxwYXRoIGQ9Ik00NzIuMDMgNi41MVYtMjcuNTlINDY1LjA0QzQ2Mi43NSAtMjcuNTkgNDYyLjEzIC0yNi41OCA0NjIuMTMgLTI1LjM5QzQ2Mi4xMyAtMjQuMjQgNDYyLjY2IC0yMy4xOSA0NjUuMDQgLTIzLjE5SDQ2Ny42M1YyLjExSDQ2NS4wOEM0NjIuNzkgMi4xMSA0NjIuMTggMy4wOCA0NjIuMTggNC4zMUM0NjIuMTggNS41MCA0NjIuNzAgNi41MSA0NjUuMDggNi41MVoiIGZpbGw9IiM0NDY0ODUiLz48cmVjdCB4PSI0ODAuNzgiIHk9Ii0yOC41OCIgd2lkdGg9IjQuODEiIGhlaWdodD0iMzIuMzciIGZpbGw9IiNjYjA2YzQiLz48L2c+PC9zdmc+"); }
 /* Выбиралка эмодзи под знаком Field (`В-182`, его пункт 10). Встаёт последним
    ребёнком строки и переносится на свою строчку, как подсказка; сетка
    прокручивается сама. Та же вёрстка, что в панели (`styles.css`). */
@@ -704,7 +711,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-chip--typed {
   background: var(--io-chip-bg, var(--background-secondary));
-  border-color: transparent; color: var(--text-on-accent); font-weight: 500;
+  border-color: transparent; color: var(--io-chip-fg, var(--text-on-accent)); font-weight: 500;
 }
 .io-cellname { font-size: var(--font-ui-small); color: var(--text-normal); }
 .io-cell { font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -1865,7 +1872,7 @@ const SCHEMA = [
           "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
           "Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
-          "so nothing you add there can be lost by pressing this button",
+          "so pressing this button never loses anything you add there",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
     /* Полный рассказ о выпусках — его слово 2026-09-19: «в плагине должна быть
        ссылка на changelog.md в репозитории github (т.е. при нажатии
@@ -1925,7 +1932,7 @@ const SCHEMA = [
         { value:"word-line-tree-header-note", label:"Word, line, tree, heading, then note" },
         { value:"custom", label:"Custom" }
       ],
-      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note" },
     /* Заказчик 2026-09-08 (З-3): «при активации Custom под опцией
        select-all-steps открывался бы список с чекбоксами word, line, tree,
        heading, note (визуально это должно выглядеть аналогично табличке
@@ -2042,7 +2049,7 @@ const SCHEMA = [
 {
   id: "binder", tab: "keyboard", order: 200, heading: "Binder (custom insert commands)",
   intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
-  tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+  tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Afterwards you change only the description \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
   items: [ { kind:"custom", id:"binder-table", render: renderBinder } ]
 },
 {
@@ -2053,6 +2060,10 @@ const SCHEMA = [
 },
 
 /* ============================================================ NAVIGATION */
+/* Знак плагина — первым на вкладке и без заголовка, как вводные группы
+   (`В-198`). Видимости у него нет: он не коллаут и за `Show callouts` не прячется. */
+{ id: "brand-intro",     tab: "general",    order: 5, heading: "inlineOverhaul",
+  items: [ { kind:"custom", id:"brand-mark", render: renderBrandMark } ] },
 { id: "general-intro",   tab: "general",    order: 10, heading: "Before you start",
   items: [ { kind:"custom", id:"general-callout", render: renderTabCallout } ],
   visible: on("general.help.showCallouts") },
@@ -2122,7 +2133,7 @@ const SCHEMA = [
 {
   id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left\\right)",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
-  tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do",
+  tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
     { kind:"custom", id:"left-right-order", render: renderLeftRightOrder },
 
@@ -2271,7 +2282,7 @@ const SCHEMA = [
       tip:"Pick something you would never type on purpose in a sentence. Two pipe characters are the default for exactly that reason \u2014 nobody writes them by accident" },
     { kind:"text", id:"separator-2", path:"pkm.lineFormat.separator2", default:"||", mono:true,
       name:"Second Separator", desc:"Goes at the end of your sentence, before the dates and links",
-      tip:"It can be exactly the same as the first one. Which is which is decided by where it sits on the line, not by what it looks like" }
+      tip:"Using exactly the same one as the first is fine. Which is which is decided by where it sits on the line, not by what it looks like" }
   ]
 },
 {
@@ -2301,7 +2312,7 @@ const SCHEMA = [
       options:[ {value:"text_end",label:"End of your text"},
                 {value:"current_position",label:"Leave it where it was"},
                 {value:"line_end",label:"End of the line"} ],
-      tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from" }
+      tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from" }
   ]
 },
 {
@@ -2501,7 +2512,7 @@ const SCHEMA = [
       min:10, max:180, step:5, unit:"%",
       name:"Empty tags bubble width", desc:"Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
       searchTerms:["Empty bubble size", "Empty bubble width"],
-      tip:"Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets",
+      tip:"Under <code>Fields</code> you can set a Value to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets",
       seeAlso:{ id:"field-editor", label:"Set a Value to empty under Fields" } },
 
     /* Третий субхедер — его слово 2026-09-20: «добавь в tag-appearance
@@ -2513,10 +2524,10 @@ const SCHEMA = [
         "This half is about a Value of a link Field whose <code>Show</code> is set to <code>custom</code> — the one drawn as your own text instead of <code>[[the note name]]</code>. A click on it opens the note whatever is set here; hovering and dragging are what an ordinary link gets from Obsidian, and the two rows below hand them back") },
     { kind:"toggle", id:"link-hover-preview", path:"visual.tags.linkShown.hoverPreview", default:false,
       name:"Preview on hover", desc:"Hovering a Value shown as your own text opens the page preview — hold <code>Ctrl</code> while hovering",
-      tip:"<b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone will be enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome",
+      tip:"<b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone is enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome",
       searchTerms:["Link hover preview", "Custom link preview"] },
     { kind:"toggle", id:"link-draggable", path:"visual.tags.linkShown.draggable", default:false,
-      name:"Drag to move", desc:"A Value shown as your own text can be dragged into another note",
+      name:"Drag to move", desc:"Drag a Value shown as your own text into another note",
       tip:"Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there",
       searchTerms:["Link drag", "Custom link drag"] },
     /*
@@ -2543,7 +2554,7 @@ const SCHEMA = [
     { kind:"color", id:"link-brackets-color", path:"visual.tags.linkAsWritten.bracketsColor", default:"",
       name:"Link brackets color", desc:"The markup around it: <code>[[</code> and <code>]]</code>",
       searchTerms:["Bracket color", "Wikilink brackets"],
-      tip:"The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
+      tip:"The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
       allowReset:true },
     /*
      * Ещё два цвета, и предмет у них другой — его замечание 2026-09-22 к
@@ -2568,7 +2579,7 @@ const SCHEMA = [
     { kind:"color", id:"hyperlink-brackets-color", path:"visual.tags.hyperlink.bracketsColor", default:"",
       name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the round ones, without the address",
       searchTerms:["Hyperlink brackets", "URL markup color", "Address color"],
-      tip:"The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
+      tip:"The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
       allowReset:true },
     /*
      * Третий цвет гиперссылки — его замечание 2026-09-22 к тесту 2: «мне не
@@ -2586,7 +2597,7 @@ const SCHEMA = [
     { kind:"color", id:"hyperlink-address-color", path:"visual.tags.hyperlink.addressColor", default:"",
       name:"Hyperlink address color", desc:"The address itself — inside the round brackets, or written on its own",
       searchTerms:["Address color", "URL color", "Link href color"],
-      tip:"Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you will see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it",
+      tip:"Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it",
       allowReset:true },
     /* Предпросмотр внизу раздела — его слово 2026-09-22: «я просил тебя
        добавить live preview в низ io-tip-sub-link-view, чтобы можно было
@@ -3075,7 +3086,7 @@ const SCHEMA = [
                 {value:"none",label:"Nothing"} ] },
     { kind:"dropdown", id:"content-header-level", path:"transform.inline2note.placement.headerLevel", default:"3",
       name:"Line above is header", desc:"Make that line a heading you can fold, or leave it as plain text",
-      tip:"A heading can be folded, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
+      tip:"A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
       visible:{ deps:["transform.inline2note.placement.headerMode"],
                 test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
       options:[ {value:"0",label:"No (plain text)"}, {value:"1",label:"1"}, {value:"2",label:"2"},
@@ -3094,7 +3105,7 @@ const SCHEMA = [
 {
   id: "source-line", tab: "transform", order: 400, heading: "Source line",
   intro: "What happens to the line you pressed on, once the note is safely written",
-  tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: your text can be swapped for a link to the new note, and a marker of your choosing can be added so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
+  tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: the plugin swaps your text for a link to the new note and adds a marker of your choosing so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
   visible: on("transform.inline2note.enabled"),
   items: [
     { kind:"custom", id:"source-preview", render: renderSourcePreview },
@@ -4383,7 +4394,11 @@ const CONTROLS = {
 /* ============================================================ Preview parts */
 
 /* One color per field type, so the same type always looks the same. */
-const TYPE_COLOR = { tag: "#c2683f", link: "#3b82c4", element: "#7a9e3b" };
+/* Тег и ссылка — палитра бренд-бука (`В-198`): янтарь и сталь; у тега свой
+   тёмный текст, белый на янтаре не читается. Те же значения — в `styles.css`. */
+const TYPE_COLOR = { tag: "#ffb547", link: "#4a7b9b", element: "#7a9e3b" };
+const TYPE_INK = { tag: "#3a2400" };
+const typeInk = t => TYPE_INK[t] || "var(--text-on-accent)";
 
 /* A field has no color of its own: a tag field borrows its first value's
    fill, everything else takes the color of its type. */
@@ -4509,6 +4524,7 @@ function renderFieldToken(parent, f) {
 function fieldChip(parent, f) {
   const b = el("span", "io-bubble", parent, f.short || f.name);
   cssVar(b, "--io-bubble-bg", fieldColor(f));
+  if (fieldColor(f) === TYPE_COLOR[f.type]) cssVar(b, "--io-bubble-fg", typeInk(f.type));
   return b;
 }
 /* The shape of a line: one chip per field, in writing order. Третьим
@@ -4544,7 +4560,7 @@ const PREVIEW_TEXTS = {
   },
   "line-preview": {
     cap: "Live preview",
-    tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, " +
+    tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they are written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
     "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
     "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +
@@ -4984,7 +5000,7 @@ const TAB_CALLOUTS = {
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
+          "jumping between headings to navigate easier and much more. Try each group and keep what fits the way you write"
   },
   keyboard: {
     head: "Everything about keys lives here",
@@ -5003,7 +5019,7 @@ const TAB_CALLOUTS = {
   visual: {
     head: "How a tagged line looks while you are writing",
     tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this " +
-         "plugin and you will see plain text with ordinary tags",
+         "plugin and you see plain text with ordinary tags",
     body: "Draw tags as colored bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
           "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
   },
@@ -5015,7 +5031,7 @@ const TAB_CALLOUTS = {
           "filled in from the tags on that line \u2014 and the line itself left holding a link to it"
   },
   advanced: {
-    head: "Housekeeping you will rarely need",
+    head: "Housekeeping you rarely need",
     tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want " +
          "to look at what the plugin has written into your vault",
     body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to " +
@@ -5089,6 +5105,11 @@ function renderSubheader(label, tip) {
     headPaints.push(paint);
     attachTip(row, tip, label, host, row);
   };
+}
+
+/* Знак плагина (`В-198`): картинка из стилей, декоративная — вкладку называет Obsidian. */
+function renderBrandMark(host) {
+  el("div", "io-brand", host).setAttribute("aria-hidden", "true");
 }
 
 function renderTabCallout(host) {
@@ -5318,7 +5339,7 @@ function renderFieldList(list) {
       const pick = el("button", "io-fields__pick", b);
       pick.type = "button";
       el("span", "io-fields__name", pick, f.name);
-      cssVar(el("span", "io-chip io-chip--typed", pick, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
+      { const c = el("span", "io-chip io-chip--typed", pick, TYPE_LABEL[f.type]); cssVar(c, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(c, "--io-chip-fg", typeInk(f.type)); }
       pick.addEventListener("click", () => { selectedFieldId = f.id; renderContent(); });
 
       /* Дочерний Field ходит за родителем, своих стрелок у него нет */
@@ -5444,7 +5465,7 @@ function renderFieldEditor(host) {
      generates for itself, so changing it later would leave both pointing at a
      name that is gone. */
   el("h4", null, title, f.strict || f.name);
-  cssVar(el("span", "io-chip io-chip--typed", title, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
+  { const c = el("span", "io-chip io-chip--typed", title, TYPE_LABEL[f.type]); cssVar(c, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(c, "--io-chip-fg", typeInk(f.type)); }
   /*
    * Удаление — белая корзина на красном (замечание заказчика 2026-08-27): оно
    * должно бросаться в глаза, а не притворяться обычной кнопкой. Значок лежит
@@ -5704,7 +5725,7 @@ function elementRows(host, f) {
      вовсе — измерено на его `data.json` от 2026-09-22. */
   row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji", needed:true, picker:true,
     desc:"The character that stands in front of the Value in the line",
-    tip:"This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one" },
+    tip:"This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one" },
     f.marker, v => { f.marker = v; });
 
   row({ name:"Value format", key:"format", ph:"YYYY-MM-DD / HHmm / 1",
@@ -5797,7 +5818,7 @@ function propertyRow(host, f) {
   foldableSub(head, "yaml", "YAML property", subPaints);
   el("span", null, head, "YAML property");
   attachTipItem(head, host, { name:"YAML property",
-    tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied" });
+    tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and it writes any Field into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied" });
   subComment(head, host, "field-editor/yaml-header");
 
   /* Один ряд раздела: имя, «?», описание, контрол. */
@@ -6330,7 +6351,7 @@ function renderFieldOrderList(host) {
   note.style.setProperty("margin-top", "0");
   sortableList(host, FIELDS, "field", (a, b) => moveIn(FIELDS, a, b), (row, f) => {
     el("span", null, row, f.name);
-    cssVar(el("span", "io-chip io-chip--typed", row, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
+    { const c = el("span", "io-chip io-chip--typed", row, TYPE_LABEL[f.type]); cssVar(c, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(c, "--io-chip-fg", typeInk(f.type)); }
   });
 }
 function renderPrefixOrderList(host) {

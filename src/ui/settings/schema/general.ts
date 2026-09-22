@@ -7,9 +7,14 @@
 
 import type { SettingsGroup } from "../types.ts";
 import { on } from "../types.ts";
+import { brandMark } from "../custom/brand_mark.ts";
 import { callout } from "../custom/callouts.ts";
 
 export const GENERAL_GROUPS: readonly SettingsGroup[] = [
+{ id: "brand-intro",     tab: "general",    order: 5, heading: "inlineOverhaul",
+  items: [
+    { kind:"custom", id:"brand-mark", render: brandMark }
+  ] },
 { id: "general-intro",   tab: "general",    order: 10, heading: "Before you start",
   items: [
     { kind:"custom", id:"general-callout", render: callout("general") }
@@ -37,7 +42,7 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
           "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
           "Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
-          "so nothing you add there can be lost by pressing this button",
+          "so pressing this button never loses anything you add there",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
     { kind:"buttons", id:"changelog",
       name:"Changelog", desc:"What changed in this version, and in every one before it",

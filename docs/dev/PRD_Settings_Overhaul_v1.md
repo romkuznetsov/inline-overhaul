@@ -2371,6 +2371,19 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 **Что отменено.** Утверждение «слово в своих скобках — одно целое: края парные». Оно было моим, он попросил обратного, и на его месте стоит новое с ссылкой на его слова (правило 170: у отменённого правила надо пройти по его сторожам).
 
 
+#### 10.13.252 Панель по бренд-буку: цвета типов, знак, тон (2026-09-23, ночь)
+
+**Его выбор `В-198`** — три пункта разбора `docs/dev/BRAND_PANEL_ANALYSIS.md`; отмену З6 он не выбрал.
+
+**Цвета типов Field.** `--io-type-tag` `#ffb547`, `--io-type-tag-ink` `#3a2400`, `--io-type-link` `#4a7b9b`; `--io-type-element` прежний. Текст поверх цвета типа — пара к заливке (`typeInk` в `preview_data.ts`), и его ставят все три места, что красят цветом типа: два чипа в редакторе Fields и чип предпросмотра строки. В прототипе — `TYPE_INK`.
+
+**Знак.** Группа `brand-intro` первой на `General` (без заголовка — окончание `-intro`), блок `brandMark` (`custom/brand_mark.ts`), картинка — `.io-brand` в `styles.css`. Декоративная, `aria-hidden`. Цена места пересчитана до правки и спрошена заново: над вкладками знак с полем занял бы около 107 точек на каждой вкладке (правило 92).
+
+**Пересечение с К1** («вводный коллаут — первый блок каждой вкладки»): знак встал над коллаутом его последним словом «в начале вкладки General». Помощник проверок `firstGroup` берёт первую группу **после** знака; вопрос «оставить или под коллаут» — тестом.
+
+**Тон.** 22 строки по `voice.md`; сторож `panel_voice_tests.ts`.
+
+
 #### 10.13.251 Дочернее поле под `Alt` (2026-09-23, ночь)
 
 **Его задача `З-36`**, уточнённая `В-168` («пока зажат, не переключателем; отпустил — поле снова скрыто, выбранное значение остаётся на строке») и пунктом 11 от 2026-09-22 («опцией в контроле io-field-child = `Show when press Alt`»).
@@ -18124,7 +18137,7 @@ python tests/prototype/update_prd.py
 
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
-| 1 | General | — | 4 | 9 | 1 |
+| 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
@@ -18139,6 +18152,7 @@ python tests/prototype/update_prd.py
 
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
+| 5 | `brand-intro` | inlineOverhaul | — | — | — |
 | 10 | `general-intro` | Before you start | — | — | `general.help.showCallouts` |
 | 50 | `language` | Language | The panel, its tips and the messages this plugin shows can speak another language, and the words behind them live in a file you can edit yourself | да | — |
 | 100 | `help` | Help | Where to start, and how much hand-holding you want along the way | да | — |
@@ -18261,6 +18275,10 @@ _Tip:_ Leave the log off unless you are chasing a problem. It is an ordinary not
   - видна если: `advanced.devMode.enabled`
   - старые названия для поиска: «Log Path»
 
+#### inlineOverhaul — `brand-intro` (вкладка `general`)
+
+- **`brand-mark`** — свой блок, рендерер `renderBrandMark`
+
 #### Before you start — `general-intro` (вкладка `general`)
 
 - **`general-callout`** — свой блок, рендерер `renderTabCallout`
@@ -18284,7 +18302,7 @@ _Tip:_ <code>Read</code> writes a guide into your vault the first time you press
 
 - **Guide** — `howto`, `buttons`
   - desc: Worked examples of the things people set up first
-  - tip: <code>Read</code> writes the guide into your vault the first time you press it, and opens it every time after that. Inside is the practical side: which commands are worth a key, how to lay out your first few Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, so nothing you add there can be lost by pressing this button
+  - tip: <code>Read</code> writes the guide into your vault the first time you press it, and opens it every time after that. Inside is the practical side: which commands are worth a key, how to lay out your first few Fields, what tagWheel feels like once it is set up, and a couple of complete setups you can copy. From then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, so pressing this button never loses anything you add there
   - кнопки: `open-howto` Read
 - **Changelog** — `changelog`, `buttons`
   - desc: What changed in this version, and in every one before it
@@ -18334,7 +18352,7 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
   - старые названия для поиска: «Enhanced Mod+A», «Expanded select all»
 - **Selection steps** — `select-all-steps`, `dropdown`, path `editor.selectAll.mode`, default `line-note`
   - desc: How much more gets picked up on each press
-  - tip: <b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note
+  - tip: <b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note
   - варианты: `line-note` Line, then note · `line-tree-note` Line, tree, then note · `line-tree-header-note` Line, tree, heading, then note · `word-line-tree-header-note` Word, line, tree, heading, then note · `custom` Custom
   - выключена если: `editor.selectAll.enabled`
   - старые названия для поиска: «Select-all mode»
@@ -18406,7 +18424,7 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
 
 _Intro:_ For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is
 
-_Tip:_ Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings → Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton — anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian’s list to change it. Only the description can be changed afterwards — to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it
+_Tip:_ Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings → Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton — anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian’s list to change it. Afterwards you change only the description — to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it
 
 - **`binder-table`** — свой блок, рендерер `renderBinder`
 
@@ -18471,7 +18489,7 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
 
 _Intro:_ Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected — the two lists below spell it out
 
-_Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do
+_Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do
 
 - **`left-right-order`** — свой блок, рендерер `renderLeftRightOrder`
 - **`move-text-sub`** — свой блок, рендерер `?`
@@ -18612,7 +18630,7 @@ _Tip:_ Choose these carefully and then leave them alone. Lines you have already 
   - tip: Pick something you would never type on purpose in a sentence. Two pipe characters are the default for exactly that reason — nobody writes them by accident
 - **Second Separator** — `separator-2`, `text`, path `pkm.lineFormat.separator2`, default `||`
   - desc: Goes at the end of your sentence, before the dates and links
-  - tip: It can be exactly the same as the first one. Which is which is decided by where it sits on the line, not by what it looks like
+  - tip: Using exactly the same one as the first is fine. Which is which is decided by where it sits on the line, not by what it looks like
 
 #### Writing rules — `writing-rules` (вкладка `pkm`)
 
@@ -18633,7 +18651,7 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
   - старые названия для поиска: «Line Prefix after end of cycle»
 - **Cursor after an action** — `cursor-policy`, `dropdown`, path `pkm.behavior.cursorPolicy`, default `text_end`
   - desc: Where the cursor waits once a tag or date has been set
-  - tip: Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from
+  - tip: Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from
   - варианты: `text_end` End of your text · `current_position` Leave it where it was · `line_end` End of the line
   - старые названия для поиска: «Cursor behavior»
 
@@ -18788,7 +18806,7 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
   - старые названия для поиска: «Inserted block header»
 - **Line above is header** — `content-header-level`, `dropdown`, path `transform.inline2note.placement.headerLevel`, default `3`
   - desc: Make that line a heading you can fold, or leave it as plain text
-  - tip: A heading can be folded, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself — this row puts them in, so the boxes below hold only the text
+  - tip: A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself — this row puts them in, so the boxes below hold only the text
   - варианты: `0` No (plain text) · `1` 1 · `2` 2 · `3` 3 · `4` 4 · `5` 5 · `6` 6
   - видна если: `transform.inline2note.placement.headerMode`
 - **Text of the line above** — `content-header-text`, `text`, path `transform.inline2note.placement.customHeader`, default `Captured`
@@ -18805,7 +18823,7 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
 
 _Intro:_ What happens to the line you pressed on, once the note is safely written
 
-_Tip:_ The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: your text can be swapped for a link to the new note, and a marker of your choosing can be added so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note
+_Tip:_ The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: the plugin swaps your text for a link to the new note and adds a marker of your choosing so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note
 
 - **`source-preview`** — свой блок, рендерер `renderSourcePreview`
 - **Sub-lines (tree) behavior** — `content-sublines`, `dropdown`, path `transform.inline2note.sublines`, default `stay`
@@ -18978,17 +18996,17 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Tag shape», «Bubble corners»
 - **Empty tags bubble width** — `tags-empty-bubble`, `slider`, path `visual.tags.emptyBubblePct`, default `100`
   - desc: Width of a bubble whose <code>Show</code> is set to <code>empty</code>
-  - tip: Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets
+  - tip: Under <code>Fields</code> you can set a Value to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets
   - диапазон: 10–180, шаг 5, ед. %
   - см. также: `field-editor` — Set a Value to empty under Fields
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
 - **`link-view-sub`** — свой блок, рендерер `?`
 - **Preview on hover** — `link-hover-preview`, `toggle`, path `visual.tags.linkShown.hoverPreview`, default `false`
   - desc: Hovering a Value shown as your own text opens the page preview — hold <code>Ctrl</code> while hovering
-  - tip: <b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone will be enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome
+  - tip: <b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone is enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome
   - старые названия для поиска: «Link hover preview», «Custom link preview»
 - **Drag to move** — `link-draggable`, `toggle`, path `visual.tags.linkShown.draggable`, default `false`
-  - desc: A Value shown as your own text can be dragged into another note
+  - desc: Drag a Value shown as your own text into another note
   - tip: Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there
   - старые названия для поиска: «Link drag», «Custom link drag»
 - **Link target color** — `link-target-color`, `color`, path `visual.tags.linkAsWritten.targetColor`, default `""`
@@ -18997,7 +19015,7 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Link color», «Wikilink color», «Link text color»
 - **Link brackets color** — `link-brackets-color`, `color`, path `visual.tags.linkAsWritten.bracketsColor`, default `""`
   - desc: The markup around it: <code>[[</code> and <code>]]</code>
-  - tip: The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
+  - tip: The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
   - старые названия для поиска: «Bracket color», «Wikilink brackets»
 - **Hyperlink target color** — `hyperlink-target-color`, `color`, path `visual.tags.hyperlink.targetColor`, default `""`
   - desc: The text you read in a markdown link — what stands between the square brackets
@@ -19005,11 +19023,11 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Hyperlink color», «External link color», «URL color»
 - **Hyperlink brackets color** — `hyperlink-brackets-color`, `color`, path `visual.tags.hyperlink.bracketsColor`, default `""`
   - desc: The markup around it: the square brackets and the round ones, without the address
-  - tip: The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
+  - tip: The brackets of <code>[a link](an address)</code> and nothing else: <code>[</code>, <code>](</code> and <code>)</code>. The address between the round ones has a row of its own below — you asked for it apart. A bare address has no markup at all, so this leaves it alone. <b>Where you see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
   - старые названия для поиска: «Hyperlink brackets», «URL markup color», «Address color»
 - **Hyperlink address color** — `hyperlink-address-color`, `color`, path `visual.tags.hyperlink.addressColor`, default `""`
   - desc: The address itself — inside the round brackets, or written on its own
-  - tip: Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you will see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it
+  - tip: Every address takes this one: the one inside <code>[a link](an address)</code> and one written on its own — <code>https://…</code> or <code>www.…</code>. Painted apart from the brackets around it and from the text you read. <b>Where you see it:</b> in the preview below, and in your note — an address of its own always, the one in round brackets on the line the cursor is on. Empty means the color your theme gives it
   - старые названия для поиска: «Address color», «URL color», «Link href color»
 - **`link-preview`** — свой блок, рендерер `renderLinkPreview`
 

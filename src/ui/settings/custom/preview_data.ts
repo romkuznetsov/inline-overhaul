@@ -311,6 +311,14 @@ export function typeColor(kind: string): string {
   return TYPE_COLOR[kind] ?? "var(--io-type-tag)";
 }
 
+/**
+ * Текст поверх цвета вида. Пара объявляется рядом с заливкой: янтарь тега
+ * читается только тёмным текстом бренда (`В-198`), остальные — белым темы.
+ */
+export function typeInk(kind: string): string {
+  return typeColor(kind) === "var(--io-type-tag)" ? "var(--io-type-tag-ink)" : "var(--text-on-accent)";
+}
+
 /** Цвет чипа Field: цвет его вида, тот же, что в таблице Fields. */
 export function fieldColor(f: PreviewField): string {
   return typeColor(f.kind);
