@@ -283,6 +283,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   drop("visual.colors"),
 
   /* --- вид: уже написанное новой панелью в форме v2 ---------------------- */
+  /* Цвета гиперссылки — его замечание 2026-09-22 к тесту 4. Пары в версии 1
+     нет, поэтому `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
+  keepV2("visual.tags.hyperlink.targetColor"),
+  keepV2("visual.tags.hyperlink.bracketsColor"),
   keepV2("visual.tags.opacityLeft"),
   keepV2("visual.tags.opacityRight"),
   keepV2("visual.tags.textSizePct"),
@@ -769,6 +773,30 @@ const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string | readonly string[]]
 ];
 
 /**
+ * Настройка, **разделившаяся** надвое: прежний адрес остаётся живым, новый
+ * заводится от него.
+ *
+ * **Почему это не `MOVED_V2_KEYS`.** Там прежний адрес снимается — значение
+ * уехало, и на старом месте его никто не читает. Здесь наоборот: обе пары
+ * работают, у каждой свой предмет, и старый ключ остаётся настройкой. Два
+ * разных ответа на похожий вопрос разводятся именами, а не сводятся телами
+ * (правило 117).
+ *
+ * Пока здесь один случай: цвета ссылок разделены на wikilink и гиперссылку
+ * его замечанием 2026-09-22. У того, кто цвет уже задал, гиперссылки
+ * остаются того же цвета, каким были до разделения (У-17) — новая настройка
+ * выводится из старого контрола, а не из умолчания схемы.
+ *
+ * **Заводится только отсутствующий ключ.** Пустая строка — законное значение
+ * («взять у темы»), и она значит «человек уже решил»: переписать её значило
+ * бы возвращать цвет, который он снял (У-188).
+ */
+const SPLIT_V2_KEYS: ReadonlyArray<readonly [string, string]> = [
+  ["visual.tags.linkAsWritten.targetColor", "visual.tags.hyperlink.targetColor"],
+  ["visual.tags.linkAsWritten.bracketsColor", "visual.tags.hyperlink.bracketsColor"],
+];
+
+/**
  * Снять лист по точечному пути и убрать за собой опустевшего родителя.
  *
  * **Имя своё, а не общее с копией настроек, и это не копия.** Помощник с
@@ -814,6 +842,21 @@ function moveRenamedKeys(cfg: Dict): void {
   }
 }
 
+/**
+ * Завести новую половину разделившейся настройки от её прежнего адреса.
+ *
+ * Идемпотентно по построению: после первого прохода новый ключ существует,
+ * и второй проход его не трогает.
+ */
+function seedSplitKeys(cfg: Dict): void {
+  for (const pair of SPLIT_V2_KEYS) {
+    const was = getIn(cfg, pair[0]);
+    if (was === undefined) continue;
+    if (getIn(cfg, pair[1]) !== undefined) continue;
+    setIn(cfg, pair[1], cloneJson(was) as never);
+  }
+}
+
 function dropRemovedKeys(cfg: Dict): void {
   for (const path of REMOVED_V2_KEYS) {
     const parts = path.split(".").filter((p) => p.length > 0);
@@ -855,6 +898,7 @@ export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
   }
 
   moveRenamedKeys(out);
+  seedSplitKeys(out);
   dropRemovedKeys(out);
   fillDefaults(out);
   out.schemaVersion = SCHEMA_VERSION_V2;

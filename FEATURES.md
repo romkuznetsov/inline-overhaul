@@ -93,8 +93,8 @@ Drawing only: the file on disk is untouched.
 - **Inline appearance** — size and opacity of each Block, bubble width, height and
   corners for tags, and a coloured Stripe behind one Block or both.
 - **Link view** — the page preview on hover and dragging, for a Value shown as your own
-  text; and two colours for a link Value left as it is written, one for the name and one
-  for the brackets around it.
+  text; and two pairs of colours, one for a wikilink and one for a hyperlink, each with a
+  colour for what you read and a colour for the markup around it.
 - **Color your Tags** — a colour per tag for tags no Field owns.
 - **Tag Bars** — a Bar in the margin drawn from the Values of one tag Field, down a line
   and everything nested under it.

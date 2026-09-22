@@ -993,6 +993,11 @@ function normalizeConfigV2(cfg) {
      «взять у темы», и это законное значение — смысл на шве (У-60). */
   hex("visual.tags.linkAsWritten.targetColor");
   hex("visual.tags.linkAsWritten.bracketsColor");
+  /* Та же пара у гиперссылки — его замечание 2026-09-22 к тесту 4: предмет
+     другой, значит и ветка другая. Прежнее значение переносит в неё один раз
+     `seedSplitKeys` в `config_migration_v2` (У-17). */
+  hex("visual.tags.hyperlink.targetColor");
+  hex("visual.tags.hyperlink.bracketsColor");
   int("visual.tags.blockFill.opacity", 0, 100);
   /* На сколько подложка выходит за написанное (замечание по S7). Обе шкалы — в
      долях измеренного: высота — свободного места до краёв зрительной строки,

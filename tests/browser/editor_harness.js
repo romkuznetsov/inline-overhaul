@@ -258,9 +258,12 @@ const EDITOR_INJECTIONS = {
    */
   /*
    * Адрес подмены берёт **две** строки: с одной она перестала быть уникальной
-   * в тот день, когда рядом завелась гиперссылка (`В-181`) — её строка та же,
-   * только на два пробела правее, и короткий образец находился внутри неё.
-   * Поймал это сторож адресата у самого реестра подмен (У-265).
+   * в тот день, когда рядом завелась гиперссылка (`В-181`) — её строка была та
+   * же, только на два пробела правее, и короткий образец находился внутри неё.
+   * Поймал это сторож адресата у самого реестра подмен (У-265). С 2026-09-22 у
+   * гиперссылки своя пара настроек и своё имя величины, так что имена развели
+   * их и сами; две строки остаются — адрес, который держится на одном отличии,
+   * ломается от следующего.
    */
   "link-written-one-color": {
     file: "src/ui/editor/decorations.js",
@@ -294,12 +297,24 @@ const EDITOR_INJECTIONS = {
    * На экране цвет при этом есть, и различают их только разведённые значения в
    * настройках страницы (У-147).
    */
+  /*
+   * И третья: пары цветов обратно становятся **одной** — ровно то состояние,
+   * с которым он пришёл 2026-09-22 («ты сделал два контрола едиными для
+   * работы с wikilinks и hyperlinks»). Порог проверяется возвратом прежнего
+   * кода, а не рассуждением (У-223).
+   */
+  "ext-link-shares-wikilink": {
+    file: "src/core/editor_visuals_config.js",
+    find: "    hyperlinkTargetColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.hyperlink.targetColor\")),",
+    replace: "    hyperlinkTargetColor: normalizeHexColorInput(readCfgPath(cfg, \"visual.tags.linkAsWritten.targetColor\")),",
+  },
   "ext-link-one-color": {
     file: "src/ui/editor/decorations.js",
-    /* Отступ в восемнадцать пробелов принадлежит этому месту и только ему:
-       у ссылки, показанной как написано, та же строка стоит на два левее. */
-    find: "                  attributes: { style: \"--io-link-brackets: \" + visuals.linkBracketsColor + \";\" },",
-    replace: "                  attributes: { style: \"--io-link-brackets: \" + visuals.linkTargetColor + \";\" },",
+    /* Имя величины принадлежит этому месту и только ему: с 2026-09-22 у
+       гиперссылки своя пара настроек, и образец больше не держится на
+       отступе в восемнадцать пробелов. */
+    find: "                  attributes: { style: \"--io-link-brackets: \" + visuals.hyperlinkBracketsColor + \";\" },",
+    replace: "                  attributes: { style: \"--io-link-brackets: \" + visuals.hyperlinkTargetColor + \";\" },",
   },
   /*
    * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал

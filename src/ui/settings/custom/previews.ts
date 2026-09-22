@@ -912,6 +912,69 @@ export function drawWrittenLink(host: El, text: string): El {
   return box;
 }
 
+/** Пути, от которых зависит предпросмотр цветов ссылок. Обе пары. */
+const LINK_PATHS = [
+  "visual.tags.linkAsWritten",
+  "visual.tags.hyperlink",
+] as const;
+
+/**
+ * Цвета одной пары на узел ссылки.
+ *
+ * Пустое значение значит «взять у темы», и запасное здесь то самое, каким
+ * ссылка красилась до этих пар (У-60). Переменные те же, что у заметки:
+ * второй набор имён на тот же вопрос разошёлся бы с первым молча (У-32), а
+ * у гиперссылки переменные объявляются **на её узле** — каскад отдаёт
+ * ближнему.
+ */
+function linkPreviewVars(node: El, ctx: SettingsCtx, targetPath: string, bracketsPath: string): void {
+  const target = String(ctx.get(targetPath) || "").trim();
+  const brackets = String(ctx.get(bracketsPath) || "").trim();
+  cssVar(node, "--io-link-target", target || "var(--text-accent)");
+  cssVar(node, "--io-link-brackets", brackets || "var(--text-accent)");
+}
+
+/**
+ * Предпросмотр цветов ссылок — его слово 2026-09-22: «я просил тебя добавить
+ * live preview в низ `io-tip-sub-link-view`, чтобы можно было видеть как
+ * меняются цвета wikilinks и hyperlinks».
+ *
+ * Форм три, и разбиты они там же, где их разбивает движок
+ * (`scanHyperlinksInLine` в `editor_visuals_config.js`): у `[подпись](адрес)`
+ * разметка — это `[` и `](адрес)`, у голого адреса разметки нет вовсе, и
+ * второй цвет до него не доходит. Вторая отрисовка того же — прототип
+ * (`renderLinkPreview`, правило 41).
+ */
+export const linkPreview: CustomRender = (host, ctx) => {
+  const text = PREVIEW_TEXTS["link-preview"];
+  const shell = previewShell(host, ctx, "link-preview");
+  const holder = el(shell.box, "div", "io-preview__body");
+
+  const draw = (): void => {
+    holder.empty();
+
+    const wiki = el(holder, "div");
+    linkPreviewVars(drawWrittenLink(wiki, askText(ctx, previewKey("link-preview", "wikilink"), text ? text.wikilink || "" : "")),
+      ctx, "visual.tags.linkAsWritten.targetColor", "visual.tags.linkAsWritten.bracketsColor");
+
+    const md = el(holder, "div");
+    const mdBox = el(md, "span", "io-link");
+    el(mdBox, "span", "io-link__mark", "[");
+    el(mdBox, "span", "io-link__target", askText(ctx, previewKey("link-preview", "label"), text ? text.label || "" : ""));
+    el(mdBox, "span", "io-link__mark", "](" + askText(ctx, previewKey("link-preview", "address"), text ? text.address || "" : "") + ")");
+    linkPreviewVars(mdBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+
+    const bare = el(holder, "div");
+    const bareBox = el(bare, "span", "io-link");
+    el(bareBox, "span", "io-link__target", askText(ctx, previewKey("link-preview", "bare"), text ? text.bare || "" : ""));
+    linkPreviewVars(bareBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+  };
+
+  draw();
+  const unwatch = ctx.watch(LINK_PATHS, draw);
+  return () => { unwatch(); shell.close(); };
+};
+
 /**
  * Предпросмотр оформления тегов. Показывает то, что настраивает группа: два
  * Value слева, текст, и справа элемент со ссылкой — они не теги и пузырей не

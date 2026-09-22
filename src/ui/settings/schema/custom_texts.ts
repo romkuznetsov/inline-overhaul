@@ -95,6 +95,10 @@ export interface PreviewText {
   element?: string;
   link?: string;
   note?: string;
+  wikilink?: string;
+  label?: string;
+  address?: string;
+  bare?: string;
   tree?: readonly PreviewNode[];
 }
 
@@ -141,6 +145,14 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
         { text: "Write the release notes", fields: [], children: [] }
       ] }
     ]
+  },
+  "link-preview": {
+    cap: "Live preview",
+    tip: "Three links, and two pairs of colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second and third are hyperlinks and take the two rows above this preview. A bare address has no markup, so only the first of that pair reaches it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    wikilink: "[[the note name]]",
+    label: "a link",
+    address: "https://example.com",
+    bare: "www.example.com"
   },
   "wheel-preview": {
     cap: "Live preview",

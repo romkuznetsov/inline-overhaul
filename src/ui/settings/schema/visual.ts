@@ -8,7 +8,7 @@
 import type { SettingsGroup } from "../types.ts";
 import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
-import { barsPreview, caretPreview, jumpFlashPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
+import { barsPreview, caretPreview, jumpFlashPreview, linkPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
 import { subheader } from "../custom/subheader.ts";
 import { userTagColors } from "../custom/user_tags.ts";
 
@@ -120,15 +120,26 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       tip:"Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there",
       searchTerms:["Link drag", "Custom link drag"] },
     { kind:"color", id:"link-target-color", path:"visual.tags.linkAsWritten.targetColor", default:"",
-      name:"Link target color", desc:"What you read in a link: the name in <code>[[…]]</code>, the text of <code>[a link](…)</code>, a bare address",
+      name:"Link target color", desc:"What you read in a wikilink: the name between <code>[[</code> and <code>]]</code>",
       searchTerms:["Link color", "Wikilink color", "Link text color"],
-      tip:"This paints what you read in a link, wherever the link is. Three of them: the name between the brackets of a link Value left on <code>Show</code> = <code>default</code>, the text of <code>[a link](an address)</code> in any note of yours, and an address written on its own — <code>https://…</code> or <code>www.…</code> — painted whole. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
+      tip:"This paints the name you read between the brackets of a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code>. Hyperlinks have their own two rows below: you asked for them apart, and apart they are. Empty means the color your theme gives a link, and nothing is painted at all",
       allowReset:true },
     { kind:"color", id:"link-brackets-color", path:"visual.tags.linkAsWritten.bracketsColor", default:"",
-      name:"Link brackets color", desc:"The markup around it: <code>[[</code> and <code>]]</code>, or the brackets and address of <code>[a link](…)</code>",
+      name:"Link brackets color", desc:"The markup around it: <code>[[</code> and <code>]]</code>",
       searchTerms:["Bracket color", "Wikilink brackets"],
-      tip:"The markup is the other half of a link, and this colors it apart from what you read: the brackets of <code>[[the note name]]</code>, and the brackets with the address of <code>[a link](an address)</code>. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
-      allowReset:true }
+      tip:"The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
+      allowReset:true },
+    { kind:"color", id:"hyperlink-target-color", path:"visual.tags.hyperlink.targetColor", default:"",
+      name:"Hyperlink target color", desc:"What you read in a hyperlink: the text of <code>[a link](…)</code>, or a bare address whole",
+      searchTerms:["Hyperlink color", "External link color", "URL color"],
+      tip:"A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
+      allowReset:true },
+    { kind:"color", id:"hyperlink-brackets-color", path:"visual.tags.hyperlink.bracketsColor", default:"",
+      name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the address in round ones",
+      searchTerms:["Hyperlink brackets", "URL markup color", "Address color"],
+      tip:"The other half of <code>[a link](an address)</code>: the square brackets and the address in the round ones, painted apart from the text you read. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
+      allowReset:true },
+    { kind:"custom", id:"link-preview", render: linkPreview }
   ]
 },
 {

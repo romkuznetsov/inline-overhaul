@@ -2343,6 +2343,23 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 перекрывает. Скриншот заказчика 12:15 воспроизводится **старым** деревом и не
 воспроизводится новым (правило 108, правило 173).
 
+#### 10.13.244 У гиперссылки своя пара цветов и свой предпросмотр (2026-09-22)
+
+**Его слова, две строки под тестом 4:** «ты сделал два контрола (цвет ссылки и цвет квадратных скобок) едиными для работы с wikilinks и hyperlinks — а я хотел, чтобы hyperlinks управлялись отдельными контролами»; «также я просил тебя добавить live preview в низ `io-tip-sub-link-view`, чтобы можно было видеть как меняются цвета wikilinks и hyperlinks».
+
+**Что было.** `В-181` вчерашнего цикла научил плагин красить гиперссылки, и цвета он взял у соседа: `Link target color` и `Link brackets color` красили и имя внутри `[[…]]`, и подпись `[текста](адреса)`, и голый адрес. Один контрол на два предмета — и развести их человек не мог никак.
+
+**Что стало.** Строк в `Link view` четыре: прежняя пара осталась за wikilink, новая — `Hyperlink target color` и `Hyperlink brackets color` — за гиперссылкой. Ветка конфига своя, `visual.tags.hyperlink`: одно имя на два предмета уже стоило шести неоткрывавшихся подсказок (У-103).
+
+**Новая пара заводится от старой, а не от умолчания схемы** (У-17). У того, кто цвет уже задал, гиперссылки остаются того же цвета, каким были до разделения: иначе разделение читалось бы как поломка. Перенос — `seedSplitKeys` в `config_migration_v2.ts`, список `SPLIT_V2_KEYS`. Это **не** `MOVED_V2_KEYS`: там прежний адрес снимается, здесь он остаётся живой настройкой, и два разных ответа на похожий вопрос разводятся именами, а не сводятся телами (правило 117). Пустая строка — законное значение («взять у темы») и значит «человек уже решил»: перенос её не трогает, иначе он возвращал бы цвет, который тот снял (У-188).
+
+**Цвет темы у новых полей прочитан, а не подобран** (`themeColorFor`): подпись гиперссылки и голый адрес рисует `--link-external-color` (`app.css` 1.13.7, строки 13359 и 13448), квадратные скобки — `--text-faint` (строка 13465). У wikilink переменные другие — `--link-color` и `--text-faint`, — и поле, обещающее цвет соседа, показывало бы не то, что нарисует строка. Без этого «Восстановить значение по умолчанию» дало бы чёрное, и поймал это сторож в `settings_layer_tests.ts`: он спрашивает **свойство** («у всякого поля цвета с пустым умолчанием есть переменная темы»), а не список.
+
+**Предпросмотр — внизу раздела, как он и просил.** Три формы на одной картинке: `[[the note name]]` первой парой, `[a link](https://example.com)` и `www.example.com` второй. Разбиты они там же, где их разбивает движок (`scanHyperlinksInLine`): разметка — это `[` и `](адрес)`, у голого адреса разметки нет вовсе, и второй цвет до него не доходит. Рисуется двумя отрисовками — прототипом и `previews.ts` (правило 41), — и переменные те же, что в заметке: второй набор имён на тот же вопрос разошёлся бы с первым молча (У-32).
+
+**Чем закреплено.** В наборе — дорога целиком, от конфига человека через `migrateConfig` до величин отрисовки: пара наследуется, пары расходятся, снятый цвет остаётся снятым, повторная запись настроек его не возвращает. Три мутации, каждая краснеет на своём утверждении. В браузерном шаге — четыре состояния гиперссылки на **своей** паре значений (все четыре цвета страницы разные, У-147) и утверждение «гиперссылка не взяла цвет wikilink»; подмена `ext-link-shares-wikilink` возвращает прежний код и роняет именно его (У-223).
+
+
 #### 10.13.243 Перенос текста пишет окно строки, а не весь документ (2026-09-22)
 
 **Его слова:** «при переносе выделенного текста move left\right прыгает экран — так быть не должно. Он должен оставаться где и был».
@@ -10607,7 +10624,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (72)
+### Пути, которых не было в описи v1.0 (74)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -10639,6 +10656,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tags.linkShown.draggable` | Drag to move (`link-draggable`) | Inline appearance |
 | `visual.tags.linkAsWritten.targetColor` | Link target color (`link-target-color`) | Inline appearance |
 | `visual.tags.linkAsWritten.bracketsColor` | Link brackets color (`link-brackets-color`) | Inline appearance |
+| `visual.tags.hyperlink.targetColor` | Hyperlink target color (`hyperlink-target-color`) | Inline appearance |
+| `visual.tags.hyperlink.bracketsColor` | Hyperlink brackets color (`hyperlink-brackets-color`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -17901,7 +17920,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 59 | 12 |
+| 5 | Visual | `features.visual.enabled` | 7 | 61 | 13 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
@@ -18765,13 +18784,22 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there
   - старые названия для поиска: «Link drag», «Custom link drag»
 - **Link target color** — `link-target-color`, `color`, path `visual.tags.linkAsWritten.targetColor`, default `""`
-  - desc: What you read in a link: the name in <code>[[…]]</code>, the text of <code>[a link](…)</code>, a bare address
-  - tip: This paints what you read in a link, wherever the link is. Three of them: the name between the brackets of a link Value left on <code>Show</code> = <code>default</code>, the text of <code>[a link](an address)</code> in any note of yours, and an address written on its own — <code>https://…</code> or <code>www.…</code> — painted whole. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
+  - desc: What you read in a wikilink: the name between <code>[[</code> and <code>]]</code>
+  - tip: This paints the name you read between the brackets of a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code>. Hyperlinks have their own two rows below: you asked for them apart, and apart they are. Empty means the color your theme gives a link, and nothing is painted at all
   - старые названия для поиска: «Link color», «Wikilink color», «Link text color»
 - **Link brackets color** — `link-brackets-color`, `color`, path `visual.tags.linkAsWritten.bracketsColor`, default `""`
-  - desc: The markup around it: <code>[[</code> and <code>]]</code>, or the brackets and address of <code>[a link](…)</code>
-  - tip: The markup is the other half of a link, and this colors it apart from what you read: the brackets of <code>[[the note name]]</code>, and the brackets with the address of <code>[a link](an address)</code>. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
+  - desc: The markup around it: <code>[[</code> and <code>]]</code>
+  - tip: The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it
   - старые названия для поиска: «Bracket color», «Wikilink brackets»
+- **Hyperlink target color** — `hyperlink-target-color`, `color`, path `visual.tags.hyperlink.targetColor`, default `""`
+  - desc: What you read in a hyperlink: the text of <code>[a link](…)</code>, or a bare address whole
+  - tip: A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all
+  - старые названия для поиска: «Hyperlink color», «External link color», «URL color»
+- **Hyperlink brackets color** — `hyperlink-brackets-color`, `color`, path `visual.tags.hyperlink.bracketsColor`, default `""`
+  - desc: The markup around it: the square brackets and the address in round ones
+  - tip: The other half of <code>[a link](an address)</code>: the square brackets and the address in the round ones, painted apart from the text you read. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it
+  - старые названия для поиска: «Hyperlink brackets», «URL markup color», «Address color»
+- **`link-preview`** — свой блок, рендерер `renderLinkPreview`
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)
 
@@ -19159,6 +19187,8 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
 | `visual.tags.emptyBubblePct` | slider | `100` |
+| `visual.tags.hyperlink.bracketsColor` | color | `""` |
+| `visual.tags.hyperlink.targetColor` | color | `""` |
 | `visual.tags.linkAsWritten.bracketsColor` | color | `""` |
 | `visual.tags.linkAsWritten.targetColor` | color | `""` |
 | `visual.tags.linkShown.draggable` | toggle | `false` |

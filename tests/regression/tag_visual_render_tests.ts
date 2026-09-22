@@ -242,6 +242,87 @@ const filled = (el: Any): boolean =>
   ok("ссылка `Inline to note` слева не получает ни кегля Block, ни его прозрачности");
 }
 
+/* ---- две пары цветов, а не одна (его замечание к тесту 4) ------------- */
+
+/*
+ * Его слова 2026-09-22: «ты сделал два контрола (цвет ссылки и цвет
+ * квадратных скобок) едиными для работы с wikilinks и hyperlinks — а я хотел,
+ * чтобы hyperlinks управлялись отдельными контролами».
+ *
+ * Спрашивается **дорога целиком**: конфиг человека → `migrateConfig` →
+ * величины, которые читает отрисовка. Проверка, подающая ветку конфига в
+ * движок напрямую, минует ту самую нормализацию, где живёт перенос (У-55).
+ */
+{
+  const visualsOf = (cfg: Any): Any => I.getTagVisualsFromConfig(I.migrateConfig(cfg)) as Any;
+
+  /*
+   * **Новая пара заводится от старой** (У-17). У того, кто цвет уже задал,
+   * гиперссылки обязаны остаться того же цвета, каким были до разделения:
+   * иначе разделение читается как поломка.
+   */
+  const inherited = visualsOf({
+    schemaVersion: 2,
+    visual: { tags: { linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" } } },
+  });
+  assert.equal(inherited.hyperlinkTargetColor, "#12a4b6",
+    "цвет подписи гиперссылки заведён от прежнего контрола");
+  assert.equal(inherited.hyperlinkBracketsColor, "#b61284",
+    "и цвет её разметки тоже");
+
+  /*
+   * И главное: пары **расходятся**. Значения разведены нарочно — на
+   * одинаковых «управляются отдельно» выполнялось бы само (У-147).
+   */
+  const apart = visualsOf({
+    schemaVersion: 2,
+    visual: {
+      tags: {
+        linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" },
+        hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00" },
+      },
+    },
+  });
+  assert.equal(apart.linkTargetColor, "#12a4b6", "у wikilink свой цвет подписи");
+  assert.equal(apart.linkBracketsColor, "#b61284", "и своей разметки");
+  assert.equal(apart.hyperlinkTargetColor, "#0f7a2e", "у гиперссылки свой");
+  assert.equal(apart.hyperlinkBracketsColor, "#c46a00", "и своей разметки тоже");
+
+  /*
+   * Отрицательный контроль к переносу: пустая строка — законное значение
+   * («взять у темы»), и она значит «человек уже решил». Перенос обязан её
+   * не трогать, иначе он возвращал бы цвет, который тот снял (У-188).
+   */
+  const cleared = visualsOf({
+    schemaVersion: 2,
+    visual: {
+      tags: {
+        linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" },
+        hyperlink: { targetColor: "", bracketsColor: "" },
+      },
+    },
+  });
+  assert.equal(cleared.hyperlinkTargetColor, "",
+    "снятый цвет гиперссылки остаётся снятым, а не заводится заново от соседа");
+  assert.equal(cleared.hyperlinkBracketsColor, "",
+    "и второй тоже");
+
+  /*
+   * Перенос идёт один раз: второй проход по уже перенесённому конфигу ничего
+   * не меняет — иначе снятый цвет возвращался бы при каждой записи настроек.
+   */
+  const once = I.migrateConfig({
+    schemaVersion: 2,
+    visual: { tags: { linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" } } },
+  }) as Any;
+  once.visual.tags.hyperlink.targetColor = "";
+  const twice = I.getTagVisualsFromConfig(I.migrateConfig(once)) as Any;
+  assert.equal(twice.hyperlinkTargetColor, "",
+    "повторная запись настроек не заводит цвет заново");
+
+  ok("его замечание к тесту 4: у гиперссылки своя пара цветов, и заведена она от прежней");
+}
+
 /* ---- гиперссылки в любой заметке (его заказ `В-181`) ------------------- */
 
 /*

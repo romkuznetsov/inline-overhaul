@@ -140,6 +140,12 @@ const CFG = {
        * выиграл» выполнялось бы совпадением.
        */
       linkAsWritten: { targetColor: "#12a4b6", bracketsColor: "#b61284" },
+      /*
+       * У гиперссылки своя пара — его замечание 2026-09-22 к тесту 4. Все
+       * четыре значения **разные**: пара, равная паре wikilink, оставила бы
+       * «управляются отдельными контролами» зелёным от совпадения (У-147).
+       */
+      hyperlink: { targetColor: "#0f7a2e", bracketsColor: "#c46a00" },
       byTagTail: null,
       byTag: {
         type: { "#todo": { fillColor: "#0008f0", textColor: "#f0eaea", visibility: "default" } },

@@ -157,6 +157,11 @@ const CUSTOM_IMPL = {
     named: "tagPreview",
     expr: () => "tagPreview",
   },
+  renderLinkPreview: {
+    module: "previews.ts",
+    named: "linkPreview",
+    expr: () => "linkPreview",
+  },
   renderBarsPreview: {
     module: "previews.ts",
     named: "barsPreview",
@@ -550,6 +555,10 @@ const customTexts = [
   "  element?: string;",
   "  link?: string;",
   "  note?: string;",
+  "  wikilink?: string;",
+  "  label?: string;",
+  "  address?: string;",
+  "  bare?: string;",
   "  tree?: readonly PreviewNode[];",
   "}",
   "",

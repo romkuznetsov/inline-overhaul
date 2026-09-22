@@ -136,6 +136,20 @@ function getTagVisualsFromConfig(cfg) {
      */
     linkTargetColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.linkAsWritten.targetColor")),
     linkBracketsColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.linkAsWritten.bracketsColor")),
+    /*
+     * Та же пара, но у **гиперссылки** — его замечание 2026-09-22 к тесту 4:
+     * «ты сделал два контрола (цвет ссылки и цвет квадратных скобок) едиными
+     * для работы с wikilinks и hyperlinks — а я хотел, чтобы hyperlinks
+     * управлялись отдельными контролами».
+     *
+     * Предмет другой, и ветка другая: `[подпись](адрес)` и голый адрес в
+     * любой заметке против значения поля-ссылки в форме `[[имя]]`. У того,
+     * кто цвет уже задал, значение сюда переносит `config_migration_v2`
+     * (У-17) — новая настройка, разделяющая слитое, выводится из старого
+     * контрола, а не из умолчания схемы.
+     */
+    hyperlinkTargetColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.hyperlink.targetColor")),
+    hyperlinkBracketsColor: normalizeHexColorInput(readCfgPath(cfg, "visual.tags.hyperlink.bracketsColor")),
     separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
     separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
     stripActive: strip.active === true,

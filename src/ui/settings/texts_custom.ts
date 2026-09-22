@@ -188,6 +188,12 @@ function previewEntries(out: TextEntry[], id: string): void {
   push(out, previewKey(id, "element"), text.element);
   push(out, previewKey(id, "link"), text.link);
   push(out, previewKey(id, "note"), text.note);
+  /* Три формы ссылки из предпросмотра `Link view`: их человек читает так же,
+     как всё остальное на этой картинке, и мимо каталога им нельзя (Г25). */
+  push(out, previewKey(id, "wikilink"), text.wikilink);
+  push(out, previewKey(id, "label"), text.label);
+  push(out, previewKey(id, "address"), text.address);
+  push(out, previewKey(id, "bare"), text.bare);
   if (text.tree) treeEntries(out, id, "tree", text.tree);
 }
 

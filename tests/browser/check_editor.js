@@ -1481,6 +1481,13 @@ async function main() {
      */
     const RGB_TARGET = "rgb(18, 164, 182)";    // #12a4b6 из настроек страницы
     const RGB_BRACKETS = "rgb(182, 18, 132)";  // #b61284, нарочно другой (У-147)
+    /*
+     * У гиперссылки своя пара — его замечание 2026-09-22 к тесту 4. Четыре
+     * величины **разные**: на общей паре «управляются отдельными контролами»
+     * выполнялось бы совпадением, а не правилом (У-147).
+     */
+    const RGB_EXT_TARGET = "rgb(15, 122, 46)";   // #0f7a2e из настроек страницы
+    const RGB_EXT_BRACKETS = "rgb(196, 106, 0)"; // #c46a00, тоже свой
     const away = await page.evaluate(() => window.__ioLinkColors("[[test1]]", false));
     if (!away.found) {
       bad("строки со ссылкой `[[test1]]` на странице нет — цвета проверять не на чем");
@@ -1536,9 +1543,17 @@ async function main() {
           bad("строки с гиперссылкой на странице нет (" + at + ") — цвет проверять не на чем");
           continue;
         }
-        if (seen.target !== RGB_TARGET) {
+        if (seen.target !== RGB_EXT_TARGET) {
           bad("гиперссылка нарисована не нашим цветом (" + at + "): " + seen.target
-            + ", а ждали " + RGB_TARGET + "; на буквах «" + seen.targetText + "»");
+            + ", а ждали " + RGB_EXT_TARGET + "; на буквах «" + seen.targetText + "»");
+        }
+        /*
+         * И вторая половина его замечания: пары **не общие**. Цвет wikilink
+         * на гиперссылке значил бы, что контрол по-прежнему один на двоих.
+         */
+        if (seen.target === RGB_TARGET) {
+          bad("гиперссылка взяла цвет wikilink (" + at + "): " + seen.target
+            + " — контролы снова общие");
         }
         /*
          * Контроль к каждому измерению: на странице обязан остаться узел
@@ -1549,7 +1564,7 @@ async function main() {
         if (!seen.outside.length) {
           bad("на странице не осталось ни одной ссылки платформы (" + at
             + ") — красим всё подряд, и сравнивать не с чем");
-        } else if (seen.outside.some((c) => c === RGB_TARGET)) {
+        } else if (seen.outside.some((c) => c === RGB_EXT_TARGET)) {
           bad("вставка картинки получила наш цвет (" + at + "): " + seen.outside.join(", ")
             + " — ссылкой она не считается");
         }
@@ -1558,9 +1573,13 @@ async function main() {
     /* Скобки разметки — вторая половина, и видны они там же, где у wikilink:
        пока каретка на строке, платформа их не прячет (У-256). */
     const mdInside = await page.evaluate(() => window.__ioExtLinkColors("[hyper](", true));
-    if (mdInside.found && mdInside.marks !== RGB_BRACKETS) {
+    if (mdInside.found && mdInside.marks !== RGB_EXT_BRACKETS) {
       bad("скобки гиперссылки нарисованы не цветом скобок: " + mdInside.marks
-        + ", а ждали " + RGB_BRACKETS + "; на знаке «" + mdInside.marksText + "»");
+        + ", а ждали " + RGB_EXT_BRACKETS + "; на знаке «" + mdInside.marksText + "»");
+    }
+    if (mdInside.found && mdInside.marks === RGB_BRACKETS) {
+      bad("скобки гиперссылки взяли цвет скобок wikilink: " + mdInside.marks
+        + " — контролы снова общие");
     }
     if (mdInside.found && mdInside.marks === mdInside.target) {
       bad("подпись и разметка гиперссылки нарисованы одним цветом: " + mdInside.target

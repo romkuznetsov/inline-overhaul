@@ -889,9 +889,17 @@ function buildTagVisualLayer(view, plugin) {
        * реализовано с wikilink)… не только формата `[hyper](link)`, но и
        * просто ссылки (кроме wikilink)».
        *
-       * Цвета те же два, что у ссылки, показанной как написано: подпись берёт
-       * `Link target color`, сама разметка — `Link brackets color`. У голого
-       * адреса разметки нет вовсе, и он весь подпись.
+       * **Цвета у гиперссылки свои** — его замечание 2026-09-22 к тесту 4:
+       * «ты сделал два контрола (цвет ссылки и цвет квадратных скобок)
+       * едиными для работы с wikilinks и hyperlinks — а я хотел, чтобы
+       * hyperlinks управлялись отдельными контролами». Подпись берёт
+       * `Hyperlink target color`, сама разметка — `Hyperlink brackets color`.
+       * У голого адреса разметки нет вовсе, и он весь подпись.
+       *
+       * Переменные и классы те же, что у wikilink: имя переменной отвечает на
+       * вопрос «каким цветом красить этот кусок», а не «из какой он
+       * настройки», и второй набор имён на тот же вопрос разошёлся бы с
+       * первым молча (У-32).
        *
        * **Ни один цвет не задан — не рисуется ничего**, и это единственный
        * выключатель: пустое поле цвета значит «взять у темы», а тема красит
@@ -903,7 +911,7 @@ function buildTagVisualLayer(view, plugin) {
        * красить под пузырём нечего, а спорить за отрезок — значит городить
        * второе правило о том, чей это знак.
        */
-      if (visuals.linkTargetColor || visuals.linkBracketsColor) {
+      if (visuals.hyperlinkTargetColor || visuals.hyperlinkBracketsColor) {
         for (const link of scanHyperlinksInLine(text)) {
           if (wheelSpan && link.start >= wheelSpan.start && link.start < wheelSpan.end) continue;
           const from = line.from + link.start;
@@ -913,17 +921,17 @@ function buildTagVisualLayer(view, plugin) {
             if (from < entry.to && to > entry.from) { taken = true; break; }
           }
           if (taken) continue;
-          if (visuals.linkTargetColor && link.labelTo > link.labelFrom) {
+          if (visuals.hyperlinkTargetColor && link.labelTo > link.labelFrom) {
             ranges.push({
               from: line.from + link.labelFrom,
               to: line.from + link.labelTo,
               deco: cmView.Decoration.mark({
                 class: LINK_TARGET_CLASS,
-                attributes: { style: "--io-link-target: " + visuals.linkTargetColor + ";" },
+                attributes: { style: "--io-link-target: " + visuals.hyperlinkTargetColor + ";" },
               }),
             });
           }
-          if (visuals.linkBracketsColor) {
+          if (visuals.hyperlinkBracketsColor) {
             for (const mark of link.marks) {
               if (mark.to <= mark.from) continue;
               ranges.push({
@@ -931,7 +939,7 @@ function buildTagVisualLayer(view, plugin) {
                 to: line.from + mark.to,
                 deco: cmView.Decoration.mark({
                   class: LINK_BRACKETS_CLASS,
-                  attributes: { style: "--io-link-brackets: " + visuals.linkBracketsColor + ";" },
+                  attributes: { style: "--io-link-brackets: " + visuals.hyperlinkBracketsColor + ";" },
                 }),
               });
             }

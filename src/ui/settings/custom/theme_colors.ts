@@ -62,6 +62,17 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
    */
   "visual.tags.linkAsWritten.targetColor": "--link-color",
   "visual.tags.linkAsWritten.bracketsColor": "--text-faint",
+  /*
+   * Та же пара у гиперссылки, и переменные у неё **другие** — прочитаны в
+   * `app.css` 1.13.7, а не подобраны по сходству. Подпись `[текста](адреса)` и
+   * голый адрес рисует `--link-external-color` (строки 13359 и 13448:
+   * `.cm-link .cm-underline` и `span.cm-url`), квадратные скобки —
+   * `--text-faint` (`span.cm-formatting-link`, строка 13465). Внешняя ссылка и
+   * wikilink у Obsidian разного цвета, и поле, обещающее цвет соседа,
+   * показывало бы не то, что нарисует строка.
+   */
+  "visual.tags.hyperlink.targetColor": "--link-external-color",
+  "visual.tags.hyperlink.bracketsColor": "--text-faint",
   /* Каретка: `.io-caret` в стилях берёт `var(--text-normal)`. */
   "visual.caret.color": "--text-normal",
   /* Круг при прыжке: `.io-jumpflash` берёт `var(--interactive-accent)`. */

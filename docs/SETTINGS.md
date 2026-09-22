@@ -328,19 +328,24 @@ the line.
 ### Inline appearance → Link view
 
 Two switches that hand a Value shown as your own text back what an ordinary link gets from
-Obsidian, and two colours for a link Value left as it is written.
+Obsidian, and two pairs of colours: one pair for a wikilink, one for a hyperlink.
 
 | Control | Default | What it does |
 |---|---|---|
 | `Preview on hover` | off | Hovering opens the page preview — hold `Ctrl` while hovering |
 | `Drag to move` | off | The Value can be dragged into another note |
-| `Link target color` | unset | What you read in a link: the name in `[[…]]`, the text of a markdown link, a bare address |
-| `Link brackets color` | unset | The markup around it: `[[` and `]]`, or the brackets and address of a markdown link |
+| `Link target color` | unset | The name you read between `[[` and `]]` |
+| `Link brackets color` | unset | The markup around it: `[[` and `]]` |
+| `Hyperlink target color` | unset | What you read in a hyperlink: the text of a markdown link, or a bare address whole |
+| `Hyperlink brackets color` | unset | The markup around it: the square brackets and the address in the round ones |
 
-The two colours apply to a link Value left on `Show` = `default`, the one your line carries
-as `[[the note name]]`. Links you typed into a note yourself are not Values of anything and
-are not touched. The brackets are visible in the preview above and, in a note, on the line
-your cursor is on: everywhere else Obsidian takes them off the screen itself.
+The first pair applies to a link Value left on `Show` = `default`, the one your line carries
+as `[[the note name]]`. The second applies to every hyperlink in every note, whether the
+plugin looks after that line or not: a markdown link and an address written on its
+own. A link inside backticks is code, and an image is not a link.
+
+Markup is visible in the preview at the foot of this section and, in a note, on the line your
+cursor is on: everywhere else Obsidian takes it off the screen itself.
 
 ### Color your Tags
 

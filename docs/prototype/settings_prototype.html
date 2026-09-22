@@ -2517,15 +2517,45 @@ const SCHEMA = [
      * каретка. Он ответил «оба, как заказывали», зная это.
      */
     { kind:"color", id:"link-target-color", path:"visual.tags.linkAsWritten.targetColor", default:"",
-      name:"Link target color", desc:"What you read in a link: the name in <code>[[…]]</code>, the text of <code>[a link](…)</code>, a bare address",
+      name:"Link target color", desc:"What you read in a wikilink: the name between <code>[[</code> and <code>]]</code>",
       searchTerms:["Link color", "Wikilink color", "Link text color"],
-      tip:"This paints what you read in a link, wherever the link is. Three of them: the name between the brackets of a link Value left on <code>Show</code> = <code>default</code>, the text of <code>[a link](an address)</code> in any note of yours, and an address written on its own — <code>https://…</code> or <code>www.…</code> — painted whole. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
+      tip:"This paints the name you read between the brackets of a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code>. Hyperlinks have their own two rows below: you asked for them apart, and apart they are. Empty means the color your theme gives a link, and nothing is painted at all",
       allowReset:true },
     { kind:"color", id:"link-brackets-color", path:"visual.tags.linkAsWritten.bracketsColor", default:"",
-      name:"Link brackets color", desc:"The markup around it: <code>[[</code> and <code>]]</code>, or the brackets and address of <code>[a link](…)</code>",
+      name:"Link brackets color", desc:"The markup around it: <code>[[</code> and <code>]]</code>",
       searchTerms:["Bracket color", "Wikilink brackets"],
-      tip:"The markup is the other half of a link, and this colors it apart from what you read: the brackets of <code>[[the note name]]</code>, and the brackets with the address of <code>[a link](an address)</code>. <b>Where you will see it:</b> in the preview at the top of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
-      allowReset:true }
+      tip:"The markup is the other half of a wikilink, and this colors it apart from the name you read: <code>[[</code> and <code>]]</code>. <b>Where you will see it:</b> in the previews of this group, and in your note on the line the cursor is on. Everywhere else Obsidian takes that markup off the screen itself while you are not editing that line, and a color has nothing to paint. Empty means the color your theme gives it",
+      allowReset:true },
+    /*
+     * Ещё два цвета, и предмет у них другой — его замечание 2026-09-22 к
+     * тесту 4: «ты сделал два контрола (цвет ссылки и цвет квадратных
+     * скобок) едиными для работы с wikilinks и hyperlinks — а я хотел,
+     * чтобы hyperlinks управлялись отдельными контролами».
+     *
+     * Ветка своя — `hyperlink`, а не `linkAsWritten`: первая пара про
+     * значение поля-ссылки, стоящее в строке как `[[имя]]`, вторая про
+     * ссылку любой заметки. Одно имя на два предмета уже стоило шести
+     * неоткрывавшихся подсказок (У-103).
+     *
+     * **Новая пара заводится из старого контрола, а не из умолчания схемы**
+     * (У-17): у того, кто цвет уже задал, гиперссылки останутся того же
+     * цвета, каким были до разделения. Перенос — в `config_migration_v2`.
+     */
+    { kind:"color", id:"hyperlink-target-color", path:"visual.tags.hyperlink.targetColor", default:"",
+      name:"Hyperlink target color", desc:"What you read in a hyperlink: the text of <code>[a link](…)</code>, or a bare address whole",
+      searchTerms:["Hyperlink color", "External link color", "URL color"],
+      tip:"A hyperlink is any link that is not a wikilink: <code>[a link](an address)</code> and an address written on its own — <code>https://…</code> or <code>www.…</code>. This paints the half you read: the text between the square brackets, and a bare address whole. It works in every note, not only in lines the plugin looks after. A link inside backticks is code, not a link, and an image is not one either. Empty means the color your theme gives a link, and nothing is painted at all",
+      allowReset:true },
+    { kind:"color", id:"hyperlink-brackets-color", path:"visual.tags.hyperlink.bracketsColor", default:"",
+      name:"Hyperlink brackets color", desc:"The markup around it: the square brackets and the address in round ones",
+      searchTerms:["Hyperlink brackets", "URL markup color", "Address color"],
+      tip:"The other half of <code>[a link](an address)</code>: the square brackets and the address in the round ones, painted apart from the text you read. A bare address has no markup at all, so this leaves it alone. <b>Where you will see it:</b> in the preview below and in your note on the line the cursor is on — everywhere else Obsidian takes the markup off the screen itself. Empty means the color your theme gives it",
+      allowReset:true },
+    /* Предпросмотр внизу раздела — его слово 2026-09-22: «я просил тебя
+       добавить live preview в низ io-tip-sub-link-view, чтобы можно было
+       видеть как меняются цвета wikilinks и hyperlinks». Обе пары рядом, на
+       трёх формах, которые они и красят. */
+    { kind:"custom", id:"link-preview", render: renderLinkPreview }
   ]
 },
 {
@@ -4448,6 +4478,14 @@ const PREVIEW_TEXTS = {
       ] }
     ]
   },
+  "link-preview": {
+    cap: "Live preview",
+    tip: "Three links, and two pairs of colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second and third are hyperlinks and take the two rows above this preview. A bare address has no markup, so only the first of that pair reaches it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    wikilink: "[[the note name]]",
+    label: "a link",
+    address: "https://example.com",
+    bare: "www.example.com"
+  },
   "wheel-preview": {
     cap: "Live preview",
     tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the " +
@@ -5997,6 +6035,56 @@ function renderJumpFlashPreview(host) {
   ["visual.jumpFlash.enabled", "visual.jumpFlash.color",
    "visual.jumpFlash.radius", "visual.jumpFlash.fadeMs",
    "visual.jumpFlash.quietMs"].forEach(p => bind(p, draw));
+}
+
+/**
+ * Цвета одной пары на узел ссылки. Пустое значение значит «взять у темы» —
+ * ровно то же, что и в заметке, и потому запасное значение здесь одно на оба
+ * места (`--text-accent`), а не придумано заново.
+ */
+function linkPreviewVars(node, targetPath, bracketsPath) {
+  cssVar(node, "--io-link-target",
+    String(val(targetPath) || "").trim() || "var(--text-accent)");
+  cssVar(node, "--io-link-brackets",
+    String(val(bracketsPath) || "").trim() || "var(--text-accent)");
+}
+
+/**
+ * Предпросмотр цветов ссылок — его слово 2026-09-22: «добавь live preview в
+ * низ io-tip-sub-link-view, чтобы можно было видеть как меняются цвета
+ * wikilinks и hyperlinks».
+ *
+ * Три формы, и разбиты они там же, где их разбивает движок
+ * (`scanHyperlinksInLine`): у `[подпись](адрес)` разметка — это `[` и
+ * `](адрес)`, у голого адреса разметки нет вовсе.
+ */
+function renderLinkPreview(host) {
+  const pt = PREVIEW_TEXTS["link-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
+  const holder = el("div", "io-preview__body", box);
+  const draw = () => {
+    holder.textContent = "";
+
+    const wiki = el("div", null, holder);
+    linkPreviewVars(renderWrittenLink(wiki, pt.wikilink),
+      "visual.tags.linkAsWritten.targetColor", "visual.tags.linkAsWritten.bracketsColor");
+
+    const md = el("div", null, holder);
+    const mdBox = el("span", "io-link", md);
+    el("span", "io-link__mark", mdBox, "[");
+    el("span", "io-link__target", mdBox, pt.label);
+    el("span", "io-link__mark", mdBox, "](" + pt.address + ")");
+    linkPreviewVars(mdBox, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+
+    const bare = el("div", null, holder);
+    const bareBox = el("span", "io-link", bare);
+    el("span", "io-link__target", bareBox, pt.bare);
+    linkPreviewVars(bareBox, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
+  };
+  draw();
+  previewRefreshers.push(draw);
+  ["visual.tags.linkAsWritten.targetColor", "visual.tags.linkAsWritten.bracketsColor",
+   "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor"].forEach(p => bind(p, draw));
 }
 
 function renderCaretPreview(host) {
