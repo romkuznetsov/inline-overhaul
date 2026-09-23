@@ -20,7 +20,9 @@
  * Пишет `src/ui/settings/custom/pick_data.ts` и объявление `PICK_EMOJI` в
  * прототипе (выбиралка знака Field рисуется и там; равенство держит
  * `char_picker_tests.ts`). Запуск: `node tools/build/gen_pick_data.js`, нужен
- * доступ к unicode.org.
+ * доступ к unicode.org и `playwright` с Chromium (символ, который Obsidian
+ * рисует цветом, в символы не идёт — см. `colouredChars`). Гонять на Windows:
+ * цвет решает шрифт машины.
  */
 
 const fs = require("fs");
@@ -120,14 +122,54 @@ const lit = groups => "[\n" + groups.map(g => "  { title: " + JSON.stringify(g.t
   + g.items.map(([c, n]) => "    [" + JSON.stringify(c) + ", " + JSON.stringify(n) + "],").join("\n")
   + "\n  ] },").join("\n") + "\n]";
 
+/*
+ * Его замечание 2026-09-23 к тесту 1: «в symbol встречаются эмодзи — убери».
+ * Цветным знак делает не Unicode, а шрифт: `☁` и `©` оба «эмодзи» по данным
+ * Unicode, но у `©` глиф есть в `Segoe UI`, а за `☁` Chromium идёт к
+ * `Segoe UI Emoji` — в `--font-default` Obsidian (`app.css` 1.13.7) он стоит
+ * раньше `Segoe UI Symbol`. Поэтому спрашивается Chromium: знак рисуется под
+ * этим стеком, и цветной пиксель уводит его из символов.
+ */
+const OBSIDIAN_FONT = 'ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "Google Sans Flex", Roboto, "Inter Variable", "Inter", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif';
+
+async function colouredChars(chars) {
+  const { chromium } = require("playwright");
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    return new Set(await page.evaluate(({ chars, font }) => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 48;
+      const x = c.getContext("2d", { willReadFrequently: true });
+      x.font = "32px " + font;
+      x.textBaseline = "top";
+      return chars.filter(ch => {
+        x.clearRect(0, 0, 48, 48);
+        x.fillText(ch, 4, 4);
+        const d = x.getImageData(0, 0, 48, 48).data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] && Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) > 40) return true;
+        }
+        return false;
+      });
+    }, { chars: ["🚀", ...chars], font: OBSIDIAN_FONT }));
+  } finally {
+    await browser.close();
+  }
+}
+
 (async () => {
   const emoji = emojiGroups(await get(EMOJI_URL));
   /* Знак, который сам по себе уже эмодзи (`⌛`, `⌚`), живёт во вкладке
      эмодзи: дважды один знак выбиралка не показывает. */
   const emojiChars = new Set(emoji.flatMap(g => g.items.map(([c]) => c)));
-  const symbols = symbolGroups(await get(UCD_URL))
-    .map(g => ({ title: g.title, items: g.items.filter(([c]) => !emojiChars.has(c)) }));
-  const kept = Object.keys(KEEP).filter(ch => !symbols.some(g => g.items.some(([c]) => c === ch)));
+  const named = symbolGroups(await get(UCD_URL));
+  const coloured = await colouredChars(named.flatMap(g => g.items.map(([c]) => c)));
+  /* Положительный контроль: ноль цветных значит «рисовали не тем шрифтом». */
+  if (!coloured.delete("🚀")) throw new Error("Chromium нарисовал 🚀 без цвета — проба не видит эмодзи-шрифт");
+  const symbols = named.map(g => ({ title: g.title, items: g.items.filter(([c]) => !emojiChars.has(c) && !coloured.has(c)) }));
+  console.log("цветом рисуются, ушли из символов: " + [...coloured].join(" "));
+  const kept = Object.keys(KEEP).filter(ch => !coloured.has(ch) && !symbols.some(g => g.items.some(([c]) => c === ch)));
   if (kept.length) throw new Error("прежние символы выпали из рубрик: " + kept.join(" "));
   /* Имя — ещё и имя команды Binder, и двух одинаковых быть не должно. У
      символа и его эмодзи-двойника (`∞` и `♾️`, `©` и `©️`) имя одно; символ

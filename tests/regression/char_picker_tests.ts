@@ -103,6 +103,13 @@ function form(showTips = false): { box: StubNode; insert: StubNode; name: StubNo
   const arrows = PICK_SETS.symbols.find(g => g.title === "Arrows");
   assert.ok(arrows, "в символах нет рубрики стрелок — его пример");
   for (const c of ["→", "←", "⤷", "⇄"]) assert.ok(arrows!.items.some(([x]) => x === c), "в стрелках нет " + c + " из его примера");
+  /* Его замечание 2026-09-23: «в symbol встречаются эмодзи — убери». Знаки —
+     с его скриншота: Obsidian рисует их цветом. Отбор делает генератор
+     пробой Chromium; `©` и `♠` рисуются текстом и остаются — контроль того,
+     что отбор идёт по виду, а не по свойству Emoji из Unicode. */
+  const symbolSet = new Set(pickItems("symbols").map(([c]) => c));
+  for (const c of "☁☂☃☄☎✉✏✂⚙⚛☯☮♻☢☣⚕⚖⚔♀♂") assert.ok(!symbolSet.has(c), "в символах цветной " + c + " с его скриншота");
+  for (const c of ["©", "™", "♠", "→"]) assert.ok(symbolSet.has(c), "текстовый " + c + " выпал из символов");
   /* Флаги стран шрифт Windows рисует двумя буквами — их в выбиралке нет. */
   assert.ok(!pickItems("emoji").some(([c]) => /[\u{1F1E6}-\u{1F1FF}]/u.test(c)), "флаг страны в эмодзи");
   assert.ok(!pickItems("emoji").some(([c]) => /[\u{1F3FB}-\u{1F3FF}]/u.test(c)), "оттенок кожи в эмодзи");
