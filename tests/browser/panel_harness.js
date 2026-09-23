@@ -178,20 +178,25 @@ const PANEL_INJECTIONS = {
     replace: "  if (mode === 'both') return custom",
   },
   /*
-   * `Alt` отпущен, а панель не слышит (`З-36`): перехват `keyup` не поставлен.
-   * Нажатие при этом доезжает, и проверка, спрашивающая только «зажат ли»,
-   * осталась бы зелёной.
+   * `Alt` отпущен, а панель не слышит (`З-36`): перехват `keyup` не поставлен,
+   * и переключать поле некому. Нажатие при этом доезжает.
    */
   "alt-never-released": {
     file: "src/pkm_v2/TagWheel/tagwheel.js",
     find: "    window.addEventListener('keyup', state.keyUpHandler, true)",
     replace: "    if (!state) window.addEventListener('keyup', state.keyUpHandler, true)",
   },
-  /* `Alt` отпущен за пределами окна, а следующее нажатие без него панель не читает. */
-  "alt-release-outside-missed": {
+  /* Другая клавиша под `Alt` не снимает отметку нажатия: хоткей `Alt+↑` переключал бы поле. */
+  "alt-chord-toggles": {
     file: "src/pkm_v2/TagWheel/tagwheel.js",
-    find: "      var released = e.key !== 'Alt' && e.altKey === false && holdAlt(state, false)",
-    replace: "      var released = false",
+    find: "      if (e.key !== 'Alt') state.altTap = false",
+    replace: "      if (e.key === '\\u0000') state.altTap = false",
+  },
+  /* Поле открывает само нажатие, а не отпускание: `Alt+↑` открывал бы его. */
+  "alt-opens-on-press": {
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
+    find: "          if (!e.repeat) state.altTap = true",
+    replace: "          if (!e.repeat) { state.altTap = true; setAltOpen(state, true) }",
   },
   "scroller-silent": {
     file: "src/ui/tagwheel_scroller_overlay.js",

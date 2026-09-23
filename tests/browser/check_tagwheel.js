@@ -259,27 +259,35 @@ async function main() {
         + JSON.stringify(bothTexts));
     }
 
-    /* ---- 11. `Alt` зажат, пока зажат (`З-36`, `В-168`) ---------------- */
+    /* ---- 11. `Alt` — переключатель (`З-36`, его слово 2026-09-23) ------- */
     /*
-     * Его слово: дочернее поле видно, пока зажат `Alt`, «не переключателем».
-     * Видимость поля спрашивает Node (`runAltChildSuite`); здесь — только то,
-     * до чего Node не достаёт: настоящие события окна доезжают до панели.
-     * Нажал — держится; отпустил — снялось; нажал и отпустил за пределами
-     * окна (`Alt+Tab`: отпускания не приходит) — снялось на следующем нажатии
-     * без `Alt`, иначе поле осталось бы на полосе.
+     * Его слово: «первое нажатие открывает sub-field активного field, второе
+     * нажатие закрывает его». Видимость поля спрашивает Node
+     * (`runAltChildSuite`); здесь — только то, до чего Node не достаёт:
+     * настоящие события окна доезжают до панели. Одиночное нажатие открывает
+     * и держится без клавиши; второе закрывает; `Alt` вместе с другой
+     * клавишей — это хоткей (у него `Alt+↑` занят командой), и поле он не
+     * трогает.
      */
     const alt = await page.evaluate(async () => {
       const down = await window.__ioPanelKey("Alt");
-      const up = await window.__ioPanelKeyUp("Alt");
+      const tapped = await window.__ioPanelKeyUp("Alt");
+      const after = await window.__ioPanelKey("ArrowRight");
       await window.__ioPanelKey("Alt");
-      const blurred = await window.__ioPanelKey("ArrowUp");
-      return { opened: down.active, down: down.altHeld, up: up.altHeld, blurred: blurred.altHeld, active: blurred.active };
+      const closed = await window.__ioPanelKeyUp("Alt");
+      await window.__ioPanelKey("Alt");
+      await window.__ioPanelKey("ArrowUp");
+      const chord = await window.__ioPanelKeyUp("Alt");
+      return { opened: down.active, down: down.altOpen, tapped: tapped.altOpen, after: after.altOpen,
+        closed: closed.altOpen, chord: chord.altOpen, active: chord.active };
     });
     if (!alt.opened) bad("сессии нет — `Alt` проверять не на чем");
-    if (!alt.active) bad("`Alt` закрыл сессию панели, а должен был только показать дочернее поле");
-    if (!alt.down) bad("нажатый `Alt` до панели не доехал: сессия не считает его зажатым");
-    if (alt.up) bad("отпущенный `Alt` панель не заметила: дочернее поле осталось бы на полосе");
-    if (alt.blurred) bad("нажатие без `Alt` не сняло зажатый `Alt`: после `Alt+Tab` поле осталось бы на полосе");
+    if (!alt.active) bad("`Alt` закрыл сессию панели, а должен был только открыть дочернее поле");
+    if (alt.down) bad("поле открылось на нажатии `Alt`, а не на отпускании: `Alt+↑` открывал бы его");
+    if (!alt.tapped) bad("одиночное нажатие `Alt` не открыло дочернее поле");
+    if (!alt.after) bad("открытое `Alt` поле закрылось следующей клавишей, а должно держаться до второго `Alt`");
+    if (alt.closed) bad("второе нажатие `Alt` не закрыло дочернее поле");
+    if (alt.chord) bad("`Alt` вместе со стрелкой открыл поле, а это хоткей человека");
 
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 

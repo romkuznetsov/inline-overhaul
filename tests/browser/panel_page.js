@@ -218,8 +218,8 @@ window.__ioPanelProbe = function () {
   const line = view.state.doc.line(n + 1);
   return {
     active,
-    /* Зажат ли `Alt` в глазах панели (`З-36`). */
-    altHeld: !!(st && st.session && st.session.altHeld === true),
+    /* Открыл ли `Alt` дочернее поле в глазах панели (`З-36`). */
+    altOpen: !!(st && st.session && st.session.altOpen === true),
     said: said.slice(),
     lineNumber: n,
     lineText: line.text,

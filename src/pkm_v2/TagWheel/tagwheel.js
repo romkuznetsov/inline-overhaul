@@ -403,19 +403,27 @@ function getTagWheelEditor(app_) {
 }
 
 /**
- * Зажат ли `Alt` (`З-36`). Возвращает, сменилось ли что-нибудь.
+ * Открыто ли дочернее поле нажатием `Alt` (`З-36`). Возвращает, сменилось ли
+ * что-нибудь.
  *
- * Отпустил, стоя на дочернем поле, которое `Alt` и показывал, — курсор панели
- * уходит на его родителя: поле сейчас исчезнет, и без этого
- * `ensureActiveFieldId` поставил бы курсор на первое поле полосы, далеко от
- * того места, где человек только что был.
+ * **Переключатель, а не удержание** — его слово 2026-09-23: «чтобы sub-field
+ * активировался не удержанием кнопки alt, а однократным нажатием (первое
+ * нажатие открывает sub-field активного field, второе нажатие закрывает его)».
+ * Удержание сталкивалось с его хоткеями: `Alt+↑` и `Alt+↓` у него заняты
+ * командами, и под зажатым `Alt` стрелки уходили им.
+ *
+ * Закрыл, стоя на дочернем поле, — курсор панели уходит на его родителя: поле
+ * сейчас может исчезнуть, и без этого `ensureActiveFieldId` поставил бы курсор
+ * на первое поле полосы, далеко от того места, где человек только что был.
+ * Поле в положении `Show always` от `Alt` не зависит, и курсор с него не
+ * уводится.
  */
-function holdAlt(state, held) {
+function setAltOpen(state, open) {
   var session = state && state.session
   if (!session) return false
-  var now = held === true
-  if (session.altHeld === now) return false
-  session.altHeld = now
+  var now = open === true
+  if (session.altOpen === now) return false
+  session.altOpen = now
   if (!now && state.rules) {
     var id = String(session.activeFieldId || '')
     var modes = [state.rules.leftMode, state.rules.rightMode]
@@ -425,7 +433,7 @@ function holdAlt(state, held) {
       var fi
       for (fi = 0; fi < fields.length; fi++) {
         var f = fields[fi]
-        if (f && f.id === id && f.showOnAlt === true && f.dependsOn) session.activeFieldId = String(f.dependsOn)
+        if (f && f.id === id && f.dependsOn && f.freeOfParent !== true) session.activeFieldId = String(f.dependsOn)
       }
     }
   }
@@ -2562,13 +2570,11 @@ async function runTagWheel(input, quickAddSettings) {
       var keymap = state.rules.behavior.keymap || {}
       var handled = false
       /*
-       * `Alt`, отпущенный за пределами окна (`З-36`). После `Alt+Tab`
-       * отпускания панель не получит вовсе; следующее нажатие без `Alt` —
-       * первый знак, что клавиша уже не зажата. Слушателя `blur` ради этого
-       * не заводится: каталог Obsidian считает каждый слушатель на `window`
-       * мимо `registerDomEvent` (`catalog_rules_tests.ts`).
+       * Нажатие `Alt` считается, только если между нажатием и отпусканием не
+       * было другой клавиши (`З-36`): `Alt+↑` — это его хоткей, а не
+       * открытие поля. И `Alt+Tab` поэтому поля не переключает.
        */
-      var released = e.key !== 'Alt' && e.altKey === false && holdAlt(state, false)
+      if (e.key !== 'Alt') state.altTap = false
 
       try {
         if (e.key === (keymap.nextField || 'ArrowRight')) {
@@ -2598,11 +2604,10 @@ async function runTagWheel(input, quickAddSettings) {
           cancelSelection(state)
           handled = true
         } else if (e.key === 'Alt') {
-          /* Дочернее поле в положении `Show when press Alt` видно, пока клавиша
-             зажата (`З-36`); отпускание ловит `keyUpHandler` ниже. Своя
-             обработка гасит и то, что Windows делает с одиночным `Alt`, —
-             фокус на меню окна. */
-          holdAlt(state, true)
+          /* Переключает поле отпускание (`keyUpHandler` ниже), здесь только
+             отметка «началось нажатие». Своя обработка гасит и то, что
+             Windows делает с одиночным `Alt`, — фокус на меню окна. */
+          if (!e.repeat) state.altTap = true
           handled = true
         }
       } catch (err) {
@@ -2632,12 +2637,6 @@ async function runTagWheel(input, quickAddSettings) {
         }
         e.preventDefault()
         e.stopPropagation()
-      } else if (released && state.active) {
-        /* Клавиша не наша — её получит редактор, — но полоса уже другая. */
-        ensureActiveFieldId(state)
-        drawPanelLine(state, withKeptPrefix(state.originalLine,
-          state.core.renderControlLine(state.rules, state.session, state.parsedLine,
-            state.valueNamesCfg)))
       }
     }
 
@@ -2661,13 +2660,15 @@ async function runTagWheel(input, quickAddSettings) {
       try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
     }
     /*
-     * Отпущенный `Alt` (`З-36`): поле скрывается в тот же миг, а не со
-     * следующим нажатием. Живёт и снимается вместе с перехватом `keydown` —
+     * Отпущенный `Alt` (`З-36`) переключает дочернее поле, если это было
+     * одиночное нажатие. Живёт и снимается вместе с перехватом `keydown` —
      * `cleanupTagWheelState`, в том числе при выгрузке плагина.
      */
     state.keyUpHandler = function(e) {
       if (!e || e.key !== 'Alt' || !state.active) return
-      if (holdAlt(state, false)) {
+      var tap = state.altTap === true
+      state.altTap = false
+      if (tap && setAltOpen(state, state.session.altOpen !== true)) {
         ensureActiveFieldId(state)
         drawPanelLine(state, withKeptPrefix(state.originalLine,
           state.core.renderControlLine(state.rules, state.session, state.parsedLine,
@@ -2676,7 +2677,7 @@ async function runTagWheel(input, quickAddSettings) {
       e.preventDefault()
       e.stopPropagation()
     }
-    session.altHeld = false
+    session.altOpen = false
     window.__tagWheelState = state
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)
@@ -2748,7 +2749,7 @@ module.exports.entry = async function(QuickAdd, settings) {
 /* Решение о шаге стрелки — чистая функция, и проверяется она без Obsidian
    (10.13.35). Запись остаётся внутри, у `nextVirtualField`. */
 module.exports.planFieldStep = planFieldStep
-module.exports.holdAlt = holdAlt
+module.exports.setAltOpen = setAltOpen
 module.exports.normalizeEdgeMode = normalizeEdgeMode
 /* Запись строки мимо истории отмен — чистая функция над чужим редактором, и
    проверяется она без Obsidian (10.13.53). */

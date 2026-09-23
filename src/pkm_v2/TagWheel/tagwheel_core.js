@@ -1125,15 +1125,16 @@ function isFieldEnabled(mode, state, field, rules) {
    * **Пока `Alt` открывает дочернее поле, родитель ему не нужен** (`В-195`,
    * его ответ 2026-09-23: «показать все дочерние»). Поле встаёт под `Alt` и на
    * строке без значения у родителя, со всеми своими значениями, — ровно как
-   * при `Show always`, но только на время, пока клавиша зажата. Спрашивается
-   * у того же предусловия, с тем же разрешением `freeOfParent`: своего
-   * правила «когда родитель не нужен» здесь не заводится.
+   * при `Show always`, но только пока `Alt` его не закрыл. Так и у
+   * `Show when press Alt`, и у `After parent` (его слово 2026-09-23).
+   * Спрашивается у того же предусловия, с тем же разрешением `freeOfParent`:
+   * своего правила «когда родитель не нужен» здесь не заводится.
    *
-   * Отпустил — поле снова ждёт родителя и становится выключенным; выбранное
+   * Закрыл — поле снова ждёт родителя и становится выключенным; выбранное
    * значение при этом не пропадает: чистка выключенного поля не трогает, а
    * применение пишет выбранное каждого поля (`collectSelectedTagEntries`).
    */
-  var ask = field && field.showOnAlt === true && field.freeOfParent !== true && shownInPanel(state, field)
+  var ask = field && field.freeOfParent !== true && altOpensChild(state, field)
     ? Object.assign({}, field, { freeOfParent: true })
     : field
   /* Предусловие объявлено один раз — в `pkm_rules_runtime_helpers.js`, — и
@@ -2646,12 +2647,26 @@ function valueLabelInStrip(token, labels) {
  * же сходятся ровно показ полосы и список полей для стрелок — оба зовут
  * `buildGroupDisplay`.
  *
- * `altHeld` ставит одна панель (`holdAlt` в `tagwheel.js`); у сессии команды
- * его нет, и полосы она не рисует.
+ * `altOpen` ставит одна панель (`setAltOpen` в `tagwheel.js`); у сессии
+ * команды его нет, и полосы она не рисует.
  */
 function shownInPanel(state, field) {
   if (!field || field.showOnAlt !== true) return true
-  if (!state || state.altHeld !== true) return false
+  return altOpensChild(state, field)
+}
+
+/**
+ * Открыл ли `Alt` это дочернее поле: нажат у ближайшего Field — курсор панели
+ * стоит на родителе или на самом поле.
+ *
+ * Спрашивается у **любого** дочернего поля, а не только у `Show when press
+ * Alt` — его слово 2026-09-23: «чтобы при нажатии alt открывалось sub-field
+ * любого field вне зависимости от io-field-child=show when press alt»; по сути
+ * это добавка к `After parent`. `Hide` поля не имеет вовсе (выключено раньше),
+ * `Show always` видно и так.
+ */
+function altOpensChild(state, field) {
+  if (!field || !field.dependsOn || !state || state.altOpen !== true) return false
   var active = String(state.activeFieldId || '')
   return active !== '' && (active === String(field.id || '') || active === String(field.dependsOn || ''))
 }

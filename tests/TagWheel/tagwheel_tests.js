@@ -2880,10 +2880,13 @@ function runChildFieldShortNameSuite() {
 /**
  * Дочернее поле под `Alt` (`З-36`, его пункт 11 от 2026-09-22 и `В-168`).
  *
- * Его слова: поле в положении `Show when press Alt` видно в панели, пока
- * зажат `Alt`, «не переключателем»; отпустил — снова скрыто, выбранное
- * значение остаётся на строке. Видно оно у ближайшего Field — того, на
- * котором стоит курсор панели.
+ * Поле в положении `Show when press Alt` видно в панели, пока `Alt` его
+ * открыл; второе нажатие закрывает, выбранное значение остаётся на строке.
+ * Видно оно у ближайшего Field — того, на котором стоит курсор панели.
+ * Сначала было «пока зажат» (2026-09-22); с 2026-09-23 — переключатель, его
+ * слово: «первое нажатие открывает sub-field активного field, второе нажатие
+ * закрывает его». Само нажатие (что считается одиночным `Alt`) проверяет
+ * браузерный шаг, здесь — что открытое поле показывает панель.
  *
  * Правила собираются тем же путём, каким их собирает плагин для дочернего
  * поля: `parseOrderConfig` и `applyOrderToRules`. Признак `showOnAlt` кладётся
@@ -2927,7 +2930,7 @@ function runAltChildSuite() {
     s.mode = 'left'
     s.selected.importance = 'p1'
     s.activeFieldId = activeId
-    s.altHeld = held
+    s.altOpen = held
     return { rules: rules, session: s }
   }
   var seq = function (st) { return core.getNavigableFieldSequence(st.rules, st.session) }
@@ -2959,11 +2962,11 @@ function runAltChildSuite() {
 
   /* Отпустил на дочернем поле: курсор уходит на родителя, а значение остаётся. */
   onChild.session.selected.importance_sub = 'p1a'
-  assertEq(tagwheel.holdAlt(onChild, false), true, 'letting go of Alt is a change')
+  assertEq(tagwheel.setAltOpen(onChild, false), true, 'letting go of Alt is a change')
   assertEq(onChild.session.activeFieldId, 'importance', 'the cursor goes back to the parent, not to the first Field')
   core.sanitizeState(rules, onChild.session)
   assertEq(onChild.session.selected.importance_sub, 'p1a', 'the Value picked under Alt stays on the line')
-  assertEq(tagwheel.holdAlt(onChild, false), false, 'a second let-go changes nothing')
+  assertEq(tagwheel.setAltOpen(onChild, false), false, 'a second let-go changes nothing')
 
   /*
    * Отрицательный контроль к месту вопроса: спрятанное `Alt` поле панель
@@ -2994,12 +2997,35 @@ function runAltChildSuite() {
   core.cycleValue(rules, bare.session, 1)
   var pickedBare = bare.session.selected.importance_sub
   assertTrue(!!pickedBare, 'a child Value can be picked with no parent on the line')
-  tagwheel.holdAlt(bare, false)
+  tagwheel.setAltOpen(bare, false)
   core.sanitizeState(rules, bare.session)
   assertEq(bare.session.selected.importance_sub, pickedBare, 'the Value picked with no parent stays after Alt is let go')
   assertEq(bare.session.selected.importance, '', 'and no parent is added to it')
 
-  console.log('  ok the Alt child shows while Alt is held on its parent, and only there')
+  /*
+   * `After parent` тоже открывается `Alt` (его слово 2026-09-23: «чтобы при
+   * нажатии alt открывалось sub-field любого field»). Без значения у родителя
+   * поле ждёт родителя, как всегда; `Alt` открывает его и тут — у ближайшего
+   * Field и только у него.
+   */
+  var after = build(false)
+  var afterShut = panel(after, 'importance', false)
+  afterShut.session.selected.importance = ''
+  assertTrue(seq(afterShut).indexOf('importance_sub') === -1,
+    'After parent, no parent Value, Alt not pressed: the child waits for its parent: ' + JSON.stringify(seq(afterShut)))
+  var afterOpen = panel(after, 'importance', true)
+  afterOpen.session.selected.importance = ''
+  assertArrayEq(seq(afterOpen), ['importance', 'importance_sub', 'category'],
+    'After parent, no parent Value, Alt pressed on the parent: the child opens right after it')
+  var afterElse = panel(after, 'category', true)
+  afterElse.session.selected.importance = ''
+  assertTrue(seq(afterElse).indexOf('importance_sub') === -1,
+    'After parent: Alt on another Field does not open this child: ' + JSON.stringify(seq(afterElse)))
+  afterOpen.session.activeFieldId = 'importance_sub'
+  assertEq(tagwheel.setAltOpen(afterOpen, false), true, 'the second press closes it')
+  assertEq(afterOpen.session.activeFieldId, 'importance', 'and the cursor goes back to the parent')
+
+  console.log('  ok Alt opens the child of the nearest Field, for Show when press Alt and for After parent')
 }
 
 /**
