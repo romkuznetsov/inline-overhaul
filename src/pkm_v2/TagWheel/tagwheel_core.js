@@ -2656,8 +2656,8 @@ function shownInPanel(state, field) {
 }
 
 /**
- * Открыл ли `Alt` это дочернее поле: нажат у ближайшего Field — курсор панели
- * стоит на родителе или на самом поле.
+ * Открыл ли `Alt` это дочернее поле: нажат у его родителя или у него самого,
+ * и курсор панели с тех пор с них не уходил.
  *
  * Спрашивается у **любого** дочернего поля, а не только у `Show when press
  * Alt` — его слово 2026-09-23: «чтобы при нажатии alt открывалось sub-field
@@ -2667,8 +2667,9 @@ function shownInPanel(state, field) {
  */
 function altOpensChild(state, field) {
   if (!field || !field.dependsOn || !state || state.altOpen !== true) return false
-  var active = String(state.activeFieldId || '')
-  return active !== '' && (active === String(field.id || '') || active === String(field.dependsOn || ''))
+  /* `altFor` — поле, у которого нажали; ушёл курсор с него и его дочерних —
+     нажатие снимает панель (`setAltOpen` в `tagwheel.js`). */
+  return String(state.altFor || '') === String(field.dependsOn)
 }
 
 function buildGroupDisplay(group, mode, state, rules, labels) {

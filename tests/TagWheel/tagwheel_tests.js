@@ -2930,8 +2930,11 @@ function runAltChildSuite() {
     s.mode = 'left'
     s.selected.importance = 'p1'
     s.activeFieldId = activeId
-    s.altOpen = held
-    return { rules: rules, session: s }
+    s.altOpen = false
+    var st = { rules: rules, session: s }
+    /* Нажатие ставит плагин — вместе с полем, которому оно принадлежит. */
+    if (held) tagwheel.setAltOpen(st, true)
+    return st
   }
   var seq = function (st) { return core.getNavigableFieldSequence(st.rules, st.session) }
 

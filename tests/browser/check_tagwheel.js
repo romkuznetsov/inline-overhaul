@@ -272,7 +272,8 @@ async function main() {
     const alt = await page.evaluate(async () => {
       const down = await window.__ioPanelKey("Alt");
       const tapped = await window.__ioPanelKeyUp("Alt");
-      const after = await window.__ioPanelKey("ArrowRight");
+      /* Клавиша, которая с поля не уводит: уход закрывает нажатие (ниже). */
+      const after = await window.__ioPanelKey("ArrowUp");
       await window.__ioPanelKey("Alt");
       const closed = await window.__ioPanelKeyUp("Alt");
       await window.__ioPanelKey("Alt");
@@ -288,6 +289,26 @@ async function main() {
     if (!alt.after) bad("открытое `Alt` поле закрылось следующей клавишей, а должно держаться до второго `Alt`");
     if (alt.closed) bad("второе нажатие `Alt` не закрыло дочернее поле");
     if (alt.chord) bad("`Alt` вместе со стрелкой открыл поле, а это хоткей человека");
+
+    /*
+     * Его замечание 2026-09-23 к тесту 3: нажал `Alt` на поле, ушёл `←` на
+     * другое и вернулся `→` — дочернее поле «не возникало, т.е. мне нужно было
+     * бы повторно нажать alt». Нажатие принадлежит полю, у которого его
+     * сделали. Контроль «открылось» стоит первым: без него «закрыто» верно и
+     * у панели, где `Alt` не работает вовсе (У-152).
+     */
+    const back = await page.evaluate(async () => {
+      await window.__ioPanelKey("Alt");
+      const opened = await window.__ioPanelKeyUp("Alt");
+      const away = await window.__ioPanelKey("ArrowLeft");
+      const returned = await window.__ioPanelKey("ArrowRight");
+      return { opened: opened.altOpen, at: opened.activeFieldId, away: away.activeFieldId,
+        back: returned.activeFieldId, open: returned.altOpen };
+    });
+    if (!back.opened) bad("`Alt` не открыл дочернее поле — проверять возврат не на чем");
+    else if (back.away === back.at) bad("`←` не увёл курсор с поля `" + back.at + "` — возврат не проверен");
+    else if (back.back !== back.at) bad("`→` не вернул курсор на `" + back.at + "`, а поставил на `" + back.back + "`");
+    else if (back.open) bad("ушёл с поля `" + back.at + "` на `" + back.away + "` и вернулся — дочернее поле открылось снова без `Alt`");
 
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 

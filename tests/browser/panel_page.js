@@ -220,6 +220,7 @@ window.__ioPanelProbe = function () {
     active,
     /* Открыл ли `Alt` дочернее поле в глазах панели (`З-36`). */
     altOpen: !!(st && st.session && st.session.altOpen === true),
+    activeFieldId: st && st.session ? String(st.session.activeFieldId || "") : "",
     said: said.slice(),
     lineNumber: n,
     lineText: line.text,

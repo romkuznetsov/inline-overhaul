@@ -417,6 +417,12 @@ function getTagWheelEditor(app_) {
  * на первое поле полосы, далеко от того места, где человек только что был.
  * Поле в положении `Show always` от `Alt` не зависит, и курсор с него не
  * уводится.
+ *
+ * **Нажатие принадлежит полю, у которого его сделали** — `altFor`, — его
+ * слово 2026-09-23 к тесту 3: ушёл стрелкой на другое поле и вернулся — «я
+ * хочу, чтобы в таком случае дочернее поле не возникало, т.е. мне нужно было
+ * бы повторно нажать alt». Снимает его `ensureActiveFieldId`: через него
+ * проходит каждое движение курсора панели.
  */
 function setAltOpen(state, open) {
   var session = state && state.session
@@ -424,20 +430,30 @@ function setAltOpen(state, open) {
   var now = open === true
   if (session.altOpen === now) return false
   session.altOpen = now
-  if (!now && state.rules) {
-    var id = String(session.activeFieldId || '')
-    var modes = [state.rules.leftMode, state.rules.rightMode]
-    var mi
-    for (mi = 0; mi < modes.length; mi++) {
-      var fields = modes[mi] && Array.isArray(modes[mi].fields) ? modes[mi].fields : []
-      var fi
-      for (fi = 0; fi < fields.length; fi++) {
-        var f = fields[fi]
-        if (f && f.id === id && f.dependsOn && f.freeOfParent !== true) session.activeFieldId = String(f.dependsOn)
-      }
+  var id = String(session.activeFieldId || '')
+  var owner = altOwnerOf(state, id)
+  if (now) session.altFor = owner
+  else session.activeFieldId = owner
+  return true
+}
+
+/**
+ * Чьё дочернее поле открывает `Alt`, нажатый на поле `id`: у дочернего —
+ * родителя, у остальных — самого поля. `Show always` (`freeOfParent`) от
+ * `Alt` не зависит и считается полем само по себе.
+ */
+function altOwnerOf(state, id) {
+  var modes = state && state.rules ? [state.rules.leftMode, state.rules.rightMode] : []
+  var mi
+  for (mi = 0; mi < modes.length; mi++) {
+    var fields = modes[mi] && Array.isArray(modes[mi].fields) ? modes[mi].fields : []
+    var fi
+    for (fi = 0; fi < fields.length; fi++) {
+      var f = fields[fi]
+      if (f && f.id === id && f.dependsOn && f.freeOfParent !== true) return String(f.dependsOn)
     }
   }
-  return true
+  return id
 }
 
 function cleanupTagWheelState(state) {
@@ -872,6 +888,13 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function ensureActiveFieldId(state) {
+    /* Курсор ушёл с поля, у которого нажали `Alt`, и с его дочерних — нажатие
+       кончилось (`setAltOpen`). Раньше списка полей: от него зависит, видно
+       ли дочернее поле. */
+    if (state.session.altOpen === true &&
+        altOwnerOf(state, String(state.session.activeFieldId || '')) !== state.session.altFor) {
+      state.session.altOpen = false
+    }
     var ids = panelFieldIds(state)
     if (!ids.length) {
       state.session.activeFieldId = ''
