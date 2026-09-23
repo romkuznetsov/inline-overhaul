@@ -253,9 +253,67 @@ function createTagWheelScrollerOverlay(options) {
     setBoxShown(target, true);
   }
 
+  /*
+   * **Коробка приклеена к панели, а не к экрану** (его замечание 2026-09-24:
+   * «если проскроллить экран, то scroller следует за экраном, а должен быть
+   * приклеен к панели tagwheel»). Узел стоит `position: fixed` и ставится по
+   * координатам якоря на каждое обновление панели, а прокрутка заметки
+   * обновлением не была: якорь уезжал, коробка оставалась. Теперь последний
+   * вызов запоминается, и прокрутка ставит коробку заново тем же `update`.
+   * Слушатель — на прокручиваемом узле самой заметки (`cm.scrollDOM`, он же
+   * `.cm-scroller`): прокручивается именно он, и слушатель на `document`
+   * мимо `registerDomEvent` запрещён правилом каталога
+   * (`catalog_rules_tests.ts`). Узел берётся у редактора из вызова и
+   * меняется вместе с ним; снимается при `destroy`.
+   */
+  let lastPayload = null;
+  let framePending = false;
+  let scrollHost = null;
+  function onScroll() {
+    if (!lastPayload || framePending) return;
+    let raf = typeof window.requestAnimationFrame === "function"
+      ? window.requestAnimationFrame.bind(window)
+      : function(fn) { fn(); };
+    framePending = true;
+    raf(function() {
+      framePending = false;
+      if (lastPayload) update(lastPayload);
+    });
+  }
+  function listenTo(editor) {
+    let el = editor && editor.cm && editor.cm.scrollDOM;
+    if (!el || typeof el.addEventListener !== "function") el = null;
+    if (el === scrollHost) return;
+    if (scrollHost) scrollHost.removeEventListener("scroll", onScroll);
+    scrollHost = el;
+    if (scrollHost) scrollHost.addEventListener("scroll", onScroll, { passive: true });
+  }
+
+  /*
+   * Якорь, уехавший за край области заметки, коробку не держит: иначе прижим
+   * `placeBox` к краю окна оставлял бы её висеть у края экрана — то самое
+   * «следует за экраном». Край берётся у прокручиваемого узла редактора, а
+   * без него — у окна.
+   */
+  function anchorOutOfView(editor, anchor) {
+    let top = 0;
+    let bottom = window.innerHeight || 1;
+    let sd = editor && editor.cm && editor.cm.scrollDOM;
+    if (sd && typeof sd.getBoundingClientRect === "function") {
+      let r = sd.getBoundingClientRect();
+      if (r && isFinite(r.top) && isFinite(r.bottom) && r.bottom > r.top) {
+        top = r.top;
+        bottom = r.bottom;
+      }
+    }
+    return anchor.bottom < top || anchor.top > bottom;
+  }
+
   function update(payload) {
     let p = payload && typeof payload === "object" ? payload : {};
+    lastPayload = p;
     let editor = p.editor;
+    listenTo(editor);
     let lineNumber = Number(p.lineNumber);
     let controlLine = String(p.controlLine || "");
     if (!editor || !isFinite(lineNumber)) {
@@ -263,7 +321,7 @@ function createTagWheelScrollerOverlay(options) {
       return;
     }
     let anchor = getAnchorRect(editor, lineNumber, controlLine);
-    if (!anchor) {
+    if (!anchor || anchorOutOfView(editor, anchor)) {
       hide();
       return;
     }
@@ -330,13 +388,16 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   function destroy() {
+    lastPayload = null;
+    listenTo(null);
     dropBox(boxPrimary);
     dropBox(boxSecondary);
   }
 
   return {
     update: update,
-    hide: hide,
+    /* Спрятанное панелью прокрутка не возвращает: последний вызов забыт. */
+    hide: function() { lastPayload = null; hide(); },
     destroy: destroy,
   };
 }

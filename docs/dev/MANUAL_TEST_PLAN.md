@@ -118,7 +118,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 | Keyboard | Before you start, Expanded 'Ctrl+A' ('⌘+A'), Binder, Command reference |
 | Navigation | Before you start, Moving lines (up and down), Move left and move right (субхедеры `Move text` и `Moving lines (left and right)`), Moving cursor inside a line, Moving cursor inside a note |
 | Tags & PKM | Before you start, Fields, Separators, Writing rules, Placement modes, Prefix priority |
-| Visual | Before you start, Inline appearance, Color your Tags, Tag Bars, tagWheel |
+| Visual | Before you start, Inline appearance, Tag Bars, tagWheel, Text cursor, Cursor jump highlight, Color custom tags |
 | Transform | Before you start, Inline to note, Naming, Note content, Source line, Smart Rules |
 | Advanced | Before you start, Backup, Diagnostics |
 
@@ -200,7 +200,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 - Условия внутри одного типа Field пока соединяются как **ИЛИ** — это известно
   и ждёт задачи 5.3.2, а не находка.
 
-### Свои цвета тегов (`Visual → Color your Tags`) 👁
+### Свои цвета тегов (`Visual → Color custom tags`) 👁
 
 - Заведите тег, задайте цвета, проверьте предпросмотр.
 - Тег, для которого цвет не задан, всё равно нарисован темой — и контраст

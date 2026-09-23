@@ -436,11 +436,6 @@ An address written on its own takes the address row too — both kinds of addres
 Markup is visible in the preview at the foot of this section and, in a note, on the line your
 cursor is on: everywhere else Obsidian takes it off the screen itself.
 
-### Color your Tags
-
-A list of colours for tags that are not a Value of any Field. A tag you type straight into
-a line still gets a bubble, and this is where you say what that bubble looks like.
-
 ### Tag Bars
 
 A coloured Bar in the margin, down the side of a line and everything nested under it. One
@@ -479,7 +474,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 | `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
 | `Left Block active Field` | unset | The Field it lands on when it opens on the left |
 | `Right Block active Field` | unset | The Field it lands on when it opens on the right |
-| `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color your tags`, or both |
+| `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
 | `Non-active Field text color` | unset | The Field names you are not standing on |
@@ -494,7 +489,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 |---|---|---|
 | `Scroller` | off | Shows the next and previous Values around the current one |
 | `Scroller opening direction` | `full` | Which way the Values unroll |
-| `Scroller Value names` | `Default name` | Whether the box shows a neighbouring Value as written, as the custom text from `Color your tags`, or both |
+| `Scroller Value names` | `Default name` | Whether the box shows a neighbouring Value as written, as the custom text from `Color custom tags`, or both |
 | `Scroller background color` | unset | Behind the box of neighbouring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighbouring Values stay visible |
@@ -518,7 +513,7 @@ With `Shape the text cursor` on, the plugin draws the caret itself. Obsidian dra
 of its own on a line with nothing selected, and a caret it does not draw cannot be made
 thicker.
 
-### Jump highlight
+### Cursor jump highlight
 
 | Control | Default | What it does |
 |---|---|---|
@@ -528,6 +523,12 @@ thicker.
 | `How long it lasts` | `450` | The time the circle takes to shrink away |
 | `Latency between jumps` | `0` | Jumps closer together than this get no circle |
 | `Use inside current line` | off | Also marks the cursor when it hops between the parts of one line |
+
+### Color custom tags
+
+A list of colours for tags that are not a Value of any Field in `Tags & PKM → Fields`. A tag
+you type straight into a line still gets a bubble, and this is where you say what that bubble
+looks like.
 
 ## Advanced
 

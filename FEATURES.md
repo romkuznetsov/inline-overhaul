@@ -97,11 +97,12 @@ Drawing only: the file on disk is untouched.
 - **Link view** — the page preview on hover and dragging, for a Value shown as your own
   text; and colours for links: two for a wikilink (the name and the brackets) and three for
   a hyperlink (the text of a markdown link, its brackets, and every address).
-- **Color your Tags** — a colour per tag for tags no Field owns.
 - **Tag Bars** — a Bar in the margin drawn from the Values of one tag Field, down a line
   and everything nested under it.
 - **Text cursor** — the caret's colour, width and blink speed.
-- **Jump highlight** — a fading circle where the cursor lands after a jump.
+- **Cursor jump highlight** — a fading circle where the cursor lands after a jump.
+- **Color custom tags** — a colour per tag for tags that are not a Value of any Field in
+  `Tags & PKM → Fields`.
 
 *Where:* **Visual**, eight groups.
 

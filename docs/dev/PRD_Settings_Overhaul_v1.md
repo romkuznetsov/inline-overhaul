@@ -2371,9 +2371,51 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 **Что отменено.** Утверждение «слово в своих скобках — одно целое: края парные». Оно было моим, он попросил обратного, и на его месте стоит новое с ссылкой на его слова (правило 170: у отменённого правила надо пройти по его сторожам).
 
 
-#### 10.13.260 Custom block: свой tagWheel у курсора (2026-09-23, ночь) — постановка, **не начато**
+#### 10.13.264 Висячий отступ вернулся: 28 против 54 (2026-09-24, ночь) — без правки
+
+**Его данные к тесту 2.** Строка второго уровня (`\t- `) с дефектом: `text-indent: -28px; padding-inline-start: 28px`; после выключения плагина — `-54px`/`54px`; включение обратно дефекта не вернуло; позже дефект вернулся сам, после прокрутки ниже и набора там. В этой длинной заметке он чаще.
+
+**Версия 10.13.259 этот случай не объясняет.** Там разница 22 − 10 = 12 была полем `0.75em` у знака списка в Live Preview. Здесь разница 26, а замер в Source mode дал бы 54 − 12 = 42, не 28.
+
+**Что выключение плагина значит на самом деле** (прочитано в `app.js` 1.13.7). Выключение и включение снимают и ставят `styles.css` плагина; загрузка стилей зовёт `workspace.trigger("css-change")`, а каждый редактор отвечает на него `onCssChange` → `dispatch({effects: clearCache.of()})` и `editor.refresh()`. `clearCache` стирает весь `indentCache` — и строка перемеряется. То есть «выключил — прошло, включил — не вернулось» — это сброс кэша Obsidian, и отличить им дефект плагина от дефекта Obsidian нельзя.
+
+**Где кэш может отдать чужую ширину** (там же, `buildDeco` и `getCached`). Кэш хранится по **номеру** строки и на правку документа не сдвигается. При промахе он берёт запись соседней строки с тем же началом, а если и её нет — **любую запись этой строки по номеру с началом той же длины** (`i.text.length === t.length`). Начало ищется регуляркой `^([>\s]*)(([*+-] |(\d+)([.)] ))(?:\[(.)\] )?)?`: у `\t- ` длина 3, как у `1. `. Перемеряется строка, только если наблюдатель DOM пометил её изменённой или текст начала не совпал; строка вне экрана не перемеряется вовсе. Это совпадает с его наблюдением «в этой заметке, где много текста, чаще»: больше строк — больше сдвигов номеров. Но какой именно ход дал 28, чтением не выводится.
+
+**Мой обмер не сошёлся с его экраном**, и выводов из него нет: его строка из `outerHTML` на странице с `app.css` 1.13.7, темой Minimal и нашим `styles.css` дала 22 точки там, где у него 54 (табуляция на моей странице ширины не прибавила) — страница не повторяет его редактор. Третья догадка запрещена (У-70).
+
+**Кода плагина это не касается ни строкой**: наших правил отступа строки и слушателей `css-change` в `src` нет (греп `text-indent`, `padding-inline-start`, `HyperMD-list`, `cm-indent`, `css-change`). Тест 2 переписан на шаг, который различает двух подозреваемых: сброс кэша **без** плагина — переключение светлой и тёмной темы, оно тоже зовёт `css-change`, — и работа в этой заметке с выключенным плагином.
+
+#### 10.13.263 `Cursor jump highlight` и `Color custom tags` (2026-09-24, ночь)
+
+**Его три слова** в «Новое пишите сюда»: «jump-highlight переименуй в Cursor jump highlight, user-tag-colors → Color custom tags (и в комментарии добавь уточнение, что это покраска тегов, которые не входят в Tags & PKM → fields)» и «перемести раздел user-tag-colors в самый низ Visual».
+
+**Сделано в прототипе и генерацией.** Заголовки групп; вводная строка `user-tag-colors` называет путь `Tags & PKM → Fields`; `order` группы 150 → 500, то есть после `Cursor jump highlight` (450) — группы вкладки сортируются по `order` (`groupsFor`). Ключи групп (`id`) не менялись. Прежнее имя искалось словами, а не списком (правило 151): кроме заголовка оно стояло в двух подсказках (`tagWheel Value names`, `Scroller Value names`) — поправлены. Документы для человека — `docs/SETTINGS.md` (раздел переехал в конец `Visual`, оба заголовка и две ссылки), `FEATURES.md`, `CHANGELOG.md` (`Unreleased`).
+
+#### 10.13.262 Кегль Block слушает только предпросмотр тегов (2026-09-24, ночь)
+
+**Его слово:** «сейчас в io-tip-wheel-preview и io-tip-line-preview размеры полей в left и right block привязаны к контролам tags-text-size-left и tags-text-size-right. Я хочу, чтобы ты убрал эту привязку — чтобы в этих live preview размеры fields в left\right blocks были как у обычного текста. Т.е. размер left\right block должен меняться только у io-tip-tag-preview».
+
+**Чтение «как у обычного текста».** Это не «как при 100 %»: при 100 % пузырь пишется 11.5 точки, а текст строки предпросмотра кегля не задаёт и наследует кегль панели. Сделано буквальным чтением — поля пишутся кеглем соседнего текста строки; второе чтение спрашивается тестом.
+
+**Как.** Все предпросмотры кладут вид тегов одной `applyTagVars`; у неё опция `plainSize`: слайдеры не читаются, `--io-text-scale-left/right` = `1`, основа `--io-text-size` = `1em`. Правила кегля пузыря, элемента, ссылки и ячейки панели считают от `var(--io-text-size, 11.5px)` — запасное значение прежнее, и предпросмотр тегов и чипы редактора Fields не изменились. Опцию ставят `wheelPreview` и `linePreview`; из путей перерисовки предпросмотра строки слайдеры кегля сняты — он их больше не читает. Правлены оба места (правило 41): `previews.ts` + `styles.css` и прототип.
+
+**Чем закреплено.** `preview_fields_tests.ts`: у предпросмотра тегов 1.2/0.7 при слайдерах 120/70 (стороны разведены, У-147), у панели и строки — `1`, `1`, `1em`, и четыре правила кегля считают от основы. Три подмены — снять опцию у панели, у строки, вернуть в `styles.css` число — краснеют каждая на своём утверждении.
+
+#### 10.13.261 Scroller приклеен к панели, а не к экрану (2026-09-24, ночь)
+
+**Его замечание:** «баг — при открытии tagwheel при включенном scroller — если проскроллить экран, то scroller следует за экраном, а должен быть приклеен к панели tagwheel».
+
+**Причина.** Коробка скроллера стоит `position: fixed` на `document.body` и ставится по координатам якоря на каждое обновление панели. Прокрутка заметки обновлением панели не была: якорь уезжал вместе со строкой, коробка оставалась на месте экрана.
+
+**Правка** — `src/ui/tagwheel_scroller_overlay.js`, файл не под З3. Оверлей запоминает последний вызов и слушает `scroll` у прокручиваемого узла заметки (`cm.scrollDOM`); прокрутка ставит коробку заново тем же `update` не чаще раза за кадр. Якорь, ушедший за край области заметки, коробку прячет: прижим к краю окна иначе оставлял бы её висеть у края экрана. `hide()` панели забывает последний вызов — спрятанное панелью прокрутка не возвращает. Слушатель на `document` запрещён правилом каталога (`catalog_rules_tests.ts`, «слушатель на document мимо registerDomEvent») — первая версия правки его и нарушила, сторож покраснел.
+
+**Чем закреплено.** `tagwheel_scroller_overlay_tests.js`: коробка стоит под якорем; без события не двигается (контроль шага); после прокрутки переехала вместе с якорем; якорь вне области — коробки нет, вернулся — вернулась; `hide` прокрутка не отменяет; после `destroy` слушателя нет. Подмены «не слушать», «не прятать вне области», «hide не забывает» краснеют каждая на своём утверждении; подмена «слушатель заводится повторно» зелена законно — снятие и постановка оставляют его одним (правило 144).
+
+#### 10.13.260 Custom block: свой tagWheel у курсора (2026-09-23, ночь; поправлено 2026-09-24) — постановка, **не начато**
 
 **Откуда.** Его задача в разделе «Новое пишите сюда» заметки тестов: `Free` у Field ломает логику Left/Right Block, поэтому вставка у курсора уезжает в отдельный вид Block — custom block — со своей командой. Он попросил «уточни детали и сформулируй грамотную постановку»; развилки решены интервью `В-203`…`В-206`. Описание по Р13 — до кода.
+
+**Правка 2026-09-24 — его `💬` к тесту 1.** Первая редакция говорила: «пар `next`/`previous` у Field из custom block нет». Его слово: «это неверно. Пары должны создаваться, `next`/`previous` также должны работать, но с условием — что работают они только, когда курсор находится на этом value». Отсюда же уточнение `В-204`: панель по-прежнему открывается пустой, **кроме** случая, когда каретка стоит на значении Field этого блока. Плюс четыре новых пункта: переключение custom block по `Tab` новым контролом, новый раздел настроек `tagWheel behavior` на `Tags & PKM`, поддержка custom block тремя переезжающими туда контролами и панель, которая разрывает текст на месте каретки. Ниже всё это вписано на свои места; развилки, которые из его слов не следуют, — `В-207`…`В-209`.
 
 **Почему Free ломает Block (разбор кода, 2026-09-23).** `applyFullTagNormalization` (`tagwheel.js`) на **каждом** `Enter` снимает со строки и ставит заново к курсору, запомненному при открытии, все Free-значения строки, а не только те, что крутили. Free к тому же работает только у тегов Left Block: при `panel === 'right'` режим сбрасывается в `off` (`collectSelectedTagEntries`, `relocateTagLikeByOrder`). Открывать панель у курсора движок не умеет: полоса встаёт в зону своего Block (`renderControlLine`), сторона везде двоичная (`getMode`, `buildPanelGroupsFromTechOrder`, `resolveStartMode`), Tab переключает `left` ↔ `right`.
 
@@ -2388,18 +2430,37 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 7. **Имя блока** — непустое, без повторов среди блоков; пустое переименование не пишется, повтор отказывает той же ошибкой, что у имени Field (`ERR_NAME_TAKEN`).
 8. **Удаление — вместе с Field** (`В-205`). Если в блоке есть Field, открывается окно подтверждения, в котором названо их число и имена: «Delete block X and its N Fields?». У пустого блока окна нет. Field снимаются тем же путём, что `deleteField` (Order, оба списка по типу, дочерний вместе с родителем). Хоткей, назначенный на команду блока, остаётся в `hotkeys.json` мёртвым — так Obsidian ведёт себя с любой снятой командой.
 
-**Команда.** У каждого блока одна команда: имя `tagWheel <имя блока>`, идентификатор `open-tagwheel-custom-<id>`, где `id` выдаётся при создании и больше не меняется. Переименование меняет имя, а не идентификатор, поэтому хоткей переживает переименование. Заводится при создании блока, снимается при удалении (`Plugin.removeCommand`, есть с 1.7.2; `minAppVersion` у нас 1.13.0), при переименовании перезаводится с тем же идентификатором. Хоткея по умолчанию нет (З7). Справочник команд (`buildOwnCommandList`) показывает и их — комментарий «tagWheel всегда ровно две» снимается. Пары команд `next`/`previous` у Field из custom block **не заводятся**: при «каждый выбор — новая копия» (`В-204`) «следующее значение в строке» не определено, и вход в такой Field один — панель.
+**Команда.** У каждого блока одна команда: имя `tagWheel <имя блока>`, идентификатор `open-tagwheel-custom-<id>`, где `id` выдаётся при создании и больше не меняется. Переименование меняет имя, а не идентификатор, поэтому хоткей переживает переименование. Заводится при создании блока, снимается при удалении (`Plugin.removeCommand`, есть с 1.7.2; `minAppVersion` у нас 1.13.0), при переименовании перезаводится с тем же идентификатором. Хоткея по умолчанию нет (З7). Справочник команд (`buildOwnCommandList`) показывает и их — комментарий «tagWheel всегда ровно две» снимается.
+
+**Пары `next`/`previous` у Field из custom block заводятся** (правка 2026-09-24), тем же `buildPkmCommandDefs` и с тем же идентификатором от ключа Field, что у Left/Right: перенос Field между блоками хоткей не теряет. Работают они **по месту каретки**, а не по строке:
+
+- **Каретка на значении этого Field** — `next`/`previous` меняют **это** значение на соседнее в списке Field, остальные копии в строке не трогают. «На значении» — его словами «каретка стоит в тексте value, сразу после него, либо до него»: `|aaa`, `aa|a`, `aaa|`. Значение узнаётся по написанию одного из Values этого Field целиком, с границей слова с обеих сторон, — то есть тем же вопросом, которым его узнаёт разбор строки, а не своим (правило 72).
+- **Каретка не на значении** — «это воспринимается как отсутствие значения»: `next` вставляет у каретки первое значение Field, `previous` — последнее, новой копией и по правилам пробелов из пункта 4 ниже. Ни одна из уже стоящих копий не меняется.
+- **Цена, названная вслух:** набранное руками слово, совпавшее по написанию с Value, тоже считается значением — и команда, и панель на нём поменяют именно его. Это следует из «распознавать введенное значение как value»; у Left/Right то же самое, только их зона — края строки, а у custom block зона — вся строка.
 
 **Что происходит в строке:**
 
 1. Команда блока открывает панель **у курсора**: полоса встаёт в текст на месте каретки, а не в зону Left/Right. Если есть выделение — на его конце, выделенный текст не трогается.
-2. В панели только Field этого блока. Вид, прокрутка, клавиши, `Alt` и дочерние поля — те же, что у Left/Right, и управляются теми же контролами (`visual.tagWheel`).
-3. **Панель открывается пустой.** Значения, уже стоящие в строке, она не читает: каждый выбор добавляет новую копию у курсора, старая остаётся (`В-204`).
-4. `Enter`: выбранные значения всех Field блока идут в порядке Field блока через пробел и встают у курсора. Пробел ставится до вставки, если перед ней не пробел и не начало строки, и после, если за ней не пробел и не конец строки. **Больше в строке не меняется ничего**: ни Prefix, ни буллит, ни порядок Left/Right. Каретка встаёт за вставкой. Значение пишется тем же текстом, что Field пишет в своём Block: дата — в своём формате, ссылка — в своей форме, элемент — своим знаком.
-5. `Esc` — ничего не записано.
-6. **`Tab` ничего не делает**, стрелка на краю ряда Field из блока не уводит — ведёт себя как при единственном Block. Его слово: «нажатие tab должно переместить left\right panel, но никак не взаимодействовать с tagwheel custom panel».
-7. Команда своего блока при открытой панели применяет выбор — как у Left/Right сейчас. Команда чужого блока или `tagWheel Left`/`Right` при открытой панели custom block отказывает, как прочие команды при открытой панели. Панель Left/Right команды custom block тоже не открывают: блоки друг с другом не взаимодействуют.
-8. **Left/Right не видят значений custom block.** Для их панели это текст строки: он не переставляется, не снимается и не считается значением их Field. **Проверить до кода:** запрещено ли сейчас одинаковое написание значения у двух Field. Если нет, значение custom Field, совпадающее по написанию со значением Left Field, панель Left сочтёт своим — это надо назвать ему ценой или закрыть отказом при вводе значения.
+2. **Текст строки панель не прячет, а разрывается на месте каретки** (его пункт от 2026-09-24): `каретка курсора | продолжение текста` → `каретка курсора ==**[Field1]** `Field2`== продолжение текста`. Левее и правее полосы остаётся всё, что было; прячется только то, что прячет `Values in the other Block` (пункт 9).
+3. В панели только Field этого блока. Вид, прокрутка, клавиши, `Alt` и дочерние поля — те же, что у Left/Right, и управляются теми же контролами (`visual.tagWheel`).
+4. **Панель открывается пустой — если каретка не на значении.** Его пример: выбрал `ааа`, печатает дальше, снова зовёт панель — она пустая, и второй `ааа` встаёт новой копией; потом `ббб` прокруткой — третья вставка. «Ни одно из ранее введенных value не должно удалиться. Каждый вызов tagwheel custom открывается пустым».
+5. **Каретка на значении Field этого блока** — панель открывается на этом Field и показывает стоящее значение выбранным: «если я выбрал value и затем повторно активирую tagwheel custom, то тогда панель должна показывать выбранное значение». Условие «на значении» — то же, что у `next`/`previous` выше. Что `Enter` делает со стоящим значением и с остальными Field блока — `В-207`.
+6. `Enter`: выбранные значения всех Field блока идут в порядке Field блока через пробел и встают у курсора. Пробел ставится до вставки, если перед ней не пробел и не начало строки, и после, если за ней не пробел и не конец строки. **Больше в строке не меняется ничего**: ни Prefix, ни буллит, ни порядок Left/Right. Каретка встаёт за вставкой. Значение пишется тем же текстом, что Field пишет в своём Block: дата — в своём формате, ссылка — в своей форме, элемент — своим знаком.
+7. `Esc` — ничего не записано.
+8. **`Tab` решает новый контрол `tagWheel - Switch custom blocks on Tab`** (правка 2026-09-24). Выключен — `Tab` ничего не делает, как в первой редакции: его прежнее слово «нажатие tab должно переместить left\right panel, но никак не взаимодействовать с tagwheel custom panel» остаётся в силе для панели Left/Right — её `Tab` в custom block не уводит ни при каком положении контрола. Включён — `Tab` в панели custom block меняет её на **следующий** custom block в порядке разделов `io-fields-list`: «я должен видеть fields custom block (2). Когда я нахожусь в последнем custom block (n), то при tab я должен получить custom block (1)». Панель остаётся на том же месте каретки. Что становится с выбранным в блоке 1 — `В-208`. Стрелка на краю ряда Field из блока не уводит ни при каком положении (пункт 11).
+9. **`Values in the other Block` (`wheel-opposite-block`) действует и на панель custom block** (правка 2026-09-24): `Hide` прячет на время выбора значения Left и Right Block, `Keep` оставляет. **Значения custom block, уже стоящие в строке, не прячутся никогда**: его слово — «не скрывать ранее введенные values из custom block, который должен восприниматься как часть text block».
+10. **`Active Field on opening` (`wheel-active-field`) действует и на панель custom block** (правка 2026-09-24): `First Field of the Block` — первый Field блока, `Middle Field of the Block` — средний по тому же счёту, что у Left/Right. `A Field you choose` своих строк для custom block не заводит — его слово: «возможно не стоит усложнять логику… если пользователь выбирает `A Field you choose`, то custom blocks panel будут открываться как при First field of the block». Пункт 5 сильнее этого контрола: каретка на значении открывает панель на его Field.
+11. **`tagWheel navigation behavior` (`wheel-edge`) к custom block не относится**: там всегда `Stay in the same Block`. Подсказка и комментарий контрола говорят это вслух (правка 2026-09-24).
+12. Команда своего блока при открытой панели применяет выбор — как у Left/Right сейчас. Команда чужого блока или `tagWheel Left`/`Right` при открытой панели custom block отказывает, как прочие команды при открытой панели. Панель Left/Right команды custom block тоже не открывают: блоки друг с другом не взаимодействуют; единственный мост — `Tab` при включённом контроле из пункта 8, и только между custom block.
+13. **Left/Right не видят значений custom block.** Для их панели это текст строки: он не переставляется, не снимается и не считается значением их Field. **Проверить до кода:** запрещено ли сейчас одинаковое написание значения у двух Field. Если нет, значение custom Field, совпадающее по написанию со значением Left Field, панель Left сочтёт своим — это надо назвать ему ценой или закрыть отказом при вводе значения. С правкой 2026-09-24 вопрос стал острее: по написанию теперь узнаёт и сам custom block (пункт 5), и совпадение внутри одного блока делает «на каком Field каретка» неоднозначным — `В-209`. **Замерено 2026-09-24: запрета нет** — среди ошибок редактора Fields (`texts_blocks.ts`) нет ни одной про повтор Value.
+
+**Настройки: новый раздел `tagWheel behavior` на `Tags & PKM`** (его пункт 2026-09-24: «нужно создать новый хедер в Tags & PKM `tagWheel behavior` (должен быть над хедером `placement-modes`). В него нужно перенести контролы `wheel-active-field`, `wheel-opposite-block`, `wheel-edge` и этот новый контрол»).
+
+- Группа встаёт между `Writing rules` и `Placement modes` (`order` между 300 и 400). Из `Visual` → `tagWheel` → субхедер `Panel` уезжают три строки; вместе с `wheel-active-field` уезжают его подчинённые `wheel-active-left` и `wheel-active-right` — без родителя они не показываются вовсе, и оставить их в `Visual` значило бы развести одно решение по двум вкладкам.
+- **Ключи конфига не меняются** (З1): `visual.tagWheel.activeField.*`, `visual.tagWheel.oppositeBlock`, `visual.tagWheel.edgeMode` остаются на своих путях, переезжает только строка панели. Новый ключ — `visual.tagWheel.customTab` (`boolean`, умолчание `false` — прежнее поведение первой редакции).
+- Новая строка: `tagWheel - Switch custom blocks on Tab`, тумблер. Строка показывается, только когда заведён хотя бы один custom block: без блоков переключать нечего (З8).
+- Переезд строк — правило 183: у переехавших строк тексты проверяются теми же запретами Г10 на новом месте; справочник `docs/SETTINGS.md` и подсказка группы `tagWheel` в `Visual`, где сейчас сказано про эти строки, правятся тем же коммитом (правило 151 — искать словами, а не списком имён).
+- **Это можно сделать и до кода custom block** — кроме новой строки, которая без блоков не показывается. Делаю тем же заходом, что остальное, если он не скажет иначе.
 
 **Форма конфига.** `pkm.fields.order.custom: [{ id, name, keys: [...] }]`. Ключ обязан пройти все четыре фильтра Order, которые сейчас молча выбрасывают незнакомое (У-237): `normalizePkmOrder` (он же дописывает в конец `right` каждый ключ, не найденный в `left`/`right`, — ключи custom обязаны считаться размещёнными), `parseOrderConfig`, `applyOrderToRules`, `serializePkmOrderForMacro`, плюс `starterOrder` и `makeDefaultPkmOrder`. У нынешнего `freeRoam: "full"` миграции нет — его слово: «у меня таких нет, а у нового пользователя такого не будет» (`В-203`); перечисление в нормализации сужается до `off|minimal`, и незнакомое значение уходит в умолчание `off`, как любое незнакомое сейчас.
 
@@ -2410,11 +2471,11 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 - Движок, файлы под З3 — работа назначена им, покрывается `В-162`, номер исключения в `Z3_EXCEPTIONS.md`: `pkm_order_config.js`, `pkm_rules_runtime_helpers.js`, `tagwheel_core.js` (сторона `custom:<id>` в `getMode`, `buildPanelGroupsFromTechOrder`, `resolveStartMode`), `tagwheel.js` (полоса у каретки, `Tab`, `Enter` — отдельной короткой записью различием, `lineDiffChange`, а не через `applyFullTagNormalization`).
 - **Путь `applyFullTagNormalization` для Left/Right становится мёртвым** — снимается тем же заходом вместе с `cyclePriorityTokenInFullMode` в `status_tags.js`, если у того не останется звавших (правило 26: имя ищется в `dist/main.js` до и после).
 
-**Чем закрепить.** Круг Order: блок с Field проходит `migrateConfig` и все четыре фильтра без потерь, и ключ custom не уезжает в `right`; подмена «фильтр выбрасывает `custom`» обязана покраснеть. Команда: идентификатор равен до и после переименования, после удаления команды нет. Браузерный шаг: панель у каретки в середине строки; `Enter` меняет строку ровно вставкой; второе открытие с тем же выбором даёт две копии; `Tab` в custom — строка и сессия не меняются; `Enter` панели Left на той же строке не двигает вставленное. Окно удаления называет число Field и без подтверждения ничего не снимает.
+**Чем закрепить.** Круг Order: блок с Field проходит `migrateConfig` и все четыре фильтра без потерь, и ключ custom не уезжает в `right`; подмена «фильтр выбрасывает `custom`» обязана покраснеть. Команда: идентификатор равен до и после переименования, после удаления команды нет. Браузерный шаг: панель у каретки в середине строки, текст слева и справа от неё на месте; `Enter` меняет строку ровно вставкой; второе открытие с тем же выбором даёт две копии; открытие с кареткой в `|aaa`, `aa|a`, `aaa|` показывает `aaa` выбранным, а в `aaa |` — пустую панель (граница условия, правило 38); `next` на `aa|a` меняет одну копию из двух; `Tab` при выключенном контроле — строка и сессия не меняются, при включённом — панель следующего блока, с последнего на первый; `Enter` панели Left на той же строке не двигает вставленное; `Hide` прячет Left/Right и не прячет стоящие значения custom block. Окно удаления называет число Field и без подтверждения ничего не снимает. Переезд строк в `tagWheel behavior`: ключи конфига те же (круг записи в панели и чтение движком), строки на новой вкладке и нет на старой.
 
-**Что нарочно не делается.** Перенос старых Free-полей (`В-203`); чтение уже стоящих значений панелью custom (`В-204`); один Field в нескольких блоках; хоткеи по умолчанию.
+**Что нарочно не делается.** Перенос старых Free-полей (`В-203`); чтение панелью custom значений, на которых каретка **не** стоит (`В-204`, уточнён 2026-09-24); один Field в нескольких блоках; свои строки `A Field you choose` для custom block (его слово: «не стоит усложнять»); хоткеи по умолчанию.
 
-**Приёмка — тестами в заметке, по одному на раздел:** настройки (кнопка, имя, перенос Field, удаление с окном), команда (палитра, хоткей переживает переименование), строка (вставка у курсора, копия, `Tab`, Left/Right не трогают вставленное).
+**Приёмка — тестами в заметке, по одному на раздел:** настройки (кнопка, имя, перенос Field, удаление с окном, раздел `tagWheel behavior`), команды (палитра, хоткей переживает переименование, `next`/`previous` на значении и вне его), строка (вставка у курсора с разрывом текста, копия, панель на стоящем значении, `Tab` в обоих положениях контрола, три переехавших контрола на панели custom, Left/Right не трогают вставленное).
 
 #### 10.13.259 Висячий отступ: его `outerHTML` назвал режим (2026-09-23, вечер) — без правки
 
@@ -11006,12 +11067,12 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.caret.shapeEnabled` | Shape the text cursor (`caret-shape`) | Text cursor |
 | `visual.caret.width` | Cursor width (`caret-width`) | Text cursor |
 | `visual.caret.blinkSpeed` | Blink speed (`caret-blink`) | Text cursor |
-| `visual.jumpFlash.enabled` | Highlight where you land (`jump-flash`) | Jump highlight |
-| `visual.jumpFlash.color` | Highlight color (`jump-flash-color`) | Jump highlight |
-| `visual.jumpFlash.radius` | Highlight size (`jump-flash-radius`) | Jump highlight |
-| `visual.jumpFlash.fadeMs` | How long it lasts (`jump-flash-fade`) | Jump highlight |
-| `visual.jumpFlash.quietMs` | Latency between jumps (`jump-flash-delay`) | Jump highlight |
-| `visual.jumpFlash.inLine` | Use inside current line (`jump-flash-inline`) | Jump highlight |
+| `visual.jumpFlash.enabled` | Highlight where you land (`jump-flash`) | Cursor jump highlight |
+| `visual.jumpFlash.color` | Highlight color (`jump-flash-color`) | Cursor jump highlight |
+| `visual.jumpFlash.radius` | Highlight size (`jump-flash-radius`) | Cursor jump highlight |
+| `visual.jumpFlash.fadeMs` | How long it lasts (`jump-flash-fade`) | Cursor jump highlight |
+| `visual.jumpFlash.quietMs` | Latency between jumps (`jump-flash-delay`) | Cursor jump highlight |
+| `visual.jumpFlash.inLine` | Use inside current line (`jump-flash-inline`) | Cursor jump highlight |
 | `transform.inline2note.floatingButton` | Floating button (`i2n-floating`) | Inline to note |
 | `transform.inline2note.floatingButtonGap` | Distance from the text (`i2n-floating-gap`) | Inline to note |
 | `transform.inline2note.placement.targetHeader` | Type name of header (`content-target-header`) | Note content |
@@ -18313,11 +18374,11 @@ python tests/prototype/update_prd.py
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `visual-intro` | Before you start | — | — | `general.help.showCallouts` |
 | 100 | `tag-appearance` | Inline appearance | How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file | да | — |
-| 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
 | 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
 | 300 | `tagwheel` | tagWheel | tagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
 | 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
-| 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
+| 450 | `jump-highlight` | Cursor jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
+| 500 | `user-tag-colors` | Color custom tags | Colors for tags that are not a Value of any Field in <code>Tags & PKM → Fields</code>. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
 
 **Advanced** (`advanced`)
 
@@ -19138,14 +19199,6 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Address color», «URL color», «Link href color»
 - **`link-preview`** — свой блок, рендерер `renderLinkPreview`
 
-#### Color your Tags — `user-tag-colors` (вкладка `visual`)
-
-_Intro:_ Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like
-
-_Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else — a tag you typed once, a tag another plugin put there — has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes
-
-- **`user-tag-list`** — свой блок, рендерер `renderUserTagColors`
-
 #### Tag Bars — `tag-bars` (вкладка `visual`)
 
 _Intro:_ A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it
@@ -19252,7 +19305,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «Lead Field right»
 - **tagWheel Value names** — `panel-value-names`, `dropdown`, path `visual.tagWheel.valueNames`, default `default`
   - desc: What the picker prints for a Field that already carries a Value
-  - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
+  - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
   - варианты: `default` Default name · `custom` Only custom name · `both` Custom+Default name
   - старые названия для поиска: «Value names», «Custom text in the picker», «Printed name»
 - **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
@@ -19298,7 +19351,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «Scroller direction», «Opens»
 - **Scroller Value names** — `scroller-labels`, `dropdown`, path `visual.tagWheel.scroller.labels`, default `value`
   - desc: What the box shows for each neighboring Value
-  - tip: <code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank
+  - tip: <code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank
   - варианты: `value` Default name · `custom` Custom name (if set) · `both` Custom+Default name
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Scroller names», «Custom text in the scroller», «Printed name», «As written», «Custom text when set»
@@ -19352,7 +19405,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
   - старые названия для поиска: «Blink rate», «Cursor blinking»
 - **`caret-preview`** — свой блок, рендерер `renderCaretPreview`
 
-#### Jump highlight — `jump-highlight` (вкладка `visual`)
+#### Cursor jump highlight — `jump-highlight` (вкладка `visual`)
 
 _Intro:_ A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own
 
@@ -19391,6 +19444,14 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
   - видна если: `visual.jumpFlash.enabled`
   - старые названия для поиска: «Flash on in-line jumps»
 - **`jump-flash-preview`** — свой блок, рендерер `renderJumpFlashPreview`
+
+#### Color custom tags — `user-tag-colors` (вкладка `visual`)
+
+_Intro:_ Colors for tags that are not a Value of any Field in <code>Tags & PKM → Fields</code>. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like
+
+_Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else — a tag you typed once, a tag another plugin put there — has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes
+
+- **`user-tag-list`** — свой блок, рендерер `renderUserTagColors`
 
 ### Все пути состояния
 

@@ -1012,4 +1012,54 @@ function realConfig(): Any {
   ok("значение без оформления: одно объявление, и порядок шагов закреплён");
 }
 
+/* ======================================================================
+ * Кегль Block слушает только предпросмотр тегов (его слово 2026-09-24).
+ *
+ * «в io-tip-wheel-preview и io-tip-line-preview размеры полей в left и right
+ * block привязаны к контролам tags-text-size-left и tags-text-size-right. Я
+ * хочу, чтобы ты убрал эту привязку… размер left\right block должен меняться
+ * только у io-tip-tag-preview». Стороны разведены (120 и 70), чтобы
+ * подстановка одного слайдера вместо другого тоже была видна (У-147).
+ * ====================================================================== */
+{
+  const sliders = { "visual.tags.textSizePctLeft": 120, "visual.tags.textSizePctRight": 70 };
+  /** Узел, на который предпросмотр положил переменные вида тегов. */
+  const varsOf = (host: StubNode): StubNode => {
+    const out: StubNode[] = [];
+    const walk = (n: StubNode): void => {
+      if (String(n.style.getPropertyValue("--io-opacity-left") || "")) out.push(n);
+      n.children.forEach(walk);
+    };
+    walk(host);
+    /* Контроль шага (У-152): предпросмотр нарисовался и положил переменные. */
+    assert.ok(out.length > 0, "предпросмотр не положил переменных вида тегов — сравнивать нечего");
+    return out[0] as StubNode;
+  };
+  const scaleOf = (draw: (h: El, c: SettingsCtx) => () => void): string[] => {
+    const host = makeNode("div");
+    const close = draw(host as unknown as El, makeCtx(realConfig(), sliders));
+    const n = varsOf(host);
+    const got = ["--io-text-scale-left", "--io-text-scale-right", "--io-text-size"]
+      .map(k => String(n.style.getPropertyValue(k) || ""));
+    close();
+    return got;
+  };
+  assert.deepEqual(scaleOf(tagPreview), ["1.2", "0.7", ""],
+    "io-tip-tag-preview слушает оба слайдера, и основа кегля — прежние 11.5 точки");
+  assert.deepEqual(scaleOf(wheelPreview), ["1", "1", "1em"],
+    "io-tip-wheel-preview: поля кеглем соседнего текста, слайдеры не действуют");
+  assert.deepEqual(scaleOf(linePreview), ["1", "1", "1em"],
+    "io-tip-line-preview: поля кеглем соседнего текста, слайдеры не действуют");
+  /* Основа доезжает до правил: без неё `1em` не значил бы ничего. */
+  const css = readFileSync(path.join(root, "src", "styles.css"), "utf8");
+  for (const cls of [".io-bubble", ".io-elem", ".io-link", ".io-wheelcell"]) {
+    const at = css.indexOf("\n" + cls + " {");
+    assert.ok(at >= 0, "правило " + cls + " на месте");
+    const body = css.slice(at, css.indexOf("}", at));
+    assert.ok(body.includes("calc(var(--io-text-size, 11.5px) * var(--io-text-scale))"),
+      cls + ": кегль считается от основы `--io-text-size`, запасное значение — прежние 11.5 точки");
+  }
+  ok("его слово: кегль Block слушает только предпросмотр тегов");
+}
+
 console.log("\n" + passed + " проверок пройдено");

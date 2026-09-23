@@ -19,6 +19,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🎨 **Two Visual groups have clearer names.** `Jump highlight` is now `Cursor jump highlight`, and `Color your Tags` is now `Color custom tags`: it colours the tags that are not a Value of any Field in `Tags & PKM → Fields`, and says so.
+2. 🎨 **`Color custom tags` moved to the bottom of `Visual`.**
+3. 🎨 **The tagWheel and line previews write Fields at the size of the text around them.** `Left Block text size` and `Right Block text size` now change only the tag preview.
+4. 🐛 **The scroller stays with the picker when you scroll the note.** It used to stay put on the screen while the line moved away; now it moves with the line and hides once the line leaves the note area.
+
 ## 0.8.0
 
 _2026-09-23 · [all changes since 0.7.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.7.0...0.8.0)_

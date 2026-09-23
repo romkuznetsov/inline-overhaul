@@ -215,4 +215,78 @@ function paint(colors) {
   ok("неверный цвет не доезжает до стиля");
 }
 
+/* ---- коробка приклеена к панели, а не к экрану ------------------------- */
+
+/*
+ * Его замечание 2026-09-24: «при открытии tagwheel при включенном scroller —
+ * если проскроллить экран, то scroller следует за экраном, а должен быть
+ * приклеен к панели». Прокрутка здесь — то, что видит оверлей: якорь уехал
+ * (редактор отвечает другими координатами) и пришло событие `scroll`.
+ * Подделан сам документ как источник события; решает оверлей.
+ */
+{
+  const listeners = [];
+  const scrolling = () => listeners.filter((l) => l.type === "scroll");
+  const fireScroll = () => scrolling().forEach((l) => l.fn());
+
+  body.children.length = 0;
+  const overlay = overlayMod.createTagWheelScrollerOverlay({ direction: "down", size: 3 });
+
+  let lineTop = 300;
+  const editor = {
+    posToOffset: () => 0,
+    cm: {
+      coordsAtPos: () => ({ left: 10, top: lineTop, right: 60, bottom: lineTop + 16 }),
+      dom: null,
+      /* Прокручиваемый узел заметки: прокрутку оверлей слушает у него. */
+      scrollDOM: {
+        getBoundingClientRect: () => ({ top: 50, bottom: 750 }),
+        addEventListener: (type, fn) => { listeners.push({ type, fn }); },
+        removeEventListener: (type, fn) => {
+          const at = listeners.findIndex((l) => l.type === type && l.fn === fn);
+          if (at >= 0) listeners.splice(at, 1);
+        },
+      },
+    },
+  };
+  const payload = {
+    editor, lineNumber: 0, controlLine: "==`#todo` **[work]**==",
+    downItems: [{ label: "#todo" }, { label: "#doing" }], upItems: [],
+  };
+  const shownBox = () => body.children.find((n) => n.classList.contains("io-twscroller--shown"));
+
+  overlay.update(payload);
+  assertEq(scrolling().length, 1, "оверлей слушает прокрутку узла заметки");
+  overlay.update(payload);
+  assertEq(scrolling().length, 1, "второе обновление второго слушателя не заводит");
+  const before = shownBox();
+  if (!before) throw new Error("оверлей не показал коробку до прокрутки");
+  const topBefore = before.style.top;
+  assertEq(topBefore, "320px", "коробка стоит под якорем: низ строки плюс зазор");
+
+  /* Контроль шага: без события коробка стоит где стояла — двигает её прокрутка, а не подделка. */
+  lineTop = 120;
+  assertEq(shownBox().style.top, "320px", "без события прокрутки коробка не двигалась");
+  fireScroll();
+  assertEq(shownBox() && shownBox().style.top, "140px",
+    "после прокрутки коробка переехала вместе с якорем, а не осталась на месте экрана");
+
+  /* Якорь ушёл за верх области заметки — коробка прячется, а не липнет к краю окна. */
+  lineTop = -200;
+  fireScroll();
+  assertEq(shownBox(), undefined, "якорь вне области заметки: коробки на экране нет");
+  lineTop = 400;
+  fireScroll();
+  assertEq(shownBox() && shownBox().style.top, "420px", "вернулся якорь — вернулась и коробка");
+
+  /* Спрятанное панелью прокрутка не возвращает. */
+  overlay.hide();
+  fireScroll();
+  assertEq(shownBox(), undefined, "hide панели прокрутка не отменяет");
+
+  overlay.destroy();
+  assertEq(scrolling().length, 0, "снятая коробка больше не слушает прокрутку");
+  ok("его замечание: scroller едет вместе с панелью при прокрутке заметки");
+}
+
 console.log("\n" + passed + " проверок пройдено");

@@ -148,14 +148,6 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "user-tag-colors", tab: "visual", order: 150, heading: "Color your Tags",
-  intro: "Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
-  tip: "Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes",
-  items: [
-    { kind:"custom", id:"user-tag-list", render: userTagColors }
-  ]
-},
-{
   id: "tag-bars", tab: "visual", order: 200, heading: "Tag Bars",
   intro: "A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
   tip: "Bars are drawn from the colors of one Field, and you pick which one below. Only a tag Field can do it: the color of a Bar is the color of a Value, and links and dates have none. A Bar belongs to the line that carries the Value and runs the full height of that line and everything nested under it; a deeper line with a Value of its own gets its own Bar in the next lane along, so the number of lanes follows how deep your lists go. Bars sit in the margin, so the text column never moves, and you can hide the tag itself once its Bar says the same thing",
@@ -263,7 +255,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"default",label:"Default name"},
                 {value:"custom",label:"Only custom name"},
                 {value:"both",label:"Custom+Default name"} ],
-      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
+      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
     { kind:"dropdown", id:"wheel-opposite-block", path:"visual.tagWheel.oppositeBlock", default:"hide",
       name:"Values in the other Block", desc:"What happens to the Values you are not picking while the picker is open",
       searchTerms:["Opposite Block","Other Block","Hide values"],
@@ -313,7 +305,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
                 {value:"full",label:"Both ways"} ] },
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
       name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
-      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
+      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
       searchTerms:["Scroller names","Custom text in the scroller","Printed name","As written","Custom text when set"],
       visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"value",label:"Default name"},
@@ -367,7 +359,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "jump-highlight", tab: "visual", order: 450, heading: "Jump highlight",
+  id: "jump-highlight", tab: "visual", order: 450, heading: "Cursor jump highlight",
   intro: "A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own",
   tip: "Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only \u2014 typing and the arrow keys are not jumps \u2014 and the last row decides whether the short hops inside one line count as jumps too",
   commands: ["Jump up", "Jump down"],
@@ -407,6 +399,14 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       visible: on("visual.jumpFlash.enabled") },
     { kind:"custom", id:"jump-flash-preview", render: jumpFlashPreview,
       visible: on("visual.jumpFlash.enabled") }
+  ]
+},
+{
+  id: "user-tag-colors", tab: "visual", order: 500, heading: "Color custom tags",
+  intro: "Colors for tags that are not a Value of any Field in <code>Tags & PKM → Fields</code>. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+  tip: "Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes",
+  items: [
+    { kind:"custom", id:"user-tag-list", render: userTagColors }
   ]
 }
 ];

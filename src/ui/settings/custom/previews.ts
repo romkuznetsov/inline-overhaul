@@ -144,11 +144,26 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
  * каскад тремя классами против одного: цвет панели до экрана не доезжал
  * (У-67).
  */
-export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: boolean }): void {
+export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: boolean; plainSize?: boolean }): void {
   cssVar(node, "--io-opacity-left", String(num(ctx, "visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(num(ctx, "visual.tags.opacityRight") / 100));
-  cssVar(node, "--io-text-scale-left", String(num(ctx, "visual.tags.textSizePctLeft") / 100));
-  cssVar(node, "--io-text-scale-right", String(num(ctx, "visual.tags.textSizePctRight") / 100));
+  /*
+   * **Кегль Block слушают не все предпросмотры** (его слово 2026-09-24: «в
+   * io-tip-wheel-preview и io-tip-line-preview размеры полей в left и right
+   * block привязаны к контролам tags-text-size-left и tags-text-size-right…
+   * размеры fields в leftight blocks были как у обычного текста. Т.е.
+   * размер leftight block должен меняться только у io-tip-tag-preview»).
+   * `plainSize` снимает оба слайдера и даёт полям кегль соседнего текста
+   * строки: основа `--io-text-size` равна `1em`, а не 11.5 точки пузыря.
+   */
+  if (opts && opts.plainSize) {
+    cssVar(node, "--io-text-scale-left", "1");
+    cssVar(node, "--io-text-scale-right", "1");
+    cssVar(node, "--io-text-size", "1em");
+  } else {
+    cssVar(node, "--io-text-scale-left", String(num(ctx, "visual.tags.textSizePctLeft") / 100));
+    cssVar(node, "--io-text-scale-right", String(num(ctx, "visual.tags.textSizePctRight") / 100));
+  }
   cssVar(node, "--io-bubble-x", String(num(ctx, "visual.tags.bubbleWidthPct") / 100));
   cssVar(node, "--io-bubble-y", String(num(ctx, "visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x", String(num(ctx, "visual.tags.emptyBubblePct") / 100));
@@ -311,7 +326,7 @@ function structuralLine(
   fields: readonly PreviewField[],
   chipFor?: (side: El, f: PreviewField) => void,
   cls?: string,
-  opts?: { blockFill?: boolean },
+  opts?: { blockFill?: boolean; plainSize?: boolean },
 ): El {
   const line = el(parent, "div", "io-line" + (cls ? " " + cls : ""));
   applyTagVars(line, ctx, opts);
@@ -552,7 +567,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      * Заливки Block здесь нет нарочно: этот предпросмотр показывает панель, и
      * полоса у строки одна — её обособление. Его слово 2026-09-22.
      */
-    }, "io-line--wheel", { blockFill: false });
+    }, "io-line--wheel", { blockFill: false, plainSize: true });
 
     if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
@@ -796,8 +811,6 @@ const LINE_PATHS = [
   "pkm.lineFormat.separator2",
   "visual.tags.opacityLeft",
   "visual.tags.opacityRight",
-  "visual.tags.textSizePctLeft",
-  "visual.tags.textSizePctRight",
   "visual.tags.bubbleWidthPct",
   "visual.tags.bubbleHeightPct",
   "visual.tags.cornersPct",
@@ -831,7 +844,7 @@ export const linePreview: CustomRender = (host, ctx) => {
   const draw = (): void => {
     holder.empty();
     foot.empty();
-    applyTagVars(holder, ctx);
+    applyTagVars(holder, ctx, { plainSize: true });
     const { fields, example } = previewFields(ctx);
 
     const cell = (cls: string, fill?: (c: El) => void): El => {

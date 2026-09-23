@@ -785,7 +785,7 @@
   white-space: nowrap;
   padding: calc(2.5px * var(--io-bubble-y)) calc(9px * var(--io-bubble-x));
   border-radius: calc(11px * var(--io-corners) + 2px);
-  font-size: calc(11.5px * var(--io-text-scale));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
   /* Междустрочие идёт за высотой пузыря, и только вниз от сотни: без этого на
      низком пузыре остаётся его собственное междустрочие, и текст в границу не
      упирается (замечание заказчика 2026-09-09). Правило то же, что у заметки в
@@ -803,14 +803,14 @@
 }
 .io-elem {
   font-family: var(--font-monospace);
-  font-size: calc(11.5px * var(--io-text-scale));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
   color: var(--text-muted);
 }
 .io-link {
   /* Кегль ссылка слушает наравне с элементом (его замечание 2026-09-19,
      пункт 6): в заметке его ставит `buildBlockStyleCss` на любой токен зоны, а
      здесь правила не было вовсе — и `[[…]]` оставался исходного размера. */
-  font-size: calc(11.5px * var(--io-text-scale));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
   color: var(--text-accent);
 }
 /*
@@ -931,7 +931,7 @@
  */
 .io-wheelcell {
   white-space: nowrap;
-  font-size: calc(11.5px * var(--io-text-scale));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
   color: var(--io-wheel-cell, var(--text-muted));
 }
 .io-wheelcell--active {

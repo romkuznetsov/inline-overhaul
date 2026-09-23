@@ -599,7 +599,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* Only tags get bubbles. Links and elements stay plain text. */
 .io-bubble {
   display: inline-block; white-space: nowrap;
-  font-size: calc(11.5px * var(--io-text-scale));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
   /* Междустрочие идёт за высотой пузыря, и только вниз от сотни: без
      этого на низком пузыре остаётся его собственное междустрочие, и текст
      в границу не упирается (замечание заказчика 2026-09-09). */
@@ -614,8 +614,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   width: calc(30px * var(--io-empty-x));
   padding-left: 0; padding-right: 0; color: transparent;
 }
-.io-elem { font-family: var(--font-mono); font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-muted); }
-.io-link { font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-accent); }
+.io-elem { font-family: var(--font-mono); font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale)); color: var(--text-muted); }
+.io-link { font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale)); color: var(--text-accent); }
 /* Ссылка, показанная как написано, красится двумя цветами (`З-37`): цель
    отдельно, скобки отдельно. Пусто в цвете значит «взять у темы», и потому
    запасное значение переменной — тот же акцент темы, что был у всей ссылки. */
@@ -1367,7 +1367,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    which is what its settings actually change (10.13.22) */
 .io-wheelcell {
   white-space: nowrap;
-  font-size: calc(11.5px * var(--io-text-scale, 1));
+  font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale, 1));
   color: var(--io-wheel-cell, var(--text-muted));
 }
 .io-wheelcell--active {
@@ -2610,8 +2610,8 @@ const SCHEMA = [
   ]
 },
 {
-  id: "user-tag-colors", tab: "visual", order: 150, heading: "Color your Tags",
-  intro: "Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+  id: "user-tag-colors", tab: "visual", order: 500, heading: "Color custom tags",
+  intro: "Colors for tags that are not a Value of any Field in <code>Tags & PKM → Fields</code>. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
   tip: "Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes",
   items: [ { kind:"custom", id:"user-tag-list", render: renderUserTagColors } ]
 },
@@ -2744,7 +2744,7 @@ const SCHEMA = [
       options:[ {value:"default",label:"Default name"},
                 {value:"custom",label:"Only custom name"},
                 {value:"both",label:"Custom+Default name"} ],
-      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
+      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
     /* Значения противоположного Block: заказ заказчика 2026-09-12. «Сейчас при
        открытии tagwheel из строки визуально исчезают все элементы из
        противоположного block, даже если они уже были выбраны. Хочу добавить
@@ -2837,7 +2837,7 @@ const SCHEMA = [
        трогаются — `value` остаётся `value`, иначе поехал бы конфиг. */
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
       name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
-      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
+      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Custom name (if set)</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
       searchTerms:["Scroller names","Custom text in the scroller","Printed name","As written","Custom text when set"],
       visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"value",label:"Default name"},
@@ -2921,7 +2921,7 @@ const SCHEMA = [
  * гасить работающее — и это был бы второй ответ на один вопрос.
  */
 {
-  id: "jump-highlight", tab: "visual", order: 450, heading: "Jump highlight",
+  id: "jump-highlight", tab: "visual", order: 450, heading: "Cursor jump highlight",
   intro: "A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own",
   tip: "Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only \u2014 typing and the arrow keys are not jumps \u2014 and the last row decides whether the short hops inside one line count as jumps too",
   commands: ["Jump up", "Jump down"],
@@ -4425,8 +4425,17 @@ function previewShell(host, caption, tip) {
 function applyTagVars(node, opts) {
   cssVar(node, "--io-opacity-left",  String(val("visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(val("visual.tags.opacityRight") / 100));
-  cssVar(node, "--io-text-scale-left",  String(val("visual.tags.textSizePctLeft") / 100));
-  cssVar(node, "--io-text-scale-right", String(val("visual.tags.textSizePctRight") / 100));
+  /* Кегль Block слушают не все предпросмотры (его слово 2026-09-24): панель и
+     строка пишут поля кеглем соседнего текста, слайдеры — только у
+     io-tip-tag-preview. Основа `--io-text-size` тогда `1em`, а не 11.5 точки. */
+  if (opts && opts.plainSize) {
+    cssVar(node, "--io-text-scale-left", "1");
+    cssVar(node, "--io-text-scale-right", "1");
+    cssVar(node, "--io-text-size", "1em");
+  } else {
+    cssVar(node, "--io-text-scale-left",  String(val("visual.tags.textSizePctLeft") / 100));
+    cssVar(node, "--io-text-scale-right", String(val("visual.tags.textSizePctRight") / 100));
+  }
   cssVar(node, "--io-bubble-x",      String(val("visual.tags.bubbleWidthPct") / 100));
   cssVar(node, "--io-bubble-y",      String(val("visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x",       String(val("visual.tags.emptyBubblePct") / 100));
@@ -4644,7 +4653,7 @@ function renderLinePreview(host) {
      word cannot widen the narrow separator column. */
   const draw = () => {
     holder.textContent = "";
-    applyTagVars(holder);
+    applyTagVars(holder, { plainSize: true });
 
     const cell = (cls, fill) => {
       const c = el("div", "io-struct__cell " + cls, holder);
@@ -4954,7 +4963,7 @@ function renderWheelPreview(host) {
       if (d) col.appendChild(d);
     /* Заливки Block здесь нет нарочно: этот предпросмотр показывает панель, и
        полоса у строки одна — её обособление. Его слово 2026-09-22. */
-    }, { blockFill: false });
+    }, { blockFill: false, plainSize: true });
   };
   draw();
   previewRefreshers.push(draw);
