@@ -276,9 +276,10 @@ async function main(): Promise<void> {
     assert.deepEqual(ids, ["brand-intro", "general-intro", "language", "help", "modules"]);
   });
 
+  /* `Transform` перед `Visual` — его слово 2026-09-23 (тест 4 заметки). */
   await test("все семь вкладок на месте и в порядке 6.1", () => {
     assert.deepEqual(activeTabs().map(t => t.id),
-      ["general", "keyboard", "navigation", "pkm", "visual", "transform", "advanced"]);
+      ["general", "keyboard", "navigation", "pkm", "transform", "visual", "advanced"]);
   });
 
   await test("перенесены все группы с настройками", () => {
@@ -527,7 +528,7 @@ async function main(): Promise<void> {
 
   await test("тумблер модуля есть у четырёх вкладок и только у них", () => {
     const withModule = TABS.filter(t => t.module).map(t => t.id);
-    assert.deepEqual(withModule, ["navigation", "pkm", "visual", "transform"]);
+    assert.deepEqual(withModule, ["navigation", "pkm", "transform", "visual"]);
   });
 
   /* ---- отображение в определения -------------------------------------- */
@@ -564,7 +565,7 @@ async function main(): Promise<void> {
   await test("вкладки без групп не предлагаются", () => {
     const { pane } = makePane();
     assert.deepEqual(pane.tabsWithGroups().map(t => t.id),
-      ["general", "keyboard", "navigation", "pkm", "visual", "transform", "advanced"]);
+      ["general", "keyboard", "navigation", "pkm", "transform", "visual", "advanced"]);
   });
 
   await test("полоса вкладок — первая строка и не участвует в поиске", () => {

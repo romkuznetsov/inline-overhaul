@@ -63,6 +63,7 @@ function askAddModal(
   duplicateOf?: (draft: BinderDraft) => BinderClash | null,
   say?: (name: string, ...args: readonly (string | number)[]) => string,
   Scope?: unknown,
+  tips?: { showTips: boolean; showIds: boolean },
 ): void {
   let answered = false;
   let dropForm: () => void = () => {};
@@ -84,6 +85,7 @@ function askAddModal(
         duplicateOf,
         ...(say ? { say } : {}),
         ...(holdKeys ? { holdKeys } : {}),
+        ...(tips || {}),
       });
     }
 
@@ -172,7 +174,10 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
             const res = model.add(draft);
             if (!res.ok && res.error) notice(res.error);
           });
-        }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx), p.Scope),
+        }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx), p.Scope, {
+          showTips: Boolean(ctx.get("general.help.showTips")),
+          showIds: Boolean(ctx.get("advanced.showSettingIds")),
+        }),
       });
     } catch (e) {
       /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что

@@ -24,7 +24,8 @@ import {
   type FieldsViewState,
 } from "../../src/ui/settings/custom/fields_editor_view.ts";
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
-import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
+import { BLOCK_TEXTS, sayIn } from "../../src/ui/settings/texts_blocks.ts";
+import { askNewFieldModal } from "../../src/ui/settings/custom/fields_editor.ts";
 import { CONTRAST_FLOOR, contrastRatio } from "../../src/ui/settings/custom/contrast.ts";
 
 setupGlobals();
@@ -2983,6 +2984,36 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.equal(all(v.host, "io-fields__sec").filter(b => b.classList.contains("io-subshut")).length, 0,
     "повторное нажатие не развернуло раздел");
   ok("З-34: разделы правой колонки сворачиваются знаком и помнят своё положение");
+}
+
+/*
+ * Настоящее окно `Add a Field`, а не подставленный ответ: «?» у имени и типа —
+ * его ответ 2026-09-23 «да, тоже» (как в окне Binder). Подделан только класс
+ * окна Obsidian: он даёт `contentEl` и зовёт `onOpen` на `open()`.
+ */
+{
+  const opened: StubNode[] = [];
+  class FakeModal {
+    contentEl = makeNode("div") as unknown as El;
+    onOpen?(): void;
+    onClose?(): void;
+    open(): void { opened.push(this.contentEl as unknown as StubNode); if (this.onOpen) this.onOpen(); }
+    close(): void { if (this.onClose) this.onClose(); }
+  }
+  const walk = (n: StubNode, cls: string, out: StubNode[] = []): StubNode[] => {
+    if (n.classList.contains(cls)) out.push(n);
+    n.children.forEach(c => walk(c, cls, out));
+    return out;
+  };
+  const say = sayIn("field-editor", {});
+  askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: true, showIds: false });
+  assert.equal(walk(opened[0]!, "io-help").length, 2, "у имени и типа нового Field обязаны стоять «?»");
+  askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: false, showIds: false });
+  assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
+  const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
+  assert.ok(own.NEW_FIELD_NAME_TIP && own.NEW_FIELD_TYPE_TIP, "у подсказок окна нет текста в каталоге");
+  passed++;
+  console.log("  ok у полей окна `Add a Field` есть «?», и тумблер `Show tips` их гасит");
 }
 
 console.log("");

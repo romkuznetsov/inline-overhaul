@@ -8,8 +8,8 @@ import { GENERAL_GROUPS } from "./general.ts";
 import { KEYBOARD_GROUPS } from "./keyboard.ts";
 import { NAVIGATION_GROUPS } from "./navigation.ts";
 import { PKM_GROUPS } from "./pkm.ts";
-import { VISUAL_GROUPS } from "./visual.ts";
 import { TRANSFORM_GROUPS } from "./transform.ts";
+import { VISUAL_GROUPS } from "./visual.ts";
 import { ADVANCED_GROUPS } from "./advanced.ts";
 
 export const TABS: readonly TabDef[] = [
@@ -17,8 +17,8 @@ export const TABS: readonly TabDef[] = [
   { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
   { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
   { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
-  { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },
   { id: "transform", label: "Transform", module: "features.transform.enabled", desc: "Turn a line you have already written into a note of its own" },
+  { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },
   { id: "advanced", label: "Advanced", desc: "Housekeeping you rarely need" },
 ];
 
@@ -27,8 +27,8 @@ export const SCHEMA: readonly SettingsGroup[] = [
   ...KEYBOARD_GROUPS,
   ...NAVIGATION_GROUPS,
   ...PKM_GROUPS,
-  ...VISUAL_GROUPS,
   ...TRANSFORM_GROUPS,
+  ...VISUAL_GROUPS,
   ...ADVANCED_GROUPS,
 ];
 

@@ -23,6 +23,11 @@ const RULES = [
     instead: "правьте docs/prototype/settings_prototype.html, затем npm run gen:schema",
   },
   {
+    match: rel => rel === "src/ui/settings/custom/pick_data.ts",
+    why: "знаки выбиралки генерируются из данных Unicode",
+    instead: "правьте tools/build/gen_pick_data.js, затем node tools/build/gen_pick_data.js",
+  },
+  {
     match: rel => rel.startsWith("dist/"),
     why: "это результат сборки",
     instead: "правьте исходники, затем npm run build",

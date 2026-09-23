@@ -55,7 +55,7 @@ reference disagreeing.
 
 ### Modules
 
-Four toggles: `Navigation`, `Tags & PKM`, `Visual`, `Transform`. All on by default. A
+Four toggles: `Navigation`, `Tags & PKM`, `Transform`, `Visual`. All on by default. A
 module that is off adds no commands and touches no notes; its settings are hidden until you
 turn it back on, and nothing you configured is lost.
 
@@ -297,6 +297,88 @@ When two Values both want to change the start of the line, these rules decide wh
 | `Field order source` | `manual` | Use the order your Fields are already in, or arrange a separate one |
 | `Parent or child wins` | `subtag-over-tag` | When a tag and its child Value both carry a Prefix |
 
+## Transform
+
+Turning a line you have already written into a note of its own.
+
+> [!CAUTION]
+> `Transform inline to note` rewrites the line you are standing on and writes real files.
+> It is off out of the box. Read
+> [the guide](../INSTRUCTIONS.md#transform-a-line-becomes-a-note) before turning it on.
+
+### Inline to note
+
+| Control | Default | What it does |
+|---|---|---|
+| `Inline to note` | off | Allows this to create notes and add to notes you already have |
+| `Templates folder` | unset | The folder your note templates live in |
+| `Default template` | unset | The template used when no rule applies |
+| `New notes folder` | unset | Where to put the notes this creates |
+| `Floating button` | off | Puts a small button at the end of the line you are on |
+| `Distance from the text` | `12` | Room between the line and that button |
+| `Open note after creation` | off | Jumps straight to the note once it is written |
+
+Command: `Transform inline to note`.
+
+### New note naming
+
+| Control | Default | What it does |
+|---|---|---|
+| `Note name` | `auto` | Take the name from the line, or stop and ask you for it |
+| `Name placeholders` | `[]` | Two characters; whatever you put between them becomes the name |
+| `Words to use instead` | `6` | How many of the first words to use when there are no brackets |
+| `If the name already taken` | `new_note` | What to do when a note with that name exists |
+
+### Note content
+
+| Control | Default | What it does |
+|---|---|---|
+| `Where to put the text` | `end` | At the top of the note, or after whatever is already there |
+| `Type name of header` | unset | The heading your text is filed under |
+| `If header not found` | `end` | Where the heading is added when the note has none |
+| `Line above the text` | `datetime` | Something above your text so entries stay apart |
+| `Line above is header` | `3` | Make that line a heading you can fold, or leave it plain |
+| `Text of the line above` | `Captured` | Typed into the note exactly as written here |
+| `Date format` | `YYYY-MM-DD HH:mm` | Today's date, written the way you set out |
+
+Each Field's `YAML property` row decides which property of the new note it becomes, and
+each Value carries the rule for how it is written.
+
+See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping).
+
+### Source line
+
+| Control | Default | What it does |
+|---|---|---|
+| `Sub-lines (tree) behavior` | `stay` | Leave them where they are, or take them into the note too |
+| `What happens with current line` | `remove` | What is left of the line you pressed on |
+| `Words to keep` | `3` | How much of the line stays behind |
+| `Fields to keep` | — | Which Fields stay on the line you pressed on |
+| `Insert wikilink in current line` | on | Puts a link to the new note on the line you pressed on |
+| `Mark transformed line` | `#processed` | A word or tag added so you can see the line was handled |
+| `Where the mark goes` | `right` | Before your text, or after it |
+| `Dim transformed line` | off | Fades a line once it carries that mark |
+| `Opacity of transformed line` | `65` | Zero leaves the line as it is, eighty makes it barely readable |
+| `Color of transformed line` | unset | Unset keeps the colour your theme gives the text |
+
+See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
+
+### Auto-MOC in your Links
+
+| Control | Default | What it does |
+|---|---|---|
+| `Link the notes you mention` | off | Writes a link to the new note into every note this line points at |
+| `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
+| `Type name of header` | unset | The heading the link is filed under |
+| `If header not found` | `end` | Where the heading is added when that note has none |
+
+### Smart Rules
+
+A list of rules. A rule spots a kind of line — the Values it carries — and picks the
+template for it, so a `#meeting` line and a `#bug` line become different notes without you
+choosing at the moment of writing. With no rules, the default template is used for every
+line.
+
 ## Visual
 
 How a tagged line looks while you write it. Nothing here changes a character in your file.
@@ -446,88 +528,6 @@ thicker.
 | `How long it lasts` | `450` | The time the circle takes to shrink away |
 | `Latency between jumps` | `0` | Jumps closer together than this get no circle |
 | `Use inside current line` | off | Also marks the cursor when it hops between the parts of one line |
-
-## Transform
-
-Turning a line you have already written into a note of its own.
-
-> [!CAUTION]
-> `Transform inline to note` rewrites the line you are standing on and writes real files.
-> It is off out of the box. Read
-> [the guide](../INSTRUCTIONS.md#transform-a-line-becomes-a-note) before turning it on.
-
-### Inline to note
-
-| Control | Default | What it does |
-|---|---|---|
-| `Inline to note` | off | Allows this to create notes and add to notes you already have |
-| `Templates folder` | unset | The folder your note templates live in |
-| `Default template` | unset | The template used when no rule applies |
-| `New notes folder` | unset | Where to put the notes this creates |
-| `Floating button` | off | Puts a small button at the end of the line you are on |
-| `Distance from the text` | `12` | Room between the line and that button |
-| `Open note after creation` | off | Jumps straight to the note once it is written |
-
-Command: `Transform inline to note`.
-
-### New note naming
-
-| Control | Default | What it does |
-|---|---|---|
-| `Note name` | `auto` | Take the name from the line, or stop and ask you for it |
-| `Name placeholders` | `[]` | Two characters; whatever you put between them becomes the name |
-| `Words to use instead` | `6` | How many of the first words to use when there are no brackets |
-| `If the name already taken` | `new_note` | What to do when a note with that name exists |
-
-### Note content
-
-| Control | Default | What it does |
-|---|---|---|
-| `Where to put the text` | `end` | At the top of the note, or after whatever is already there |
-| `Type name of header` | unset | The heading your text is filed under |
-| `If header not found` | `end` | Where the heading is added when the note has none |
-| `Line above the text` | `datetime` | Something above your text so entries stay apart |
-| `Line above is header` | `3` | Make that line a heading you can fold, or leave it plain |
-| `Text of the line above` | `Captured` | Typed into the note exactly as written here |
-| `Date format` | `YYYY-MM-DD HH:mm` | Today's date, written the way you set out |
-
-Each Field's `YAML property` row decides which property of the new note it becomes, and
-each Value carries the rule for how it is written.
-
-See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping).
-
-### Source line
-
-| Control | Default | What it does |
-|---|---|---|
-| `Sub-lines (tree) behavior` | `stay` | Leave them where they are, or take them into the note too |
-| `What happens with current line` | `remove` | What is left of the line you pressed on |
-| `Words to keep` | `3` | How much of the line stays behind |
-| `Fields to keep` | — | Which Fields stay on the line you pressed on |
-| `Insert wikilink in current line` | on | Puts a link to the new note on the line you pressed on |
-| `Mark transformed line` | `#processed` | A word or tag added so you can see the line was handled |
-| `Where the mark goes` | `right` | Before your text, or after it |
-| `Dim transformed line` | off | Fades a line once it carries that mark |
-| `Opacity of transformed line` | `65` | Zero leaves the line as it is, eighty makes it barely readable |
-| `Color of transformed line` | unset | Unset keeps the colour your theme gives the text |
-
-See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
-
-### Auto-MOC in your Links
-
-| Control | Default | What it does |
-|---|---|---|
-| `Link the notes you mention` | off | Writes a link to the new note into every note this line points at |
-| `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
-| `Type name of header` | unset | The heading the link is filed under |
-| `If header not found` | `end` | Where the heading is added when that note has none |
-
-### Smart Rules
-
-A list of rules. A rule spots a kind of line — the Values it carries — and picks the
-template for it, so a `#meeting` line and a `#bug` line become different notes without you
-choosing at the moment of writing. With no rules, the default template is used for every
-line.
 
 ## Advanced
 

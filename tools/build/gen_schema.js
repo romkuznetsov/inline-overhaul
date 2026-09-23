@@ -410,7 +410,20 @@ for (const tab of Object.keys(TAB_FILE)) {
 }
 
 /* index.ts тоже генерируется: список вкладок и сборка. */
-const tabsWithGroups = Object.keys(TAB_FILE).filter(t => (perTab[t] || []).some(g => !g.empty));
+/* Порядок вкладок — прототипа (`const TABS`), а не этих таблиц: здесь он
+   стоял второй копией, и перестановка в прототипе до панели не доезжала
+   (его слово 2026-09-23 «Transform перед Visual»). Таблицы ниже отвечают
+   только на «как называется файл и константа». */
+const protoTabs = (() => {
+  const m = /const TABS = \[([\s\S]*?)\];/.exec(src);
+  const ids = m ? [...m[1].matchAll(/id:\s*"(\w+)"/g)].map(x => x[1]) : [];
+  const known = Object.keys(TAB_FILE);
+  if (ids.length !== known.length || known.some(t => !ids.includes(t))) {
+    throw new Error("вкладки прототипа (" + ids.join(", ") + ") не совпадают с таблицей генератора (" + known.join(", ") + ")");
+  }
+  return ids;
+})();
+const tabsWithGroups = protoTabs.filter(t => (perTab[t] || []).some(g => !g.empty));
 const TAB_LABEL = {
   general: ["General", null],
   keyboard: ["Keyboard", null],
@@ -464,7 +477,7 @@ const index = [
   ...tabsWithGroups.map(t => 'import { ' + TAB_CONST[t] + ' } from "./' + TAB_FILE[t].replace(/\.ts$/, ".ts") + '";'),
   "",
   "export const TABS: readonly TabDef[] = [",
-  ...Object.keys(TAB_LABEL).map(t => {
+  ...protoTabs.map(t => {
     const [label, mod] = TAB_LABEL[t];
     const bits = ['id: "' + t + '"', 'label: "' + label + '"'];
     if (mod) bits.push('module: "' + mod + '"');

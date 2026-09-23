@@ -2371,6 +2371,40 @@ Obsidian (`oj` в `app.js`): табуляция и каждые четыре п�
 **Что отменено.** Утверждение «слово в своих скобках — одно целое: края парные». Оно было моим, он попросил обратного, и на его месте стоит новое с ссылкой на его слова (правило 170: у отменённого правила надо пройти по его сторожам).
 
 
+#### 10.13.256 Висячий отступ строки списка теряется (2026-09-23, день) — разобрано без правки
+
+**Его замечание** в разделе «Новое пишите сюда»: у длинной строки с буллитом вторая и дальше строки переноса уходят левее буллита; после правки строки (не щелчка) вид восстанавливается.
+
+**Кто рисует отступ.** Не мы: `text-indent` и `padding-inline-start` строке списка ставит плагин вида Obsidian (`app.js` 1.13.7, класс с `indentCache`). Он заводит отступ декорацией строки по оценке ширины начала, а потом **мерит** его по экрану (`updateDomInternal`): сперва стирает оба свойства у строки, затем спрашивает `coordsAtPos(конец начала, 1)`, и если ответа нет (`null`) или он нулевой, свойства остаются стёртыми. Перемерка идёт у строки, помеченной «грязной» наблюдателем DOM (`MutationObserver` на `childList`/`characterData`), — поэтому правка строки её и чинит, а щелчок нет.
+
+**Почему не правлено.** На его строке нет ни одного нашего узла: ни тега, ни значения Field, ни плавающей кнопки (она у него выключена, `floatingButton = false`). Наших правил, трогающих отступ строки, в `src` нет ни одного (греп по `text-indent`, `padding-inline-start`, `paddingLeft`). Воспроизвести без его шага нечем; третья догадка запрещена (У-70). Тест в заметке просит у него одно из двух: `outerHTML` строки в миг дефекта или ответ, бывает ли он при выключенном плагине.
+
+#### 10.13.255 Панель: знак, вкладки, красная рамка (2026-09-23, день)
+
+**Знак** — его три замечания к тесту 4. Поле вокруг 31 → 8 точек («очень большое пустое расстояние… уменьши»): охранное поле бренд-бука было высотой пузыря `#in`, его слово позднее. Каретка мигает («как в github»): картинка заменена на `io-wordmark-*-anim.svg` из `docs/brand/` — мигание там задано бренд-буком (1.6 с, `steps(1, end)`) и гасится при `prefers-reduced-motion`; своего правила анимации в панели нет. Правлены оба места — `styles.css` и прототип (У-116).
+
+**Вкладки** — «Transform перед Visual». Порядок стоял дважды: `const TABS` прототипа и таблица `TAB_LABEL` генератора схемы, и перестановка в прототипе до панели не доезжала. Генератор берёт порядок из прототипа и падает, если набор вкладок разошёлся с его таблицей. Порядок разделов `docs/SETTINGS.md` и строка в `INSTRUCTIONS.md` переставлены; порядок тумблеров модулей на `General` переставлен так же — его ответ интервью «да, как вкладки».
+
+**Красная рамка обязательного поля** — его замечание: «рамка видна не сразу, а только после того, как я совершу какое-то действие». Поле с курсором — поле в фокусе, а у Obsidian `input[type='text']:focus` ставит свою рамку и тень (0-2-1, `app.css` 1.13.7); удвоенный класс (0-2-0) ему проигрывал. Класс утроен (0-3-0) в `styles.css` и прототипе. Относится ко всем обязательным полям: `Inserts` окна Binder и `Emoji-prefix` Field.
+
+#### 10.13.254 Выбиралка: рубрики, набор Windows 11, вкладки и «?» (2026-09-23, день)
+
+**Его замечания к тестам 1 и 2.** Эмодзи — «столько же, сколько есть в эмодзи windows 11», символов — «больше популярных», в обеих вкладках рубрики («текстовые названия сепараторов, под которыми будут элементы… должна по прежнему остаться одна скроллящаяся форма»). Вкладки — `Symbol`, `Emoji`, `Kaomoji`, в этом порядке. В пустом `Inserts` — `Type anything or choose below` вместо `→`. У полей окна — «?», «чтобы была единая логика tip во всем плагине».
+
+**Данные — генератором**, `tools/build/gen_pick_data.js` → `src/ui/settings/custom/pick_data.ts` (хук запрещает его править руками) и объявление `PICK_EMOJI` прототипа. Эмодзи — `emoji-test.txt` Unicode 15.0, группы Unicode как рубрики (они же разделы панели Windows), без оттенков кожи и флагов стран (шрифт Windows рисует их буквами): 1609 знаков в девяти рубриках вместо 136. Символы — пятнадцать рубрик, 394 знака, имена из `UnicodeData.txt`; прежние имена сохранены (`→` — `Arrow right`). Имя — ещё и имя команды, поэтому у символа и его эмодзи-двойника имя получает приписку эмодзи (`♾️` — `Infinity emoji`), две рожицы переименованы. Версия 15.0 — знак новее шрифта Windows рисуется пустым квадратом.
+
+**Рубрика** — строка `io-pick__head` во всю ширину той же сетки; в поиске пустые рубрики уходят. Широкая клетка теперь только у рожиц: эмодзи семьи или профессии длиннее трёх кодовых единиц и растянулся бы на четыре клетки.
+
+**«?» у полей окна** — `tipBelow` той же формы, что у строк своего блока; текст — подсказка колонки таблицы с тем же именем, один дом. Гасится тумблером `Show tips`, как везде. Его ответ интервью «да, тоже» — «?» и у двух полей окна `Add a Field` (`askNewFieldModal`, тексты `NEW_FIELD_NAME_TIP`, `NEW_FIELD_TYPE_TIP`); настоящее окно теперь открывает `fields_editor_view_tests.ts`, до того проверки подставляли его ответ.
+
+**Закреплено** `char_picker_tests.ts`: число эмодзи не меньше полутора тысяч (прежняя выбиралка порог не прошла бы), рубрики у обеих вкладок, стрелки его примера в `Arrows`, порядок и имена вкладок, подсказка в поле, «?» у трёх полей, равенство прототипу вместе с рубриками.
+
+#### 10.13.253 `Alt` — переключатель, и у `After parent` тоже (2026-09-23, день)
+
+**Его два замечания к тесту 3.** Под зажатым `Alt` стрелки уходили его хоткеям (`Alt+↑` — `Importance next`, отсюда уведомление «Tagwheel is open on this line» на каждое нажатие; `Alt+↓` — открытие tagWheel, и панель закрывалась). Его решение: «первое нажатие открывает sub-field активного field, второе нажатие закрывает его», и «при нажатии alt открывалось sub-field любого field» — кроме `Hide` (поля нет) и `Show always` (видно всегда).
+
+**Как сделано.** Переключает отпускание одиночного `Alt`: другая клавиша между нажатием и отпусканием снимает отметку, и хоткей с `Alt` поле не трогает. Вопрос «открыл ли `Alt` это поле» — `altOpensChild`, у любого дочернего поля; `shownInPanel` прячет по нему только `Show when press Alt`, а `isFieldEnabled` по нему снимает ожидание родителя у всех. Исключение к З3 № 148, дополнено.
+
 #### 10.13.252 Панель по бренд-буку: цвета типов, знак, тон (2026-09-23, ночь)
 
 **Его выбор `В-198`** — три пункта разбора `docs/dev/BRAND_PANEL_ANALYSIS.md`; отмену З6 он не выбрал.
@@ -7732,6 +7766,8 @@ Block» дописана в корпус обхода тем же заходом
 
 **Дополнено тем же заходом его ответом `В-195`** («показать все дочерние»): пока `Alt` открывает поле, `isFieldEnabled` спрашивает предусловие с разрешением `freeOfParent`, то есть поле встаёт и без значения у родителя. Подмена «без послабления» краснеет в `runAltChildSuite`.
 
+**Переделано 2026-09-23, днём, двумя его замечаниями к тесту 3** — те же два файла, `tagwheel.js` и `tagwheel_core.js`. Первое: удержание сталкивалось с его хоткеями (`Alt+↑` — `Importance next`, `Alt+↓` — открытие tagWheel), и он написал «чтобы sub-field активировался не удержанием кнопки alt, а однократным нажатием (первое нажатие открывает sub-field активного field, второе нажатие закрывает его)». `Alt` стал переключателем: `setAltOpen` вместо `holdAlt`, признак сессии `altOpen` вместо `altHeld`; переключает отпускание и только одиночного нажатия — другая клавиша между нажатием и отпусканием снимает отметку `altTap`, так что его хоткеи поля не трогают. Правило «отпущенный за окном `Alt` снимает следующее нажатие» снято вместе с удержанием. Второе: «чтобы при нажатии alt открывалось sub-field любого field вне зависимости от io-field-child=show when press alt» — вопрос «открыл ли `Alt` это поле» вынесен в `altOpensChild` и задаётся у любого дочернего поля: у `After parent` `Alt` открывает поле и без значения у родителя, у `Show when press Alt` поле по-прежнему видно только так. Закрыл, стоя на дочернем поле (кроме `Show always`), — курсор на родителя. Закреплено: `runAltChildSuite` (случай `After parent`; подмена «только `Show when press Alt`» краснеет на нём), шаг 11 `check_tagwheel.js` (одиночное нажатие открывает и держится, второе закрывает, `Alt` со стрелкой не открывает) и подмены `alt-never-released`, `alt-chord-toggles`, `alt-opens-on-press`. Разбор — 10.13.253.
+
 **Исключение сто сорок седьмое, разрешение спрошено «оставить ли сделанное»
 2026-09-22, ночь, по его замечанию к тесту 1** («при выделении одного слова
 перемещение работает нормально, но если выделить несколько слов, то
@@ -10387,7 +10423,7 @@ export interface SettingsGroup {
 
 ### 6.1 Вкладки
 
-Семь областей. В прототипе они нарисованы закладками сверху; в панели Obsidian закладок нет (П-16), поэтому `General` раскладывается на первом экране, а остальные шесть — строки перехода с описанием и состоянием модуля. Порядок в таблице — порядок на экране.
+Семь областей. В прототипе они нарисованы закладками сверху; в панели Obsidian закладок нет (П-16), поэтому `General` раскладывается на первом экране, а остальные шесть — строки перехода с описанием и состоянием модуля. Порядок в таблице — порядок на экране. `Transform` стоит перед `Visual` по его слову 2026-09-23; порядок генератор схемы берёт из `const TABS` прототипа (10.13.253).
 
 | # | id | Заголовок | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|----|-----------|----------------|-------|----------|--------------|
@@ -10395,8 +10431,8 @@ export interface SettingsGroup {
 | 2 | `keyboard` | Keyboard | — | 4 | 5 | 3 |
 | 3 | `navigation` | Navigation | `features.navigation.enabled` | 5 | 20 | 3 |
 | 4 | `pkm` | Tags & PKM | `features.pkm.enabled` | 7 | 15 | 5 |
-| 5 | `visual` | Visual | `features.visual.enabled` | 4 | 22 | 4 |
-| 6 | `transform` | Transform | `features.transform.enabled` | 7 | 18 | 4 |
+| 5 | `transform` | Transform | `features.transform.enabled` | 7 | 18 | 4 |
+| 6 | `visual` | Visual | `features.visual.enabled` | 4 | 22 | 4 |
 | 7 | `advanced` | Advanced | — | 3 | 5 | 1 |
 
 ### 6.2 Группы
@@ -18141,8 +18177,8 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 62 | 13 |
-| 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
+| 5 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
+| 6 | Visual | `features.visual.enabled` | 7 | 62 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
 ### Группы по порядку
@@ -18188,18 +18224,6 @@ python tests/prototype/update_prd.py
 | 400 | `placement-modes` | Placement modes | Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work | да | — |
 | 500 | `prefix-priority` | Prefix priority | Some Values want to change the start of the line — a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who | да | — |
 
-**Visual** (`visual`)
-
-| order | id | Заголовок | Intro | Tip | Видимость зависит от |
-|-------|----|-----------|-------|-----|----------------------|
-| 50 | `visual-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 100 | `tag-appearance` | Inline appearance | How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file | да | — |
-| 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
-| 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
-| 300 | `tagwheel` | tagWheel | tagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
-| 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
-| 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
-
 **Transform** (`transform`)
 
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
@@ -18211,6 +18235,18 @@ python tests/prototype/update_prd.py
 | 400 | `source-line` | Source line | What happens to the line you pressed on, once the note is safely written | да | `transform.inline2note.enabled` |
 | 450 | `backlinks` | Auto-MOC in your Links | A line that points at other notes can leave a pointer back in each of them | да | `transform.inline2note.enabled` |
 | 500 | `smart-rules` | Smart Rules | Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it | да | `transform.inline2note.enabled` |
+
+**Visual** (`visual`)
+
+| order | id | Заголовок | Intro | Tip | Видимость зависит от |
+|-------|----|-----------|-------|-----|----------------------|
+| 50 | `visual-intro` | Before you start | — | — | `general.help.showCallouts` |
+| 100 | `tag-appearance` | Inline appearance | How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file | да | — |
+| 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
+| 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
+| 300 | `tagwheel` | tagWheel | tagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
+| 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
+| 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
 
 **Advanced** (`advanced`)
 
@@ -18328,12 +18364,12 @@ _Tip:_ Turning an area off is not the same as leaving it alone. Its commands dis
 - **Tags & PKM** — `module-pkm`, `toggle`, path `features.pkm.enabled`, default `true`
   - desc: Set up your PKM tags, wikilinks and emoji elements, and insert them inline with one key
   - tip: This is the part that puts tags and dates onto a line for you, and steps them forward with a keypress. Turning it off changes nothing you have already written — those keys simply stop working
-- **Visual** — `module-visual`, `toggle`, path `features.visual.enabled`, default `true`
-  - desc: Customize and beautify your inline text with tag colors, Bars and much more
-  - tip: Appearance only. Your notes contain exactly the same text either way — this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text
 - **Transform** — `module-transform`, `toggle`, path `features.transform.enabled`, default `true`
   - desc: Turn an inline entry into a note, with templates, YAML properties, rules and more
   - tip: Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files
+- **Visual** — `module-visual`, `toggle`, path `features.visual.enabled`, default `true`
+  - desc: Customize and beautify your inline text with tag colors, Bars and much more
+  - tip: Appearance only. Your notes contain exactly the same text either way — this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text
 
 #### Before you start — `keyboard-intro` (вкладка `keyboard`)
 

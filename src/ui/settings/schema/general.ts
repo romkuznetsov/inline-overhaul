@@ -68,12 +68,12 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"module-pkm", path:"features.pkm.enabled", default:true,
       name:"Tags & PKM", desc:"Set up your PKM tags, wikilinks and emoji elements, and insert them inline with one key",
       tip:"This is the part that puts tags and dates onto a line for you, and steps them forward with a keypress. Turning it off changes nothing you have already written \u2014 those keys simply stop working" },
-    { kind:"toggle", id:"module-visual", path:"features.visual.enabled", default:true,
-      name:"Visual", desc:"Customize and beautify your inline text with tag colors, Bars and much more",
-      tip:"Appearance only. Your notes contain exactly the same text either way \u2014 this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text" },
     { kind:"toggle", id:"module-transform", path:"features.transform.enabled", default:true,
       name:"Transform", desc:"Turn an inline entry into a note, with templates, YAML properties, rules and more",
-      tip:"Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files" }
+      tip:"Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files" },
+    { kind:"toggle", id:"module-visual", path:"features.visual.enabled", default:true,
+      name:"Visual", desc:"Customize and beautify your inline text with tag colors, Bars and much more",
+      tip:"Appearance only. Your notes contain exactly the same text either way \u2014 this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text" }
   ]
 }
 ];

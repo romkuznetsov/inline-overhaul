@@ -57,7 +57,7 @@ On load, the plugin migrates your saved settings to the current form. The rules 
 
 ## Settings model
 
-Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Visual**, **Transform**, and **Advanced**. There are no sub-tabs and no visibility toggles: every setting of an area is on one page, and Obsidian's own settings search finds it by name.
+Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Transform**, **Visual**, and **Advanced**. There are no sub-tabs and no visibility toggles: every setting of an area is on one page, and Obsidian's own settings search finds it by name.
 
 - Changes normally save automatically after a short debounce.
 - **Undo last settings change** rolls back one saved-settings step. It is a command only: run it from the command palette or give it a key. Undo history is session-local and limited.

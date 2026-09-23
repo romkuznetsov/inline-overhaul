@@ -206,16 +206,38 @@ export function renderAddForm(box: El, o: {
   say?: Say;
   /** `Escape` сворачивает выбиралку, а не окно (`В-196`); собирает окно. */
   holdKeys?: (onEscape: () => void) => () => void;
+  /** Тумблеры `Show tips` и `Show option IDs in tips`, как у таблицы. */
+  showTips?: boolean;
+  showIds?: boolean;
 }): () => void {
   const say = o.say || PLAIN;
   el(box, "h4", "io-dlg__title", say("NEW_TITLE"));
   el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
-  const field = (name: string, desc: string, placeholder: string,
+  /*
+   * «?» у каждого поля — его слово 2026-09-23: «у контролов (`inserts`,
+   * `command name`, `description`) нет tips — добавь, чтобы была единая
+   * логика tip во всем плагине». Текст — тот же, что у колонки таблицы с тем
+   * же именем: у подсказки один дом, и окно с таблицей не разойдутся.
+   * Устроено как строка своего блока (`itemRow` в `fields_editor_view.ts`):
+   * «?» в строке имени, подсказка — последним ребёнком строки.
+   */
+  const tipClosers: Array<() => void> = [];
+  const field = (name: string, desc: string, placeholder: string, tip: string,
     needed?: boolean): { input: ElInput; warn: El; row: El } => {
     const row = el(box, "div", "io-item");
     const info = el(row, "div", "io-item__info");
-    el(info, "div", "io-item__name", name);
+    const nameRow = el(info, "div", "io-item__namerow");
+    el(nameRow, "div", "io-item__name", name);
+    tipClosers.push(tipBelow({
+      head: nameRow,
+      host: row,
+      text: say(tip),
+      label: name,
+      id: "io-binder-new-" + tip.toLowerCase().replace(/_/g, "-"),
+      showTips: Boolean(o.showTips),
+      showIds: Boolean(o.showIds),
+    }));
     el(info, "div", "io-item__desc", desc);
     const input = textInput(el(row, "div", "io-item__control"), "io-text", {
       value: "",
@@ -234,9 +256,9 @@ export function renderAddForm(box: El, o: {
    * пункт 14, 2026-09-22). Признак не выдуман рядом: `recheck` ниже гасит
    * кнопку по тому же самому вопросу — «есть ли текст вставки».
    */
-  const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"), true);
-  const command = field(say("NEW_NAME_LABEL"), say("NEW_NAME_DESC"), say("NEW_NAME_HINT"));
-  const note = field(say("NEW_DESC_LABEL"), say("NEW_DESC_DESC"), "");
+  const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"), "COL_INSERTS_TIP", true);
+  const command = field(say("NEW_NAME_LABEL"), say("NEW_NAME_DESC"), say("NEW_NAME_HINT"), "COL_COMMAND_NAME_TIP");
+  const note = field(say("NEW_DESC_LABEL"), say("NEW_DESC_DESC"), "", "COL_DESCRIPTION_TIP");
 
   const foot = el(box, "div", "io-dlg__foot");
   const cancel = btn(foot, "io-btn", { text: say("NEW_CANCEL"), label: say("NEW_CANCEL") });
@@ -283,7 +305,8 @@ export function renderAddForm(box: El, o: {
   };
 
   const picker = attachPicker(insert.input, insert.row, {
-    kinds: ["emoji", "symbols", "faces"],
+    /* Порядок вкладок — его слово 2026-09-23: `Symbol`, `Emoji`, `Kaomoji`. */
+    kinds: ["symbols", "emoji", "faces"],
     say,
     ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
     onPick: char => {
@@ -307,5 +330,8 @@ export function renderAddForm(box: El, o: {
     o.add(draft);
   }) as never);
   /* Окно закрыто мимо выбиралки — она обязана отдать `Escape` обратно. */
-  return () => { picker.close(); };
+  return () => {
+    picker.close();
+    for (const close of tipClosers) close();
+  };
 }

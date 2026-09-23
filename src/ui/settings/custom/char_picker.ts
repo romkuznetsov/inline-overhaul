@@ -10,6 +10,13 @@
  * Вписать своё можно всегда: выбиралка только кладёт знак в поле, поле
  * остаётся полем.
  *
+ * **Знаков — столько же, сколько в панели эмодзи Windows 11, и под рубриками**
+ * (его слово 2026-09-23, тест 1 заметки). Эмодзи и символы лежат в
+ * `pick_data.ts`, его пишет генератор `tools/build/gen_pick_data.js` из данных
+ * Unicode; рожицы — здесь, их пишет человек. Рубрика — строка над знаками
+ * внутри той же прокрутки, а не вкладка: «должна по прежнему остаться одна
+ * скроллящаяся форма».
+ *
  * У каждого знака есть английское имя. Оно же — подпись кнопки, слово для
  * поиска и имя команды, которое окно Binder предлагает само (его пункт 9.4:
  * «при `→` должно быть `Arrow right`»). Одно имя на три дела нарочно: имя,
@@ -18,101 +25,60 @@
  */
 
 import { el, btn, type El, type ElInput } from "./dom.ts";
+import { EMOJI_GROUPS, SYMBOL_GROUPS, type PickGroup } from "./pick_data.ts";
 
 export type PickKind = "emoji" | "symbols" | "faces";
 export type PickItem = readonly [string, string];
+export type { PickGroup };
 
-export const PICK_SETS: Readonly<Record<PickKind, readonly PickItem[]>> = {
-  emoji: [
-    ["😀", "Grinning face"], ["😂", "Tears of joy"], ["🙂", "Slight smile"], ["😉", "Wink"],
-    ["😍", "Heart eyes"], ["🤔", "Thinking"], ["😎", "Cool"], ["😴", "Sleeping"],
-    ["😢", "Crying"], ["😡", "Angry"], ["🤯", "Mind blown"], ["🥳", "Party"],
-    ["👍", "Thumbs up"], ["👎", "Thumbs down"], ["👏", "Clap"], ["🙏", "Pray"],
-    ["💪", "Muscle"], ["👀", "Eyes"], ["🧠", "Brain"], ["❤️", "Red heart"],
-    ["💔", "Broken heart"], ["⭐", "Star"], ["🌟", "Glowing star"], ["✨", "Sparkles"],
-    ["🔥", "Fire"], ["💥", "Collision"], ["⚡", "Lightning"], ["💡", "Idea"],
-    ["📌", "Pin"], ["📍", "Round pin"], ["📎", "Paperclip"], ["🔗", "Link"],
-    ["📅", "Calendar"], ["📆", "Tear-off calendar"], ["🗓️", "Spiral calendar"], ["⏰", "Alarm clock"],
-    ["⏳", "Hourglass"], ["⌛", "Hourglass done"], ["🕐", "Clock"], ["⏱️", "Stopwatch"],
-    ["✅", "Check mark button"], ["☑️", "Check box"], ["✔️", "Check mark"], ["❌", "Cross mark"],
-    ["❎", "Cross button"], ["❓", "Question"], ["❔", "White question"], ["❗", "Exclamation"],
-    ["‼️", "Double exclamation"], ["⚠️", "Warning"], ["🚫", "Prohibited"], ["⛔", "No entry"],
-    ["🛑", "Stop sign"], ["🔴", "Red circle"], ["🟠", "Orange circle"], ["🟡", "Yellow circle"],
-    ["🟢", "Green circle"], ["🔵", "Blue circle"], ["🟣", "Purple circle"], ["⚫", "Black circle"],
-    ["⚪", "White circle"], ["🟥", "Red square"], ["🟩", "Green square"], ["🟦", "Blue square"],
-    ["🏁", "Finish flag"], ["🚩", "Red flag"], ["🎯", "Target"], ["🏆", "Trophy"],
-    ["🥇", "Gold medal"], ["🎉", "Celebration"], ["🎁", "Gift"], ["📝", "Memo"],
-    ["✏️", "Pencil"], ["🖊️", "Pen"], ["📖", "Open book"], ["📚", "Books"],
-    ["📓", "Notebook"], ["📄", "Page"], ["📁", "Folder"], ["📂", "Open folder"],
-    ["🗂️", "Card index"], ["🗃️", "Card box"], ["📦", "Package"], ["📥", "Inbox"],
-    ["📤", "Outbox"], ["📧", "Email"], ["💬", "Speech bubble"], ["💭", "Thought bubble"],
-    ["📢", "Loudspeaker"], ["🔔", "Bell"], ["🔕", "Bell off"], ["🔒", "Locked"],
-    ["🔓", "Unlocked"], ["🔑", "Key"], ["🔍", "Magnifier"], ["⚙️", "Gear"],
-    ["🛠️", "Tools"], ["🔧", "Wrench"], ["🔨", "Hammer"], ["🧪", "Test tube"],
-    ["🧩", "Puzzle"], ["🐛", "Bug"], ["🚀", "Rocket"], ["✈️", "Airplane"],
-    ["🚗", "Car"], ["🏠", "House"], ["🏢", "Office"], ["🏥", "Hospital"],
-    ["🏫", "School"], ["🛒", "Cart"], ["💰", "Money bag"], ["💵", "Banknote"],
-    ["💳", "Credit card"], ["📈", "Chart up"], ["📉", "Chart down"], ["📊", "Bar chart"],
-    ["🧾", "Receipt"], ["👤", "Person"], ["👥", "People"], ["🤝", "Handshake"],
-    ["📞", "Phone"], ["📱", "Mobile"], ["💻", "Laptop"], ["🌐", "Globe"],
-    ["☀️", "Sun"], ["🌙", "Moon"], ["☁️", "Cloud"], ["❄️", "Snowflake"],
-    ["🌈", "Rainbow"], ["🌱", "Seedling"], ["🌳", "Tree"], ["🍀", "Clover"],
-    ["🍎", "Apple"], ["☕", "Coffee"], ["🎵", "Music"], ["🎬", "Clapper"],
-    ["🎮", "Game"], ["📷", "Camera"], ["🎨", "Palette"], ["🏃", "Runner"],
-    ["💤", "Zzz"], ["🔄", "Repeat"], ["♻️", "Recycle"], ["➕", "Plus"],
-    ["➖", "Minus"], ["🆕", "New"], ["🆗", "OK"], ["💯", "Hundred"],
-  ],
-  symbols: [
-    ["→", "Arrow right"], ["←", "Arrow left"], ["↑", "Arrow up"], ["↓", "Arrow down"],
-    ["↔", "Arrow left right"], ["↕", "Arrow up down"], ["⇒", "Double arrow right"], ["⇐", "Double arrow left"],
-    ["⇔", "Double arrow left right"], ["↗", "Arrow up right"], ["↘", "Arrow down right"], ["↩", "Return arrow"],
-    ["⟶", "Long arrow right"], ["➜", "Heavy arrow right"], ["▶", "Triangle right"], ["◀", "Triangle left"],
-    ["▲", "Triangle up"], ["▼", "Triangle down"], ["•", "Bullet"], ["·", "Middle dot"],
-    ["○", "White circle mark"], ["●", "Black circle mark"], ["◆", "Diamond"], ["◇", "White diamond"],
-    ["■", "Black square"], ["□", "White square"], ["★", "Black star"], ["☆", "White star"],
-    ["✓", "Tick"], ["✗", "Ballot x"], ["±", "Plus minus"], ["×", "Multiplication"],
-    ["÷", "Division"], ["≈", "Almost equal"], ["≠", "Not equal"], ["≤", "Less or equal"],
-    ["≥", "Greater or equal"], ["∞", "Infinity"], ["√", "Square root"], ["∑", "Sum"],
-    ["∆", "Delta"], ["π", "Pi"], ["°", "Degree"], ["‰", "Per mille"],
-    ["№", "Numero"], ["§", "Section"], ["¶", "Pilcrow"], ["†", "Dagger"],
-    ["©", "Copyright"], ["®", "Registered"], ["™", "Trademark"], ["€", "Euro"],
-    ["£", "Pound"], ["¥", "Yen"], ["₽", "Ruble"], ["₸", "Tenge"],
-    ["—", "Em dash"], ["–", "En dash"], ["…", "Ellipsis"], ["«", "Left guillemet"],
-    ["»", "Right guillemet"], ["„", "Low quote"], ["“", "Left quote"], ["”", "Right quote"],
-    ["♠", "Spade"], ["♣", "Club"], ["♥", "Heart suit"], ["♦", "Diamond suit"],
-    ["♪", "Note"], ["☐", "Ballot box"], ["☑", "Ballot box checked"], ["☒", "Ballot box x"],
-    ["⌘", "Command key"], ["⌥", "Option key"], ["⇧", "Shift key"], ["⏎", "Enter key"],
-  ],
-  faces: [
-    ["(◕‿◕)", "Happy face"], ["¯\\_(ツ)_/¯", "Shrug"], ["(╯°□°)╯︵ ┻━┻", "Table flip"],
-    ["┬─┬ノ( º _ ºノ)", "Table back"], ["( ͡° ͜ʖ ͡°)", "Lenny face"], ["ಠ_ಠ", "Disapproval"],
-    ["(•_•)", "Neutral face"], ["(ಥ﹏ಥ)", "Tears"], ["ʕ•ᴥ•ʔ", "Bear"],
-    ["(づ｡◕‿‿◕｡)づ", "Hug"], ["ヽ(•‿•)ノ", "Cheer"], ["(¬‿¬)", "Smirk"],
-    ["(⌐■_■)", "Deal with it"], ["(✿◠‿◠)", "Flower smile"], ["(^_^)", "Smile"],
-    ["(>_<)", "Wince"], ["(T_T)", "Cry"], ["(o_O)", "Surprise"],
-    ["(-_-)", "Meh"], ["(*^▽^*)", "Joy"], ["(｡◕‿◕｡)", "Cute"],
-    ["ᕕ( ᐛ )ᕗ", "Walk away"], ["(☞ﾟヮﾟ)☞", "Point"], ["✌(◕‿-)✌", "Peace"],
-  ],
+/** Текстовые рожицы, вкладка `Kaomoji`: их пишет человек, генератор их не знает. */
+const FACES: readonly PickItem[] = [
+  ["(◕‿◕)", "Happy face"], ["¯\\_(ツ)_/¯", "Shrug"], ["(╯°□°)╯︵ ┻━┻", "Table flip"],
+  ["┬─┬ノ( º _ ºノ)", "Table back"], ["( ͡° ͜ʖ ͡°)", "Lenny face"], ["ಠ_ಠ", "Disapproval"],
+  ["(•_•)", "Blank stare"], ["(ಥ﹏ಥ)", "Tears"], ["ʕ•ᴥ•ʔ", "Little bear"],
+  ["(づ｡◕‿‿◕｡)づ", "Hug"], ["ヽ(•‿•)ノ", "Cheer"], ["(¬‿¬)", "Smirk"],
+  ["(⌐■_■)", "Deal with it"], ["(✿◠‿◠)", "Flower smile"], ["(^_^)", "Smile"],
+  ["(>_<)", "Wince"], ["(T_T)", "Cry"], ["(o_O)", "Surprise"],
+  ["(-_-)", "Meh"], ["(*^▽^*)", "Joy"], ["(｡◕‿◕｡)", "Cute"],
+  ["ᕕ( ᐛ )ᕗ", "Walk away"], ["(☞ﾟヮﾟ)☞", "Point"], ["✌(◕‿-)✌", "Peace"],
+];
+/* Рожица длиннее клетки и берёт строку сетки на несколько колонок. */
+const WIDE = new Set(FACES.map(f => f[0]));
+
+export const PICK_SETS: Readonly<Record<PickKind, readonly PickGroup[]>> = {
+  emoji: EMOJI_GROUPS,
+  symbols: SYMBOL_GROUPS,
+  faces: [{ title: "", items: FACES }],
 };
+
+/** Все знаки вкладки подряд, без рубрик. */
+export function pickItems(kind: PickKind): readonly PickItem[] {
+  return PICK_SETS[kind].flatMap(g => g.items);
+}
 
 /** Имя знака из выбиралки или пусто: окно Binder спрашивает его и у набранного руками. */
 export function pickName(text: string): string {
   const t = String(text || "").trim();
   if (!t) return "";
   for (const kind of Object.keys(PICK_SETS) as PickKind[]) {
-    for (const [char, name] of PICK_SETS[kind]) if (char === t) return name;
+    for (const [char, name] of pickItems(kind)) if (char === t) return name;
   }
   return "";
 }
 
-/** Что показать по запросу: знак или слово имени; пустой запрос — вся вкладка. */
-export function pickFilter(kinds: readonly PickKind[], tab: PickKind, query: string): readonly PickItem[] {
+/**
+ * Что показать по запросу: знак или слово имени; пустой запрос — вся вкладка.
+ * Рубрики остаются и в найденном — пустые уходят, — чтобы человек видел,
+ * откуда знак.
+ */
+export function pickFilter(kinds: readonly PickKind[], tab: PickKind, query: string): readonly PickGroup[] {
   const q = String(query || "").trim().toLowerCase();
   if (!q) return PICK_SETS[tab];
-  const out: PickItem[] = [];
+  const out: PickGroup[] = [];
   for (const kind of kinds) {
-    for (const item of PICK_SETS[kind]) {
-      if (item[0] === q || item[1].toLowerCase().includes(q)) out.push(item);
+    for (const g of PICK_SETS[kind]) {
+      const items = g.items.filter(item => item[0] === q || item[1].toLowerCase().includes(q));
+      if (items.length) out.push({ title: g.title, items });
     }
   }
   return out;
@@ -227,17 +193,22 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
       else b.classList.remove("is-active");
     }
     grid.empty();
-    const items = pickFilter(o.kinds, tab, query);
-    if (!items.length) el(grid, "div", "io-pick__empty", o.say("PICK_EMPTY"));
-    for (const [char, name] of items) {
-      const cell = btn(grid, "io-pick__item" + (char.length > 3 ? " io-pick__item--wide" : ""), {
-        text: char,
-        label: name,
-      });
-      cell.addEventListener("click", (() => {
-        o.onPick(char, name);
-        close();
-      }) as never);
+    const groups = pickFilter(o.kinds, tab, query);
+    if (!groups.length) el(grid, "div", "io-pick__empty", o.say("PICK_EMPTY"));
+    for (const g of groups) {
+      if (g.title) el(grid, "div", "io-pick__head", g.title);
+      for (const [char, name] of g.items) {
+        /* Широкая клетка — у рожицы, а не у длинной строки: эмодзи семьи или
+           профессии длиннее трёх кодовых единиц и остаётся одним знаком. */
+        const cell = btn(grid, "io-pick__item" + (WIDE.has(char) ? " io-pick__item--wide" : ""), {
+          text: char,
+          label: name,
+        });
+        cell.addEventListener("click", (() => {
+          o.onPick(char, name);
+          close();
+        }) as never);
+      }
     }
   };
 

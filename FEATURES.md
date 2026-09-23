@@ -25,7 +25,8 @@ project link, an estimate. You define them; the plugin ships no methodology.
   writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the
   parent has a Value, `Show always` offers it on any line, `Show when press Alt` keeps it
-  out of tagWheel until you hold `Alt` on the parent, `Hide` keeps it out.
+  out of tagWheel until you press `Alt` on the parent, `Hide` keeps it out. A press of `Alt`
+  also opens an `After parent` child before the parent has a Value.
 - **Prerequisites.** A Field can stay out of the line until another Field has a Value —
   any Value, or one you name.
 - **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,
@@ -143,7 +144,7 @@ it to one that already exists. Off out of the box.
 
 ## General and Advanced
 
-- **Four module toggles** — `Navigation`, `Tags & PKM`, `Visual`, `Transform`. Each has a
+- **Four module toggles** — `Navigation`, `Tags & PKM`, `Transform`, `Visual`. Each has a
   command of its own.
 - **Language.** Every visible line of the panel has a key, and the words sit in one text
   file per language inside the plugin folder. Copy `default.js` under a new name and the

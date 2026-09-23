@@ -13,7 +13,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, type El } from "./dom.ts";
+import { el, tipBelow, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import {
@@ -72,11 +72,12 @@ interface ModalCtor {
  * Тип выбирается один раз — он решает, что Field пишет в строку, — и после
  * создания не меняется, поэтому спросить его надо здесь.
  */
-function askNewFieldModal(
+export function askNewFieldModal(
   Modal: ModalCtor,
   app: unknown,
   done: (answer: NewField | null) => void,
   say: Say,
+  tips: { showTips: boolean; showIds: boolean },
 ): void {
   let answered = false;
   const finish = (answer: NewField | null): void => {
@@ -86,15 +87,35 @@ function askNewFieldModal(
   };
 
   class AddFieldModal extends Modal {
+    dropTips: () => void = () => {};
+
     override onOpen(): void {
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
       el(box, "h4", "io-dlg__title", say("NEW_FIELD_TITLE"));
 
+      /*
+       * «?» у полей окна — его ответ 2026-09-23 «да, тоже» на вопрос, нужны
+       * ли они и здесь, как в окне Binder: «единая логика tip во всем
+       * плагине». Та же форма, что у строки своего блока.
+       */
+      const tipClosers: Array<() => void> = [];
+      const nameOf = (row: El, name: string, tip: string): El => {
+        const info = el(row, "div", "io-item__info");
+        const head = el(info, "div", "io-item__namerow");
+        el(head, "div", "io-item__name", say(name));
+        tipClosers.push(tipBelow({
+          head, host: row, text: say(tip), label: say(name),
+          id: "io-field-new-" + tip.toLowerCase().replace(/_/g, "-"),
+          showTips: tips.showTips, showIds: tips.showIds,
+        }));
+        return info;
+      };
+      this.dropTips = () => { for (const close of tipClosers) close(); };
+
       const nameRow = el(box, "div", "io-item");
-      const nameInfo = el(nameRow, "div", "io-item__info");
-      el(nameInfo, "div", "io-item__name", say("NEW_FIELD_NAME"));
+      const nameInfo = nameOf(nameRow, "NEW_FIELD_NAME", "NEW_FIELD_NAME_TIP");
       el(nameInfo, "div", "io-item__desc", say("NEW_FIELD_NAME_LABEL"));
       const name = el(nameRow, "div", "io-item__control").createEl("input", {
         cls: "io-text",
@@ -104,8 +125,7 @@ function askNewFieldModal(
       }) as El & { value: string };
 
       const typeRow = el(box, "div", "io-item");
-      const typeInfo = el(typeRow, "div", "io-item__info");
-      el(typeInfo, "div", "io-item__name", say("NEW_FIELD_TYPE"));
+      const typeInfo = nameOf(typeRow, "NEW_FIELD_TYPE", "NEW_FIELD_TYPE_TIP");
       el(typeInfo, "div", "io-item__desc", say("NEW_FIELD_TYPE_LABEL"));
       const type = el(typeRow, "div", "io-item__control").createEl("select", {
         cls: "io-select",
@@ -143,6 +163,7 @@ function askNewFieldModal(
     override onClose(): void {
       /* Закрытие мимо кнопок — это отказ, а не пустой ответ. */
       finish(null);
+      this.dropTips();
       this.contentEl.empty();
     }
   }
@@ -340,7 +361,10 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
           return holdKeys ? { holdKeys } : {};
         })(),
         notice,
-        askNewField: done => askNewFieldModal(Modal, app, done, say),
+        askNewField: done => askNewFieldModal(Modal, app, done, say, {
+          showTips: Boolean(ctx.get("general.help.showTips")),
+          showIds: Boolean(ctx.get("advanced.showSettingIds")),
+        }),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
         askRename: (name, done) => askRenameModal(Modal, app, name, done, say),
       });
