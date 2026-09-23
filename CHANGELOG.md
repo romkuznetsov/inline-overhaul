@@ -21,9 +21,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **Pick what Binder inserts instead of hunting for it.** Press `Inserts` in the new-command window: `Symbol`, `Emoji` and `Kaomoji` open under it — every emoji of the Windows 11 panel and nearly four hundred symbols, under headings, with a search by name. The command name fills itself in — `→` becomes `Arrow right` — and stays yours to change.
+1. ✨ **Pick what Binder inserts instead of hunting for it.** Press `Inserts` in the new-command window: `Symbol`, `Emoji` and `Kaomoji` open under it — every emoji of the Windows 11 panel and over three hundred and fifty symbols that stay plain text in a note, under headings, with a search by name. The command name fills itself in — `→` becomes `Arrow right` — and stays yours to change.
 2. ✨ **A Field's emoji has the same picker.** Press `Emoji-prefix` and choose from the same emoji under the same headings, or paste your own character as before.
-3. ✨ **A child Field can wait for `Alt`.** `Child Field` has a fourth setting, `Show when press Alt`: tagWheel shows the child only after you press `Alt` on its parent, with or without a parent Value. Press `Alt` again and it hides; the picked Value stays. With `After parent`, the press opens the child before the parent has a Value. `Alt` with another key stays your hotkey.
+3. ✨ **A child Field can wait for `Alt`.** `Child Field` has a fourth setting, `Show when press Alt`: tagWheel shows the child only after you press `Alt` on its parent, with or without a parent Value. Press `Alt` again or step to another Field, and it hides; the picked Value stays. With `After parent`, `Alt` opens the child early. `Alt` with another key stays your hotkey.
 4. 🎨 **Field types wear the brand colours.** A Tag chip is amber with dark text, a Link chip is steel — in the Fields list, in each Field's heading and in the line preview. Emoji keeps its green.
 5. 🎨 **The General tab opens with the plugin's wordmark.** Its caret blinks, unless your system turns animations off; it scrolls away with the page and stays off a phone screen, where it would have to shrink.
 6. 🎨 **Tips speak in the present.** Twenty-two lines lost their `you will`, passive `can be` and one exclamation mark; what they say is unchanged.
