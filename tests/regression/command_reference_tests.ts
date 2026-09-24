@@ -573,6 +573,24 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
 
 {
   /*
+   * Его пункт 2026-09-24: команда custom block стояла последней среди команд
+   * Fields и читалась командой последнего Field. Её место — последней в
+   * стандартной части.
+   */
+  const raw = makeConfig();
+  raw.pkm.fields.order.custom = [{ id: "b1", name: "Inbox", keys: [] }];
+  const d = draw(internals.migrateConfig(raw) as Any);
+  const standard = d.rows.filter(r => r.under === "Standard commands").map(r => r.name);
+  const fromFields = d.rows.filter(r => r.under === "Commands from your Fields").map(r => r.name);
+  assert.ok(standard.length >= 3, "положительный контроль: стандартных команд меньше трёх — " + standard.join(", "));
+  assert.ok(/tagWheel Inbox$/.test(standard[standard.length - 1] || ""),
+    "команда блока не последняя в стандартной части: " + standard.join(", "));
+  assert.ok(!fromFields.some(n => /tagWheel Inbox/.test(n)), "команда блока среди команд Fields");
+  ok("его пункт 2026-09-24: команда custom block — последней в стандартной части");
+}
+
+{
+  /*
    * 1.2.3.4.3: команды одного Field стоят рядом, дочерние — сразу за
    * родительскими, и в каждой паре `next` раньше `previous`. Раньше список шёл
    * семьями: сперва все `next`, потом все `previous`, и пара одного Field

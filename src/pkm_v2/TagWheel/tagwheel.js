@@ -213,12 +213,18 @@ function panelStripHighlightSpan(src, plan) {
  * иначе за её конец. Обе стороны строго снаружи, потому что край перекрывает.
  * Выйти некуда только у строки, которая **вся** подсветка, — такой у панели
  * не бывает: свой разделитель полоса ставит всегда.
+ *
+ * `forward` — панель custom block: каретка стоит **за** полосой (его пункт
+ * 2026-09-24, тест 5: «чтобы каретка курсора визуально была после
+ * вызываемой custom panel»). Край перекрывает и там, поэтому за полосой
+ * значит за знаком после неё; этот знак полоса custom block ставит всегда.
  */
-function cursorOutsidePanelStrip(text, plan, ch) {
+function cursorOutsidePanelStrip(text, plan, ch, forward) {
   var src = String(text || '')
   var span = panelStripHighlightSpan(src, plan)
   if (!span) return ch
   if (ch < span[0] || ch > span[1]) return ch
+  if (forward && span[1] < src.length) return span[1] + 1
   if (span[0] > 0) return span[0] - 1
   if (span[1] < src.length) return span[1] + 1
   return ch
@@ -1776,8 +1782,10 @@ async function runTagWheel(input, quickAddSettings) {
     var before = prefix + line.slice(lo, from)
     var after = line.slice(to, hi)
     var l = before && !/\s$/.test(before) ? ' ' : ''
-    var r = after && !/^\s/.test(after) ? ' ' : ''
-    c.caretVisibleCh = before.length
+    /* Знак за полосой есть всегда, и в конце строки тоже: каретка встаёт за
+       ним (его пункт 2026-09-24), а на самом краю Obsidian показала бы `==`. */
+    var r = !/^\s/.test(after) ? ' ' : ''
+    c.caretVisibleCh = before.length + l.length + strip.head.length
     return before + l + strip.head + r + after
   }
 
@@ -2514,7 +2522,8 @@ async function runTagWheel(input, quickAddSettings) {
     state.editor.setCursor({
       line: state.lineNumber,
       ch: cursorOutsidePanelStrip(text, plan,
-        visibleChToTextCh(text, plan ? plan.hidden : [], getControlCursorCh(state, control))),
+        visibleChToTextCh(text, plan ? plan.hidden : [], getControlCursorCh(state, control)),
+        Boolean(state.custom)),
     })
     /*
      * Оверлею отдаётся **записанная** строка, а не вид: место своей коробки он

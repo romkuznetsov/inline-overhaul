@@ -2119,6 +2119,13 @@ async function main(): Promise<void> {
           ? "победил `" + bg.selector + " { background-color: " + bg.value + " }`"
           : "не красит никто"));
     }
+    /* Его замечание 2026-09-24: тег вашего текста на строке панели — не часть
+       полосы, и заливку панели он не получает (панель custom block). */
+    for (const extra of [["cm-hashtag", "cm-hashtag-end", "cm-meta", "cm-tag-todo"], ["cm-inline-code"]]) {
+      const bg = winner(["cm-line", "io-twline", "cm-active"].concat(extra), "background-color");
+      assert.ok(!(bg && String(bg.value).includes("--io-twfill")),
+        "`" + extra[0] + "` вне полосы красится заливкой панели: `" + (bg ? bg.selector : "") + "`");
+    }
 
     /*
      * **Шапки таблиц: приглушённый акцент, текст обычного цвета** (В-85,
@@ -2398,7 +2405,7 @@ async function main(): Promise<void> {
      * элементов»). Правило одно на всё, поэтому и спрашивается по нему.
      */
     const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-    const panelRule = /io-twline span\.cm-inline-code \{([^}]*)\}/.exec(bare);
+    const panelRule = /io-twline span\.cm-inline-code\.cm-highlight \{([^}]*)\}/.exec(bare);
     assert.ok(panelRule, "правило вида панели пропало целиком");
     for (const decl of ["padding: 0", "font-size: inherit", "border: none", "border-radius: 0"]) {
       assert.ok(String(panelRule[1]).includes(decl),

@@ -756,7 +756,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   box-shadow: inset 2px 0 0 var(--interactive-accent);
 }
 .io-fields__item .io-chip { margin-left: auto; }
-.io-fields__add { margin-top: 4px; border-top: 1px solid var(--background-modifier-border); padding-top: 6px; }
+.io-fields__add { margin-top: 4px; border-top: 1px solid var(--background-modifier-border); padding-top: 6px;
+  display: flex; flex-wrap: wrap; gap: 8px; }
+/* Его пункт 2026-09-24: «кнопка add field выглядит некрасиво». Рядом с обычной
+   кнопкой она была жирной и плоской; здесь у обеих один вес и одна тень. */
+.io-fields__add .io-btn--cta { font-weight: inherit; box-shadow: var(--input-shadow); }
 .io-fields__detail { padding: 14px 16px 16px; min-width: 0; }
 .io-fields__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
 .io-fields__title h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-normal); }
@@ -1581,6 +1585,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-side--over { background: var(--background-modifier-hover); box-shadow: inset 0 0 0 1px var(--interactive-accent); }
 .io-side__cap { display: flex; flex-direction: column; padding: 2px 8px 4px; }
 .io-side__cap--over { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
+/* Карандаш и корзина custom block — на строке его имени (его пункт 2026-09-24). */
+.io-side__cap--block { flex-direction: row; align-items: center; gap: 4px; }
+.io-side__tools { display: inline-flex; align-items: center; }
 .io-side__label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
 }
@@ -5343,10 +5350,15 @@ function renderFieldList(list) {
     if (hint) el("span", "io-side__hint", cap, hint);
     /* У раздела custom block — карандаш и корзина, как у Field. */
     if (block) {
+      cap.classList.add("io-side__cap--block");
       const tools = el("span", "io-side__tools", cap);
       const pen = iconBtn(tools, "\u270E", "Rename the block " + block.name);
       pen.addEventListener("click", () => { dialog = { renameBlock: block.id, name: block.name }; renderContent(); });
-      const bin = iconBtn(tools, "\u{1F5D1}", "Delete the block " + block.name);
+      /* Корзина красная и рисуется маской, а не эмодзи: цветной знак
+         `color` не перекрашивает (его пункт 2026-09-24). */
+      const bin = iconBtn(tools, "", "Delete the block " + block.name);
+      bin.classList.add("io-icon--danger");
+      el("span", "io-danger__icon", bin);
       bin.addEventListener("click", () => {
         const inside = FIELDS.filter(x => !x.parent && x.position === value);
         if (!inside.length) { deleteCustomBlock(block.id); renderContent(); return; }
@@ -5445,6 +5457,12 @@ function renderFieldList(list) {
   });
 
   const addWrap = el("div", "io-fields__add", list);
+  /* `Add Block` первой, `Add Field` за ней — его пункт 2026-09-24. */
+  /* Не акцентная — его слово: «цвет кнопки должен отличаться от add field». */
+  const addBlock = el("button", "io-btn io-btn--sm", addWrap, "Add Block");
+  addBlock.type = "button";
+  addBlock.setAttribute("aria-label", "Add a custom block");
+  addBlock.addEventListener("click", () => { addCustomBlock(); renderContent(); });
   /* Акцентная кнопка: заказчик просил, чтобы добавление было видно
      (замечание 2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
   const add = el("button", "io-btn io-btn--sm io-btn--cta", addWrap, "Add Field");
@@ -5455,11 +5473,6 @@ function renderFieldList(list) {
     dialog = { addField: true, name: "", type: "tag" };
     renderContent();
   });
-  /* Не акцентная — его слово: «цвет кнопки должен отличаться от add field». */
-  const addBlock = el("button", "io-btn io-btn--sm", addWrap, "Add Block");
-  addBlock.type = "button";
-  addBlock.setAttribute("aria-label", "Add a custom block");
-  addBlock.addEventListener("click", () => { addCustomBlock(); renderContent(); });
 }
 
 /*
@@ -6675,6 +6688,10 @@ function renderCommandReference(host) {
     };
     part(group.parts.standard, PARTTIP.standard, group.parts.standard);
     standard.forEach(c => drawRow(c.name, c.does, false));
+    /* Команда custom block — последней в стандартной части, по строке на блок
+       (его пункт 2026-09-24): под Field она читалась командой этого Field. */
+    const blockRow = group.list.find(c => c.name === "tagWheel <block>");
+    if (blockRow) customBlocks().forEach(b => drawRow("tagWheel " + b.name, blockRow.does, false));
     part(group.parts.user, PARTTIP.user, group.parts.user);
     if (!fromData.length) return;
     /* Пара на Field, и пары одного Field стоят рядом: сперва сам Field,

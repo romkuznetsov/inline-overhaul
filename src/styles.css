@@ -1251,7 +1251,14 @@
   margin-top: 4px;
   border-top: 1px solid var(--background-modifier-border);
   padding-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
+/* Его пункт 2026-09-24: «кнопка add field выглядит некрасиво». Рядом с обычной
+   кнопкой она была жирной и плоской; здесь у обеих один вес и одна тень.
+   Удвоенный класс — против `.io-btn.io-btn--cta` ниже по файлу. */
+.io-fields__add .io-btn--cta.io-btn--cta { font-weight: inherit; box-shadow: var(--input-shadow); }
 
 /* Список Fields, разделённый линией строки, на которой стоит текст (Ф1). */
 .io-side {
@@ -1269,6 +1276,9 @@
 /* Бросок на подпись стороны значит «перед первой строкой»: черта рисуется
    там, куда Field встанет (замечание заказчика 2026-09-12). */
 .io-side__cap--over { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
+/* Карандаш и корзина custom block — на строке его имени (его пункт 2026-09-24). */
+.io-side__cap--block { flex-direction: row; align-items: center; gap: 4px; }
+.io-side__tools { display: inline-flex; align-items: center; }
 .io-side__label {
   font-size: 10px;
   font-weight: 600;
@@ -1774,11 +1784,18 @@
  *
  * Различать ячейки — по-прежнему работа `Non-active Field text color` и
  * `Active Field text color`: пузыри Value слой внутрь панели не рисует.
+ *
+ * **Тег и вставка кода — только внутри полосы** (его замечание 2026-09-24:
+ * «при открытии tagwheel custom panel подсвечиваются ранее выбранные custom
+ * block values»). Полоса custom block занимает часть строки, и `span.cm-hashtag`
+ * без условия красил цветом панели и теги вашего текста — те, что рисует
+ * Obsidian на строке без разделителей. Внутри полосы у тега есть и
+ * `cm-highlight`: это один узел (пункт 4 выше).
  */
 .markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-highlight,
 .markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-formatting-highlight,
-.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-hashtag,
-.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-inline-code {
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-hashtag.cm-highlight,
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-inline-code.cm-highlight {
   background-color: var(--io-twfill, var(--text-highlight-bg));
   border: none;
   border-radius: 0;

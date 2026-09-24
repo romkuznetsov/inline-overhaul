@@ -303,8 +303,11 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
          */
         const members = commands.filter(c => c.family === family);
         if (!members.length) return;
+        /* Команда custom block — стандартная, последней в своей части (его пункт
+           2026-09-24): среди команд Fields она читалась командой последнего Field. */
+        const band = family === "tagwheel-custom" ? "standard" : "user";
         for (const cmd of members) {
-          rows.push({ row: { name: cmd.name, does }, cmd, band: "user" });
+          rows.push({ row: { name: cmd.name, does }, cmd, band });
         }
       });
 

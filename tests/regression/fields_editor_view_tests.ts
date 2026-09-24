@@ -313,6 +313,13 @@ function makeView(opts?: {
 
 /* ---- разбор дерева ------------------------------------------------------ */
 
+/** `Add Field` — по подписи, а не по месту: рядом стоит `Add Block` (правило 5). */
+function addFieldButton(root: StubNode): StubNode {
+  const b = all(root, "io-btn").find(n => n.getAttribute("aria-label") === "Add a Field");
+  assert.ok(b, "кнопки `Add Field` нет");
+  return b as StubNode;
+}
+
 function all(root: StubNode, cls: string): StubNode[] {
   const out: StubNode[] = [];
   const walk = (n: StubNode): void => {
@@ -605,7 +612,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
 /* ---- Ф5 и ПЗ2: добавление и пустое состояние --------------------------- */
 {
   const v = makeView();
-  const add = all(v.host, "io-btn")[0] as StubNode;
+  /* Кнопка ищется по тому, что делает, а не по месту (правило 5). */
+  const add = all(v.host, "io-btn").find(n => n.getAttribute("aria-label") === "Add a Field") as StubNode;
+  assert.ok(add, "кнопки `Add Field` нет");
   assert.equal(String(add.textContent || "").trim(), "Add Field", "кнопка называется Add Field");
   /* Акцентная: заказчик просил, чтобы добавление было видно (2026-08-27,
      отменяет прежнее «нейтральная» из Ф5). */
@@ -629,14 +638,14 @@ function dragToSide(from: StubNode, side: StubNode): void {
 {
   const v = makeView();
   v.reply(null);
-  (all(v.host, "io-btn")[0] as StubNode).click();
+  addFieldButton(v.host).click();
   assert.deepEqual(v.writes, [], "отказ в окне ничего не пишет");
   ok("отказ в окне Add Field не создаёт Field");
 }
 {
   const v = makeView();
   v.reply({ name: "не имя!", kind: "tag" });
-  (all(v.host, "io-btn")[0] as StubNode).click();
+  addFieldButton(v.host).click();
   assert.deepEqual(v.writes, [], "негодное имя до конфига не доходит");
   assert.equal(v.notices.length, 1, "человеку сказали, почему Field не создан");
   ok("негодное имя из окна отклоняется с объяснением");
@@ -1192,7 +1201,7 @@ function heightBtn(host: StubNode): StubNode {
 {
   const v = makeView();
   v.reply({ name: "client", kind: "wikilink" });
-  (all(v.host, "io-btn")[0] as StubNode).click();
+  addFieldButton(v.host).click();
   const head = one(v.host, "io-vals__head");
   assert.deepEqual(
     head.children.map(c => String(all(c, "io-vals__coltext")[0]?.textContent || "").trim()),
@@ -1809,7 +1818,7 @@ function heightBtn(host: StubNode): StubNode {
   assert.ok(project, "в списке есть Field, с которого начнём");
   /* Field типа link в конфиге проверки нет — создаём его окном. */
   v.reply({ name: "client", kind: "wikilink" });
-  (all(v.host, "io-btn")[0] as StubNode).click();
+  addFieldButton(v.host).click();
 
   const mark = all(v.host, "io-help").find(b =>
     String(b.getAttribute("aria-label") || "") === "More about Value") as StubNode;
@@ -3051,6 +3060,16 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.equal(String(one(sides[2] as StubNode, "io-side__label").textContent), "Custom block 1");
   assert.ok(byLabel("Rename the block Custom block 1") && byLabel("Delete the block Custom block 1"),
     "у раздела блока нет карандаша или корзины");
+  /* Его пункт 2026-09-24: `Add Block` первой, значки на строке имени, корзина красная. */
+  const addRow = one(v.host, "io-fields__add") as StubNode;
+  assert.deepEqual(addRow.children.map(n => String(n.getAttribute("aria-label"))),
+    ["Add a custom block", "Add a Field"], "порядок кнопок: `Add Block`, затем `Add Field`");
+  const cap = one(sides[2] as StubNode, "io-side__cap") as StubNode;
+  assert.ok(cap.classList.contains("io-side__cap--block"), "подпись блока не строкой — значки уедут под имя");
+  const bin = byLabel("Delete the block Custom block 1") as StubNode;
+  assert.ok(bin.classList.contains("io-icon--danger") && all(bin, "io-danger__icon").length === 1,
+    "корзина блока не красная");
+  assert.equal(String(bin.textContent || ""), "", "корзина — эмодзи, `color` её не красит");
   ok("`Add Block` не акцентная и заводит раздел `Custom block 1` с карандашом и корзиной");
 
   /* Стрелка вниз с низа Right уводит в блок, с низа блока — в начало Left. */

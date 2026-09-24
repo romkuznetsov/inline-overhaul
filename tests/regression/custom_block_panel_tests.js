@@ -107,6 +107,7 @@ async function drive(cfg, line, ch, steps) {
         selected: Object.fromEntries(Object.entries(st.session.selected).filter(([, v]) => String(v || ""))),
         active: String(st.session.activeFieldId || ""),
         line: editor.getLine(0),
+        cursor: editor.getCursor().ch,
         /* Что видно на экране: записанное минус то, что прячет маска. */
         visible: (() => {
           const plan = st.panelPlan;
@@ -162,6 +163,23 @@ async function run() {
     assert.equal(out.cursor, 11, "каретка не за вставкой");
     assert.deepEqual(out.said, [], "успешная работа что-то сказала");
     ok("панель открывается у каретки, Enter пишет `#calm` между словами, каретка за вставкой");
+  }
+
+  /* ---- каретка за полосой, отмена возвращает её (его пункт 2026-09-24) -- */
+  {
+    const cfg = config();
+    for (const [line, ch] of [["- abc def", 5], ["abc", 3]]) {
+      const out = await drive(cfg, line, ch, [OPEN, { key: "Escape" }]);
+      const shown = out.opened[0];
+      assert.ok(shown, "панель блока не открылась");
+      const end = shown.line.lastIndexOf("==") + 2;
+      assert.ok(end > 2 && end < shown.line.length, "за полосой нет знака: " + JSON.stringify(shown.line));
+      assert.equal(shown.cursor, end + 1,
+        "каретка не за полосой: " + JSON.stringify(shown.line) + " @" + shown.cursor);
+      assert.equal(out.line, line, "отмена не вернула строку");
+      assert.equal(out.cursor, ch, "отмена не вернула каретку на место");
+    }
+    ok("каретка за полосой custom block, и в конце строки; Escape возвращает строку и каретку");
   }
 
   /* ---- второй вызов — пустой, новая копия ------------------------------ */

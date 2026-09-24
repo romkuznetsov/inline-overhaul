@@ -671,12 +671,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
   }
 
   const addWrap = el(list, "div", "io-fields__add");
-  /* Акцентная: заказчик просил, чтобы добавление было видно (замечание
-     2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
-  const add = btn(addWrap, "io-btn io-btn--sm io-btn--cta",
-    { text: say("ADD_FIELD"), label: say("ADD_FIELD_LABEL") });
-  add.disabled = !o.enabled;
-  addFieldAction(add, o);
+  /* `Add Block` первой, `Add Field` за ней — его пункт 2026-09-24. */
   /* Не акцентная — его слово: «цвет кнопки должен отличаться от add field». */
   const addBlock = btn(addWrap, "io-btn io-btn--sm",
     { text: say("ADD_BLOCK"), label: say("ADD_BLOCK_LABEL") });
@@ -686,6 +681,12 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
     o.model.addBlock();
     o.redraw();
   }) as never);
+  /* Акцентная: заказчик просил, чтобы добавление было видно (замечание
+     2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
+  const add = btn(addWrap, "io-btn io-btn--sm io-btn--cta",
+    { text: say("ADD_FIELD"), label: say("ADD_FIELD_LABEL") });
+  add.disabled = !o.enabled;
+  addFieldAction(add, o);
 }
 
 /**
@@ -694,6 +695,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
  */
 function blockTools(cap: El, block: CustomBlock, rows: readonly FieldRow[], o: FieldsViewOpts): void {
   const say = words(o);
+  cap.classList.add("io-side__cap--block");
   const tools = el(cap, "span", "io-side__tools");
   if (o.askRenameBlock) {
     const ask = o.askRenameBlock;
@@ -716,7 +718,10 @@ function blockTools(cap: El, block: CustomBlock, rows: readonly FieldRow[], o: F
     o.redraw();
   };
   if (inside.length && !o.confirmDeleteBlock) return;
-  const bin = btn(tools, "io-icon", { text: "\u{1F5D1}", label: say("DELETE_BLOCK", block.name) });
+  /* Корзина красная и рисуется маской, а не эмодзи: цветной знак `color` не
+     перекрашивает (его пункт 2026-09-24). */
+  const bin = btn(tools, "io-icon io-icon--danger", { label: say("DELETE_BLOCK", block.name) });
+  el(bin, "span", "io-danger__icon");
   bin.disabled = !o.enabled;
   bin.addEventListener("click", (() => {
     if (!o.enabled) return;
