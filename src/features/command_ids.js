@@ -199,6 +199,16 @@ function renameCommandId(oldId) {
   return "";
 }
 
+/**
+ * Команда custom block (PRD 10.13.260): `open-tagwheel-custom-<id>`. `id`
+ * выдаётся блоку при создании и не меняется, поэтому хоткей переживает
+ * переименование блока.
+ */
+const CUSTOM_BLOCK_COMMAND_PREFIX = "open-tagwheel-custom-";
+function customBlockCommandId(blockId) {
+  return CUSTOM_BLOCK_COMMAND_PREFIX + kebab(blockId);
+}
+
 /** Имя команды по новому идентификатору. Пусто — значит имя строится из данных. */
 function commandName(id) {
   const key = String(id == null ? "" : id).trim();
@@ -268,6 +278,8 @@ module.exports = {
   reservedCommandIds,
   directionLabel,
   pkmFieldCommandId,
+  CUSTOM_BLOCK_COMMAND_PREFIX,
+  customBlockCommandId,
   binderCommandId,
   isLegacyCommandId,
   renameCommandId,

@@ -58,6 +58,17 @@ const KEYS = {
   TAGWHEEL_ACTIVE_FIELD_MODE: "TagWheel active field mode",
   TAGWHEEL_ACTIVE_FIELD_LEFT: "TagWheel active field left",
   TAGWHEEL_ACTIVE_FIELD_RIGHT: "TagWheel active field right",
+  /*
+   * Custom block (PRD 10.13.260). Панель блока получает свой `Rules data` и
+   * свой `Order config`; рядом — какой блок открыть, все блоки ради `Tab`,
+   * правила Left/Right ради `Values in the other Block` и шаг команды поля
+   * блока по месту каретки.
+   */
+  CUSTOM_BLOCK: "Custom block",
+  CUSTOM_BLOCKS: "Custom blocks",
+  CUSTOM_CYCLE: "Custom cycle",
+  LINE_RULES_DATA: "Line rules data",
+  TAGWHEEL_CUSTOM_TAB: "TagWheel custom tab",
 };
 
 /**

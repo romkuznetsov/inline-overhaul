@@ -666,6 +666,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const block = { id: `b${k}`, name: nameFor(n), keys: [] as string[] };
     orderState.custom = list.concat([block]);
     setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-add:" + block.id);
+    refreshCommands();
     return { ok: true, key: block.id };
   };
 
@@ -681,6 +682,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
     orderState.custom = list.map(b => (b.id === id ? { ...b, name } : b));
     setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-rename:" + id);
+    refreshCommands();
     return { ok: true };
   };
 
@@ -694,7 +696,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     for (const key of block.keys) deleteField(key);
     orderState.custom = listBlocks().filter(b => b.id !== id);
     setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-delete:" + id);
+    refreshCommands();
   };
+
+  /* Команда блока заводится, переименовывается и снимается вместе с ним. */
+  function refreshCommands(): void {
+    try {
+      if (typeof plugin.registerPkmCommands === "function") plugin.registerPkmCommands();
+    } catch { /* реестр команд не обязан быть готов: запись уже прошла */ }
+  }
 
   /* ---- добавление Field (Ф5) ------------------------------------------- */
 

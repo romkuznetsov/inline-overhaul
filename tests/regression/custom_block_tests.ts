@@ -15,6 +15,8 @@ import assert from "node:assert/strict";
 import { setupGlobals } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import rulesShape from "../../src/core/pkm_rules_shape.js";
+import registryModule from "../../src/features/command_registry.js";
+import orderConfigModule from "../../src/core/pkm_order_config.js";
 
 setupGlobals();
 
@@ -24,6 +26,9 @@ const internals = loadPluginInternals();
 const shape = rulesShape as unknown as {
   buildRulesForEngines: (cfg: Any, blockId?: string) => Any;
 };
+
+const registry = registryModule as unknown as { buildPkmCommandDefs: (...a: Any[]) => Any[] };
+const orderConfig = orderConfigModule as unknown as { serializeDateRuntimeConfigForMacro: (cfg: Any) => string };
 
 let passed = 0;
 function ok(label: string): void {
@@ -47,6 +52,13 @@ function configWithBlock(): Any {
     { id: "Mood", prefix: "#", placeholder: "Mood", values: [{ id: "calm", token: "calm" }, { id: "busy", token: "busy" }] },
   ] };
   return internals.migrateConfig(raw);
+}
+
+/** Определения команд PKM тем же реестром, которым их заводит плагин. */
+function pkmDefs(cfg: Any): Any[] {
+  return registry.buildPkmCommandDefs(
+    internals.serializePkmOrderForMacro, orderConfig.serializeDateRuntimeConfigForMacro,
+    internals.normalizePkmOrder, cfg, ["navigation", "pkm", "transform"]);
 }
 
 const ids = (mode: Any): string[] => (mode && Array.isArray(mode.fields) ? mode.fields : []).map((f: Any) => f.id);
@@ -127,6 +139,58 @@ async function run(): Promise<void> {
     const lr = shape.buildRulesForEngines(cfg);
     assert.equal(JSON.stringify(lr.behavior.order), before, "без блоков порядок в правилах переписан");
     ok("без блоков порядок в правилах знак в знак прежний");
+  }
+
+  /* ---- 6. Команды: у блока своя, у Field блока — пара по месту каретки -- */
+  {
+    const cfg = configWithBlock();
+    const defs = pkmDefs(cfg);
+    const block = defs.find((d: Any) => d.id === "open-tagwheel-custom-b1");
+    assert.ok(block, "у блока нет команды open-tagwheel-custom-b1");
+    assert.equal(block.name, "tagWheel Custom block 1");
+    const s = block.makeSettings(cfg);
+    assert.equal(s["Custom block"], "b1", "команда блока не говорит, какой блок открыть");
+    assert.deepEqual(ids(s["Rules data"].leftMode).filter((id: string) => !/_sub$/.test(id)), ["Mood"],
+      "панель блока получила чужие правила");
+    assert.deepEqual(JSON.parse(s["Order config"]).left, ["Mood"], "порядок панели блока — не её Block");
+    assert.deepEqual(s["Custom blocks"].map((b: Any) => b.id), ["b1"], "Tab не знает соседних блоков");
+    assert.ok(!ids(s["Line rules data"].leftMode).includes("Mood") && ids(s["Line rules data"].leftMode).includes("Type"),
+      "правила Left/Right для Hide не те");
+    const mood = defs.filter((d: Any) => d.orderKey === "Mood");
+    assert.deepEqual(mood.map((d: Any) => d.v2Command), ["tagWheel", "tagWheel"],
+      "пара Field блока ушла в движок Left/Right, который Field блока не видит");
+    assert.deepEqual(JSON.parse(mood[0].makeSettings(cfg)["Custom cycle"]), { key: "Mood", direction: "increase" });
+    const type = defs.filter((d: Any) => d.orderKey === "Type");
+    assert.deepEqual(type.map((d: Any) => d.v2Command), ["statusTags", "statusTags"],
+      "положительный контроль: пара Field Left ушла не туда");
+    ok("у блока команда tagWheel <имя>, пара Field блока идёт в панель блока со своими правилами");
+  }
+
+  /* ---- 7. Регистрация: переименование — то же id, удаление — снятие ----- */
+  {
+    const cfg = configWithBlock();
+    const added: Array<[string, string]> = [];
+    const removed: string[] = [];
+    const plugin: Any = {
+      getConfig: () => cfg,
+      addCommand: (c: Any) => { added.push([c.id, c.name]); },
+      removeCommand: (id: string) => { removed.push(id); },
+    };
+    internals.registerPkm(plugin);
+    assert.ok(added.some(([id, name]) => id === "open-tagwheel-custom-b1" && name === "Tags & PKM: tagWheel Custom block 1"));
+    added.length = 0;
+    internals.registerPkm(plugin);
+    assert.deepEqual(added, [], "повторная регистрация без изменений заводит команды заново");
+    cfg.pkm.fields.order.custom[0].name = "Inbox";
+    internals.registerPkm(plugin);
+    assert.deepEqual(added, [["open-tagwheel-custom-b1", "Tags & PKM: tagWheel Inbox"]],
+      "переименование блока не перезавело команду с тем же id");
+    assert.deepEqual(removed, ["open-tagwheel-custom-b1"], "старое имя осталось в палитре");
+    removed.length = 0;
+    cfg.pkm.fields.order.custom = [];
+    internals.registerPkm(plugin);
+    assert.ok(removed.includes("open-tagwheel-custom-b1"), "удалённый блок оставил команду");
+    ok("переименование перезаводит команду с тем же id, удаление снимает её");
   }
 
   console.log(passed + " проверок пройдено");

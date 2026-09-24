@@ -184,8 +184,9 @@ function buildOwnCommandList(plugin) {
       ),
       COMMAND_AREAS.pkm,
       (d) => {
-        /* Команды tagWheel — не семья: их всегда ровно две, и в прототипе они
-           названы поимённо. */
+        /* Команды tagWheel Left и Right названы в прототипе поимённо; у
+           custom block своя семья — их столько, сколько блоков (10.13.260). */
+        if (d && d.customBlock) return "tagwheel-custom";
         if (!String(d && d.strictName ? d.strictName : "").trim()) return "";
         return d.direction === "decrease" ? "field-previous" : "field-next";
       }
@@ -270,22 +271,53 @@ function registerPkm(plugin) {
   }
 
   plugin._registeredPkmCommandIds = plugin._registeredPkmCommandIds || new Set();
+  plugin._registeredPkmCommandNames = plugin._registeredPkmCommandNames || new Map();
+
+  /*
+   * **Команды, которых больше нет, снимаются** (PRD 10.13.260): удалённый
+   * custom block уносит свою команду, и вместе с ним — пары его Field.
+   * `Plugin.removeCommand` есть с 1.7.2, `minAppVersion` у нас 1.13.0.
+   * Хоткей в `hotkeys.json` остаётся мёртвым — так Obsidian ведёт себя с
+   * любой снятой командой.
+   */
+  const live = new Set(defs.map((d) => String(d && d.id ? d.id : "").trim()).filter(Boolean));
+  for (const id of Array.from(plugin._registeredPkmCommandIds)) {
+    if (live.has(id)) continue;
+    if (typeof plugin.removeCommand === "function") plugin.removeCommand(id);
+    plugin._registeredPkmCommandIds.delete(id);
+    plugin._registeredPkmCommandNames.delete(id);
+  }
 
   for (const d of defs) {
     const id = String(d && d.id ? d.id : "").trim();
     if (!id) continue;
-    if (plugin._registeredPkmCommandIds.has(id)) continue;
+    const name = __commandIds.commandDisplayName(COMMAND_AREAS.pkm, d.name);
+    if (plugin._registeredPkmCommandIds.has(id)) {
+      /* Имя сменилось (переименовали блок) — команда заводится заново с тем
+         же идентификатором, и хоткей остаётся на ней. */
+      if (plugin._registeredPkmCommandNames.get(id) === name) continue;
+      if (typeof plugin.removeCommand === "function") plugin.removeCommand(id);
+    }
     plugin.addCommand({
       id,
-      name: __commandIds.commandDisplayName(COMMAND_AREAS.pkm, d.name),
+      name,
       callback: async () => {
         await runPkmGuard(plugin, async (cfg) => {
-          const macroSettings = d.makeSettings(cfg);
-          await runPkmRuntime(plugin, d.v2Command, cfg, macroSettings);
+          /*
+           * Определение спрашивается у **нынешнего** конфига: Field мог
+           * переехать в custom block или обратно, а команда заведена раньше.
+           * Идентификатор тот же — значит и хоткей тот же.
+           */
+          const fresh = registry.buildPkmCommandDefs(
+            serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfg, FEATURE_ORDER
+          ).find((x) => x && x.id === id) || d;
+          const macroSettings = fresh.makeSettings(cfg);
+          await runPkmRuntime(plugin, fresh.v2Command, cfg, macroSettings);
         });
       },
     });
     plugin._registeredPkmCommandIds.add(id);
+    plugin._registeredPkmCommandNames.set(id, name);
   }
 }
 

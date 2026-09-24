@@ -45,6 +45,7 @@ export interface PluginInternals {
   runNavigationGuard: (plugin: Any, moduleKey: string, action: Any, jumpKind?: string) => Promise<Any>;
   /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
   runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
+  registerPkm: (plugin: Any) => void;
   /** Открытая сессия панели или `null` — один ответ на вопрос «панель жива?». */
   openTagWheelSession: () => Any;
   /** Закрыть открытую сессию панели; `true`, если было что закрывать. */
@@ -261,6 +262,9 @@ export function loadPluginInternals(): PluginInternals {
        зовёт движок напрямую, и проверить правило может только тот, кто идёт
        дорогой плагина (У-56). */
     runPkmRuntime: commands.runPkmRuntime,
+    /* Регистрация команд PKM: заводит, переименовывает и снимает команды
+       custom block (PRD 10.13.260). */
+    registerPkm: commands.registerPkm,
     openTagWheelSession: commands.openTagWheelSession,
     closeTagWheelSession: commands.closeTagWheelSession,
   } as PluginInternals;

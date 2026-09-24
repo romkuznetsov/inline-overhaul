@@ -309,8 +309,25 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     return __pkmDomainRegistry.inferOrderFieldType(key);
   };
 
+  /* Custom block, в котором стоит Field (или родитель дочернего Field). */
+  const blockOfKey = (key) => {
+    const parent = String(key || "").replace(/_sub$/, "");
+    return (order.custom || []).find((b) => Array.isArray(b.keys) && b.keys.includes(parent)) || null;
+  };
+
   const buildActionSpec = (key, kind, dir) => {
     const direction = dir === "decrease" ? "decrease" : "increase";
+    /*
+     * Field custom block шагает **по месту каретки** (PRD 10.13.260, правка
+     * 2026-09-24): это работа панели блока, а не движков Left/Right — те
+     * Field блока не видят вовсе.
+     */
+    if (blockOfKey(key)) {
+      return {
+        v2Command: "tagWheel",
+        settings: { [O.CUSTOM_CYCLE]: JSON.stringify({ key, direction }) },
+      };
+    }
     if (kind === "element") {
       return {
         v2Command: "statusDate",
@@ -340,6 +357,33 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     [O.CURSOR_POLICY]: getBehaviorValue(cfgInner, "cursorPolicy", "text_end"),
     [O.ORDER_CONFIG]: serializePkmOrderForMacro(cfgInner),
   });
+
+  /*
+   * Настройки панели custom block: её правила и её порядок — только Field
+   * блока, записанные левым Block (`scopeToBlock`); все блоки ради `Tab`;
+   * правила Left/Right ради `Values in the other Block`. Блок спрашивается у
+   * нынешнего конфига — у того, с которым команду позвали.
+   */
+  const customBase = (cfgInner, blockOf) => {
+    const orderNow = typeof normalizePkmOrder === "function"
+      ? normalizePkmOrder(cfgInner && cfgInner.pkm && cfgInner.pkm.fields ? cfgInner.pkm.fields.order : null)
+      : { custom: [] };
+    const block = blockOf(orderNow);
+    const blockId = block ? block.id : "";
+    const rules = __rulesShape.buildRulesForEngines(cfgInner, blockId);
+    return {
+      ...makeBase(cfgInner),
+      [O.RULES_DATA]: rules,
+      [O.ORDER_CONFIG]: JSON.stringify(rules.behavior.order),
+      [O.CUSTOM_BLOCK]: blockId,
+      [O.CUSTOM_BLOCKS]: (orderNow.custom || []).map((b) => ({
+        id: b.id,
+        name: b.name,
+        rules: __rulesShape.buildRulesForEngines(cfgInner, b.id),
+      })),
+      [O.LINE_RULES_DATA]: __rulesShape.buildRulesForEngines(cfgInner),
+    };
+  };
 
   const defs = [];
   /*
@@ -405,6 +449,19 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     if (!strict) continue;
     const incSpec = buildActionSpec(key, kind, "increase");
     const decSpec = buildActionSpec(key, kind, "decrease");
+    if (blockOfKey(key)) {
+      const parent = String(key).replace(/_sub$/, "");
+      const inBlock = (o) => (o.custom || []).find((b) => Array.isArray(b.keys) && b.keys.includes(parent)) || null;
+      for (const spec of [[incSpec, "increase"], [decSpec, "decrease"]]) {
+        pushDef(strict, spec[1], key, spec[0].v2Command, (cfgInner) => ({
+          ...customBase(cfgInner, inBlock),
+          ...spec[0].settings,
+          [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
+          [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
+        }));
+      }
+      continue;
+    }
     pushDef(strict, "increase", key, incSpec.v2Command, (cfgInner) => ({
       ...incSpec.settings,
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
@@ -441,6 +498,26 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
   });
+  /*
+   * Команда custom block — по одной на блок (PRD 10.13.260): `tagWheel <имя
+   * блока>`. Идентификатор от `id`, имя от имени: переименование меняет имя,
+   * а хоткей держится за идентификатор.
+   */
+  for (const block of order.custom || []) {
+    const blockId = String(block && block.id || "");
+    if (!blockId) continue;
+    defs.push({
+      id: __commandIds.customBlockCommandId(blockId),
+      name: `tagWheel ${normalizeLabelPart(block.name, blockId)}`,
+      v2Command: "tagWheel",
+      customBlock: blockId,
+      makeSettings: (cfgInner) => ({
+        ...customBase(cfgInner, (o) => (o.custom || []).find((b) => b.id === blockId) || null),
+        [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
+        [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
+      }),
+    });
+  }
 
   return defs;
 }

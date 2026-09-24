@@ -86,6 +86,8 @@ const FAMILY_BY_ROW: Readonly<Record<string, string>> = {
   "Status previous": "field-previous",
   "<your rows>": "binder-row",
   "Toggle <module> module": "module-toggle",
+  /* Команда custom block — по одной на блок (PRD 10.13.260). */
+  "tagWheel <block>": "tagwheel-custom",
 };
 
 /**

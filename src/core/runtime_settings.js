@@ -59,6 +59,8 @@ function runtimeSettingsFromConfig(cfg) {
     [KEYS.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
     [KEYS.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
     [KEYS.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
+    /* `Tab` между custom block (PRD 10.13.260). Умолчание — прежнее: ничего. */
+    [KEYS.TAGWHEEL_CUSTOM_TAB]: readCfgPath(cfg, "visual.tagWheel.customTab") === true,
   };
 }
 
