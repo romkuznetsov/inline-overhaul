@@ -388,6 +388,8 @@ export interface OrderState {
   subOnAlt: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
+  /** Custom block (PRD 10.13.260): свой Block у каретки, по разделу на блок. */
+  custom: Array<{ id: string; name: string; keys: string[] }>;
 }
 
 /** Одно Value внутри Field: `pkm.behavior.leftMode.fields[].values[]`. */

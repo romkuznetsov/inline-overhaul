@@ -76,6 +76,8 @@ function normalizePkmOrder(raw: Any): Any {
     subWithoutParent: map(o.subWithoutParent), subAddsParent: map(o.subAddsParent),
     /* Третья — положение `Show when press Alt` (`З-36`), по той же причине. */
     subOnAlt: map(o.subOnAlt),
+    /* Custom block (PRD 10.13.260) — тоже переносится, по той же причине. */
+    custom: (Array.isArray(o.custom) ? o.custom : []).map((b: Any) => ({ ...b, keys: drop(b.keys) })),
   };
 }
 
@@ -184,6 +186,9 @@ function makeView(opts?: {
   renameTo: (v: string | null) => void;
   /** Строки поиска, с которыми открывали экран хоткеев Obsidian (`З-33`). */
   opened: string[];
+  /** Custom block: о чём спросили окна имени и удаления, и чем они ответят. */
+  asksBlock: Array<{ name: string; fields?: readonly string[] }>;
+  blockAnswer: (v: { rename?: string | null; confirm?: boolean }) => void;
 } {
   const cfg = makeConfig();
   const writes: Write[] = [];
@@ -267,6 +272,9 @@ function makeView(opts?: {
   /* Ответ окна переименования: по умолчанию человек его закрывает. */
   const asksRename: string[] = [];
   let renameAnswer: string | null = null;
+  const asksBlock: Array<{ name: string; fields?: readonly string[] }> = [];
+  let blockRename: string | null = null;
+  let blockConfirm = true;
   const host = makeNode("div");
   let cleanup: (() => void) | null = null;
   const draw = (): void => {
@@ -283,6 +291,8 @@ function makeView(opts?: {
       askNewField: done => { asked.push(null); done(answer); },
       confirmDeleteField: (name, done) => { asksDelete.push(name); done(confirms); },
       askRename: (name, done) => { asksRename.push(name); done(renameAnswer); },
+      askRenameBlock: (name, done) => { asksBlock.push({ name }); done(blockRename); },
+      confirmDeleteBlock: (name, fields, done) => { asksBlock.push({ name, fields }); done(blockConfirm); },
     });
   };
   draw();
@@ -291,6 +301,11 @@ function makeView(opts?: {
     reply: (v: NewFieldAnswer) => { answer = v; },
     confirm: (v: boolean) => { confirms = v; },
     renameTo: (v: string | null) => { renameAnswer = v; },
+    asksBlock,
+    blockAnswer: (v) => {
+      if (v.rename !== undefined) blockRename = v.rename;
+      if (v.confirm !== undefined) blockConfirm = v.confirm;
+    },
     /** Строки поиска, с которыми открывали экран хоткеев Obsidian. */
     opened,
   };
@@ -801,10 +816,12 @@ function dragToSide(from: StubNode, side: StubNode): void {
     String(n.getAttribute("aria-label") || "").startsWith("Behavior for")) as StubNode;
   const labels = mode.children.map(c => String(c.textContent || "").trim());
   const values = mode.children.map(c => String(c.value || ""));
-  assert.deepEqual(labels, ["Strict", "Insert only", "Free"], "подписи режима размещения по З1");
-  assert.deepEqual(values, ["off", "minimal", "full"], "значения в конфиге остались прежними (З1)");
+  /* `Free` снят 2026-09-24 (PRD 10.13.260, `В-203`): вставка у каретки
+     уехала в custom block. Значения двух оставшихся прежние (З1). */
+  assert.deepEqual(labels, ["Strict", "Insert only"], "подписи режима размещения по З1");
+  assert.deepEqual(values, ["off", "minimal"], "значения в конфиге остались прежними (З1)");
   assert.equal(mode.value, "off", "показан текущий режим Field");
-  mode.value = "full";
+  mode.value = "minimal";
   mode.dispatch("change");
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:freeroam:status"],
     "Behavior пишется тем же freeRoam, что и в старой доске");
@@ -3014,6 +3031,102 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.ok(own.NEW_FIELD_NAME_TIP && own.NEW_FIELD_TYPE_TIP, "у подсказок окна нет текста в каталоге");
   passed++;
   console.log("  ok у полей окна `Add a Field` есть «?», и тумблер `Show tips` их гасит");
+}
+
+/* ---- custom block (PRD 10.13.260) --------------------------------------- */
+{
+  const v = makeView();
+  const byLabel = (label: string): StubNode | undefined => all(v.host, "io-btn")
+    .concat(all(v.host, "io-icon"))
+    .find(n => String(n.getAttribute("aria-label") || "") === label);
+  const addBlock = byLabel("Add a custom block") as StubNode;
+  assert.ok(addBlock, "кнопки `Add Block` нет");
+  assert.ok(!addBlock.classList.contains("io-btn--cta"),
+    "`Add Block` акцентная — его слово: цвет обязан отличаться от `Add Field`");
+  assert.equal(all(v.host, "io-side").length, 2, "положительный контроль: до блока разделов два");
+  addBlock.click();
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:block-add:b1"]);
+  const sides = all(v.host, "io-side");
+  assert.equal(sides.length, 3, "раздел блока не появился");
+  assert.equal(String(one(sides[2] as StubNode, "io-side__label").textContent), "Custom block 1");
+  assert.ok(byLabel("Rename the block Custom block 1") && byLabel("Delete the block Custom block 1"),
+    "у раздела блока нет карандаша или корзины");
+  ok("`Add Block` не акцентная и заводит раздел `Custom block 1` с карандашом и корзиной");
+
+  /* Стрелка вниз с низа Right уводит в блок, с низа блока — в начало Left. */
+  const dueRow = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
+  const down = arrowsOf(dueRow).find(b => String(b.getAttribute("aria-label") || "").startsWith("Move Due down")) as StubNode;
+  down.click();
+  const inBlock = (): string[] => rowsOf(all(v.host, "io-side")[2] as StubNode).map(nameIn);
+  assert.deepEqual(inBlock(), ["Due"], "стрелка с края Right не увела Field в custom block");
+  assert.deepEqual(v.model.listBlocks()[0]?.keys, ["due"], "ключ не записан в блок");
+  assert.ok(!v.model.orderState.right.includes("due"), "Field остался и в Right: блок копирует, а не переносит");
+  ok("стрелка с края Right переносит Field в custom block, а не копирует");
+
+  /* В блоке у Field нет `Prefix behavior`. */
+  const pick = all(dueRow.parent ? v.host : v.host, "io-fields__pick")
+    .find(n => String(n.getAttribute("aria-label") || "").indexOf("Due") >= 0) as StubNode;
+  pick.click();
+  assert.ok(!all(v.host, "io-select").some(n => String(n.getAttribute("aria-label") || "").startsWith("Behavior for")),
+    "у Field в custom block показан `Prefix behavior`");
+  ok("у Field в custom block строки `Prefix behavior` нет");
+
+  const dueNow = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
+  (arrowsOf(dueNow).find(b => String(b.getAttribute("aria-label") || "").startsWith("Move Due down")) as StubNode).click();
+  assert.equal(nameIn(rowsOf(all(v.host, "io-side")[0] as StubNode)[0] as StubNode), "Due",
+    "с края последнего раздела стрелка не ушла в начало Left");
+  ok("разделы идут кольцом: с края последнего блока — в начало Left");
+}
+{
+  /* Удаление блока с Field спрашивает окно и называет Field. */
+  const v = makeView();
+  v.model.addBlock();
+  v.model.moveKey("custom:b1", "due");
+  v.draw();
+  const before = v.writes.length;
+  v.blockAnswer({ confirm: false });
+  (all(v.host, "io-icon").find(n => String(n.getAttribute("aria-label")) === "Delete the block Custom block 1") as StubNode).click();
+  assert.deepEqual(v.asksBlock.map(a => a.fields), [["due"]], "окно не назвало Field блока");
+  assert.equal(v.writes.length, before, "отказ в окне всё равно что-то записал");
+  v.blockAnswer({ confirm: true });
+  (all(v.host, "io-icon").find(n => String(n.getAttribute("aria-label")) === "Delete the block Custom block 1") as StubNode).click();
+  assert.equal(v.model.listBlocks().length, 0, "блок не удалён");
+  assert.ok(!rowsOf(v.host).some(r => nameIn(r) === "Due"), "Field блока пережил его удаление");
+  /* Строки нет и тогда, когда Field просто остался без раздела: спрашивается
+     запись, которой Field снимается. */
+  assert.ok(v.writes.some(w => w.reason === "pkm:behavior:delete-field:due"),
+    "Field блока не снят путём deleteField");
+  ok("удаление блока спрашивает окно с именами Field, отказ ничего не пишет, согласие уносит и Field");
+}
+{
+  /* Имя блока: повтор отказывает ошибкой, пустое не пишется. */
+  const v = makeView();
+  v.model.addBlock();
+  v.model.addBlock();
+  v.draw();
+  v.blockAnswer({ rename: "custom block 1" });
+  (all(v.host, "io-icon").find(n => String(n.getAttribute("aria-label")) === "Rename the block Custom block 2") as StubNode).click();
+  assert.equal(v.notices.length, 1, "повтор имени блока прошёл молча");
+  assert.equal(v.model.listBlocks()[1]?.name, "Custom block 2");
+  v.blockAnswer({ rename: "Inbox" });
+  (all(v.host, "io-icon").find(n => String(n.getAttribute("aria-label")) === "Rename the block Custom block 2") as StubNode).click();
+  assert.equal(v.model.listBlocks()[1]?.name, "Inbox");
+  assert.equal(v.model.listBlocks()[1]?.id, "b2", "переименование сменило id — хоткей бы отвязался");
+  assert.equal(v.model.renameBlock("b2", "   ").ok, false, "пустое имя записалось");
+  ok("имя блока: повтор отказывает, пустое не пишется, id не меняется");
+}
+{
+  /* `В-209`: одно написание Value — у одного Field. */
+  const v = makeView();
+  const writes = v.writes.length;
+  const res = v.model.valuesEditor("due").addToken("todo");
+  assert.equal(res.ok, false, "Value `todo` второго Field записалось");
+  assert.equal(v.writes.length, writes, "отказ всё равно записал");
+  assert.ok(String(res.error || "").length > 0, "отказ без слов");
+  const own = v.model.valuesEditor("status");
+  const tree = own.cloneTree();
+  assert.equal(own.saveTree(tree, "same").ok, true, "положительный контроль: сохранение без нового написания отказало");
+  ok("Value с написанием чужого Field не заводится, прежние правки не заперты");
 }
 
 console.log("");

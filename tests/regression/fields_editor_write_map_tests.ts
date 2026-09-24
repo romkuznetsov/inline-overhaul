@@ -58,6 +58,8 @@ function normalizePkmOrder(raw: Any): Any {
     lead: map(o.lead), labels: map(o.labels), strictNames: map(o.strictNames),
     types: map(o.types), active: map(o.active), freeRoam: map(o.freeRoam),
     enabled: map(o.enabled), propertiesByField: map(o.propertiesByField),
+    /* Custom block (PRD 10.13.260): без него запись `Add Block` пропала бы из карты. */
+    custom: Array.isArray(o.custom) ? o.custom.map((b: Any) => ({ ...b, keys: (b.keys || []).slice() })) : [],
   };
 }
 
@@ -467,6 +469,11 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
     why: "предусловие Field (10.13.4): новая настройка, принятая заказчиком 2026-08-27. "
       + "Снимается сценарием из двух шагов: строка выбора Field появляется только после `Yes`",
   },
+  {
+    shape: "pkm:behavior:order:block-add:*",
+    why: "кнопка `Add Block` — custom block, его постановка 2026-09-24 (PRD 10.13.260). Имя и "
+      + "удаление блока пишут `block-rename` и `block-delete`; сценарий карты их не снимает",
+  },
 ];
 
 /**
@@ -630,6 +637,7 @@ const DROPPED: Array<{ path: string; why: string }> = [
  */
 const UNSEEN: Array<{ path: string; why: string }> = [
   { path: "pkm.fields.elements.fields", why: "удаление Field: старая карта диалог не подтверждала" },
+  { path: "pkm.fields.order.custom", why: "список custom block — кнопка `Add Block`, его постановка 2026-09-24 (PRD 10.13.260)" },
 ];
 
 /* ---- сверка ------------------------------------------------------------- */

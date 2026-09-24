@@ -105,6 +105,7 @@ const V2_ONLY: Record<string, string> = {
   "visual.tags.linkShown.hoverPreview": "предпросмотр заметки по наведению у значения-ссылки, показанного своим текстом — его слово 2026-09-20 «субхедер Link view» (10.13.220); читает askWikilinkHoverPreview в decorations.js",
   "visual.tags.linkShown.draggable": "перетаскивание такого значения — там же (10.13.220); читает makeWikilinkDraggable в decorations.js",
   "visual.tagWheel.valueNames": "чем подписано выбранное значение в самой полосе панели — его заказ 2026-09-21 (`З-38`); доезжает ключом настройки TAGWHEEL_VALUE_NAMES до valueLabelInStrip в tagwheel_core.js",
+  "visual.tagWheel.customTab": "`Tab` между custom block — его пункт 2026-09-24 (PRD 10.13.260); доезжает ключом настройки TAGWHEEL_CUSTOM_TAB до панели custom block в tagwheel.js",
 };
 
 /* ---- каждая настройка панели имеет пару в конфиге ----------------------- */

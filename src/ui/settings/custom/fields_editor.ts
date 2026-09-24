@@ -181,6 +181,8 @@ function confirmDeleteModal(
   fieldName: string,
   done: (yes: boolean) => void,
   say: Say,
+  /* Окно удаления custom block — то же окно со своими словами (PRD 10.13.260). */
+  words?: { title: string; body: string },
 ): void {
   let answered = false;
   const finish = (yes: boolean): void => {
@@ -194,8 +196,8 @@ function confirmDeleteModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", "io-dlg__title", say("DELETE_TITLE"));
-      el(box, "p", "io-item__desc", say("DELETE_BODY", fieldName));
+      el(box, "h4", "io-dlg__title", words ? words.title : say("DELETE_TITLE"));
+      el(box, "p", "io-item__desc", words ? words.body : say("DELETE_BODY", fieldName));
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button",
         { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
@@ -231,6 +233,12 @@ function askRenameModal(
   current: string,
   done: (next: string | null) => void,
   say: Say,
+  /*
+   * Имя custom block: окно то же, что у Field (PRD 10.13.260, пункт 1), но
+   * цены у него нет — хоткей держится за `id` блока, а не за имя, и в
+   * заметках блок своего имени не пишет.
+   */
+  block?: boolean,
 ): void {
   let answered = false;
   const finish = (next: string | null): void => {
@@ -244,25 +252,27 @@ function askRenameModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", "io-dlg__title", say("RENAME_TITLE"));
+      el(box, "h4", "io-dlg__title", say(block ? "RENAME_BLOCK_TITLE" : "RENAME_TITLE"));
 
       const row = el(box, "div", "io-item");
       const info = el(row, "div", "io-item__info");
       el(info, "div", "io-item__name", say("RENAME_LABEL"));
-      el(info, "div", "io-item__desc", say("RENAME_HINT"));
+      el(info, "div", "io-item__desc", say(block ? "RENAME_BLOCK_HINT" : "RENAME_HINT"));
       const input = el(row, "div", "io-item__control").createEl("input", {
-        cls: "io-text io-text--mono",
+        cls: block ? "io-text" : "io-text io-text--mono",
         type: "text",
         value: current,
-        attr: { "aria-label": say("RENAME_ARIA", current) },
+        attr: { "aria-label": say(block ? "RENAME_BLOCK_ARIA" : "RENAME_ARIA", current) },
       }) as El & { value: string };
 
       /* Цена названа до нажатия, а не после (З8 наоборот: это человеку). */
-      const warn = el(box, "div", "io-dlg__warn");
-      el(warn, "p", "io-item__desc", say("RENAME_WARNING"));
-      const list = el(warn, "ul", "io-dlg__list");
-      el(list, "li", "io-item__desc", say("RENAME_WARNING_NOTES"));
-      el(list, "li", "io-item__desc", say("RENAME_WARNING_HOTKEY"));
+      if (!block) {
+        const warn = el(box, "div", "io-dlg__warn");
+        el(warn, "p", "io-item__desc", say("RENAME_WARNING"));
+        const list = el(warn, "ul", "io-dlg__list");
+        el(list, "li", "io-item__desc", say("RENAME_WARNING_NOTES"));
+        el(list, "li", "io-item__desc", say("RENAME_WARNING_HOTKEY"));
+      }
 
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button",
@@ -367,6 +377,11 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         }),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
         askRename: (name, done) => askRenameModal(Modal, app, name, done, say),
+        askRenameBlock: (name, done) => askRenameModal(Modal, app, name, done, say, true),
+        confirmDeleteBlock: (name, fields, done) => confirmDeleteModal(Modal, app, name, done, say, {
+          title: say("DELETE_BLOCK_TITLE"),
+          body: say("DELETE_BLOCK_BODY", name, fields.length, fields.join(", ")),
+        }),
       });
     } catch (e) {
       next.remove();

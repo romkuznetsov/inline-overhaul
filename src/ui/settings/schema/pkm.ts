@@ -86,7 +86,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"first",label:"First Field of the Block"},
                 {value:"middle",label:"Middle Field of the Block"},
                 {value:"custom",label:"A Field you choose"} ],
-      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>A Field you choose</code> on its first; with the cursor on one of its Values it opens on that Value's Field" },
     { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
       name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
       searchTerms:["Lead Field left"],
@@ -104,18 +104,24 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide them while the picker is open"},
                 {value:"keep",label:"Keep them in sight"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written stay in sight always, as part of your text" },
     { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
       name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block" },
+    { kind:"toggle", id:"wheel-custom-tab", path:"visual.tagWheel.customTab", default:false,
+      name:"tagWheel - Switch custom blocks on Tab", desc:"Tab in a custom block's tagWheel moves on to the next custom block",
+      searchTerms:["Custom block","Tab","Next custom block"],
+      visible:{ deps:["pkm.fields.order.custom"],
+                test: c => Boolean(Object(c.get("pkm.fields.order.custom")).length) },
+      tip:"Off, <code>Tab</code> does nothing while a custom block's tagWheel is open. On, it moves on to the next custom block in the order of the Fields list, and from the last one back to the first; the picker stays where the cursor is, and what you picked in the block you leave is dropped — only <code>Enter</code> writes. The tagWheel of Left and Right Block never moves into a custom block" }
   ]
 },
 {
   id: "placement-modes", tab: "pkm", order: 400, heading: "Placement modes",
-  intro: "Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work",
+  intro: "Every Field in Left or Right Block has a <code>Behavior</code> mode: <code>Strict</code> or <code>Insert only</code>. These options define how exactly those modes work",
   tip: "You choose the mode for each Field over in <code>Fields</code>. What you set here is the fine print of each mode \u2014 mainly whether it is allowed to change the very start of the line, the part that makes it a bullet or a checkbox",
   items: [
     { kind:"toggle", id:"placement-bullet-strict", path:"pkm.placement.bulletInStrict", default:false,
@@ -130,13 +136,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"placement-field-prefix", path:"pkm.placement.fieldPrefixInsertOnly", default:true,
       name:"Insert only: use Field Prefix", desc:"Allow a Value to change the start of the line after all, if it has its own",
       searchTerms:["Minimal mode Prefix"],
-      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" },
-    { kind:"dropdown", id:"placement-free-position", path:"pkm.placement.freeInsertPosition", default:"smart",
-      name:"Free: insert position", desc:"Which end of the line a Value goes to when the cursor is mid-sentence",
-      tip:"This decides nothing when the cursor stands inside a Block: there the Value goes where the cursor is. It answers the other case — the cursor is somewhere in your sentence, and the Value has to go to one of the two ends. <code>Whichever side is closer</code> measures from the cursor; the other two always pick the same end",
-      searchTerms:["Full mode"],
-      options:[ {value:"smart",label:"Whichever side is closer"}, {value:"left",label:"Always left"},
-                {value:"right",label:"Always right"} ] }
+      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" }
   ]
 },
 {

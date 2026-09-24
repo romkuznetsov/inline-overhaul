@@ -160,6 +160,9 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
        * Ровно то же замечание он писал 2026-09-04 про имена команд, и оно
        * тогда было починено в другом месте — а здесь осталось (У-32).
        */
+      /* Field custom block в предпросмотры строки не идут: он пишется у каретки,
+         внутри текста, а предпросмотр рисует Left и Right (PRD 10.13.260). */
+      if (row.side !== "left" && row.side !== "right") continue;
       out.push({
         id: row.key,
         name: row.strictName || row.key,

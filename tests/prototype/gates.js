@@ -74,6 +74,10 @@ const LONG_NAME_OK = {
   /* В-47, answered 2026-09-05: the owner asked for these exact six words back
      after seeing the five-word version. */
   "in-line-boundary": "What to do at the end",
+  /* PRD 10.13.260, his item of 2026-09-24: «нужно добавить отдельный контрол
+     `tagWheel - Switch custom blocks on Tab`». His exact words, capital after
+     the dash included, so the sentence-case rule steps aside for it too. */
+  "wheel-custom-tab": "tagWheel - Switch custom blocks on Tab",
 };
 
 /* A key combination, quoted or bare: 'Ctrl+A', Cmd + A, Shift+Tab. */
@@ -186,11 +190,15 @@ for (const g of SCHEMA) for (const it of g.items) if (it.path) setIn(defaults, i
 setIn(defaults, "general.help.showTips", true);
 const known = new Set();
 for (const g of SCHEMA) for (const it of g.items) if (it.path) known.add(it.path);
+/* Config paths a predicate may ask that no row writes; each is written by a
+   block of its own. One list for this gate and the settings layer test. */
+const WRITTEN_BY_BLOCK = require("../harness/written_by_block.js");
+const knownDeps = new Set([...known, ...WRITTEN_BY_BLOCK]);
 for (const p of known) if (getIn(defaults, p) === undefined) bad("path has no default: " + p);
 const checkPred = (owner, pr) => {
   if (!pr) return;
   if (!Array.isArray(pr.deps) || !pr.deps.length) bad(owner + " predicate has no deps");
-  for (const d of pr.deps || []) if (!known.has(d)) bad(owner + " depends on unknown path " + d);
+  for (const d of pr.deps || []) if (!knownDeps.has(d)) bad(owner + " depends on unknown path " + d);
 };
 for (const g of SCHEMA) {
   checkPred("group " + g.id, g.visible);
@@ -338,7 +346,8 @@ for (const g of SCHEMA) for (const it of g.items) {
   /* `Left Block` and `Right Block` are entities in their own right (Ct10),
      so the pair keeps its capitals. Only as a pair: a bare `Left` in a name
      is still the sentence case bug this check is here to find. */
-  it.name.replace(/(Left|Right) Block/g, "block block").split(" ").slice(1).forEach(w => {
+  /* A name the owner gave word for word is his decision on case as well. */
+  if (LONG_NAME_OK[it.id] !== it.name) it.name.replace(/(Left|Right) Block/g, "block block").split(" ").slice(1).forEach(w => {
     /* A key name is not an English word: 'Ctrl+A' has to keep its capitals,
        and a name cannot carry <code>, so the owner writes it in quotes.
        Stripping the punctuation first turned it into CtrlA and the sentence

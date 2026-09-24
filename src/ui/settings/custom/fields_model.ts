@@ -137,11 +137,24 @@ export interface WriteResult {
   key?: string;
 }
 
+/**
+ * Раздел списка Fields: Left, Right или custom block (`custom:<id>`, PRD
+ * 10.13.260). У custom block `id` выдаётся при создании и не меняется.
+ */
+export type FieldSide = "left" | "right" | `custom:${string}`;
+
+/** Custom block так, как его читает вёрстка: `id`, имя и его Field. */
+export interface CustomBlock {
+  id: string;
+  name: string;
+  keys: string[];
+}
+
 /** Строка списка Fields для вёрстки (Ф1, Ф3, Ф4, Ф6). */
 export interface FieldRow {
   key: string;
   /** Сторона: в какой Block Field пишется (Ф1). */
-  side: "left" | "right";
+  side: FieldSide;
   kind: FieldKind;
   /** Видимое имя Field. */
   label: string;
@@ -394,6 +407,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     for (const k of pkmOrderFields) push(k);
     for (const k of (orderState.left || [])) push(k);
     for (const k of (orderState.right || [])) push(k);
+    for (const b of (orderState.custom || [])) for (const k of b.keys) push(k);
     for (const k of Object.keys(orderState.labels || {})) push(k);
     for (const k of Object.keys(orderState.strictNames || {})) push(k);
     for (const k of Object.keys(orderState.active || {})) push(k);
@@ -485,6 +499,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const ensureAllKeys = (): void => {
     for (const k of getOrderKeys()) {
       if (orderState.left.includes(k) || orderState.right.includes(k)) continue;
+      if ((orderState.custom || []).some(b => b.keys.includes(k))) continue;
       orderState.right.push(k);
     }
   };
@@ -609,7 +624,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * Дочерний Field ходит за родителем и на другую сторону сам не попадает
    * (Ф3, Ф20): в `moveKeys` он приписан к родителю, а не двигается отдельно.
    */
-  const moveKey = (toPanel: "left" | "right", key: string, beforeKey?: string): void => {
+  const moveKey = (toPanel: FieldSide, key: string, beforeKey?: string): void => {
     if (!key) return;
     const moveKeys = [key];
     const subKey = getSubKeyForParent(key);
@@ -618,7 +633,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
     orderState.left = orderState.left.filter(x => !moveKeys.includes(x));
     orderState.right = orderState.right.filter(x => !moveKeys.includes(x));
-    const target = toPanel === "right" ? orderState.right : orderState.left;
+    /* Один Field — один блок (PRD 10.13.260, пункт 4): перенос, а не копия. */
+    orderState.custom = (orderState.custom || []).map(b => ({ ...b, keys: b.keys.filter(x => !moveKeys.includes(x)) }));
+    const blockId = String(toPanel).indexOf("custom:") === 0 ? String(toPanel).slice(7) : "";
+    const block = blockId ? orderState.custom.find(b => b.id === blockId) : null;
+    if (blockId && !block) return;
+    const target = block ? block.keys : (toPanel === "right" ? orderState.right : orderState.left);
     let idx = target.length;
     if (beforeKey) {
       const bi = target.indexOf(beforeKey);
@@ -626,6 +646,54 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
     target.splice(idx, 0, ...moveKeys);
     setOrderPatch(orderState, "pkm:behavior:order:dnd");
+  };
+
+  /* ---- custom block (PRD 10.13.260) ------------------------------------ */
+
+  const listBlocks = (): CustomBlock[] =>
+    (orderState.custom || []).map(b => ({ id: b.id, name: b.name, keys: b.keys.slice() }));
+
+  /** Новый пустой блок: имя `Custom block N` и `id` `bN` — первыми свободными. */
+  const addBlock = (): WriteResult => {
+    const list = listBlocks();
+    /* Имя ложится в конфиг и дальше принадлежит человеку: слово берётся у
+       каталога один раз, при создании. */
+    const nameFor = (n: number): string => SAY.NEW_BLOCK_NAME.replace("{0}", String(n));
+    let n = 1;
+    while (list.some(b => b.name.toLowerCase() === nameFor(n).toLowerCase())) n++;
+    let k = 1;
+    while (list.some(b => b.id === `b${k}`)) k++;
+    const block = { id: `b${k}`, name: nameFor(n), keys: [] as string[] };
+    orderState.custom = list.concat([block]);
+    setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-add:" + block.id);
+    return { ok: true, key: block.id };
+  };
+
+  /** Имя блока: непустое и без повторов, ошибка та же, что у имени Field. */
+  const renameBlock = (id: string, rawName: string): WriteResult => {
+    const name = String(rawName || "").replace(/\s+/g, " ").trim();
+    const list = listBlocks();
+    const block = list.find(b => b.id === id);
+    if (!block || !name) return { ok: false, changed: false };
+    if (name === block.name) return { ok: true, changed: false };
+    if (list.some(b => b.id !== id && b.name.toLowerCase() === name.toLowerCase())) {
+      return { ok: false, error: SAY.ERR_BLOCK_NAME_TAKEN };
+    }
+    orderState.custom = list.map(b => (b.id === id ? { ...b, name } : b));
+    setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-rename:" + id);
+    return { ok: true };
+  };
+
+  /**
+   * Удалить блок вместе с его Field (`В-205`). Подтверждение спрашивает тот,
+   * кто рисует; Field снимаются тем же путём, что `deleteField`.
+   */
+  const deleteBlock = (id: string): void => {
+    const block = listBlocks().find(b => b.id === id);
+    if (!block) return;
+    for (const key of block.keys) deleteField(key);
+    orderState.custom = listBlocks().filter(b => b.id !== id);
+    setOrderPatch({ custom: orderState.custom }, "pkm:behavior:order:block-delete:" + id);
   };
 
   /* ---- добавление Field (Ф5) ------------------------------------------- */
@@ -796,6 +864,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       ...liveOrder,
       left: (liveOrder.left || []).filter(x => !targets.includes(String(x || "").trim())),
       right: (liveOrder.right || []).filter(x => !targets.includes(String(x || "").trim())),
+      custom: (liveOrder.custom || []).map(b => ({ ...b, keys: b.keys.filter(x => !targets.includes(String(x || "").trim())) })),
       lead: { ...(liveOrder.lead || {}) },
       labels: { ...(liveOrder.labels || {}) },
       strictNames: { ...(liveOrder.strictNames || {}) },
@@ -824,6 +893,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     if (targets.includes(rightLead)) nextOrder.lead.right = "";
     orderState.left = nextOrder.left.slice();
     orderState.right = nextOrder.right.slice();
+    orderState.custom = nextOrder.custom.map(b => ({ ...b, keys: b.keys.slice() }));
     orderState.lead = { ...(nextOrder.lead || {}) };
     orderState.labels = { ...nextOrder.labels };
     orderState.strictNames = { ...nextOrder.strictNames };
@@ -1123,13 +1193,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    */
   const listFields = (): FieldRow[] => {
     const out: FieldRow[] = [];
-    const rowFor = (key: string, side: "left" | "right", parent: string): FieldRow => {
+    const rowFor = (key: string, side: FieldSide, parent: string): FieldRow => {
       const activeRaw = String(
         (orderState.active && orderState.active[key])
         || (orderState.enabled && orderState.enabled[key] !== false ? "yes" : "no"),
       ).trim().toLowerCase();
       const freeRaw = String((orderState.freeRoam && orderState.freeRoam[key]) || "off").trim().toLowerCase();
-      const leadKey = String((orderState.lead && orderState.lead[side]) || "").trim();
+      const leadKey = String((orderState.lead && (orderState.lead as Record<string, string>)[side]) || "").trim();
       return {
         key,
         side,
@@ -1145,8 +1215,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         lead: !parent && leadKey === key,
       };
     };
-    for (const side of ["left", "right"] as const) {
-      for (const raw of (side === "left" ? orderState.left : orderState.right)) {
+    /* Разделы сверху вниз: Left, Right, потом custom block в порядке создания. */
+    const sections: Array<{ side: FieldSide; keys: string[] }> = [
+      { side: "left", keys: orderState.left },
+      { side: "right", keys: orderState.right },
+      ...(orderState.custom || []).map(b => ({ side: `custom:${b.id}` as FieldSide, keys: b.keys })),
+    ];
+    for (const { side, keys } of sections) {
+      for (const raw of keys) {
         const key = String(raw || "").trim();
         if (!key || SUB_SUFFIX_RE.test(key)) continue;
         out.push(rowFor(key, side, ""));
@@ -1165,7 +1241,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
          * Закреплено проверкой в `fields_editor_view_tests.ts`.
          */
         const sub = getSubKeyForParent(key);
-        if (sub && (orderState.left.includes(sub) || orderState.right.includes(sub))) {
+        if (sub && keys.includes(sub)) {
           out.push(rowFor(sub, side, key));
         }
       }
@@ -1908,6 +1984,44 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const cloneTree = (): Loose[] =>
       tree.map((p: Loose) => ({ ...p, children: (p.children || []).map((c: Loose) => ({ ...c })) }));
 
+    /*
+     * **Одно написание Value — у одного Field** (`В-209`, его ответ 2026-09-24).
+     * По написанию значение узнают и Left/Right, и custom block (пункт 13
+     * постановки): два Field с одним `#todo` делали бы вопрос «чьё это»
+     * неразрешимым. Сравнивается голое написание без регистра — так тег видит
+     * Obsidian. Запрещается **новое** написание: уже стоящий повтор не
+     * запирает правку остальных значений.
+     */
+    const bareOf = (raw: unknown): string =>
+      String(raw == null ? "" : raw).trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "").trim().toLowerCase();
+    const takenElsewhere = (() => {
+      const mine = new Set([parentFieldId, subFieldId].filter(Boolean));
+      const out = new Set<string>();
+      for (const f of leftMode.concat(rightMode)) {
+        const fid = idOf(f);
+        if (!fid || mine.has(fid)) continue;
+        for (const v of asArray(asObject(f)["values"])) {
+          const tok = bareOf(asObject(v)["token"]);
+          if (tok) out.add(tok);
+        }
+      }
+      return out;
+    })();
+    const treeTokens = (t: Loose[]): Set<string> => {
+      const out = new Set<string>();
+      for (const p of Array.isArray(t) ? t : []) {
+        out.add(bareOf(p && p.token));
+        for (const c of (p && Array.isArray(p.children) ? p.children : [])) out.add(bareOf(c && c.token));
+      }
+      out.delete("");
+      return out;
+    };
+    const newTakenToken = (nextTree: Loose[]): string => {
+      const before = treeTokens(tree);
+      for (const tok of treeTokens(nextTree)) if (!before.has(tok) && takenElsewhere.has(tok)) return tok;
+      return "";
+    };
+
     const reorder = (
       srcLevel: number, srcParentToken: string, srcToken: string,
       dstLevel: number, dstParentToken: string, dstToken: string,
@@ -2009,6 +2123,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
 
     const saveTree = (nextTree: Loose[], reason: string): WriteResult => {
+      if (newTakenToken(nextTree)) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
       if (kind === "wikilink") {
         /*
          * Сохранение дерева значений ссылки.
@@ -2236,6 +2351,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const addToken = (raw: string): WriteResult => {
       const token = normToken(raw, kind);
       if (!token) return { ok: false, changed: false };
+      if (takenElsewhere.has(bareOf(token))) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
       if (kind === "wikilink") {
         const behaviorNow = behaviorOf(plugin.getConfig());
         const leftNow = modeFields(behaviorNow, "leftMode");
@@ -2353,6 +2469,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     /* запись */
     setOrderPatch,
     moveKey,
+    listBlocks,
+    addBlock,
+    renameBlock,
+    deleteBlock,
     addField,
     deleteField,
     setStrictName,

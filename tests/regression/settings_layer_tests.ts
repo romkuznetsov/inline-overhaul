@@ -3,6 +3,7 @@
  * Запускается на обвязке tests/harness, без Obsidian.
  */
 
+import writtenByBlock from "../harness/written_by_block.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -243,7 +244,8 @@ async function main(): Promise<void> {
   });
 
   await test("каждый путь предиката есть в схеме (С6)", () => {
-    const paths = new Set<string>();
+    /* Плюс пути, которые пишет свой блок, — список один на гейт и сюда. */
+    const paths = new Set<string>(writtenByBlock as string[]);
     for (const g of SCHEMA) for (const it of g.items) if (isBound(it)) paths.add(it.path);
     for (const g of SCHEMA) {
       for (const it of g.items) {

@@ -10969,7 +10969,6 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:6748 | `Minimal mode separators` | `pkm.placement.keepPrefixInsertOnly` | Insert only: keep the Prefix (`placement-keep-prefix`, Placement modes) |
 | перенесено | R:6761 | `OFF mode prefix` (описание в 3 строки) | `pkm.placement.bulletInStrict` | Strict: add a bullet (`placement-bullet-strict`, Placement modes) |
 | перенесено | R:6774 | `Minimal mode prefix` | `pkm.placement.fieldPrefixInsertOnly` | Insert only: use Field Prefix (`placement-field-prefix`, Placement modes) |
-| перенесено | R:6787 | `Full mode: where to input element if cursor inside text?` | `pkm.placement.freeInsertPosition` | Free: insert position (`placement-free-position`, Placement modes) |
 | перенесено | R:6181 | `Main checkbox priority` | `pkm.prefixPriority.decideBy` | Decide by (`prefix-priority-decide`, Prefix priority) |
 | перенесено | R:6195 | `Fields order mode` | `pkm.prefixPriority.fieldOrderSource` | Field order source (`prefix-priority-source`, Prefix priority) |
 | перенесено | R:6209 | `Tag/Subtag priority` | `pkm.prefixPriority.parentOrChild` | Parent or child wins (`prefix-priority-parent`, Prefix priority) |
@@ -11016,6 +11015,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:1587 | `Generate log for AI?` | `advanced.devMode.aiLog` | Machine-readable log (`dev-ai-log`, Diagnostics) |
 | перенесено | R:1598 | `Log Path` / `Plugin writes <path>.new.* …` | `advanced.devMode.logPath` | Log file (`dev-log-path`, Diagnostics) |
 | снято | R:1779 | `Prefix Cycle Order` (длинное описание) | `navigation.moveSelection.cycleOrder` | переехало в свой блок renderCycleOrder, path сохраняется |
+| **требует решения** | R:6787 | `Full mode: where to input element if cursor inside text?` | `pkm.placement.freeInsertPosition` | **нет соответствия в прототипе** |
 | **требует решения** | R:5817 | `Config Export Mode` | `pkm.configNote.detail` | **нет соответствия в прототипе** |
 | **требует решения** | R:5833 | `TagWheel Note Editor` | `pkm.configNote.path` | **нет соответствия в прототипе** |
 | снято | R:1666 | `Open Detailed Template` (был в Advanced) | `кнопка Open` | остаётся кнопкой без path в группе Note content |
@@ -11027,7 +11027,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (75)
+### Пути, которых не было в описи v1.0 (76)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -11053,6 +11053,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel behavior |
 | `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | tagWheel behavior |
 | `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel behavior |
+| `visual.tagWheel.customTab` | tagWheel - Switch custom blocks on Tab (`wheel-custom-tab`) | tagWheel behavior |
 | `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.direction` | Stripe direction (`tags-block-fill-direction`) | Inline appearance |
@@ -18369,7 +18370,7 @@ python tests/prototype/update_prd.py
 | 200 | `line-format` | Separators | Two markers of your choosing carve out the middle of a line. Whatever you write goes between them; the Fields sit outside. Which Fields land on which side is set under <code>Fields</code>, by dragging one across the line | да | — |
 | 300 | `writing-rules` | Writing rules | The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards | да | — |
 | 350 | `tagwheel-behavior` | tagWheel behavior | Where tagWheel lands when it opens, what happens to the Values it is not picking, and what the arrow keys do at the edge of a Block. How it looks is set on the Visual tab | да | — |
-| 400 | `placement-modes` | Placement modes | Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work | да | — |
+| 400 | `placement-modes` | Placement modes | Every Field in Left or Right Block has a <code>Behavior</code> mode: <code>Strict</code> or <code>Insert only</code>. These options define how exactly those modes work | да | — |
 | 500 | `prefix-priority` | Prefix priority | Some Values want to change the start of the line — a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who | да | — |
 
 **Transform** (`transform`)
@@ -18847,7 +18848,7 @@ _Tip:_ tagWheel is the picker that opens over your line with your Fields laid ou
 
 - **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
   - desc: Which Field the picker lands on when it opens
-  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
+  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>A Field you choose</code> on its first; with the cursor on one of its Values it opens on that Value's Field
   - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
   - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
 - **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
@@ -18864,18 +18865,23 @@ _Tip:_ tagWheel is the picker that opens over your line with your Fields laid ou
   - старые названия для поиска: «Lead Field right»
 - **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
   - desc: What happens to the Values you are not picking while the picker is open
-  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes
+  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written stay in sight always, as part of your text
   - варианты: `hide` Hide them while the picker is open · `keep` Keep them in sight
   - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
 - **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
   - desc: What the arrow keys do when there is no next Field on this side
-  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
+  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block
   - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
   - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
+- **tagWheel - Switch custom blocks on Tab** — `wheel-custom-tab`, `toggle`, path `visual.tagWheel.customTab`, default `false`
+  - desc: Tab in a custom block's tagWheel moves on to the next custom block
+  - tip: Off, <code>Tab</code> does nothing while a custom block's tagWheel is open. On, it moves on to the next custom block in the order of the Fields list, and from the last one back to the first; the picker stays where the cursor is, and what you picked in the block you leave is dropped — only <code>Enter</code> writes. The tagWheel of Left and Right Block never moves into a custom block
+  - видна если: `pkm.fields.order.custom`
+  - старые названия для поиска: «Custom block», «Tab», «Next custom block»
 
 #### Placement modes — `placement-modes` (вкладка `pkm`)
 
-_Intro:_ Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work
+_Intro:_ Every Field in Left or Right Block has a <code>Behavior</code> mode: <code>Strict</code> or <code>Insert only</code>. These options define how exactly those modes work
 
 _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you set here is the fine print of each mode — mainly whether it is allowed to change the very start of the line, the part that makes it a bullet or a checkbox
 
@@ -18892,11 +18898,6 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - desc: Allow a Value to change the start of the line after all, if it has its own
   - tip: Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes
   - старые названия для поиска: «Minimal mode Prefix»
-- **Free: insert position** — `placement-free-position`, `dropdown`, path `pkm.placement.freeInsertPosition`, default `smart`
-  - desc: Which end of the line a Value goes to when the cursor is mid-sentence
-  - tip: This decides nothing when the cursor stands inside a Block: there the Value goes where the cursor is. It answers the other case — the cursor is somewhere in your sentence, and the Value has to go to one of the two ends. <code>Whichever side is closer</code> measures from the cursor; the other two always pick the same end
-  - варианты: `smart` Whichever side is closer · `left` Always left · `right` Always right
-  - старые названия для поиска: «Full mode»
 
 #### Prefix priority — `prefix-priority` (вкладка `pkm`)
 
@@ -19539,7 +19540,6 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.lineFormat.separator2` | text | `||` |
 | `pkm.placement.bulletInStrict` | toggle | `false` |
 | `pkm.placement.fieldPrefixInsertOnly` | toggle | `true` |
-| `pkm.placement.freeInsertPosition` | dropdown | `smart` |
 | `pkm.placement.keepPrefixInsertOnly` | toggle | `true` |
 | `pkm.prefixPriority.decideBy` | dropdown | `by-section` |
 | `pkm.prefixPriority.fieldOrderSource` | dropdown | `manual` |
@@ -19624,6 +19624,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `visual.tagWheel.activeField.right` | dropdown | `""` |
 | `visual.tagWheel.activeTextColor` | color | `""` |
 | `visual.tagWheel.chosenValueColor` | color | `""` |
+| `visual.tagWheel.customTab` | toggle | `false` |
 | `visual.tagWheel.edgeMode` | dropdown | `stay` |
 | `visual.tagWheel.fillColor` | color | `""` |
 | `visual.tagWheel.highlightLine` | toggle | `true` |

@@ -16,7 +16,7 @@
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
 import { el, btn, cssVar, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
-import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
+import type { CustomBlock, FieldSide, FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
@@ -87,7 +87,7 @@ const SIDE_LABEL = { left: "SIDE_LEFT", right: "SIDE_RIGHT" } as const;
 const BEHAVIOR_OPTIONS = [
   { value: "off", name: "BEHAVIOR_STRICT" },
   { value: "minimal", name: "BEHAVIOR_INSERT_ONLY" },
-  { value: "full", name: "BEHAVIOR_FREE" },
+  /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки — это custom block. */
 ] as const;
 
 /** Ф10: порядок Values и есть порядок цикла. Сказано один раз, в шапке таблицы. */
@@ -343,6 +343,13 @@ export interface FieldsViewOpts {
    * в заметках останется старый тег, а хоткей отвяжется (1.4.1.2.2).
    */
   askRename?: (name: string, done: (next: string | null) => void) => void;
+  /** Окно имени custom block: то же окно, но без цены — хоткей держится за `id`. */
+  askRenameBlock?: (name: string, done: (next: string | null) => void) => void;
+  /**
+   * Подтверждение удаления custom block вместе с его Field (`В-205`): окно
+   * называет их число и имена. У пустого блока окна нет.
+   */
+  confirmDeleteBlock?: (name: string, fields: readonly string[], done: (yes: boolean) => void) => void;
 }
 
 /* ---- сворачивание разделов правой колонки (`З-34`) --------------------- */
@@ -502,10 +509,11 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
 
   const ownerOf = (row: FieldRow): string => row.parent || row.key;
 
-  const side = (value: "left" | "right"): void => {
+  const side = (value: FieldSide, block?: CustomBlock): void => {
     const sec = el(list, "div", "io-side");
     const cap = el(sec, "div", "io-side__cap");
-    const label = el(cap, "span", "io-side__label", say(SIDE_LABEL[value]));
+    const label = el(cap, "span", "io-side__label",
+      block ? block.name : say(SIDE_LABEL[value === "right" ? "right" : "left"]));
     /*
      * Знака «?» у подписи стороны нет, и это объявленное исключение из заказа
      * «tip у всех элементов» (2026-09-08): колонка списка шириной 188 точек, и
@@ -513,7 +521,11 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
      * уехал в подсказку шапки колонки (`LIST_TIP`), а здесь — родная подсказка
      * Obsidian: одна подсказка на узел и только `aria-label` (У-21).
      */
-    label.setAttribute("aria-label", say(value === "left" ? "SIDE_LEFT_ABOUT" : "SIDE_RIGHT_ABOUT"));
+    label.setAttribute("aria-label", block
+      ? say("SIDE_CUSTOM_ABOUT", block.name)
+      : say(value === "left" ? "SIDE_LEFT_ABOUT" : "SIDE_RIGHT_ABOUT"));
+    /* У раздела custom block — карандаш и корзина, как у Field (PRD 10.13.260). */
+    if (block) blockTools(cap, block, rows, o);
 
     /* Бросок мимо строк — в конец стороны. */
     sec.addEventListener("dragover", ((ev: DragEv) => {
@@ -653,6 +665,10 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
   side("left");
   el(list, "div", "io-side__rule");
   side("right");
+  for (const block of o.model.listBlocks()) {
+    el(list, "div", "io-side__rule");
+    side(`custom:${block.id}`, block);
+  }
 
   const addWrap = el(list, "div", "io-fields__add");
   /* Акцентная: заказчик просил, чтобы добавление было видно (замечание
@@ -661,6 +677,54 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
     { text: say("ADD_FIELD"), label: say("ADD_FIELD_LABEL") });
   add.disabled = !o.enabled;
   addFieldAction(add, o);
+  /* Не акцентная — его слово: «цвет кнопки должен отличаться от add field». */
+  const addBlock = btn(addWrap, "io-btn io-btn--sm",
+    { text: say("ADD_BLOCK"), label: say("ADD_BLOCK_LABEL") });
+  addBlock.disabled = !o.enabled;
+  addBlock.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.model.addBlock();
+    o.redraw();
+  }) as never);
+}
+
+/**
+ * Карандаш и корзина у подписи custom block. Кнопок нет, когда окна нет:
+ * нажатие, которому некуда вести, хуже его отсутствия (З8).
+ */
+function blockTools(cap: El, block: CustomBlock, rows: readonly FieldRow[], o: FieldsViewOpts): void {
+  const say = words(o);
+  const tools = el(cap, "span", "io-side__tools");
+  if (o.askRenameBlock) {
+    const ask = o.askRenameBlock;
+    const pen = btn(tools, "io-icon", { text: "\u270E", label: say("RENAME_BLOCK", block.name) });
+    pen.disabled = !o.enabled;
+    pen.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      ask(block.name, next => {
+        if (!next) return;
+        const res = o.model.renameBlock(block.id, next);
+        if (!res.ok && res.error) o.notice(res.error);
+        o.redraw();
+      });
+    }) as never);
+  }
+  const inside = rows.filter(r => !r.parent && r.side === `custom:${block.id}`).map(r => r.strictName);
+  const drop = (): void => {
+    o.model.deleteBlock(block.id);
+    o.state.selected = "";
+    o.redraw();
+  };
+  if (inside.length && !o.confirmDeleteBlock) return;
+  const bin = btn(tools, "io-icon", { text: "\u{1F5D1}", label: say("DELETE_BLOCK", block.name) });
+  bin.disabled = !o.enabled;
+  bin.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    if (!inside.length) { drop(); return; }
+    (o.confirmDeleteBlock as NonNullable<FieldsViewOpts["confirmDeleteBlock"]>)(block.name, inside, yes => {
+      if (yes) drop();
+    });
+  }) as never);
 }
 
 /**
@@ -669,7 +733,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
  * мышью единственным путём быть не может.
  */
 function stepField(model: FieldsModel, rows: readonly FieldRow[], row: FieldRow, dir: -1 | 1): void {
-  const side = row.side;
+  const side: FieldSide = row.side;
   const peers = rows.filter(r => !r.parent && r.side === side).map(r => r.key);
   const i = peers.indexOf(row.key);
   const target = peers[i + dir];
@@ -680,11 +744,14 @@ function stepField(model: FieldsModel, rows: readonly FieldRow[], row: FieldRow,
     return;
   }
   /*
-   * Край стороны. `Left Block` нарисован выше `Right Block`, и стрелка этому
-   * подчиняется: вниз с низа левого попадаешь в начало правого, вверх с
-   * верха правого — в конец левого.
+   * Край раздела. Разделы идут кольцом сверху вниз — `Left Block`, `Right
+   * Block`, потом custom block (PRD 10.13.260, пункт 3), — и стрелка этому
+   * подчиняется: вниз с низа раздела попадаешь в начало следующего, вверх с
+   * верха — в конец предыдущего.
    */
-  const other = side === "left" ? "right" : "left";
+  const order: FieldSide[] = ["left", "right", ...model.listBlocks().map(b => `custom:${b.id}` as FieldSide)];
+  const at = order.indexOf(side);
+  const other = order[(at + (dir > 0 ? 1 : order.length - 1)) % order.length] as FieldSide;
   const there = rows.filter(r => !r.parent && r.side === other).map(r => r.key);
   if (dir > 0 && there[0]) model.moveKey(other, row.key, there[0]);
   else model.moveKey(other, row.key);
@@ -1033,6 +1100,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     }) as never);
   }
 
+  /* В custom block строки нет: там Field всегда пишется у каретки, и контрол
+     без выбора не показывается (З8, PRD 10.13.260, пункт 6). */
+  if (!String(row.side).startsWith("custom:")) {
   const behavior = itemRow(behaviorSec, {
     name: say("BEHAVIOR_NAME"),
     desc: say("BEHAVIOR_DESC"),
@@ -1052,6 +1122,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     o.model.setFreeRoam(row.key, mode.value);
     o.redraw();
   }) as never);
+  }
 
   /*
    * Положение дочернего Field. Контрол был в старой доске кнопкой со значком

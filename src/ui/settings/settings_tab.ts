@@ -569,6 +569,15 @@ export class SettingsPane {
     if (this.rebuildNeeded(changed)) {
       if (this.deps.rebuild) this.deps.rebuild();
       else if (this.deps.refresh) this.deps.refresh();
+    } else if (this.deps.refresh && this.predicateDepsTouched(changed)) {
+      /*
+       * Предикат видимости спрашивает путь, который пишет свой блок, а не
+       * контрол: список custom block пишет редактор Fields, и строка
+       * `tagWheel - Switch custom blocks on Tab` без этого появлялась бы
+       * только после перехода по вкладкам (PRD 10.13.260). Платформа велит
+       * звать `refreshDomState` ровно в таком случае.
+       */
+      this.deps.refresh();
     }
 
     /*
@@ -667,6 +676,18 @@ export class SettingsPane {
     const gate = String((tab && tab.module) || "").trim();
     if (!gate) return false;
     return changed.some(c => SettingsPane.touches(gate, c));
+  }
+
+  /** Задела ли запись путь, который спрашивает чей-то `visible` или `disabled`. */
+  private predicateDepsTouched(changed: readonly string[]): boolean {
+    for (const group of this.view().schema) {
+      for (const it of group.items as ReadonlyArray<{ visible?: { deps: readonly string[] }; disabled?: { deps: readonly string[] } }>) {
+        for (const p of [it.visible, it.disabled]) {
+          if (p && p.deps.some(d => changed.some(c => SettingsPane.touches(d, c)))) return true;
+        }
+      }
+    }
+    return false;
   }
 
   private optionSourcesTouched(changed: readonly string[]): string[] {

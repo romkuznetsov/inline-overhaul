@@ -2337,7 +2337,7 @@ const SCHEMA = [
       options:[ {value:"first",label:"First Field of the Block"},
                 {value:"middle",label:"Middle Field of the Block"},
                 {value:"custom",label:"A Field you choose"} ],
-      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>A Field you choose</code> on its first; with the cursor on one of its Values it opens on that Value's Field" },
     { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
       name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
       searchTerms:["Lead Field left"],
@@ -2360,7 +2360,7 @@ const SCHEMA = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide them while the picker is open"},
                 {value:"keep",label:"Keep them in sight"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written stay in sight always, as part of your text" },
     /*
      * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
      * коробке соседних значений отношения не имеет: пока субхедеры были
@@ -2373,12 +2373,25 @@ const SCHEMA = [
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block" },
+    /*
+     * `Tab` между custom block — его пункт 2026-09-24 (PRD 10.13.260): «нужно
+     * добавить отдельный контрол `tagWheel - Switch custom blocks on Tab`».
+     * Выключен — `Tab` в панели custom block ничего не делает; включён — ведёт
+     * в следующий блок, с последнего на первый. Панель Left/Right по `Tab` в
+     * custom block не уходит никогда. Строки нет, пока нет ни одного блока (З8).
+     */
+    { kind:"toggle", id:"wheel-custom-tab", path:"visual.tagWheel.customTab", default:false,
+      name:"tagWheel - Switch custom blocks on Tab", desc:"Tab in a custom block's tagWheel moves on to the next custom block",
+      searchTerms:["Custom block","Tab","Next custom block"],
+      visible:{ deps:["pkm.fields.order.custom"],
+                test: c => Boolean(Object(c.get("pkm.fields.order.custom")).length) },
+      tip:"Off, <code>Tab</code> does nothing while a custom block's tagWheel is open. On, it moves on to the next custom block in the order of the Fields list, and from the last one back to the first; the picker stays where the cursor is, and what you picked in the block you leave is dropped — only <code>Enter</code> writes. The tagWheel of Left and Right Block never moves into a custom block" }
   ]
 },
 {
   id: "placement-modes", tab: "pkm", order: 400, heading: "Placement modes",
-  intro: "Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work",
+  intro: "Every Field in Left or Right Block has a <code>Behavior</code> mode: <code>Strict</code> or <code>Insert only</code>. These options define how exactly those modes work",
   tip: "You choose the mode for each Field over in <code>Fields</code>. What you set here is the fine print of each mode \u2014 mainly whether it is allowed to change the very start of the line, the part that makes it a bullet or a checkbox",
   items: [
     { kind:"toggle", id:"placement-bullet-strict", path:"pkm.placement.bulletInStrict", default:false,
@@ -2393,13 +2406,7 @@ const SCHEMA = [
     { kind:"toggle", id:"placement-field-prefix", path:"pkm.placement.fieldPrefixInsertOnly", default:true,
       name:"Insert only: use Field Prefix", desc:"Allow a Value to change the start of the line after all, if it has its own",
       searchTerms:["Minimal mode Prefix"],
-      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" },
-    { kind:"dropdown", id:"placement-free-position", path:"pkm.placement.freeInsertPosition", default:"smart",
-      name:"Free: insert position", desc:"Which end of the line a Value goes to when the cursor is mid-sentence",
-      tip:"This decides nothing when the cursor stands inside a Block: there the Value goes where the cursor is. It answers the other case — the cursor is somewhere in your sentence, and the Value has to go to one of the two ends. <code>Whichever side is closer</code> measures from the cursor; the other two always pick the same end",
-      searchTerms:["Full mode"],
-      options:[ {value:"smart",label:"Whichever side is closer"}, {value:"left",label:"Always left"},
-                {value:"right",label:"Always right"} ] }
+      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" }
   ]
 },
 {
@@ -3336,7 +3343,9 @@ const SCHEMA = [
    съедал имя Field в узкой левой колонке — «444» превращалось в «4...»
    (замечание заказчика 2026-08-27). В конфиге тип остаётся `element` (З1). */
 const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji" };
-const BEHAVIORS = ["Strict", "Insert only", "Free"];
+/* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в custom
+   block, и у Field в Left/Right остаются два положения. */
+const BEHAVIORS = ["Strict", "Insert only"];
 const POSITIONS = [{ value:"Left", label:"Left Block" }, { value:"Right", label:"Right Block" }];
 const USER_TAG_SHOWN = [
   { value:"value",   label:"default" },
@@ -3375,14 +3384,14 @@ const FIELDS = [
       { token:"high",   prefix:"- [!]", shown:"value",   custom:"", color:"#f45d59", textColor:"#23222b", depth:0 },
       { token:"urgent", prefix:"- [!]", shown:"value",   custom:"", color:"#c2373b", textColor:"#ffffff", depth:0 }
     ] },
-  { id:"project", strict:"project", name:"Project", short:"", type:"link", position:"Right", behavior:"Free", color:"#3b82c4", property:"project", cardinality:"list", valueRule:"clean",
+  { id:"project", strict:"project", name:"Project", short:"", type:"link", position:"Right", behavior:"Insert only", color:"#3b82c4", property:"project", cardinality:"list", valueRule:"clean",
     values:[
       { token:"[[ClientA]]",  prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 },
       { token:"[[ProjectX]]", prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 }
     ] },
   { id:"due", strict:"due", name:"Due", short:"", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"due", cardinality:"auto", valueRule:"clean",
     marker:"\u{1F4C5}", format:"YYYY-MM-DD", step:"command", values:[] },
-  { id:"estimate", strict:"estimate", name:"Estimate", short:"Est", type:"element", position:"Right", behavior:"Free", color:"#7a9e3b", property:"effort", cardinality:"auto", valueRule:"raw",
+  { id:"estimate", strict:"estimate", name:"Estimate", short:"Est", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"effort", cardinality:"auto", valueRule:"raw",
     marker:"\u{23F1}", format:"HH:mm", step:"increment", values:[] }
 ];
 
@@ -3575,6 +3584,8 @@ function setIn(obj, path, value) {
 function getIn(obj, path) { return path.split(".").reduce((a, k) => (a == null ? a : a[k]), obj); }
 function seed() {
   for (const g of SCHEMA) for (const it of g.items) if ("path" in it && it.path) setIn(state, it.path, it.default);
+  /* Один пустой custom block, чтобы прототип показывал его раздел (10.13.260). */
+  setIn(state, CUSTOM_PATH, [{ id:"b1", name:"Custom block 1", keys:[] }]);
 }
 
 const LIVE = {};
@@ -5251,8 +5262,51 @@ function moveFieldToSideEnd(dragged, side) {
   renderContent();
 }
 
-/* Стрелка на краю стороны переносит Field через линию: иначе с клавиатуры
-   сторону не сменить, а тянуть мышью — единственный путь, чего быть не должно. */
+/*
+ * **Custom block** (PRD 10.13.260): свой Block, который пишет выбранное у
+ * каретки, со своей командой `tagWheel <имя>`. Список блоков живёт в
+ * настройках по пути конфига — так видимость строки `tagWheel - Switch custom
+ * blocks on Tab` спрашивает ровно то, что спросит панель. Сторона Field в
+ * блоке — `custom:<id>`: `id` выдаётся при создании и больше не меняется, на
+ * нём стоит идентификатор команды.
+ */
+const CUSTOM_PATH = "pkm.fields.order.custom";
+function customBlocks() { return getIn(state, CUSTOM_PATH) || []; }
+function isCustomSide(side) { return String(side || "").indexOf("custom:") === 0; }
+function customSide(block) { return "custom:" + block.id; }
+/* Разделы сверху вниз: Left, Right, потом блоки в порядке создания. */
+function fieldSections() { return ["Left", "Right"].concat(customBlocks().map(customSide)); }
+/* `Custom block N` — первым свободным N; `id` — первым свободным `bN`. */
+function addCustomBlock() {
+  const list = customBlocks();
+  let n = 1;
+  while (list.some(b => b.name.toLowerCase() === ("custom block " + n))) n++;
+  let k = 1;
+  while (list.some(b => b.id === "b" + k)) k++;
+  ctx.set(CUSTOM_PATH, list.concat([{ id:"b" + k, name:"Custom block " + n, keys:[] }]));
+}
+function renameCustomBlock(id, name) {
+  const next = String(name || "").replace(/\s+/g, " ").trim();
+  const list = customBlocks();
+  if (!next || list.some(b => b.id !== id && b.name.toLowerCase() === next.toLowerCase())) return false;
+  ctx.set(CUSTOM_PATH, list.map(b => (b.id === id ? Object.assign({}, b, { name:next }) : b)));
+  return true;
+}
+/* Удаление уносит Field блока (`В-205`): спрашивает окно, если их больше нуля. */
+function deleteCustomBlock(id) {
+  const side = "custom:" + id;
+  for (let i = FIELDS.length - 1; i >= 0; i--) {
+    const f = FIELDS[i];
+    if (blockOwner(f).position === side) FIELDS.splice(i, 1);
+  }
+  ctx.set(CUSTOM_PATH, customBlocks().filter(b => b.id !== id));
+}
+
+/* Стрелка на краю раздела переносит Field в соседний раздел: иначе с
+   клавиатуры сторону не сменить, а тянуть мышью — единственный путь, чего
+   быть не должно. Разделы идут кольцом сверху вниз: Left, Right, custom 1… —
+   вниз с низа раздела попадаешь в начало следующего, вверх с верха — в конец
+   предыдущего (PRD 10.13.260, пункт 3). */
 function stepField(f, dir) {
   const owner = blockOwner(f);
   const side = owner.position;
@@ -5265,10 +5319,9 @@ function stepField(f, dir) {
     else moveFieldToSideEnd(owner, side);
     return;
   }
-  /* Край стороны: уходим через линию. Left Block нарисован выше Right, и
-     стрелка обязана этому подчиняться: вниз с низа Left попадаешь в начало
-     Right, вверх с верха Right — в конец Left. */
-  const other = side === "Left" ? "Right" : "Left";
+  const order = fieldSections();
+  const at = order.indexOf(side);
+  const other = order[(at + (dir > 0 ? 1 : order.length - 1)) % order.length];
   const there = FIELDS.filter(x => !x.parent && x.position === other);
   if (dir > 0 && there[0]) moveFieldBefore(owner, there[0]);
   else moveFieldToSideEnd(owner, other);
@@ -5277,7 +5330,7 @@ function stepField(f, dir) {
 function renderFieldList(list) {
   let dragged = null;
 
-  const side = (value, label, hint, about) => {
+  const side = (value, label, hint, about, block) => {
     const sec = el("div", "io-side", list);
     const cap = el("div", "io-side__cap", sec);
     const name = el("span", "io-side__label", cap, label);
@@ -5286,6 +5339,19 @@ function renderFieldList(list) {
        подсказки шапки колонки. */
     name.setAttribute("aria-label", about);
     if (hint) el("span", "io-side__hint", cap, hint);
+    /* У раздела custom block — карандаш и корзина, как у Field. */
+    if (block) {
+      const tools = el("span", "io-side__tools", cap);
+      const pen = iconBtn(tools, "\u270E", "Rename the block " + block.name);
+      pen.addEventListener("click", () => { dialog = { renameBlock: block.id, name: block.name }; renderContent(); });
+      const bin = iconBtn(tools, "\u{1F5D1}", "Delete the block " + block.name);
+      bin.addEventListener("click", () => {
+        const inside = FIELDS.filter(x => !x.parent && x.position === value);
+        if (!inside.length) { deleteCustomBlock(block.id); renderContent(); return; }
+        dialog = { deleteBlock: block.id };
+        renderContent();
+      });
+    }
 
     sec.addEventListener("dragover", e => { e.preventDefault(); sec.classList.add("io-side--over"); });
     sec.addEventListener("dragleave", () => sec.classList.remove("io-side--over"));
@@ -5370,6 +5436,11 @@ function renderFieldList(list) {
   side("Left", "Left Block", "", "Everything in Left Block is written before your text on the line");
   el("div", "io-side__rule", list);
   side("Right", "Right Block", "", "Everything in Right Block is written after your text on the line");
+  customBlocks().forEach(block => {
+    el("div", "io-side__rule", list);
+    side(customSide(block), block.name, "",
+      "Everything in " + block.name + " is written where the cursor is, by its own tagWheel command", block);
+  });
 
   const addWrap = el("div", "io-fields__add", list);
   /* Акцентная кнопка: заказчик просил, чтобы добавление было видно
@@ -5382,6 +5453,11 @@ function renderFieldList(list) {
     dialog = { addField: true, name: "", type: "tag" };
     renderContent();
   });
+  /* Не акцентная — его слово: «цвет кнопки должен отличаться от add field». */
+  const addBlock = el("button", "io-btn io-btn--sm", addWrap, "Add Block");
+  addBlock.type = "button";
+  addBlock.setAttribute("aria-label", "Add a custom block");
+  addBlock.addEventListener("click", () => { addCustomBlock(); renderContent(); });
 }
 
 /*
@@ -5925,11 +6001,13 @@ function placementRows(host, f) {
              { value:"hotkey_only", label:"Commands only" }] },
     f.active || "yes", v => { f.active = v; });
 
-  row({ name:"Prefix behavior", key:"behavior", options:BEHAVIORS,
+  /* В custom block строки нет: там Field всегда пишется у каретки, и
+     контрол без выбора не показывается (З8, PRD 10.13.260). */
+  if (!isCustomSide(f.position)) row({ name:"Prefix behavior", key:"behavior", options:BEHAVIORS,
     desc:"How this Field affects the line Prefix",
     tip:"<b>Strict</b> writes the Value in its own Block and changes the line Prefix. " +
         "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. " +
-        "<b>Free</b> inserts the Value where the cursor is now" },
+        "A Field that goes where the cursor is belongs in a custom block: <code>Add Block</code> under the Fields list" },
     f.behavior, v => { f.behavior = v; });
 
   /*
@@ -7119,9 +7197,71 @@ function renderRenameFieldDialog() {
   });
 }
 
+/* Имя custom block: непустое и без повторов, ошибка — та же, что у имени
+   Field. Цены окно не называет: хоткей держится за `id`, а не за имя. */
+function renderRenameBlockDialog() {
+  const block = customBlocks().find(b => b.id === dialog.renameBlock);
+  if (!block) { dialog = null; return; }
+  const scrim = el("div", "io-scrim", document.body);
+  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; renderContent(); } });
+  const dlg = el("div", "io-dlg", scrim);
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-label", "Rename the block " + block.name);
+  const head = el("div", "io-dlg__head", dlg);
+  el("h4", null, head, "Rename block");
+  const row = el("div", "io-item", dlg);
+  const info = el("div", "io-item__info", row);
+  el("div", "io-item__name", info, "New name");
+  el("div", "io-item__desc", info, "The name of its tagWheel command follows it; a hotkey stays where it was");
+  const input = textEl(el("div", "io-item__control", row), block.name, "", "New name for the block " + block.name);
+  const foot = el("div", "io-dlg__foot", dlg);
+  const cancel = el("button", "io-btn", foot, "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => { dialog = null; renderContent(); });
+  const go = el("button", "io-btn io-btn--cta", foot, "Rename");
+  go.type = "button";
+  go.addEventListener("click", () => {
+    const next = String(input.value || "").trim();
+    if (!next || next === block.name) { dialog = null; renderContent(); return; }
+    if (!renameCustomBlock(block.id, next)) {
+      document.getElementById("proto-hint").textContent = "A block with this name already exists";
+      return;
+    }
+    dialog = null;
+    renderContent();
+  });
+}
+
+/* Удаление блока вместе с его Field (`В-205`): окно называет их число и имена. */
+function renderDeleteBlockDialog() {
+  const block = customBlocks().find(b => b.id === dialog.deleteBlock);
+  if (!block) { dialog = null; return; }
+  const inside = FIELDS.filter(x => !x.parent && x.position === customSide(block));
+  const scrim = el("div", "io-scrim", document.body);
+  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; renderContent(); } });
+  const dlg = el("div", "io-dlg", scrim);
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-label", "Delete the block " + block.name);
+  const head = el("div", "io-dlg__head", dlg);
+  el("h4", null, head, "Delete block");
+  el("p", "io-item__desc", dlg, "Delete " + block.name + " and its " + inside.length + " Fields: "
+    + inside.map(f => f.name).join(", ") + "? Their Values, colors and note properties go with them");
+  const foot = el("div", "io-dlg__foot", dlg);
+  const cancel = el("button", "io-btn", foot, "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => { dialog = null; renderContent(); });
+  const del = el("button", "io-danger", foot, "Delete");
+  del.type = "button";
+  del.addEventListener("click", () => { deleteCustomBlock(block.id); dialog = null; renderContent(); });
+}
+
 function renderDialog() {
   if (dialog.addField) { renderAddFieldDialog(); return; }
   if (dialog.rename) { renderRenameFieldDialog(); return; }
+  if (dialog.renameBlock) { renderRenameBlockDialog(); return; }
+  if (dialog.deleteBlock) { renderDeleteBlockDialog(); return; }
   const kind = kindOf(dialog.kind);
   const rule = RULES.find(r => r.id === dialog.ruleId);
   if (!rule) { dialog = null; return; }
