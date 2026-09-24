@@ -76,10 +76,10 @@ const ctxWith = (tips: boolean): never => ({
   assert.deepEqual(thens, [
     "move that text",
     "remove one indent level",
-    "cycle the prefix backwards",
+    "cycle the Prefix backwards",
     "move that text",
     "add one indent level",
-    "cycle the prefix forwards",
+    "cycle the Prefix forwards",
   ], "и следствия в том порядке, в каком их пробует рантайм");
 
   /*
@@ -205,7 +205,7 @@ function indentLineSource(): string {
   const left = DISPATCH_TABLES[0];
   const right = DISPATCH_TABLES[1];
   assert.ok(said(String(left?.steps[1]?.then)).includes("indent"), "второй шаг слева про отступ");
-  assert.ok(said(String(left?.steps[2]?.then)).includes("prefix"), "третий — про Prefix");
+  assert.ok(said(String(left?.steps[2]?.then)).includes("Prefix"), "третий — про Prefix");
   /* Таблицы стали зеркальными (В-12): второй шаг справа спрашивает про отступ,
      как и слева, а не про элемент списка. */
   assert.ok(said(String(right?.steps[1]?.when)).includes("indent"),

@@ -300,7 +300,7 @@ async function main(): Promise<void> {
       + "конфиг-заметкой (10.12, решения В-28 и В-29): их не ждут, их больше "
       + "нет. Группа `Language` заведена 2026-09-06 вместе с каталогом "
       + "текстов (10.13.38). Группа `tagWheel opening` была заведена 2026-09-12 вместе с контролом ведущего поля (10.13.76) и **снята 2026-09-21** его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)»: три её строки уехали в группу `tagWheel` под субхедер `tagWheel opening`, ни одна не пропала. "
-      + "Группа `Smart Enter` заведена 2026-09-13 по его заказу (10.13.88): . Группа `Auto-MOC in your Links` заведена 2026-09-17 по его заказу Н4 (10.13.184): ссылка на новую заметку уезжает в те заметки, на которые ссылалась строка. Своей группы у скроллера нет: 2026-09-17 он получил субхедер внутри `TagWheel` его словом «я хочу, чтобы все настройки tagwheel были в одном месте», и предел в двенадцать строк с тех пор считается по разделу, а не по группе (Г11). Группа `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек»: строки не новые — они ушли из группы `Jump inside note (up\\down)` вместе со своей веткой конфига"
+      + "Группа `Smart Enter` заведена 2026-09-13 по его заказу (10.13.88): . Группа `Auto-MOC in your links` заведена 2026-09-17 по его заказу Н4 (10.13.184): ссылка на новую заметку уезжает в те заметки, на которые ссылалась строка. Своей группы у скроллера нет: 2026-09-17 он получил субхедер внутри `TagWheel` его словом «я хочу, чтобы все настройки tagwheel были в одном месте», и предел в двенадцать строк с тех пор считается по разделу, а не по группе (Г11). Группа `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек»: строки не новые — они ушли из группы `Jump inside a note (up/down)` вместе со своей веткой конфига"
       + "заголовок соседней названа двумя клавишами, и третья в него не "
       + "помещается. Три группы вкладки Keyboard сведены в одну 2026-09-19 его словом "
       + "«сделай в Keyboard хедер Global hotkeys, чтобы у него были субхедеры select-all, "
@@ -315,7 +315,7 @@ async function main(): Promise<void> {
       + "не давала их задать (замечание заказчика 1.6.5.1). Тумблер "
       + "`Step out of the word` добавлен 2026-09-08 по замечанию заказчика (перенос части слова за его пределы, тридцать четвёртое исключение к З3). Тумблер `Highlight the line` добавлен 2026-09-01 (10.13.6): движок обёртку "
       + "рисовать умел всегда, а записать ему значение было некому. Строка "
-      + "`Line above is header` добавлена 2026-09-01 (10.13.9): три решётки "
+      + "`Line above is a heading` добавлена 2026-09-01 (10.13.9): три решётки "
       + "стояли жёстко в коде, а подсказка советовала вписать их в текст. "
       + "Четыре строки добавлены 2026-09-01 вместе с декорациями CM6 "
       + "(10.13.12): `Floating button` вернулся из списка ожидающих движка, а "
@@ -329,7 +329,7 @@ async function main(): Promise<void> {
       + "стоял литералом в двух местах. Плюс строка "
       + "`Fields to keep` — она без пути, и в этот счёт не входит. Две строки "
       + "конфиг-заметки — путь и подробность — ушли 2026-09-03 вместе с ней. "
-      + "Тумблер `Continue past a Separator` у переноса текста добавлен "
+      + "Тумблер `Continue past Separators` у переноса текста добавлен "
       + "2026-09-04 (замечание заказчика): у курсора внутри строки такая "
       + "опция была, а у переноса текста нет, и выделенная фраза уезжала за "
       + "разделитель в теги и в даты. Тумблер `Save a backup before "
@@ -363,8 +363,8 @@ async function main(): Promise<void> {
       + "Строка `Language` добавлена 2026-09-06 вместе с каталогом текстов "
       + "(10.13.38): панель заговорила не только по-английски. "
       + "Две строки Transform добавлены 2026-09-08 по замечанию заказчика "
-      + "(З-4, 10.13.56): `Type name of header` и `If header not found` — "
-      + "положение `At custom header` без них назвать заголовок нечем. "
+      + "(З-4, 10.13.56): `Name of the heading` и `If heading not found` — "
+      + "положение `At custom heading` без них назвать заголовок нечем. "
       + "Строки `Ctrl+A` в этот счёт не вошли: список ступеней — свой "
       + "блок, а у него пути нет (З-3). "
       + "Три строки Visual добавлены 2026-09-08 по замечанию заказчика "
@@ -385,7 +385,7 @@ async function main(): Promise<void> {
       + "группы — `Where it works` — добавлена 2026-09-13 его же замечанием "
       + "(10.13.91): отказ «курсор за вторым разделителем» стоял литералом, и "
       + "объяснение к нему оказалось неверным. "
-      + "И четыре строки группы `Auto-MOC in your Links` добавлены "
+      + "И четыре строки группы `Auto-MOC in your links` добавлены "
       + "2026-09-17 по его заказу Н4 (10.13.184): тумблер и три строки о том, "
       + "куда ссылка ложится в чужой заметке. "
       + "И шесть строк подсветки прыжка добавлены 2026-09-17 по его заказу "
@@ -425,7 +425,7 @@ async function main(): Promise<void> {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
     assert.equal(SCHEMA.length + AWAITED.length, 38,
-      "38 групп прототипа разложены без остатка: `tagWheel behavior` заведена 2026-09-24 (PRD 10.13.260) — её строки не новые, они ушли из группы `tagWheel`; знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside note (up\\down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your Links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
+      "38 групп прототипа разложены без остатка: `tagWheel behavior` заведена 2026-09-24 (PRD 10.13.260) — её строки не новые, они ушли из группы `tagWheel`; знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside a note (up/down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -669,7 +669,7 @@ async function main(): Promise<void> {
    *
    * `Drop the line Prefix` и `Join with a space` относятся и к `Del`, и к
    * `Backspace`. Пока они висели на `not(enabled)`, включённый в одиночку
-   * `Smart backspace` работал, а обе его настройки стояли погашенными — то
+   * `Smart Backspace` работал, а обе его настройки стояли погашенными — то
    * есть панель врала о том, что на них можно нажать. Отсюда `neither`.
    *
    * Проверяются все четыре сочетания: гасить строку можно ровно тогда, когда
@@ -678,22 +678,22 @@ async function main(): Promise<void> {
   await test("настройки склейки живут, пока включена хотя бы одна из двух клавиш", () => {
     const { pane, store } = makePane();
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
-    const back = items.find((i: Def) => i.name === "Smart backspace");
+    const back = items.find((i: Def) => i.name === "Smart Backspace");
     const prefix = items.find((i: Def) => i.name === "Drop the line Prefix");
     const space = items.find((i: Def) => i.name === "Join with a space");
 
-    assert.ok(back, "тумблер Smart backspace пропал из группы");
+    assert.ok(back, "тумблер Smart Backspace пропал из группы");
     assert.equal(back?.control?.disabled?.() ?? false, false,
-      "Smart backspace больше никому не подчинён и гаснуть не должен");
+      "Smart Backspace больше никому не подчинён и гаснуть не должен");
 
     assert.equal(prefix?.control?.disabled?.(), true, "обе клавиши выключены — настройка мертва");
     assert.equal(space?.control?.disabled?.(), true, "обе клавиши выключены — настройка мертва");
 
     void store.set("editor.smartDelete.onBackspace", true);
     assert.equal(prefix?.control?.disabled?.(), false,
-      "один Smart backspace уже делает настройку живой");
+      "один Smart Backspace уже делает настройку живой");
     assert.equal(space?.control?.disabled?.(), false,
-      "один Smart backspace уже делает настройку живой");
+      "один Smart Backspace уже делает настройку живой");
 
     void store.set("editor.smartDelete.onBackspace", false);
     void store.set("editor.smartDelete.enabled", true);
@@ -729,7 +729,7 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     const host = drawBlock(firstGroup(pane, "navigation").items[0]);
     const text = host.textContent;
-    assert.ok(text.includes("This menu helps to make inline navigation"),
+    assert.ok(text.includes("Move around lines and notes without the mouse"),
       "нет фразы о том, что делает вкладка: " + text.slice(0, 80));
     assert.ok(text.includes("Moving lines and whole trees"), "нет абзаца о содержимом вкладки");
   });
@@ -801,7 +801,7 @@ async function main(): Promise<void> {
     const { pane } = makePane({ general: { help: { showTips: false } } });
     const host = drawBlock(firstGroup(pane, "navigation").items[0]);
     assert.equal(host.querySelectorAll(".io-help").length, 0, "«?» осталось");
-    assert.ok(host.textContent.includes("This menu helps"), "сам коллаут должен остаться");
+    assert.ok(host.textContent.includes("Move around lines and notes"), "сам коллаут должен остаться");
   });
 
   await test("очистка блока убирает открытую подсказку (С5)", () => {
@@ -3136,16 +3136,16 @@ async function main(): Promise<void> {
   });
 
   /*
-   * Субхедеры внутри группы `Move lines (left\\right)` (замечание заказчика
+   * Субхедеры внутри группы `Move lines (left/right)` (замечание заказчика
    * 2026-09-04). Проверяется не наличие двух своих блоков в схеме, а то, что
    * **нарисуется** на экране и **где**: подпись без контрола платформа не
    * рисует вовсе (У-44), а порядок берётся из списка определений, а не из
    * места в массиве схемы (У-5).
    */
-  await test("группу Move lines (left\\right) делят субхедеры Move text и Move line", () => {
+  await test("группу Move lines (left/right) делят субхедеры Move text и Move line", () => {
     const { pane } = makePane();
-    const group = groupOf(pane, "navigation", "Move lines (left\\right)") as Def;
-    assert.ok(group, "группы Move lines (left\\right) на вкладке нет");
+    const group = groupOf(pane, "navigation", "Move lines (left/right)") as Def;
+    assert.ok(group, "группы Move lines (left/right) на вкладке нет");
     const items = group.items as Def[];
 
     /*
@@ -3372,10 +3372,10 @@ async function main(): Promise<void> {
   });
 
   /* Переименование группы переходов по заголовкам (замечание заказчика
-     2026-09-04): её имя парно `Jump inside line (left\\right)`. */
-  await test("группа переходов по заголовкам называется Jump inside note (up\\down)", () => {
+     2026-09-04): её имя парно `Jump inside a line (left/right)`. */
+  await test("группа переходов по заголовкам называется Jump inside a note (up/down)", () => {
     const { pane } = makePane();
-    assert.ok(groupOf(pane, "navigation", "Jump inside note (up\\down)"),
+    assert.ok(groupOf(pane, "navigation", "Jump inside a note (up/down)"),
       "группы с новым именем на вкладке нет");
     assert.equal(groupOf(pane, "navigation", "Jumping between headings"), undefined,
       "прежнее имя группы остаться не должно");

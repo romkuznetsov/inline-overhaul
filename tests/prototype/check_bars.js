@@ -74,6 +74,6 @@ const barsMoved = JSON.stringify(a.bars) !== JSON.stringify(b.bars);
 console.log("\ntext identical either way : " + sameText + "   (must be true)");
 console.log("bars differ either way    : " + barsMoved + "   (must be true)");
 
-console.log("\nand with Show the Field's tag off, Status driving:");
+console.log("\nand with Show the Field’s tag off, Status driving:");
 show(shot("status", false));
 process.exit(sameText && barsMoved ? 0 : 1);

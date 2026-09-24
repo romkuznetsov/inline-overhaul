@@ -235,9 +235,9 @@ function baseConfig(rules?: Any[]): Any {
 
   /* Условие: значение выбирается в окне, а не вводится через запятую (С-5). */
   p.answer("#todo");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
   p.answer("\u{1F4C5}");
-  (byLabel(p.host, "Add a element") as StubNode).click();
+  (byLabel(p.host, "Add element") as StubNode).click();
 
   const select = all(p.host, "io-select")[0] as StubNode;
   select.value = "Templates/task.md";
@@ -274,11 +274,11 @@ function baseConfig(rules?: Any[]): Any {
   const p = makePanel(baseConfig());
   (byLabel(p.host, "Add rule") as StubNode).click();
   p.answer("#todo");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
   p.answer("#doing");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
   p.answer("[[ClientA]]");
-  (byLabel(p.host, "Add a link") as StubNode).click();
+  (byLabel(p.host, "Add link") as StubNode).click();
   const select = all(p.host, "io-select")[0] as StubNode;
   select.value = "Templates/task.md";
   select.dispatch("change");
@@ -550,7 +550,7 @@ function baseConfig(rules?: Any[]): Any {
   assert.ok(all(p.host, "io-rule__warn").length, "и движок говорит, что условий нет");
 
   p.answer("#todo");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
   const select = all(p.host, "io-select")[0] as StubNode;
   select.value = "Templates/task.md";
   select.dispatch("change");
@@ -678,7 +678,7 @@ function baseConfig(rules?: Any[]): Any {
     "отдельной строки Field в карточке нет");
 
   p.answerField("status");
-  const plus = byLabel(p.host, "Add a tag");
+  const plus = byLabel(p.host, "Add tag");
   assert.ok(plus, "условие заводится из строки своего типа");
   plus?.click();
   assert.deepEqual(p.rules()[0].conditions.fields, ["status"],
@@ -806,7 +806,7 @@ function baseConfig(rules?: Any[]): Any {
   assert.equal(folderOf({ targetFolderMode: "default" }, { outputFolder: "Notes" }), "Notes",
     "Default — это New notes folder");
   assert.equal(folderOf({ targetFolderMode: "near" }, { outputFolder: "Notes" }), "",
-    "Near current note — пусто, и дальше срабатывает та же ветка, что у пустого New notes folder");
+    "Next to the current note — пусто, и дальше срабатывает та же ветка, что у пустого New notes folder");
   assert.equal(folderOf({ targetFolderMode: "folder", targetFolder: "/Clients/A/" }, { outputFolder: "Notes" }),
     "Clients/A", "своя папка правила побеждает общую, и путь приводится к виду vault");
   assert.equal(folderOf({ targetFolderMode: "folder", targetFolder: "  " }, { outputFolder: "Notes" }), "Notes",
@@ -861,7 +861,7 @@ function baseConfig(rules?: Any[]): Any {
   /* Нажатие на имя Field заводит условие вида `fields`, из какой бы строки
      окно ни открыли: у «любого значения» вида нет (10.13.14 Н5). */
   p.answerField("status");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
 
   const rule = p.rules()[0];
   assert.deepEqual(rule.conditions.fields, ["status"],
@@ -878,7 +878,7 @@ function baseConfig(rules?: Any[]): Any {
   const p = makePanel(baseConfig());
   (byLabel(p.host, "Add rule") as StubNode).click();
   p.answer("#todo");
-  (byLabel(p.host, "Add a tag") as StubNode).click();
+  (byLabel(p.host, "Add tag") as StubNode).click();
   const rule = p.rules()[0];
   assert.deepEqual(rule.conditions.tags, ["#todo"], "значение завелось значением");
   assert.deepEqual(rule.conditions.fields || [], [], "и Field целиком не завёлся");
@@ -967,12 +967,12 @@ function baseConfig(rules?: Any[]): Any {
   (position as StubNode).dispatch("change");
   assert.equal(p.rules()[0].placement.position, "custom-header", "положение записалось в ветку правила");
 
-  const target = rowOf("Type name of header");
-  assert.ok(target, "при `At custom header` появилось поле имени заголовка");
+  const target = rowOf("Name of the heading");
+  assert.ok(target, "при `At custom heading` появилось поле имени заголовка");
   (target as StubNode).value = "## Log";
   (target as StubNode).dispatch("change");
   assert.equal(p.rules()[0].placement.targetHeader, "## Log", "имя заголовка записалось");
-  assert.ok(rowOf("If header not found"), "и строка запасного положения тоже на месте");
+  assert.ok(rowOf("If heading not found"), "и строка запасного положения тоже на месте");
 
   /* Переключение обратно на `Default` не стирает настроенное. */
   advOf().value = "default";

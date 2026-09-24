@@ -15,7 +15,7 @@ import { ADVANCED_GROUPS } from "./advanced.ts";
 export const TABS: readonly TabDef[] = [
   { id: "general", label: "General", desc: "inlineOverhaul lets one line of a note carry its own status, dates and links", flat: true },
   { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
-  { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
+  { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "Move around lines and notes without the mouse" },
   { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
   { id: "transform", label: "Transform", module: "features.transform.enabled", desc: "Turn a line you have already written into a note of its own" },
   { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },

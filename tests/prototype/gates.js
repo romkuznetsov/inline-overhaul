@@ -36,7 +36,7 @@ const bad = m => { console.log("  FAIL " + m); fail++; };
 
 /* Sentence case, with one exception the owner set: anything InlineOverhaul
    itself defines is a proper noun, so a reader can tell the Bar the plugin
-   draws from a bar in general. Obsidian's words and plain English are not. */
+   draws from a bar in general. Obsidian’s words and plain English are not. */
 /*
  * `TagWheel` ушло отсюда 2026-09-21 его словом В-166: человек видит
  * `tagWheel`, как и `inlineOverhaul`. Это отменяет строку правил текстов
@@ -75,9 +75,9 @@ const LONG_NAME_OK = {
      after seeing the five-word version. */
   "in-line-boundary": "What to do at the end",
   /* PRD 10.13.260, his item of 2026-09-24: «нужно добавить отдельный контрол
-     `tagWheel - Switch custom blocks on Tab`». His exact words, capital after
+     `Switch custom blocks on Tab`». His exact words, capital after
      the dash included, so the sentence-case rule steps aside for it too. */
-  "wheel-custom-tab": "tagWheel - Switch custom blocks on Tab",
+  "wheel-custom-tab": "Switch custom blocks on Tab",
 };
 
 /* A key combination, quoted or bare: 'Ctrl+A', Cmd + A, Shift+Tab. */
@@ -267,7 +267,7 @@ const RANKING_ASIDE =
   /* Положительные — то, ради чего запрет заведён; отрицательные — подписи,
      которые он путать не должен: пример значения, уточнение и имя режима. */
   const should = ["End of your text (recommended)", "Both ways (preferred)", "Keep it (standard)"];
-  const shouldNot = ["Separate tags (#doing #review)", "Custom name (if set)", "No (plain text)",
+  const shouldNot = ["Separate tags (#doing #review)", "Only custom name", "No (plain text)",
                      "Standard", "Normal weight", "Best of both"];
   for (const s of should) {
     if (!RANKING_ASIDE.test(s)) bad("контроль запрета приписки: не нашёл в " + JSON.stringify(s));
@@ -428,7 +428,7 @@ const otherStyle = (js.match(/\.style\.(?!setProperty)[a-zA-Z]/g) || []).length;
 if (otherStyle > 0) bad("script sets " + otherStyle + " style properties directly (only setProperty is allowed)");
 const hexInJs = (js.match(/#[0-9a-fA-F]{6}\b/g) || []);
 const hexAllowed = 42;   // mock vault colors, the three type colors, and TagWheel defaults
-if (hexInJs.length > hexAllowed) bad("script has " + hexInJs.length + " hex colours, over the " + hexAllowed + " mock-data budget");
+if (hexInJs.length > hexAllowed) bad("script has " + hexInJs.length + " hex colors, over the " + hexAllowed + " mock-data budget");
 if (/innerHTML|outerHTML|insertAdjacentHTML/.test(js)) bad("script uses raw HTML insertion");
 if (/new Function|eval\(/.test(js)) bad("script evaluates code");
 if (/createEl\(["']h[1-6]["']/.test(js)) bad("script creates a raw heading element");
@@ -440,6 +440,6 @@ console.log("settings: " + total + " (+" + custom + " custom blocks)");
 console.log("described: " + described + ", with tips: " + tips);
 console.log("groups: " + SCHEMA.length + ", tabs: " + TABS.length);
 console.log("per tab: " + JSON.stringify(perTab));
-console.log("setProperty calls: " + styleAssignments + ", hex colours in mock data: " + hexInJs.length);
+console.log("setProperty calls: " + styleAssignments + ", hex colors in mock data: " + hexInJs.length);
 console.log(fail ? ("\n" + fail + " problem(s)") : "\nall gates passed");
 process.exit(fail ? 1 : 0);

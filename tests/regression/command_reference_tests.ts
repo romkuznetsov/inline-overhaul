@@ -547,11 +547,11 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
    * них, и по списку нельзя было понять, что появится и исчезнет само.
    */
   const d = draw(makeConfig());
-  assert.deepEqual(d.subs, ["Standard commands", "Commands from your Fields"],
+  assert.deepEqual(d.subs, ["Main commands", "Commands from your Fields"],
     "подписей частей нет или они не в том порядке: " + d.subs.join(" | "));
 
   const pkm = d.rows.filter(r => r.under);
-  const standard = pkm.filter(r => r.under === "Standard commands").map(r => r.name);
+  const standard = pkm.filter(r => r.under === "Main commands").map(r => r.name);
   const fromFields = pkm.filter(r => r.under === "Commands from your Fields").map(r => r.name);
 
   assert.deepEqual(standard,
@@ -565,7 +565,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   /* Стандартные и правда выше: первая строка второй части идёт после последней
      строки первой. */
   const firstUser = d.rows.findIndex(r => r.under === "Commands from your Fields");
-  const lastStd = d.rows.map(r => r.under).lastIndexOf("Standard commands");
+  const lastStd = d.rows.map(r => r.under).lastIndexOf("Main commands");
   assert.ok(lastStd >= 0 && firstUser > lastStd,
     "части перепутаны местами: стандартные обязаны идти выше");
   ok("1.2.3.4.1 и 1.2.3.4.2: область поделена на две части, стандартные выше");
@@ -580,7 +580,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const raw = makeConfig();
   raw.pkm.fields.order.custom = [{ id: "b1", name: "Inbox", keys: [] }];
   const d = draw(internals.migrateConfig(raw) as Any);
-  const standard = d.rows.filter(r => r.under === "Standard commands").map(r => r.name);
+  const standard = d.rows.filter(r => r.under === "Main commands").map(r => r.name);
   const fromFields = d.rows.filter(r => r.under === "Commands from your Fields").map(r => r.name);
   assert.ok(standard.length >= 3, "положительный контроль: стандартных команд меньше трёх — " + standard.join(", "));
   assert.ok(/tagWheel Inbox$/.test(standard[standard.length - 1] || ""),
@@ -722,7 +722,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     "Field типа element остался без подзаголовка: " + d.fields.join(" | "));
 
   /* Ни одного подзаголовка над стандартными командами. */
-  const standardRows = d.rows.filter(r => r.under === "Standard commands");
+  const standardRows = d.rows.filter(r => r.under === "Main commands");
   assert.deepEqual(standardRows.map(r => r.field).filter(Boolean), [],
     "подзаголовок Field залез в стандартные команды");
 
@@ -903,7 +903,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
      * области; всё прочее лишнее по-прежнему беда.
      */
     if (j.level === "part" && j.title === "Commands from your Fields") {
-      const standardNames = new Set(byRows(r => r.under === "Standard commands")
+      const standardNames = new Set(byRows(r => r.under === "Main commands")
         .map((c: Any) => String(c.name)));
       const foreign = extra.filter(n => !standardNames.has(n));
       if (!foreign.length) continue;

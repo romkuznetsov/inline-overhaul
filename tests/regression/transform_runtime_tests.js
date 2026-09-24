@@ -697,7 +697,7 @@ async function testRollbackRestoresWhatProcessSaw() {
 }
 
 /* ====================================================================== */
-/* Положение `At custom header` (задача заказчика З-4)                     */
+/* Положение `At custom heading` (задача заказчика З-4)                     */
 /* ====================================================================== */
 
 /*
@@ -783,9 +783,9 @@ function runCustomHeaderPlacementSuite() {
 
   /*
    * 6. Заголовка нет — он **заводится сам**, и запасное положение говорит, где
-   * (замечание заказчика по S4, 2026-09-08: «если `At custom header` не
+   * (замечание заказчика по S4, 2026-09-08: «если `At custom heading` не
    * найден, то тогда он должен сам добавиться в заметке в зависимости от
-   * варианта `If header not found`»).
+   * варианта `If heading not found`»).
    */
   {
     const noHeader = "intro line\n\n- something";
@@ -916,7 +916,7 @@ function runCustomHeaderPlacementSuite() {
     assertEq(empty.placement.fallback, "end", "запасное положение по умолчанию — конец");
   }
 
-  console.log("  ok  положение `At custom header` (З-4)");
+  console.log("  ok  положение `At custom heading` (З-4)");
 }
 
 /*

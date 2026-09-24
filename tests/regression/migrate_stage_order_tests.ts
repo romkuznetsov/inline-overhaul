@@ -100,7 +100,7 @@ const ENGINE_DEFAULTS: Record<string, unknown> = {
   "transform.inline2note.placement.headerMode": "datetime",
   /*
    * Единственная строка В-7, где заказчик выбрал схему (2026-08-31). Решётки
-   * ушли из неё 2026-09-01 вместе с появлением `Line above is header`
+   * ушли из неё 2026-09-01 вместе с появлением `Line above is a heading`
    * (10.13.9): их ставит уровень, и текст держит только слова. Видимое не
    * изменилось — с уровнем 2 в заметку идёт всё тот же `## Captured`.
    */

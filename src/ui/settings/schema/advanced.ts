@@ -57,7 +57,7 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
       tip:"Only worth turning on if someone has asked you for it. The plain log is the one you can read yourself",
       searchTerms:["Generate log for AI?"], visible: on("advanced.devMode.enabled") },
     { kind:"text", id:"dev-log-path", clearable:true, path:"advanced.devMode.logPath", default:"InlineOverhaul_DevLog", wide:true,
-      name:"Log file", desc:"Where in your vault the logs are put",
+      name:"Log folder", desc:"Where in your vault the logs are put",
       tip:"They are ordinary notes, so they show up in search and in your graph. Keep them in a folder you exclude if that bothers you",
       searchTerms:["Log Path"], visible: on("advanced.devMode.enabled") }
   ]

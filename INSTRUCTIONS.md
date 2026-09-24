@@ -36,7 +36,7 @@ inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline note
 
 1. Disable **inlineOverhaul** under **Settings → Community plugins**.
 2. Remove inlineOverhaul from BRAT's tracked beta-plugin list so BRAT does not reinstall it.
-3. Remove the plugin from Obsidian's installed community plugins.
+3. Remove the plugin from Obsidian’s installed community plugins.
 4. Delete the note the plugin generated for itself, and any settings backups you no longer want. Uninstalling the plugin does not require deleting notes you wrote yourself.
 
 ## First run
@@ -49,7 +49,7 @@ inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline note
    you do not need, or add your own. They come with a fresh install only, and
    **Advanced → Backup → Start over** does not bring them back.
 5. Choose Separators and confirm the live preview.
-6. Assign hotkeys in Obsidian's standard **Settings → Hotkeys** screen. **Keyboard → Commands & Hotkeys** lists every command with the key it has now and takes you there.
+6. Assign hotkeys in Obsidian’s standard **Settings → Hotkeys** screen. **Keyboard → Commands & Hotkeys** lists every command with the key it has now and takes you there.
 7. Leave **Transform inline to note** off until its output, naming, template, collision, and source-cleanup settings are reviewed.
 8. Once the setup works, save it: **Advanced → Backup → Save a backup** writes everything you have set up into a note in your vault.
 
@@ -57,7 +57,7 @@ On load, the plugin migrates your saved settings to the current form. The rules 
 
 ## Settings model
 
-Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Transform**, **Visual**, and **Advanced**. There are no sub-tabs and no visibility toggles: every setting of an area is on one page, and Obsidian's own settings search finds it by name.
+Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Transform**, **Visual**, and **Advanced**. There are no sub-tabs and no visibility toggles: every setting of an area is on one page, and Obsidian’s own settings search finds it by name.
 
 - Changes normally save automatically after a short debounce.
 - **Undo last settings change** rolls back one saved-settings step. It is a command only: run it from the command palette or give it a key. Undo history is session-local and limited.
@@ -107,7 +107,7 @@ Each module also has an exact command-palette toggle:
 
 ## Commands & Hotkeys
 
-The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian's Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move up`. The list below repeats it for reading offline, by the part that says what the command does.
+The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian’s Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move up`. The list below repeats it for reading offline, by the part that says what the command does.
 
 > [!WARNING]
 > **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/COMMAND_IDS_V1_V2.md`](docs/COMMAND_IDS_V1_V2.md), and the plugin prints it once to the developer console.
@@ -150,7 +150,7 @@ Because Field commands are generated from your current Fields, their names are n
 
 ### Move lines and trees
 
-**Move up** and **Move down** move selected full lines. With no selection, **No-selection mode** chooses between only the current line and the current line plus indentation-based children. Header handling can move only the header line or its entire section. **Cross-section allowed** controls whether movement crosses headers. **Highlight moved lines** selects normalized moved lines afterward.
+**Move up** and **Move down** move selected full lines. With no selection, **No-selection mode** chooses between only the current line and the current line plus indentation-based children. Header handling can move only the heading line or its entire section. **Cross-section allowed** controls whether movement crosses headers. **Highlight moved lines** selects normalized moved lines afterward.
 
 Copyable example:
 
@@ -169,7 +169,7 @@ With the cursor on `- Parent` and **with-children**, Move Down moves the parent 
 **Move left** and **Move right** have two roles:
 
 - With a partial single-line selection, move text by character or token according to **Inline move mode**.
-- At line level, cycle configured prefixes at indentation level 0; when no cycle applies, optionally fall back to indentation using Obsidian's global **Tab width**.
+- At line level, cycle configured prefixes at indentation level 0; when no cycle applies, optionally fall back to indentation using Obsidian’s global **Tab width**.
 
 Default prefix cycle (list markers include their normal following space):
 
@@ -223,7 +223,7 @@ It can infer the next scope from the current selection or use a 250–2000 ms mu
 
 Under **Keyboard → Smart Delete\Backspace**, `Del` at the end of a line stops dragging the next line up as it is written. The indent goes, and so do the bullet, the checkbox, the number, the quote mark and the heading marks, so what lands after your cursor is the text. A line that holds nothing but a Prefix is removed whole, which is how a run of empty bullets clears one press at a time.
 
-`Smart backspace` is the same thing from the other side: `Backspace` at the start of a line sends that line up to the one above without its own indent and Prefix, while the line above keeps the way it is written. It has a switch of its own and answers to nobody — `Smart Delete` can stay off while this one works, and the other way round.
+`Smart Backspace` is the same thing from the other side: `Backspace` at the start of a line sends that line up to the one above without its own indent and Prefix, while the line above keeps the way it is written. It has a switch of its own and answers to nobody — `Smart Delete` can stay off while this one works, and the other way round.
 
 Two more toggles belong to both keys. `Drop the line Prefix` off leaves the Prefix and removes only the indent. `Join with a space` puts one space at the joint, and only when both sides have something on them.
 
@@ -241,7 +241,7 @@ exactly as it was.
 line` keeps the whole line together: wherever the cursor stands — in a Block, on a
 Separator or in your text — the key adds a line below. `Only in your text` narrows it to
 the text slot, the part between your Separators, so `Enter` inside a Block goes back to
-being Obsidian's own. If a line carries only one Separator, the text slot is whatever
+being Obsidian’s own. If a line carries only one Separator, the text slot is whatever
 lies after the first or before the second.
 
 `Prefix on the new line` decides what the new line starts with, and it has three
@@ -253,7 +253,7 @@ keeps the count going, so a numbered list does not lose its place; a checkbox st
 because there the answer is no to everything except the numbering. The indent is kept by
 all three.
 
-The key is **off** by default and stays Obsidian's own everywhere else: in any line that
+The key is **off** by default and stays Obsidian’s own everywhere else: in any line that
 carries no Separator of yours, outside your text when `Where it works` says so, with a
 selection, or with more than one cursor.
 
@@ -282,7 +282,7 @@ Under **Navigation → Moving lines**, `Follow the moved line` decides whether t
 
 ### Where the view goes when you jump to a heading
 
-Under **Navigation → Jump inside note (up\down)**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Move lines (up\down)` has, and it works the same way.
+Under **Navigation → Jump inside a note (up/down)**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Move lines (up/down)` has, and it works the same way.
 
 ### The edge of a Block in tagWheel
 
@@ -465,7 +465,7 @@ One known limit, measured rather than guessed: while the panel is open it holds 
 Prefix priority chooses a line checkbox or Prefix when several configured Values could supply one.
 
 - **Main checkbox priority**: resolve by field order or explicit checkbox order.
-- **Fields order mode**: automatic or manual when field priority is selected.
+- **Field order mode**: automatic or manual when field priority is selected.
 - **Tag/Subtag priority**: parent tag wins or subtag wins.
 - Drag field and checkbox rows to set priority.
 
@@ -519,7 +519,7 @@ Everything you set up here lives in one place, and one button writes it out:
    saved as a backup first, so a wrong pick is recoverable.
 6. Restart Obsidian so every part of the plugin picks the settings up.
 
-A backup holds every tab, not a part of one: Fields and Values, colours, Bars,
+A backup holds every tab, not a part of one: Fields and Values, colors, Bars,
 tagWheel, Navigation, Binder and Transform. Two things stay behind on purpose:
 
 - window state: which tab was open, which Fields were expanded, which one-time
@@ -571,10 +571,10 @@ General Visual functionality is implemented and separate from Transform's disabl
 - Independent left/right panel opacity
 - A colored Stripe behind each Block (`Color the Block with Stripe`), with its own color, opacity, height, width and direction. It runs from the first Value of a Block to its last one, never touches your text between the Separators, and does not appear for a Block with nothing in it. The Stripe is drawn behind the writing, so everything on the line stays selectable and clickable.
 - `Stripe direction` chooses which of the two Blocks gets one: `Both` is the default, `Left` and `Right` leave the Stripe on one side only. A Block with nothing in it gets none whatever is chosen here.
-- `Stripe height` is how far the Stripe reaches above and below the writing, as a share of the room the line has left. It matters more than it sounds: a tag bubble carries its own color, so at 0 a Block of one tag would hide the Stripe completely. The scale has two landmarks: at 0 the Stripe is exactly as tall as the writing, and at 100 it fills the line it belongs to — so the Stripes of two neighbouring lines meet and never overlap. The share is used rather than points because how much room a line has left depends on the line spacing of your theme: in points the upper half of the scale was dead on some themes and alive on others. Its height is the same on every line whatever the Block holds, while the Stripe centres itself on the line it sits on — a line holding a link or an emoji is taller than the rest, and the Stripe follows it.
+- `Stripe height` is how far the Stripe reaches above and below the writing, as a share of the room the line has left. It matters more than it sounds: a tag bubble carries its own color, so at 0 a Block of one tag would hide the Stripe completely. The scale has two landmarks: at 0 the Stripe is exactly as tall as the writing, and at 100 it fills the line it belongs to — so the Stripes of two neighboring lines meet and never overlap. The share is used rather than points because how much room a line has left depends on the line spacing of your theme: in points the upper half of the scale was dead on some themes and alive on others. Its height is the same on every line whatever the Block holds, while the Stripe centers itself on the line it sits on — a line holding a link or an emoji is taller than the rest, and the Stripe follows it.
 - `Stripe width` is how far the Stripe reaches past the Block, and it reaches equally on both sides. The scale has three landmarks: at 0 the Stripe starts on the first Value and ends on the last one; at 50 it touches the Separator on the inner side and steps out by the same distance on the other; at 100 it takes the Separator in as well. The Left Block is the one exception — it never reaches onto the bullet or the checkbox, whatever the number says. When a Block wraps onto the next line the Stripe wraps with it, ending on the last Value of each line rather than running to the edge of the window.
 - Tag text size
-- Tags bubble width and `Tag bubble height`
+- Tag bubble width and `Tag bubble height`
 - Empty-bubble size
 - Rounded-to-square shape
 - Per-Field and per-Value fill color, text color, visibility, and optional custom display text in the right column of the Fields editor
@@ -584,7 +584,7 @@ These are editor decorations: they change display, not stored markdown tokens.
 
 ### Tag Bars
 
-Tag Bars draw up to three colored bars in the editor margin for a selected tag Field's parent and child hierarchy. Configure the Field, tag visibility, optional Separator hiding when a hidden Bar token is the only technical token, default or crossing mode, bar count, thickness, child offset, and distance to the text. Tag Bars are **off** by default: on a fresh install lines look as they always did until you turn them on.
+Tag Bars draw up to three colored bars in the editor margin for a selected tag Field’s parent and child hierarchy. Configure the Field, tag visibility, optional Separator hiding when a hidden Bar token is the only technical token, default or crossing mode, bar count, thickness, child offset, and distance to the text. Tag Bars are **off** by default: on a fresh install lines look as they always did until you turn them on.
 
 ### tagWheel panel and scroller
 
@@ -612,7 +612,7 @@ Before first use, review these initial defaults:
 - **Sublines behavior:** Stay
 - **Name collision:** `new_note` (create a new note, adding a suffix when needed)
 - **Value YAML rule:** Raw
-- **Template body placement:** end (`At custom header` is off until you pick it)
+- **Template body placement:** end (`At custom heading` is off until you pick it)
 - **Inserted block header:** current datetime
 - **Open transformed note:** off; target does not auto-open
 
@@ -647,7 +647,7 @@ status: inbox
 
 For new/overwrite operations, transformed source content is inserted at the beginning of the template body, at its end, or at the end of a section you name.
 
-**At custom header** asks for two more things. **Type name of header** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If header not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
+**At custom heading** asks for two more things. **Name of the heading** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If heading not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
 
 The inserted block header can be:
 
@@ -798,7 +798,7 @@ still use the left column.
 | Strip, rails, stripes | **Tag Bars**, **Bar** | The colored bar in the editor margin showing a line's Value and everything nested under it |
 | Deep Editor | the right column of the Fields editor | Has no separate name of its own |
 | free roam (`off` / `minimal`) | placement modes **Strict** / **Insert only** | Stored values are unchanged; the former `full` (**Free**) reads as `off` — its work moved to custom blocks |
-| Prefix Resolver | **Prefix priority** | Which Field's checkbox wins when two carry one |
+| Prefix Resolver | **Prefix priority** | Which Field’s checkbox wins when two carry one |
 | subtag | **child Value** | Stored values `separate` and `combined` are unchanged |
 | separator1, separator2 | **First Separator**, **Second Separator** | The two markers that fence your text off from the Fields |
 | payload | **transferred text** | The part of the line Transform carries into the new note |
@@ -818,8 +818,8 @@ still use the left column.
 
 inlineOverhaul assigns **no** default keys to any of its commands. Two ways to give them one:
 
-- **Keyboard → Commands & Hotkeys** in the plugin's settings: every command with the key it has now, and a click takes you to Obsidian's Hotkeys screen with that command already found;
-- Obsidian's own **Settings → Hotkeys**: type `inlineOverhaul` in its search box to bring up the whole set at once.
+- **Keyboard → Commands & Hotkeys** in the plugin’s settings: every command with the key it has now, and a click takes you to Obsidian’s Hotkeys screen with that command already found;
+- Obsidian’s own **Settings → Hotkeys**: type `inlineOverhaul` in its search box to bring up the whole set at once.
 
 tagWheel is the exception worth knowing: once it is open you steer it with the arrow keys, so it needs only the one command that opens it.
 
@@ -829,7 +829,7 @@ Recommended setup pattern:
 |---|---|
 | Navigation | Arrow-like combinations that do not conflict with editor defaults |
 | Field next/previous | Paired keys per Field |
-| tagWheel | One key for the left Block and one for the right |
+| tagWheel | One key for the Left Block and one for the right |
 | Binder | Mnemonic keys for frequently inserted tokens |
 | Transform | Deliberate multi-key binding to avoid accidental execution |
 
@@ -866,7 +866,7 @@ write a copy of it as an ordinary note. Open **Advanced → Backup**.
   question says whether what you have now is being saved first.
 
 **What a backup holds.** Fields and their Values, Prefixes, Separators, Tag Bars,
-tag colours, Binder rows, Transform with its Smart Rules, navigation modes: every
+tag colors, Binder rows, Transform with its Smart Rules, navigation modes: every
 setting on every tab. What it deliberately leaves out is the state of this
 computer: which tab you had open, which Fields you had expanded, and notices you
 have already been shown once. Those stay as they are on each device.
@@ -895,7 +895,7 @@ Open **General** and enable the named module. For Transform, also turn on **Tran
 
 1. Confirm the Field exists in the Fields list and has a valid unique system name.
 2. Confirm the PKM module is enabled.
-3. Open **Keyboard → Commands & Hotkeys** and look for the Field's name, or search Obsidian Hotkeys for `inlineOverhaul`.
+3. Open **Keyboard → Commands & Hotkeys** and look for the Field’s name, or search Obsidian Hotkeys for `inlineOverhaul`.
 4. If the Field was renamed or deleted, or you restored a settings backup, disable and re-enable inlineOverhaul or reload Obsidian to refresh the command registry.
 
 Adding a Field directly in settings registers its commands immediately. Registry changes from a Field rename or delete, a restored backup, or a Binder delete and recreate need plugin disable/re-enable or an Obsidian reload. Stale commands may remain until that reload.
@@ -955,7 +955,7 @@ Transform stops before target mutation when a selected template cannot be read o
   renamed commands.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
 - General Visual features are implemented: tag bubbles, the Stripe behind each Block, Tag Bars, Separator colors, and the tagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
-- The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbours, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
+- The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbors, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
 - **No translation ships with the plugin, and that is deliberate.** The `texts` folder holds one file, `default.js`, and it belongs to the plugin: it is rewritten whenever the panel gains a line or a line is reworded, so what you copy is never out of date. To add a language, copy it under a name of your own, change the first line `"$language"` to the name you want to see in the list, and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is worth using. English is always in the list and has no file at all: it lives in the code, which is the only way it stays current.
 - **This guide note has a translation mechanism of its own.** The `guide` folder holds `default.md` — this same guide, with a small property block at the top. Copy it under a language name, change `language:` in that block, translate the prose, and the `Read` button writes your version into the vault instead of the English one. Two things are worth knowing. Your copy is yours from the moment it appears: the plugin never rewrites it and never reads it back, because there is no way to tell a translated paragraph from an untranslated one. And each language gets its own note — `inlineOverhaul Guide (Русский).md` sits beside the English one rather than replacing it, so switching language never costs you the notes you wrote in the margins.
 

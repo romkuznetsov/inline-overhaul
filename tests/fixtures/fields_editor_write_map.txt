@@ -205,7 +205,7 @@ element/increment input:text [Name in tagWheel for due] #14
     pkm:behavior:order:label:due -> pkm.fields.order.active.due, pkm.fields.order.active.project, pkm.fields.order.active.status, pkm.fields.order.active.status_sub, pkm.fields.order.custom, pkm.fields.order.enabled.due, pkm.fields.order.enabled.project, pkm.fields.order.enabled.status, pkm.fields.order.enabled.status_sub, pkm.fields.order.freeRoam.due, pkm.fields.order.freeRoam.project, pkm.fields.order.freeRoam.status, pkm.fields.order.freeRoam.status_sub, pkm.fields.order.labels.due, pkm.fields.order.labels.project, pkm.fields.order.labels.status, pkm.fields.order.labels.status_sub, pkm.fields.order.lead.left, pkm.fields.order.lead.right, pkm.fields.order.left, pkm.fields.order.propertiesByField.status, pkm.fields.order.right, pkm.fields.order.strictNames.due, pkm.fields.order.strictNames.project, pkm.fields.order.strictNames.status, pkm.fields.order.types.due, pkm.fields.order.types.project, pkm.fields.order.types.status, pkm.fields.order.types.status_sub
 element/increment button [Collapse Value] #15
     без записи
-element/increment input:text [Emoji-prefix for due] #16
+element/increment input:text [Emoji prefix for due] #16
     pkm:behavior:order:deep:emoji:due -> pkm.fields.elements.byField.due.command, pkm.fields.elements.byField.due.emoji, pkm.fields.elements.byField.due.format, pkm.fields.elements.byField.due.increment.mode, pkm.fields.elements.byField.due.mode
 element/increment input:search [Search by name] #17
     без записи
@@ -263,7 +263,7 @@ element/command input:text [Name in tagWheel for due] #14
     pkm:behavior:order:label:due -> pkm.fields.order.active.due, pkm.fields.order.active.project, pkm.fields.order.active.status, pkm.fields.order.active.status_sub, pkm.fields.order.custom, pkm.fields.order.enabled.due, pkm.fields.order.enabled.project, pkm.fields.order.enabled.status, pkm.fields.order.enabled.status_sub, pkm.fields.order.freeRoam.due, pkm.fields.order.freeRoam.project, pkm.fields.order.freeRoam.status, pkm.fields.order.freeRoam.status_sub, pkm.fields.order.labels.due, pkm.fields.order.labels.project, pkm.fields.order.labels.status, pkm.fields.order.labels.status_sub, pkm.fields.order.lead.left, pkm.fields.order.lead.right, pkm.fields.order.left, pkm.fields.order.propertiesByField.status, pkm.fields.order.right, pkm.fields.order.strictNames.due, pkm.fields.order.strictNames.project, pkm.fields.order.strictNames.status, pkm.fields.order.types.due, pkm.fields.order.types.project, pkm.fields.order.types.status, pkm.fields.order.types.status_sub
 element/command button [Expand Value] #15
     без записи
-element/command input:text [Emoji-prefix for due] #16
+element/command input:text [Emoji prefix for due] #16
     pkm:behavior:order:deep:emoji:due -> pkm.fields.elements.byField.due.command, pkm.fields.elements.byField.due.emoji, pkm.fields.elements.byField.due.format, pkm.fields.elements.byField.due.increment.mode, pkm.fields.elements.byField.due.mode
 element/command input:search [Search by name] #17
     без записи
@@ -321,7 +321,7 @@ element/custom input:text [Name in tagWheel for due] #14
     pkm:behavior:order:label:due -> pkm.fields.order.active.due, pkm.fields.order.active.project, pkm.fields.order.active.status, pkm.fields.order.active.status_sub, pkm.fields.order.custom, pkm.fields.order.enabled.due, pkm.fields.order.enabled.project, pkm.fields.order.enabled.status, pkm.fields.order.enabled.status_sub, pkm.fields.order.freeRoam.due, pkm.fields.order.freeRoam.project, pkm.fields.order.freeRoam.status, pkm.fields.order.freeRoam.status_sub, pkm.fields.order.labels.due, pkm.fields.order.labels.project, pkm.fields.order.labels.status, pkm.fields.order.labels.status_sub, pkm.fields.order.lead.left, pkm.fields.order.lead.right, pkm.fields.order.left, pkm.fields.order.propertiesByField.status, pkm.fields.order.right, pkm.fields.order.strictNames.due, pkm.fields.order.strictNames.project, pkm.fields.order.strictNames.status, pkm.fields.order.types.due, pkm.fields.order.types.project, pkm.fields.order.types.status, pkm.fields.order.types.status_sub
 element/custom button [Collapse Value] #15
     без записи
-element/custom input:text [Emoji-prefix for due] #16
+element/custom input:text [Emoji prefix for due] #16
     pkm:behavior:order:deep:emoji:due -> pkm.fields.elements.byField.due.command, pkm.fields.elements.byField.due.emoji, pkm.fields.elements.byField.due.format, pkm.fields.elements.byField.due.increment.mode, pkm.fields.elements.byField.due.mode
 element/custom input:search [Search by name] #17
     без записи

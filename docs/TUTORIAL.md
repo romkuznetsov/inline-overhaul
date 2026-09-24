@@ -60,7 +60,7 @@ Put the cursor anywhere on that line.
 1. Open **Settings → inlineOverhaul → Keyboard → Commands & Hotkeys**.
 2. Find **Tags & PKM: Status next** in the list. Every command carries the name of
    its area, so the list of one area stays together.
-3. Click the key area next to it. Obsidian's own **Hotkeys** screen opens with that
+3. Click the key area next to it. Obsidian’s own **Hotkeys** screen opens with that
    command already found.
 4. Press the plus, then press `Alt+S`.
 5. Close settings.
@@ -98,7 +98,7 @@ is **Tags & PKM: tagWheel Left**. Give it a key — use `Alt+W` — then put the
 cursor on the line and press it.
 
 The wheel appears over the line. Left and right move between Fields, up and down between
-that Field's Values, `Tab` jumps to the Fields on the other side of your text, and
+that Field’s Values, `Tab` jumps to the Fields on the other side of your text, and
 `Esc` closes it without changing anything.
 
 <img src="media/showcase/tagwheel.gif" width="720" alt="The tagWheel opening at the cursor and a value being chosen">

@@ -474,7 +474,7 @@ function realConfig(): Any {
   /* Ряд второй и третий: подписи под Blocks и Separator. */
   assert.deepEqual(texts(host, "io-struct__name"), ["Left Block", "Right Block"],
     "скобки подписаны Blocks");
-  assert.deepEqual(texts(host, "io-struct__sepname"), ["separator 1", "separator 2"],
+  assert.deepEqual(texts(host, "io-struct__sepname"), ["Separator 1", "Separator 2"],
     "и Separator подписаны по порядку");
   assert.equal(all(host, "io-struct__tick").length, 2, "по засечке под каждым Separator");
 

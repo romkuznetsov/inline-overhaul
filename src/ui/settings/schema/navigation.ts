@@ -19,7 +19,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
-  id: "move-lines", tab: "navigation", order: 100, heading: "Move lines (up\\down)",
+  id: "move-lines", tab: "navigation", order: 100, heading: "Move lines (up/down)",
   intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
   tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
   commands: ["Move up", "Move down"],
@@ -34,10 +34,10 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"line-only",label:"The line only"}, {value:"with-children",label:"The whole tree"} ],
       tip:"Say a line has three lines indented under it. <b>The line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>The whole tree</b> keeps the four together and moves them as one block" },
     { kind:"dropdown", id:"move-lines-heading", path:"navigation.moveLine.headerMode", default:"move-as-line",
-      name:"Moving headers", desc:"If you are moving a header, this decides whether the whole section moves or just the header line",
+      name:"Moving headings", desc:"If you are moving a heading, this decides whether the whole section moves or just the heading line",
       searchTerms:["Header mode"], disabled: not("navigation.moveLine.enabled"),
       options:[ {value:"move-as-line",label:"Heading only"}, {value:"move-with-section",label:"Heading with its section"} ],
-      tip:"With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only renaming the running order" },
+      tip:"With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings" },
     { kind:"toggle", id:"move-lines-cross", path:"navigation.moveLine.crossSectionAllowed", default:true,
       name:"Cross heading boundaries", desc:"Let a line travel past a heading into the part of the note below it",
       searchTerms:["Cross-section allowed"], disabled: not("navigation.moveLine.enabled"),
@@ -57,11 +57,11 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"center",label:"Center of the screen"},
                 {value:"top",label:"Top of the screen"},
                 {value:"bottom",label:"Bottom of the screen"} ],
-      tip:"The same place every time, which is the whole point: before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
+      tip:"The same place every time, so the note does not jump: one press does not center the line while the next throws it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
 {
-  id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left\\right)",
+  id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left/right)",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
   tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
@@ -85,7 +85,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       disabled: not("navigation.moveSelection.inlineEnabled"),
       tip:"Only <code>Automatic</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Automatic</code> moves them letter by letter \u2014 but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point \u2014 the highlighted piece goes wherever you press. Off is the way it has always worked" },
     { kind:"toggle", id:"move-text-cross", path:"navigation.moveSelection.inlineBoundaryJump", default:true,
-      name:"Continue past a Separator", desc:"Let the highlighted text leave your text and move into the tags at either end",
+      name:"Continue past Separators", desc:"Let the highlighted text leave your text and move into the tags at either end",
       disabled: not("navigation.moveSelection.inlineEnabled"),
       tip:"Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other",
       seeAlso:{ id:"in-line-cross", label:"The cursor has the same setting of its own" } },
@@ -112,14 +112,14 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "in-line", tab: "navigation", order: 400, heading: "Jump inside line (left\\right)",
+  id: "in-line", tab: "navigation", order: 400, heading: "Jump inside a line (left/right)",
   intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
   tip: "A tagged line has three parts: what comes before your text, your text, and what comes after. The arrow keys treat all of it as one long string and walk through the tags character by character. These two keys hop instead — word, sentence, or straight to one end of your text — and by default they stop at the Separators, so the cursor stays in the sentence you are writing and never lands inside a tag by accident",
   commands: ["Jump left", "Jump right"],
   items: [
     { kind:"toggle", id:"in-line-enabled", path:"navigation.navigateInline.enabled", default:true,
       name:"Move cursor inside a line", desc:"Let the keys walk the cursor along the line",
-      tip:"This is the cursor walking your own sentence, not the note: it steps by word, by whole token or to the end of a Block, and it knows where your text ends and a Separator begins. Off, the commands stay and do nothing",
+      tip:"This is the cursor walking your own sentence, not the note: it steps by word, by sentence or straight to the start or end, and it knows where your text ends and a Separator begins. Off, the commands stay and do nothing",
       searchTerms:["Enable Navigate Inline"] },
     { kind:"dropdown", id:"in-line-step", path:"navigation.navigateInline.stepMode", default:"word",
       name:"Step size", desc:"How big a hop the cursor makes each time",
@@ -129,18 +129,18 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
                 {value:"begin-end",label:"Straight to the start or end"} ] },
     { kind:"toggle", id:"in-line-cross", path:"navigation.navigateInline.boundaryJump", default:false,
       name:"Continue past Separators", desc:"Let the cursor leave your text and walk into the tags at either end",
-      searchTerms:["Allow crossing Separators", "Continue past a Separator"], disabled: not("navigation.navigateInline.enabled"),
+      searchTerms:["Allow crossing Separators", "Continue past Separators"], disabled: not("navigation.navigateInline.enabled"),
       tip:"Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse" },
     { kind:"dropdown", id:"in-line-boundary", path:"navigation.navigateInline.onBoundary", default:"wrap",
       name:"What to do at the end", desc:"When there is nowhere further to go in the line",
       searchTerms:["On boundary", "At the far end"], disabled: not("navigation.navigateInline.enabled"),
-      tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
+      tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap to the other end</b> sends it back to the first word of the same stretch. <b>Go to the next line</b> leaves the line entirely",
       options:[ {value:"stay",label:"Stay put"}, {value:"wrap",label:"Wrap to the other end"},
                 {value:"next-line",label:"Go to the next line"} ] }
   ]
 },
 {
-  id: "heading-jumps", tab: "navigation", order: 500, heading: "Jump inside note (up\\down)",
+  id: "heading-jumps", tab: "navigation", order: 500, heading: "Jump inside a note (up/down)",
   intro: "Skip through a long note by its headings instead of scrolling",
   tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
   commands: ["Jump up", "Jump down"],
@@ -181,7 +181,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"center",label:"Center of the screen"},
                 {value:"top",label:"Top of the screen"},
                 {value:"bottom",label:"Bottom of the screen"} ],
-      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
+      tip:"The same place every time, and the same three choices <code>Moving behavior</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 }
 ];

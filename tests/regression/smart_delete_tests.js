@@ -275,13 +275,13 @@ const ON = { enabled: true, dropPrefix: true, joinWithSpace: true };
   } } };
   const ed9 = makeEditor(["верх", "\t- [ ] низ"], { line: 1, ch: 0 });
   assert.strictEqual(handleSmartBackspaceKeymap(plugin(backOnly, ed9)), true,
-    "Smart backspace обязан работать при выключенном Smart Delete");
+    "Smart Backspace обязан работать при выключенном Smart Delete");
   assert.deepStrictEqual(ed9.lines, ["верх низ"],
     "склейка вверх без Smart Delete вышла не так: " + ed9.lines.join(" | "));
 
   const ed10 = makeEditor(["- задача", "\t- [ ] подзадача"], { line: 0, ch: 8 });
   assert.strictEqual(handleSmartDeleteKeymap(plugin(backOnly, ed10)), false,
-    "включённый Smart backspace не даёт прав клавише Del");
+    "включённый Smart Backspace не даёт прав клавише Del");
   assert.deepStrictEqual(ed10.lines, ["- задача", "\t- [ ] подзадача"],
     "Del тронул текст, не имея своего тумблера");
 

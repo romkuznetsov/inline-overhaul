@@ -34,7 +34,7 @@ project link, an estimate. You define them; the plugin ships no methodology.
 - **Custom blocks.** `Add Block` makes a Block of your own that writes where the cursor
   is, inside your text. It has its own command, `tagWheel <block>`, and its Fields' `next`
   and `previous` work on the Value under the cursor.
-- **One spelling, one Field.** A Value written the same way as another Field's Value is
+- **One spelling, one Field.** A Value written the same way as another Field’s Value is
   refused, so a line never leaves the plugin guessing whose `#todo` it is.
 - **A pair of commands per Field**, created on the spot: `<Field> next` and
   `<Field> previous`.
@@ -57,14 +57,14 @@ Fields and their Values; on exit the line is written back as plain markdown.
 - **A custom block at the cursor.** `tagWheel <block>` opens its Fields where the cursor
   is and splits the text there; `Enter` writes the picked Values between your words. On a
   Value of the block it opens on that Value and replaces it. With
-  `tagWheel - Switch custom blocks on Tab` on, `Tab` moves to the next custom block.
+  `Switch custom blocks on Tab` on, `Tab` moves to the next custom block.
 - **The other Block.** While the picker is open it takes the place of the Block it stands
   in. The other one either leaves the line for as long as you are choosing, or stays
   written where it belongs.
 - **Only what applies.** A Field whose prerequisite is not met is not offered.
 - **Write-back by difference.** The panel writes only what actually changed, checked
-  against Obsidian's own undo history in the test suite, keystroke by keystroke.
-- **Appearance**: colours per role, an optional scroller box of neighbouring Values, and
+  against Obsidian’s own undo history in the test suite, keystroke by keystroke.
+- **Appearance**: colors per role, an optional scroller box of neighboring Values, and
   a highlight for the line being edited.
 
 **One known limit.** While the panel is open it holds its strip in the text of the note,
@@ -102,15 +102,15 @@ bottom of the screen. A jump does the same for its target.
 Drawing only: the file on disk is untouched.
 
 - **Inline appearance** — size and opacity of each Block, bubble width, height and
-  corners for tags, and a coloured Stripe behind one Block or both.
+  corners for tags, and a colored Stripe behind one Block or both.
 - **Link view** — the page preview on hover and dragging, for a Value shown as your own
-  text; and colours for links: two for a wikilink (the name and the brackets) and three for
-  a hyperlink (the text of a markdown link, its brackets, and every address).
+  text; and colors for links: two for a wikilink (the name and the brackets) and three for
+  a hyperlink (the text of a Markdown link, its brackets, and every address).
 - **Tag Bars** — a Bar in the margin drawn from the Values of one tag Field, down a line
   and everything nested under it.
-- **Text cursor** — the caret's colour, width and blink speed.
+- **Text cursor** — the caret's color, width and blink speed.
 - **Cursor jump highlight** — a fading circle where the cursor lands after a jump.
-- **Color custom tags** — a colour per tag for tags that are not a Value of any Field in
+- **Color custom tags** — a color per tag for tags that are not a Value of any Field in
   `Tags & PKM → Fields`.
 
 *Where:* **Visual**, eight groups.
@@ -148,7 +148,7 @@ it to one that already exists. Off out of the box.
   `Smart bracket` ships with the plugin and cycles the brackets around the cursor or
   selection.
 - **Commands & Hotkeys** — every command with the key bound to it now, and a `to hotkeys`
-  button on each heading that opens Obsidian's `Hotkeys` screen filtered to it.
+  button on each heading that opens Obsidian’s `Hotkeys` screen filtered to it.
 
 *Where:* **Keyboard**, four groups.
 
@@ -176,7 +176,7 @@ it to one that already exists. Off out of the box.
 ## The full command list
 
 Commands are named after the area they belong to — `Navigation: Move up`,
-`Tags & PKM: Category next` — so Obsidian's `Hotkeys` screen can be filtered to one area.
+`Tags & PKM: Category next` — so Obsidian’s `Hotkeys` screen can be filtered to one area.
 
 Thirteen commands exist always:
 

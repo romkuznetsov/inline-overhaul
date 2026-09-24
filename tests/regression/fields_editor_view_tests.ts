@@ -1226,7 +1226,7 @@ function heightBtn(host: StubNode): StubNode {
        * `Name in TagWheel` и над `Behavior` для всех типов Field сразу
        * (замечание 1.4.1.2.4). У `element` на этом месте маркер, формат и шаг.
        */
-      "Emoji-prefix", "Value format", "Steps by", "Command",
+      "Emoji prefix", "Value format", "Steps by", "Command",
       "Active", "Prefix behavior", "Prerequisite Field",
       /*
        * Раздел `YAML property` целиком: решение заказчика 2026-08-28 перенесло
@@ -1243,7 +1243,7 @@ function heightBtn(host: StubNode): StubNode {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
   const marker = all(v.host, "io-text--mono").find(n =>
-    String(n.getAttribute("aria-label") || "").startsWith("Emoji-prefix for")) as StubNode;
+    String(n.getAttribute("aria-label") || "").startsWith("Emoji prefix for")) as StubNode;
   assert.equal(marker.value, "!", "маркер показан из конфига");
   marker.value = "@";
   marker.dispatch("change");
@@ -1270,7 +1270,7 @@ function heightBtn(host: StubNode): StubNode {
     String(n.getAttribute("aria-label") || "").startsWith(prefix)) as StubNode;
   const needed = (n: StubNode): boolean => n.classList.contains("io-text--needed");
 
-  const marker = inputBy("Emoji-prefix for");
+  const marker = inputBy("Emoji prefix for");
   assert.equal(marker.value, "!", "положительный контроль: знак в фикстуре непустой");
   assert.equal(needed(marker), false, "заполненный знак обведён как пустой");
   /* Отрицательный контроль: соседнее поле обязательным не объявлено. */
@@ -1468,10 +1468,10 @@ function heightBtn(host: StubNode): StubNode {
   const propRow = rows.find(r =>
     String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Property") as StubNode;
   assert.equal(String(all(propRow, "io-item__desc")[0]?.textContent || "").trim(),
-    "If you use inline2note, to which YAML property this Field should go",
+    "If you use Inline to note, to which YAML property this Field should go",
     "описание говорит, зачем это свойство нужно");
   const input = all(propRow, "io-text--prop")[0] as StubNode;
-  assert.equal(input.placeholder, "select Property",
+  assert.equal(input.placeholder, "select a property",
     "подсказка в поле приглашает выбрать свойство, а не показывает имя Field");
   const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const propWidth = /\.io-fields \.io-text--prop \{ width: (\d+)px; \}/.exec(css);
@@ -1883,7 +1883,7 @@ function heightBtn(host: StubNode): StubNode {
   assert.deepEqual(withTip,
     /* Порядок тот же, что у строк: значение Field идёт до его поведения
        (замечание заказчика 1.4.1.2.4). */
-    [SHORT_NAME, "Emoji-prefix", "Value format", "Steps by", "Command",
+    [SHORT_NAME, "Emoji prefix", "Value format", "Steps by", "Command",
       "Active", "Prefix behavior", "Prerequisite Field",
       /*
        * У `Property` подсказка появилась 2026-09-01 (замечание 1.3.2.1).
@@ -2095,11 +2095,11 @@ function heightBtn(host: StubNode): StubNode {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
-  assert.ok(names.includes("Emoji-prefix") && names.includes("Value format"),
+  assert.ok(names.includes("Emoji prefix") && names.includes("Value format"),
     "строки названы так, как назвал заказчик");
   assert.ok(!names.includes("Marker") && !names.includes("Format"),
     "прежних имён не осталось");
-  ok("третий круг 6: Marker и Format переименованы в Emoji-prefix и Value format");
+  ok("третий круг 6: Marker и Format переименованы в Emoji prefix и Value format");
 }
 
 /* ======================================================================

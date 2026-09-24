@@ -1,6 +1,6 @@
 "use strict";
 /* The Fields editor as it actually renders: the two column heads, what can
-   be dragged, which colour each type chip gets — and what the arrows do,
+   be dragged, which color each type chip gets — and what the arrows do,
    including the step across the line at the edge of a Block. */
 const fs = require("fs");
 const path = require("path");

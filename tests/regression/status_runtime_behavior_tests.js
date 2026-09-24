@@ -2171,7 +2171,7 @@ async function testStatusTagsOrderKeyResolvesRenamedFieldNotNeighbour() {
   assertTrue(/#area-alpha/.test(lineLeft), "cycle_field:category must reach its own field when importance sits left");
   assertTrue(/#area-alpha/.test(lineRight), "cycle_field:category must reach its own field when importance sits right");
   assertTrue(lineRight !== "111", "moving another field to the right panel must not silence cycle_field:category");
-  assertTrue(!/#todo|#idea|#note|#\/\d/.test(lineRight), "cycle_field:category must not cycle a neighbouring field's values");
+  assertTrue(!/#todo|#idea|#note|#\/\d/.test(lineRight), "cycle_field:category must not cycle a neighboring field's values");
 }
 
 

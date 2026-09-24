@@ -344,7 +344,7 @@ function scenarios(rows: string[]): void {
     const writes: Write[] = [];
     const host = render("due", writes);
     rows.push("сценарий [выбрать знак Field due из выбиралки]");
-    const input = controls(host).find(n => String(n.getAttribute("aria-label") || "") === "Emoji-prefix for due");
+    const input = controls(host).find(n => String(n.getAttribute("aria-label") || "") === "Emoji prefix for due");
     if (input) input.dispatch("focus");
     const cell = controls(host).find(n => String(n.className || "").includes("io-pick__item"));
     if (cell) cell.dispatch("click");

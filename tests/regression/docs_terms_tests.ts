@@ -116,12 +116,12 @@ const GUIDES = ["README.md", "INSTRUCTIONS.md"];
     ["Show Info & Tips", "Ф15: тумблеры вида удалены"],
     ["Show DeepEditor", "Ф15: тумблеры вида удалены"],
     ["Show Color Settings", "Ф15: тумблеры вида удалены"],
-    /* Переименование, а не снятие: тумблер жив и называется `Smart backspace`
+    /* Переименование, а не снятие: тумблер жив и называется `Smart Backspace`
        (заказчик 2026-09-05, 10.13.32 Д11). Старое имя запрещено, потому что
        оно ещё и врёт про устройство — «то же самое» читается как «вместе с
        `Smart Delete`», а клавиши теперь включаются врозь. Запрет снимается,
        только если заказчик вернёт прежнюю подпись. */
-    ["Do the same on Backspace", "10.13.32 Д11: тумблер переименован в Smart backspace"],
+    ["Do the same on Backspace", "10.13.32 Д11: тумблер переименован в Smart Backspace"],
     /* Команда, а не контрол, но посылает человека ровно так же — в пустоту:
        её больше нет в палитре Obsidian. Снята 2026-09-06 вместе с вызовом
        `app.setting.open()` (T8, фаза 6 пункт 5). Обратно не возвращается
@@ -160,11 +160,11 @@ const GUIDES = ["README.md", "INSTRUCTIONS.md"];
     ["Move line down", "его пункт 4: команда переименована в Move down"],
     ["Move cursor left in line", "его пункт 4: команда переименована в Jump left"],
     ["Move cursor right in line", "его пункт 4: команда переименована в Jump right"],
-    ["Moving lines (up and down)", "его пункт 4: заголовок стал Move lines (up\\down)"],
-    ["Move left and move right", "его пункт 4: заголовок стал Move lines (left\\right)"],
-    ["Moving cursor inside a line", "его пункт 4: заголовок стал Jump inside line (left\\right)"],
-    ["Moving cursor inside a note", "его пункт 4: заголовок стал Jump inside note (up\\down)"],
-    ["Links in the notes you mention", "его пункт 4: заголовок стал Auto-MOC in your Links"],
+    ["Moving lines (up and down)", "его пункт 4: заголовок стал Move lines (up/down)"],
+    ["Move left and move right", "его пункт 4: заголовок стал Move lines (left/right)"],
+    ["Moving cursor inside a line", "его пункт 4: заголовок стал Jump inside a line (left/right)"],
+    ["Moving cursor inside a note", "его пункт 4: заголовок стал Jump inside a note (up/down)"],
+    ["Links in the notes you mention", "его пункт 4: заголовок стал Auto-MOC in your links"],
   ];
 
   /*

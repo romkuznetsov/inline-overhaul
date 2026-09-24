@@ -10,6 +10,6 @@
  */
 module.exports = [
   /* Список custom block пишет редактор Fields (PRD 10.13.260); строке
-     `tagWheel - Switch custom blocks on Tab` без блока переключать нечего. */
+     `Switch custom blocks on Tab` без блока переключать нечего. */
   "pkm.fields.order.custom",
 ];

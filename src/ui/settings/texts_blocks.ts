@@ -74,7 +74,7 @@ export const BLOCK_TEXTS = {
     DETAIL_TIP: "Everything about the Field picked on the left. Its name in tagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields — pick another one on the left and the whole column changes",
     SHORT_NAME_NAME: "Name in tagWheel",
     SHORT_NAME_DESC: "A shorter name for the tagWheel row, where there is little room",
-    SHORT_NAME_TIP: "tagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name",
+    SHORT_NAME_TIP: "tagWheel puts every Field side by side, so a long name crowds its neighbors. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name",
     /* Раздел Behavior. */
     BEHAVIOR_HEAD: "Behavior",
     BEHAVIOR_HEAD_TIP: "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line — a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line",
@@ -119,7 +119,7 @@ export const BLOCK_TEXTS = {
     PREREQ_VALUE_TIP: "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value of any kind. Name one, and it waits for that Value alone",
     PREREQ_ANY_VALUE: "Any Value",
     /* Раздел Values. */
-    VALUES_TIP: "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent’s <code>Behavior</code>",
+    VALUES_TIP: "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent’s <code>Prefix behavior</code>",
     ELEMENT_VALUE_TIP: "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints — the emoji in front and the format of the value itself — and how the <code>next</code> and <code>previous</code> commands move it along",
     VALUES_EMPTY: "no Values yet — add the first one below",
     LEVEL_TIP: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
@@ -179,9 +179,9 @@ export const BLOCK_TEXTS = {
     ADD_VALUE: "Add Value",
     ADD_VALUE_TO: "Add a Value to {0}",
     /* Раздел эмодзи-элемента. */
-    ELEMENT_EMOJI_NAME: "Emoji-prefix",
+    ELEMENT_EMOJI_NAME: "Emoji prefix",
     ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
-    ELEMENT_EMOJI_TIP: "This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one",
+    ELEMENT_EMOJI_TIP: "This is how the Field is recognized: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one",
     ELEMENT_EMOJI_HINT: "one character or emoji",
     /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10). Вкладка одна, и
        подписи ей не нужно: строки ниже — поиск и пустой ответ. */
@@ -223,7 +223,7 @@ export const BLOCK_TEXTS = {
      * способ спросить хоткей (`hotkeys.ts`).
      */
     COMMANDS_HEAD: "Commands",
-    COMMANDS_HEAD_TIP: "Every command this Field has right now, and the key each one is on. A Field gets a <code>next</code> and a <code>previous</code>; a child Field adds its own pair. Rename the Field or switch it off and this list follows at once — it is built from your setup, not written down. Press a key cell to open Obsidian's own <code>Hotkeys</code> screen at that command; this plugin assigns no keys by itself",
+    COMMANDS_HEAD_TIP: "Every command this Field has right now, and the key each one is on. A Field gets a <code>next</code> and a <code>previous</code>; a child Field adds its own pair. Rename the Field or switch it off and this list follows at once — it is built from your setup, not written down. Press a key cell to open Obsidian’s own <code>Hotkeys</code> screen at that command; this plugin assigns no keys by itself",
     COMMANDS_COL_NAME: "Command",
     COMMANDS_COL_HOTKEY: "Hotkey",
     COMMANDS_EMPTY: "This Field has no commands right now",
@@ -232,15 +232,15 @@ export const BLOCK_TEXTS = {
        справочника с Binder они тоже свои. */
     HOTKEY_NOT_SET: "not set",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
-    HOTKEY_ASSIGN: "Assign the hotkey for {0}",
-    HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command",
+    HOTKEY_ASSIGN: "Assign a hotkey to {0}",
+    HOTKEY_OPEN: "Open Obsidian’s Hotkeys settings at this command",
     /* Раздел YAML. */
     YAML_HEAD: "YAML property",
     YAML_HEAD_TIP: "<code>Inline to note</code> on the Transform tab turns a line into a note, and it writes any Field into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied",
     YAML_NAME: "Property",
-    YAML_DESC: "If you use inline2note, to which YAML property this Field should go",
+    YAML_DESC: "If you use <code>Inline to note</code>, to which YAML property this Field should go",
     YAML_TIP: "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers the names your vault already uses; you can also type a name that does not exist yet, and it appears the first time a note is written with it. Leave the box empty and this Field is simply not copied into the note. Two Fields may point at the same property — then <code>Property type</code> below decides whether it holds a list or a single Value",
-    YAML_HINT: "select Property",
+    YAML_HINT: "select a property",
     YAML_FOR: "YAML property for {0}",
     YAML_CLEAR: "Clear the property of {0}",
     YAML_KIND_NAME: "Property type",
@@ -302,7 +302,7 @@ export const BLOCK_TEXTS = {
     RENAME_CONFIRM: "Rename",
     /* Проверки имён и значений: их человек читает на месте ошибки. */
     ERR_NAME_CHARS: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores",
-    ERR_NAME_SUB: "Names ending in _sub are kept for child Fields",
+    ERR_NAME_SUB: "Names ending in _sub are reserved for child Fields",
     ERR_NAME_TAKEN: "A Field with this name already exists",
     /* Custom block и повтор Value (PRD 10.13.260, `В-209`). */
     ERR_BLOCK_NAME_TAKEN: "A block with this name already exists",
@@ -317,7 +317,7 @@ export const BLOCK_TEXTS = {
     ERR_LINK_NO_TARGET: "Cannot tell which Field this link Value would go to",
     ERR_LINK_UNNAMED_FIELD: "The Field for this link has no name",
     ERR_LINK_NEEDS_NAME: "A link needs a name",
-    ERR_PREFIX_TOKEN: "A Prefix checkbox looks like [ ] or [I]",
+    ERR_PREFIX_TOKEN: "A Prefix checkbox looks like [ ] or [x]",
   },
 
   /* ---- Smart Rules ----------------------------------------------------- */
@@ -341,7 +341,7 @@ export const BLOCK_TEXTS = {
     MOVE_TO_FOLDER: "Move to folder",
     TEMPLATE_NONE: "None",
     FOLDER_DEFAULT: "Default",
-    FOLDER_NEAR_NOTE: "Near current note",
+    FOLDER_NEAR_NOTE: "Next to the current note",
     FOLDER_OTHER: "Another folder…",
     FOLDER_HINT: "type or pick a folder",
     ANY_VALUE_SUFFIX: "{0} — any Value",
@@ -352,7 +352,7 @@ export const BLOCK_TEXTS = {
     VALUES_EMPTY: "no Values yet",
     USE_VALUE: "Use {0}",
     CONDITION_TIP: "Pick one of the Values your Fields already offer. A rule looks for any of the Values listed under one Field type, and for all of the types you have filled in",
-    ADD_CONDITION: "Add a {0}",
+    ADD_CONDITION: "Add {0}",
     RULE_NAME_ARIA: "Name of {0}",
     RULE_TEMPLATE_ARIA: "Template for {0}",
     RULE_FOLDER_ARIA: "{0} path for {1}",
@@ -383,15 +383,15 @@ export const BLOCK_TEXTS = {
     PL_POSITION: "Where to put the text",
     PL_POSITION_BEGINNING: "At the beginning",
     PL_POSITION_END: "At the end",
-    PL_POSITION_HEADER: "At custom header",
-    PL_TARGET_HEADER: "Type name of header",
-    PL_TARGET_HEADER_HINT: "# Header name",
-    PL_FALLBACK: "If header not found",
+    PL_POSITION_HEADER: "At custom heading",
+    PL_TARGET_HEADER: "Name of the heading",
+    PL_TARGET_HEADER_HINT: "# Heading name",
+    PL_FALLBACK: "If heading not found",
     PL_HEADER_MODE: "Line above the text",
     PL_HEADER_MODE_CUSTOM: "Fixed text",
     PL_HEADER_MODE_DATETIME: "Date and time",
     PL_HEADER_MODE_NONE: "Nothing",
-    PL_HEADER_LEVEL: "Line above is header",
+    PL_HEADER_LEVEL: "Line above is a heading",
     PL_HEADER_LEVEL_PLAIN: "No (plain text)",
     PL_HEADER_TEXT: "Text of the line above",
     PL_DATETIME: "Date format",
@@ -407,11 +407,11 @@ export const BLOCK_TEXTS = {
        Раскрываются в слот под шапкой, во всю ширину таблицы: ячейка шапки тут
        шириной в шесть десятков точек. */
     COL_INSERTS_TIP: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
-    COL_COMMAND_NAME_TIP: "What the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
+    COL_COMMAND_NAME_TIP: "What the command is called in the command palette and on Obsidian’s <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
     COL_DESCRIPTION_TIP: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
-    COL_HOTKEY_TIP: "The keys assigned to this command right now. Press the cell and Obsidian's own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself",
+    COL_HOTKEY_TIP: "The keys assigned to this command right now. Press the cell and Obsidian’s own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
-    HOTKEY_ASSIGN: "Assign the hotkey for {0}",
+    HOTKEY_ASSIGN: "Assign a hotkey to {0}",
     NEW_INSERTS_HINT: "Type anything or choose below",
     NEW_NAME_HINT: "Arrow",
     NEW_CANCEL: "Cancel",
@@ -424,7 +424,7 @@ export const BLOCK_TEXTS = {
     NEW_INSERTS_LABEL: "Inserts",
     NEW_INSERTS_DESC: "The text this command drops in at the cursor",
     NEW_NAME_LABEL: "Command name",
-    NEW_NAME_DESC: "What to call it in Obsidian's list of hotkeys",
+    NEW_NAME_DESC: "What to call it in Obsidian’s list of hotkeys",
     /* Имя, которое окно предлагает само, когда вставленного знака нет в
        выбиралке (его пункт 9.4: «дефолтное название всегда должно быть
        предложено»). У знака из выбиралки имя своё — `Arrow right` у `→`. */
@@ -517,8 +517,8 @@ export const BLOCK_TEXTS = {
     THEN_UNINDENT: "remove one indent level",
     THEN_INDENT: "add one indent level",
     WHEN_NO_INDENT: "no indent",
-    THEN_CYCLE_BACK: "cycle the prefix backwards",
-    THEN_CYCLE_ON: "cycle the prefix forwards",
+    THEN_CYCLE_BACK: "cycle the Prefix backwards",
+    THEN_CYCLE_ON: "cycle the Prefix forwards",
   },
 
   /* ---- что остаётся на строке ------------------------------------------- */
@@ -559,20 +559,20 @@ export const BLOCK_TEXTS = {
     COL_HOTKEY: "Hotkey",
     /* Подсказки шапки и двух подписей частей, 2026-09-08. Шапка — в слот под
        ней; подпись части занимает строку целиком, и знак стоит в ней самой. */
-    COL_COMMAND_TIP: "The command, without the area already written above it. In the command palette and on the <code>Hotkeys</code> screen it carries that area in front — <code>Navigation: Move up</code> — and pressing a key cell here opens that screen at exactly that name. Never translated: Obsidian takes the name from its own register, and two lists of one command would not agree",
+    COL_COMMAND_TIP: "The command, without the area already written above it. In the command palette and on the <code>Hotkeys</code> screen it carries that area in front — <code>Navigation: Move up</code> — and pressing a key cell here opens that screen at exactly that name. Never translated: Obsidian takes the name from its own registry, and two lists of one command would not agree",
     COL_DOES_TIP: "What the command does, in one line. This column is the one thing in the table a language file can change — the names beside it cannot",
-    COL_HOTKEY_TIP: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian's own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself",
+    COL_HOTKEY_TIP: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian’s own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself",
     PART_STANDARD_TIP: "Commands that are always there, whatever you have set up: they come with the plugin, and their names do not change",
     PART_USER_TIP: "Commands built from your Fields. Every Field gets a <code>next</code> and a <code>previous</code>, a child Field gets its own pair under the same heading, and the order is the order of your Fields — not the alphabet. Add, rename or remove a Field and this part changes with it",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
-    HOTKEY_ASSIGN: "Assign the hotkey for {0}",
+    HOTKEY_ASSIGN: "Assign a hotkey to {0}",
     HOTKEY_NOT_SET: "not set",
-    HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command",
+    HOTKEY_OPEN: "Open Obsidian’s Hotkeys settings at this command",
     /* Кнопка в заголовке любого уровня — его заказ 2026-09-20, пункт 12.3.
        Подпись говорит, чем именно отобрано: язык поиска Obsidian набора команд
        не выражает, и человек увидит эту строку в самом поле поиска. */
     TO_HOTKEYS: "to hotkeys",
-    TO_HOTKEYS_LABEL: "Open Obsidian's Hotkeys screen for {0}, filtered by {1}",
+    TO_HOTKEYS_LABEL: "Open Obsidian’s Hotkeys screen for {0}, filtered by {1}",
   },
 } as const;
 

@@ -47,7 +47,7 @@ const RENAMED = {
 /* Rows with no path in the PRD, or a path the prototype dropped on purpose. */
 const BY_HAND = {
   "Main checkbox priority": "pkm.prefixPriority.decideBy",
-  "Fields order mode": "pkm.prefixPriority.fieldOrderSource",
+  "Field order mode": "pkm.prefixPriority.fieldOrderSource",
   "Tag/Subtag priority": "pkm.prefixPriority.parentOrChild",
   "TagWheel Note Editor": "pkm.configNote.path"
 };

@@ -154,7 +154,7 @@ export const DIALOG_TEXTS = {
     /* Каталог текстов сломан — сказать, а не промолчать (Я1). */
     TEXTS_BROKEN: "inlineOverhaul could not read {0}, so it is using English",
     /* Панель на Obsidian старше 1.13: пустая панель хуже честного объяснения. */
-    NEEDS_UPDATE: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API.",
+    NEEDS_UPDATE: "inlineOverhaul settings need Obsidian 1.13 or newer: the panel is built on the declarative settings API",
     NEEDS_UPDATE_HOW: "Update Obsidian, or install an earlier release of the plugin.",
     /* Список шаблонов Transform: пусто — тоже ответ. */
     NO_TEMPLATES: "No templates in",

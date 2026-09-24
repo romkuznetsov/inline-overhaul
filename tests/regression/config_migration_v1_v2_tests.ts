@@ -625,7 +625,7 @@ const DIR = ".obsidian/plugins/inline-overhaul";
  * нормализовали вовсе, а третья ступень обязана идти всегда (У-13).
  *
  * Видно это стало на решётках: решение 1.6.4.1 от 2026-08-31 убирает `#` из
- * `Text of the line above` в пользу `Line above is header`, снятие написано,
+ * `Text of the line above` в пользу `Line above is a heading`, снятие написано,
  * а в конфиге заказчика по-прежнему лежало `### Inline transformed`
  * (замечание B16, 2026-09-02).
  *

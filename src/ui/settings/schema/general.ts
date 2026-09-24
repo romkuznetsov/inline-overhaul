@@ -51,7 +51,7 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"show-callouts", path:"general.help.showCallouts", default:true,
       name:"Show callouts", desc:"Keep the boxes that say what a tab or a block of settings is for",
       searchTerms:["Show intro boxes"],
-      tip:"The boxes are the ones with a coloured edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes" },
+      tip:"The boxes are the ones with a colored edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes" },
     { kind:"toggle", id:"show-tips", path:"general.help.showTips", default:true,
       name:"Show tips", desc:"Put a ? beside anything that needs more explanation",
       tip:"Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way" }

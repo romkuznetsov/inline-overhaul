@@ -86,7 +86,7 @@ See it in motion: [Expanded Ctrl+A](SHOWCASE.md#enhanced-ctrla).
 | Control | Default | What it does |
 |---|---|---|
 | `Smart Delete` | off | `Del` at the end of a line brings up the words without the indent and the Prefix |
-| `Smart backspace` | off | `Backspace` at the start of a line sends it up without its own indent and Prefix |
+| `Smart Backspace` | off | `Backspace` at the start of a line sends it up without its own indent and Prefix |
 | `Drop the line Prefix` | on | Takes the bullet, checkbox, number or quote mark off the arriving line, not only its indent |
 | `Join with a space` | on | Puts one space between your text and the text that arrives |
 
@@ -101,7 +101,7 @@ nothing but a Prefix goes whole.
 | `Where it works` | `line` | How much of the line counts as one record: the whole line, or your own text between the Separators |
 | `Prefix on the new line` | `same` | What the new line starts with: the same marker, nothing, or nothing unless the line is numbered |
 
-On a line without a Separator of yours the key stays Obsidian's own.
+On a line without a Separator of yours the key stays Obsidian’s own.
 
 ### Global hotkeys → Smart paste
 
@@ -123,13 +123,13 @@ back.
 
 A new row starts in a small window. Press `Inserts` and a picker opens under it — emoji,
 symbols and text faces, with a search by name; the command name fills itself in from what you
-pick, and you can change it. A Field's `Emoji-prefix` opens the same picker with the emoji only.
+pick, and you can change it. A Field’s `Emoji prefix` opens the same picker with the emoji only.
 
 See it in motion: [Smart bracket](SHOWCASE.md#smart-bracket).
 
 ### Commands & Hotkeys
 
-Every command the plugin has, the key bound to it now, and a click through to Obsidian's
+Every command the plugin has, the key bound to it now, and a click through to Obsidian’s
 `Hotkeys` screen. Each heading — an area, a part of an area, or one of your Fields — has a
 `to hotkeys` button that opens that screen filtered to exactly its commands.
 
@@ -148,13 +148,13 @@ Commands are named after the area they belong to — `Navigation: Move up`,
 
 Moving lines, text and the cursor without reaching for the mouse.
 
-### Move lines (up\down)
+### Move lines (up/down)
 
 | Control | Default | What it does |
 |---|---|---|
 | `Move lines` | on | Lets the keys pick up a line and move it |
 | `Moving behavior` | `line-only` | Whether the tree under the line travels with it |
-| `Moving headers` | `move-as-line` | Whether a whole section moves, or just the header line |
+| `Moving headings` | `move-as-line` | Whether a whole section moves, or just the heading line |
 | `Cross heading boundaries` | on | Lets a line travel past a heading into the part of the note below |
 | `Highlight after moving` | off | Keeps the lines highlighted once they land |
 | `Follow the moved line` | on | Scrolls the note to the line you moved |
@@ -164,7 +164,7 @@ Commands: `Move up`, `Move down`.
 
 See it in motion: [Move lines and trees](SHOWCASE.md#move-linestrees).
 
-### Move lines (left\right)
+### Move lines (left/right)
 
 Two keys doing three jobs, decided by what is selected: move the highlighted text, cycle
 the line Prefix, or change the indent. The order in which the three are tried is set at the
@@ -175,7 +175,7 @@ top of the group.
 | `Move selected text` | on | Slides a highlighted phrase along its line |
 | `Movement step` | `auto` | How far the highlighted text goes on each press |
 | `Step out of the word` | off | Lets a highlighted part of a word carry on past the word it came from |
-| `Continue past a Separator` | on | Lets the highlighted text leave your text and move into the Blocks at either end |
+| `Continue past Separators` | on | Lets the highlighted text leave your text and move into the Blocks at either end |
 | `Cycle line Prefixes` | on | Turns a line into a heading, a bullet, a numbered item or plain text |
 | `Cycle in both directions` | on | `Move right` changes the marker too, but only on a line with no indent |
 | `After the last one` | `indent` | What happens at the bottom of the Prefix list |
@@ -186,7 +186,7 @@ Commands: `Move left`, `Move right`.
 See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-text) and
 [Prefix cycle and indent fallback](SHOWCASE.md#prefix-cycleindent-fallback).
 
-### Jump inside line (left\right)
+### Jump inside a line (left/right)
 
 | Control | Default | What it does |
 |---|---|---|
@@ -199,7 +199,7 @@ Commands: `Jump left`, `Jump right`.
 
 See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigation).
 
-### Jump inside note (up\down)
+### Jump inside a note (up/down)
 
 | Control | Default | What it does |
 |---|---|---|
@@ -243,7 +243,7 @@ The right column is everything about the Field picked on the left:
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |
 | `YAML property` | Which property of a transformed note this Field becomes |
-| `Commands` | This Field's own commands and the key each one is on |
+| `Commands` | This Field’s own commands and the key each one is on |
 
 `Values`, `Behavior`, `YAML property` and `Commands` are sections, and each folds with the
 triangle in front of its heading — the same one the settings headings carry. What you leave
@@ -251,10 +251,10 @@ folded stays folded until Obsidian is restarted.
 
 A Field is one of three types, picked when you press `Add Field`: `Tag` (`#todo`), `Link`
 (`[[Project A]]`) or `Element` — a marker and a format instead of a list, such as
-`📅 2026-09-15`. A Value can hold a child Value, and a child Field's Values are the ones
+`📅 2026-09-15`. A Value can hold a child Value, and a child Field’s Values are the ones
 marked child in that table.
 
-Each Value carries its own writing rule, its own colour, and a `Show` column: at `default`
+Each Value carries its own writing rule, its own color, and a `Show` column: at `default`
 it is drawn as itself, at `custom` as anything you type instead — an emoji in place of
 `[[Project A]]`. A shown link still opens the note when clicked.
 
@@ -299,7 +299,7 @@ a Block. How it looks is set under `Visual` → `tagWheel`.
 | `Right Block active Field` | unset | The Field it lands on when it opens on the right |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
-| `tagWheel - Switch custom blocks on Tab` | off | `Tab` in a custom block's tagWheel moves on to the next custom block. Shown once a custom block exists |
+| `Switch custom blocks on Tab` | off | `Tab` in a custom block’s tagWheel moves on to the next custom block. Shown once a custom block exists |
 
 ### Placement modes
 
@@ -350,7 +350,7 @@ Command: `Transform inline to note`.
 | Control | Default | What it does |
 |---|---|---|
 | `Note name` | `auto` | Take the name from the line, or stop and ask you for it |
-| `Name placeholders` | `[]` | Two characters; whatever you put between them becomes the name |
+| `Name brackets` | `[]` | Two characters; whatever you put between them becomes the name |
 | `Words to use instead` | `6` | How many of the first words to use when there are no brackets |
 | `If the name already taken` | `new_note` | What to do when a note with that name exists |
 
@@ -359,14 +359,14 @@ Command: `Transform inline to note`.
 | Control | Default | What it does |
 |---|---|---|
 | `Where to put the text` | `end` | At the top of the note, or after whatever is already there |
-| `Type name of header` | unset | The heading your text is filed under |
-| `If header not found` | `end` | Where the heading is added when the note has none |
+| `Name of the heading` | unset | The heading your text is filed under |
+| `If heading not found` | `end` | Where the heading is added when the note has none |
 | `Line above the text` | `datetime` | Something above your text so entries stay apart |
-| `Line above is header` | `3` | Make that line a heading you can fold, or leave it plain |
+| `Line above is a heading` | `3` | Make that line a heading you can fold, or leave it plain |
 | `Text of the line above` | `Captured` | Typed into the note exactly as written here |
 | `Date format` | `YYYY-MM-DD HH:mm` | Today's date, written the way you set out |
 
-Each Field's `YAML property` row decides which property of the new note it becomes, and
+Each Field’s `YAML property` row decides which property of the new note it becomes, and
 each Value carries the rule for how it is written.
 
 See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping).
@@ -384,18 +384,18 @@ See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping
 | `Where the mark goes` | `right` | Before your text, or after it |
 | `Dim transformed line` | off | Fades a line once it carries that mark |
 | `Opacity of transformed line` | `65` | Zero leaves the line as it is, eighty makes it barely readable |
-| `Color of transformed line` | unset | Unset keeps the colour your theme gives the text |
+| `Color of transformed line` | unset | Unset keeps the color your theme gives the text |
 
 See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
 
-### Auto-MOC in your Links
+### Auto-MOC in your links
 
 | Control | Default | What it does |
 |---|---|---|
 | `Link the notes you mention` | off | Writes a link to the new note into every note this line points at |
 | `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
-| `Type name of header` | unset | The heading the link is filed under |
-| `If header not found` | `end` | Where the heading is added when that note has none |
+| `Name of the heading` | unset | The heading the link is filed under |
+| `If heading not found` | `end` | Where the heading is added when that note has none |
 
 ### Smart Rules
 
@@ -429,20 +429,20 @@ the line.
 
 ### Inline appearance → Tag view
 
-These shape every tag in the editor, in any note: a tag with no colours of its own gets the same
+These shape every tag in the editor, in any note: a tag with no colors of its own gets the same
 bubble as the rest. A tag inside code is left as Obsidian draws it, and reading view is unchanged.
 
 | Control | Default | What it does |
 |---|---|---|
-| `Tags bubble width` | `100` | Breathing room either side of the word |
+| `Tag bubble width` | `100` | Breathing room either side of the word |
 | `Tag bubble height` | `100` | How tall the bubble is around the word |
-| `Tags bubble corners` | `0` | From fully rounded to completely square |
-| `Empty tags bubble width` | `100` | Width of a bubble whose `Show` is set to `empty` |
+| `Tag bubble corners` | `0` | From fully rounded to completely square |
+| `Empty tag bubble width` | `100` | Width of a bubble whose `Show` is set to `empty` |
 
 ### Inline appearance → Link view
 
 Two switches that hand a Value shown as your own text back what an ordinary link gets from
-Obsidian, and two pairs of colours: one pair for a wikilink, one for a hyperlink.
+Obsidian, and two pairs of colors: one pair for a wikilink, one for a hyperlink.
 
 | Control | Default | What it does |
 |---|---|---|
@@ -450,13 +450,13 @@ Obsidian, and two pairs of colours: one pair for a wikilink, one for a hyperlink
 | `Drag to move` | off | The Value can be dragged into another note |
 | `Link target color` | unset | The name you read between `[[` and `]]` |
 | `Link brackets color` | unset | The markup around it: `[[` and `]]` |
-| `Hyperlink target color` | unset | The text of a markdown link — what stands between the square brackets |
+| `Hyperlink target color` | unset | The text of a Markdown link — what stands between the square brackets |
 | `Hyperlink brackets color` | unset | The markup around it: the square brackets and the round ones, without the address |
 | `Hyperlink address color` | unset | Every address: the one in the round brackets, and one written on its own |
 
 The first pair applies to a link Value left on `Show` = `default`, the one your line carries
 as `[[the note name]]`. The second applies to every hyperlink in every note, whether the
-plugin looks after that line or not: a markdown link and an address written on its
+plugin looks after that line or not: a Markdown link and an address written on its
 own. A link inside backticks is code, and an image is not a link.
 
 An address written on its own takes the address row too — both kinds of address are one control.
@@ -466,7 +466,7 @@ cursor is on: everywhere else Obsidian takes it off the screen itself.
 
 ### Tag Bars
 
-A coloured Bar in the margin, down the side of a line and everything nested under it. One
+A colored Bar in the margin, down the side of a line and everything nested under it. One
 tag Field draws them.
 
 | Control | Default | What it does |
@@ -474,13 +474,13 @@ tag Field draws them.
 | `Tag Bars` | off | Draws the Bars |
 | `Which Field draws Bars` | unset | Bars work with tag Fields only, and only for the one chosen here |
 | `Number of Bars` | `2` | How far down the nesting to keep drawing them |
-| `Show the Field's tag` | on | Keep the tag on the line, or let the Bar speak for it |
+| `Show the Field’s tag` | on | Keep the tag on the line, or let the Bar speak for it |
 | `Hide the leftover marker` | off | Tidies away a Separator that has nothing left beside it |
 | `Bar arrangement` | `default` | Which lane each level of the tree draws its Bar in |
 | `Bar thickness` | `2` | How wide each Bar is |
 | `Space between Bars` | `12` | The gap between one level and the next |
 | `Distance from the text` | `20` | How far the Bars sit from where your line begins |
-| `Gap between Bars` | `2` | Blank left above and below a Bar |
+| `Vertical gap between Bars` | `2` | Blank left above and below a Bar |
 | `Bars for the whole tree` | on | A Bar runs down everything nested under its line |
 | `Join Bars in a tree` | on | A parent and its own children draw one unbroken Bar |
 
@@ -501,7 +501,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
 | `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
-| `Non-active Field text color` | unset | The Field names you are not standing on |
+| `Inactive Field text color` | unset | The Field names you are not standing on |
 | `Active Field text color` | unset | The Field you are on |
 | `Chosen Value text color` | unset | A Field that already carries a Value |
 | `Background color` | unset | Behind the picker |
@@ -512,10 +512,10 @@ triangle beside it, so the preview at the top stays in view while you work.
 |---|---|---|
 | `Scroller` | off | Shows the next and previous Values around the current one |
 | `Scroller opening direction` | `full` | Which way the Values unroll |
-| `Scroller Value names` | `Default name` | Whether the box shows a neighbouring Value as written, as the custom text from `Color custom tags`, or both |
-| `Scroller background color` | unset | Behind the box of neighbouring Values |
+| `Scroller Value names` | `Default name` | Whether the box shows a neighboring Value as written, as the custom text from `Color custom tags`, or both |
+| `Scroller background color` | unset | Behind the box of neighboring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
-| `Scroller size` | `3` | How many neighbouring Values stay visible |
+| `Scroller size` | `3` | How many neighboring Values stay visible |
 
 Commands: `tagWheel Left`, `tagWheel Right`.
 
@@ -526,8 +526,8 @@ See it in motion: [tagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel
 
 | Control | Default | What it does |
 |---|---|---|
-| `Color the text cursor` | off | Draws the blinking caret in a colour you pick |
-| `Cursor color` | unset | The colour of the caret in your notes |
+| `Color the text cursor` | off | Draws the blinking caret in a color you pick |
+| `Cursor color` | unset | The color of the caret in your notes |
 | `Shape the text cursor` | off | Sets how thick the caret is and how fast it blinks |
 | `Cursor width` | `2` | How thick the caret is drawn, in pixels |
 | `Blink speed` | `5` | From `0`, no blinking at all, to `10` |
@@ -541,15 +541,15 @@ thicker.
 | Control | Default | What it does |
 |---|---|---|
 | `Highlight where you land` | off | Draws a fading circle where the cursor lands |
-| `Highlight color` | unset | Unset uses the accent colour of your theme |
+| `Highlight color` | unset | Unset uses the accent color of your theme |
 | `Highlight size` | `18` | How wide the circle is when it appears |
 | `How long it lasts` | `450` | The time the circle takes to shrink away |
-| `Latency between jumps` | `0` | Jumps closer together than this get no circle |
+| `Minimum time between jumps` | `0` | Jumps closer together than this get no circle |
 | `Use inside current line` | off | Also marks the cursor when it hops between the parts of one line |
 
 ### Color custom tags
 
-A list of colours for tags that are not a Value of any Field in `Tags & PKM → Fields`. A tag
+A list of colors for tags that are not a Value of any Field in `Tags & PKM → Fields`. A tag
 you type straight into a line still gets a bubble, and this is where you say what that bubble
 looks like.
 
@@ -566,7 +566,7 @@ another machine is how a setup moves.
 | `Autosave` | off | Writes a copy whenever your settings file differs from the last autosave, checked at every start of Obsidian |
 | `Save a backup before restoring` | on | Writes what you have now before an earlier backup replaces it |
 | `Your settings` | — | `Save a backup`, or bring back an earlier one, tab by tab |
-| `Start over` | — | Deletes everything set up here and returns to the plugin's defaults; always writes a backup first |
+| `Start over` | — | Deletes everything set up here and returns to the plugin’s defaults; always writes a backup first |
 
 `Start over` also removes the four Fields a fresh install arrives with, and does not put
 them back.
@@ -578,7 +578,7 @@ them back.
 | `Show option IDs in tips` | off | Puts the id of each setting and group at the end of its tip |
 | `Developer logging` | off | Records what the plugin did |
 | `Machine-readable log` | on | Also keeps a second, denser log meant for tools |
-| `Log file` | `InlineOverhaul_DevLog` | Where in your vault the logs are put |
+| `Log folder` | `InlineOverhaul_DevLog` | Where in your vault the logs are put |
 
 `Show option IDs in tips` is the fastest way to name a control exactly when you report
 something: ids outlive every rewording of a name.

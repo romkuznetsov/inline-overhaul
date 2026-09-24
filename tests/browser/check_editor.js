@@ -1091,18 +1091,18 @@ async function main() {
        * Первая версия правки брала фон у переменной тега темы, и на его теме
        * (Minimal) она `transparent` — пузырь вышел невидимым.
        */
-      const colouredSmall = pick(smallZones, "left").find((b) => b.token === "#todo");
-      if (!colouredSmall) {
+      const coloredSmall = pick(smallZones, "left").find((b) => b.token === "#todo");
+      if (!coloredSmall) {
         bad("на странице нет пузыря со своим цветом в Block — сравнивать не с чем");
       } else {
-        if (!near(plainSmall.height, colouredSmall.height, 0.05)) {
+        if (!near(plainSmall.height, coloredSmall.height, 0.05)) {
           bad("пузырь без своего цвета и пузырь со своим разной высоты: "
-            + plainSmall.height + " против " + colouredSmall.height);
+            + plainSmall.height + " против " + coloredSmall.height);
         }
-        if (plainSmall.padTop !== colouredSmall.padTop
-          || plainSmall.padLeft !== colouredSmall.padLeft) {
+        if (plainSmall.padTop !== coloredSmall.padTop
+          || plainSmall.padLeft !== coloredSmall.padLeft) {
           bad("поля у двух пузырей разошлись: " + plainSmall.padTop + "/" + plainSmall.padLeft
-            + " против " + colouredSmall.padTop + "/" + colouredSmall.padLeft);
+            + " против " + coloredSmall.padTop + "/" + coloredSmall.padLeft);
         }
       }
       if (plainSmall.cursor !== "pointer") {
@@ -1117,18 +1117,18 @@ async function main() {
      * дефолтный тема, — и он принёс скриншот.
      */
     const bareMid = smallZones.find((b) => b.token === "#bare");
-    const colouredMid = smallZones.find((b) => b.token === "#work" && b.zone === "middle");
+    const coloredMid = smallZones.find((b) => b.token === "#work" && b.zone === "middle");
     if (!bareMid) {
       bad("тег без цвета между разделителями пузыря не получил — в вашем тексте"
         + " остался разнобой: цветной рисуем мы, дефолтный тема");
-    } else if (colouredMid) {
-      if (!near(bareMid.height, colouredMid.height, 0.05)) {
+    } else if (coloredMid) {
+      if (!near(bareMid.height, coloredMid.height, 0.05)) {
         bad("в вашем тексте дефолтный и цветной теги разной высоты: "
-          + bareMid.height + " против " + colouredMid.height);
+          + bareMid.height + " против " + coloredMid.height);
       }
-      if (bareMid.padTop !== colouredMid.padTop || bareMid.padLeft !== colouredMid.padLeft) {
+      if (bareMid.padTop !== coloredMid.padTop || bareMid.padLeft !== coloredMid.padLeft) {
         bad("в вашем тексте поля двух тегов разошлись: " + bareMid.padTop + "/" + bareMid.padLeft
-          + " против " + colouredMid.padTop + "/" + colouredMid.padLeft);
+          + " против " + coloredMid.padTop + "/" + coloredMid.padLeft);
       }
     }
     /*

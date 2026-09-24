@@ -22,7 +22,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
          "<b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth " +
          "knowing about before you start are <b>Transform</b>, the only one that creates and edits files, and " +
          "<b>Keyboard</b>: none of the commands has a key by default, so until you bind one nothing responds",
-    body: "Four areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is " +
+    body: "Five areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is " +
           "bound to. <b>Navigation</b> moves lines, text and the cursor without the mouse. <b>Tags & PKM</b> is the " +
           "heart of it: you lay out the slots a line can hold — a status, a priority, a due date — and " +
           "afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look " +
@@ -32,7 +32,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
           "the one area that creates files stays off until you switch it on"
   },
   navigation: {
-    head: "This menu helps to make inline navigation in Obsidian comfortable",
+    head: "Move around lines and notes without the mouse",
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
@@ -105,7 +105,7 @@ export interface PreviewText {
 export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   "source-preview": {
     cap: "Live preview",
-    tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Note content</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
+    tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Source line</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "line-preview": {
     cap: "Live preview",
@@ -148,7 +148,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   },
   "link-preview": {
     cap: "Live preview",
-    tip: "Three links and five colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second row is a markdown link: its text, its brackets and its address each take a row of their own above. The third is an address written on its own: it is an address, so <code>Hyperlink address color</code> paints it, the same row as the address in the second. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    tip: "Three links and five colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second row is a Markdown link: its text, its brackets and its address each take a row of their own above. The third is an address written on its own: it is an address, so <code>Hyperlink address color</code> paints it, the same row as the address in the second. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     wikilink: "[[the note name]]",
     label: "a link",
     address: "https://example.com",
@@ -237,13 +237,13 @@ export const COMMAND_TEXTS: readonly CommandArea[] = [
      Стандартные команды — те, что есть всегда; ваши — пара на каждый Field,
      она заводится сама (замечания 1.2.3.4.1 и 1.2.3.4.2). */
   { area:"Tags & PKM",
-    parts:{ standard:"Standard commands", user:"Commands from your Fields" }, list:[
+    parts:{ standard:"Main commands", user:"Commands from your Fields" }, list:[
     { name:"Status next",     does:"One pair per Field, created automatically from your Field list" },
     { name:"Status previous", does:"The same Field, backwards through its Values" },
     { name:"tagWheel Left",  does:"Open tagWheel starting on the Fields before your text" },
     { name:"tagWheel Right", does:"Open tagWheel starting on the Fields after your text" },
     /* Custom block (PRD 10.13.260): по команде на блок, имя — имя блока. */
-    { name:"tagWheel <block>", does:"Open a custom block's tagWheel where the cursor is" }
+    { name:"tagWheel <block>", does:"Open a custom block’s tagWheel where the cursor is" }
   ]},
   /* Область `Config` снята вместе с конфиг-заметкой 2026-09-03 (В-28): команды
      `Apply config note` и `Open config template` из палитры убраны. */

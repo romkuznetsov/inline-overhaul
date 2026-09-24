@@ -115,7 +115,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
      * нашей командой: текст называет не файл, а то, чем открывать.
      */
     "rules-missing": "tagWheel: no rules came with the command - open it from the command list or its hotkey",
-    "emoji-required": "tagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
+    "emoji-required": "tagWheel: these Fields need an emoji: {0}. Set it in Settings → inlineOverhaul → Tags & PKM → Fields",
     /* Команда Field custom block пришла, а Field в блоке уже нет (PRD 10.13.260). */
     "custom-no-field": "tagWheel: this Field is not in a custom block any more",
     error: "tagWheel error: {0}",
@@ -130,7 +130,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
      */
     "rules-missing": "No rules came with the command - run it from the command list or its hotkey",
     "config-error": "Rules are not valid after applying the order: {0}",
-    "emoji-required": "These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
+    "emoji-required": "These Fields need an emoji: {0}. Set it in Settings → inlineOverhaul → Tags & PKM → Fields",
     /* Field ждёт своего предусловия (10.13.4, Н21). Отказ громкий: команду
        позвал человек, и молчание он прочтёт как поломку. */
     "prerequisite-unmet": "{0} waits for {1}: set it on this line first",

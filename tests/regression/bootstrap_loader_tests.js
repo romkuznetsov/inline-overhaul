@@ -1216,7 +1216,7 @@ async function run() {
     assertTrue(marks > 0, "отметки строки не ставятся вовсе");
     assertEq(marks, sites("_tagVisualCompartment"), "and mounts it everywhere the tag visuals are mounted");
     assertEq(marks, sites("_stripCompartment"), "and mounts it everywhere the strips are mounted");
-    assertEq(marks, sites("_tagwheelHeaderCompartment"), "and mounts it everywhere the tagwheel colours are mounted");
+    assertEq(marks, sites("_tagwheelHeaderCompartment"), "and mounts it everywhere the tagwheel colors are mounted");
   }
   assertTrue(/__editorMount\.mountExtensions\(plugin\);/.test(bootstrapSrc), "и загрузка зовёт постановку один раз");
   assertTrue(/__editorMount\.refreshOpenEditors\(plugin\);/.test(configWriteSrc), "а пересборку — из записи патча конфига");
@@ -3376,10 +3376,10 @@ async function run() {
    * проверено по-настоящему в оверлее (`tagwheel_scroller_overlay_tests.js`);
    * здесь закреплено, что цвета до него доходят и что форму им проверяют.
    */
-  assertTrue(/fillColor: hex\(raw\.scrollerFillColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller fill colour");
-  assertTrue(/textColor: hex\(raw\.scrollerTextColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller text colour");
-  assertTrue(/fillColor: state\.scrollerCfg\.fillColor/.test(tagwheelSrc), "tagwheel passes the scroller fill colour to the overlay");
-  assertTrue(/textColor: state\.scrollerCfg\.textColor/.test(tagwheelSrc), "tagwheel passes the scroller text colour to the overlay");
+  assertTrue(/fillColor: hex\(raw\.scrollerFillColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller fill color");
+  assertTrue(/textColor: hex\(raw\.scrollerTextColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller text color");
+  assertTrue(/fillColor: state\.scrollerCfg\.fillColor/.test(tagwheelSrc), "tagwheel passes the scroller fill color to the overlay");
+  assertTrue(/textColor: state\.scrollerCfg\.textColor/.test(tagwheelSrc), "tagwheel passes the scroller text color to the overlay");
   /*
    * Край Block (10.13.35). Решение проверено по-настоящему в
    * `tests/TagWheel/tagwheel_tests.js` — `planFieldStep` чистая функция и
