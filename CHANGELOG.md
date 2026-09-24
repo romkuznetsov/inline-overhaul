@@ -31,9 +31,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 8. 🐛 **A tag in the middle of your text stays in your text.** On a line without separators, `tagWheel Left` no longer copies it into its Block, and a Right Block command no longer splits your text around it.
 9. 🎨 **A tag with no colours of its own looks like a tag of your theme.** Fill, text and outline come from the theme until you pick your own; pure white in `Fill` means no fill.
 10. ✨ **`Side` colours the outline of a tag.** A new column in the Values table and in `Color custom tags`; pure white means no outline, and the reset button takes it back to the theme.
-11. 🐛 **A tag in your text keeps its size after `next` on a Right Block Field.** A line with one separator and a date after it no longer draws the text before it as Left Block.
+11. 🐛 **A tag in your text keeps its size after `next` on a Right Block Field.** A line with one separator and a date after it no longer draws the text before it as Left Block, and neither does a line where `tagWheel Right` is open.
 12. 🎨 **Clearer panel texts.** `Standard commands` is now `Main commands`, headings are called headings, and the tips name settings the way the panel shows them.
 13. 🎨 **`Add Block` and `Add Field` fill the width of the Fields column.**
+14. 🎨 **The line preview in the panel is smaller and has no Block band.**
 
 ## 0.8.1
 
