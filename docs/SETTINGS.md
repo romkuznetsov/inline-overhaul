@@ -276,6 +276,19 @@ and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
 | `When a line empties out` | `keep-bullet` | What is left behind when cycling removes the last Value |
 | `Cursor after an action` | `text_end` | Where the cursor waits once a tag or date has been set |
 
+### tagWheel behavior
+
+How tagWheel moves: the Field it opens on, the Values it is not picking, and the edge of
+a Block. How it looks is set under `Visual` → `tagWheel`.
+
+| Control | Default | What it does |
+|---|---|---|
+| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
+| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
+| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
+| `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
+| `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
+
 ### Placement modes
 
 Every Field has a `Prefix behavior` mode. These four settings say what each mode means.
@@ -471,17 +484,12 @@ triangle beside it, so the preview at the top stays in view while you work.
 | Control | Default | What it does |
 |---|---|---|
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
-| `Active Field on opening` | `first` | Which Field the picker lands on when it opens |
-| `Left Block active Field` | unset | The Field it lands on when it opens on the left |
-| `Right Block active Field` | unset | The Field it lands on when it opens on the right |
 | `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
-| `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
 | `Non-active Field text color` | unset | The Field names you are not standing on |
 | `Active Field text color` | unset | The Field you are on |
 | `Chosen Value text color` | unset | A Field that already carries a Value |
 | `Background color` | unset | Behind the picker |
-| `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
 
 **Scroller**
 

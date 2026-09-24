@@ -997,10 +997,18 @@ function sampleConfig(): Record<string, unknown> {
    * и молча поедет в копию всегда. Сверка идёт по настоящей схеме.
    */
   const { SCHEMA, TABS } = await import("../../src/ui/settings/schema/index.ts");
+  /*
+   * Строки, живущие на чужой вкладке со своей веткой, — поимённо. Группа
+   * `tagWheel behavior` переехала на `Tags & PKM` (PRD 10.13.260), а ключи
+   * остались в `visual` (З1): галочка `Visual` везёт их, `Tags & PKM` — нет.
+   * Цена названа в вопросе к нему; новое имя сюда без причины не вписывается.
+   */
+  const BORROWED = new Set(["tagwheel-behavior"]);
   const fromSchema = new Map<string, Set<string>>();
   for (const group of SCHEMA as Any[]) {
     const set = fromSchema.get(group.tab) || new Set<string>();
     for (const item of (group.items || []) as Any[]) {
+      if (BORROWED.has(group.id) && String(item?.path || "").startsWith("visual.")) continue;
       if (item && typeof item.path === "string" && item.path) set.add(String(item.path).split(".")[0] as string);
     }
     if (group.module) set.add(String(group.module).split(".")[0] as string);

@@ -6,7 +6,7 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { on, eq } from "../types.ts";
+import { on } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { barsPreview, caretPreview, jumpFlashPreview, linkPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
 import { subheader } from "../custom/subheader.ts";
@@ -225,30 +225,11 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"custom", id:"wheel-preview", render: wheelPreview },
     { kind:"custom", id:"panel-sub", render: subheader("Panel",
-      "The strip the picker draws over your line: which Field it opens on, what each cell prints, and the colors the whole strip is painted in. The box of neighbouring Values has its own half below") },
+      "The strip the picker draws over your line: what each cell prints and the colors the whole strip is painted in. The box of neighbouring Values has its own half below. Which Field it opens on is set under <code>Tags & PKM</code> → <code>tagWheel behavior</code>") },
     { kind:"toggle", id:"panel-markers", path:"visual.tagWheel.showMarkers", default:true,
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],
       tip:"A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way" },
-    { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
-      name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
-      searchTerms:["Lead Field","Starting Field","Active Field"],
-      options:[ {value:"first",label:"First Field of the Block"},
-                {value:"middle",label:"Middle Field of the Block"},
-                {value:"custom",label:"A Field you choose"} ],
-      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
-    { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
-      name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
-      searchTerms:["Lead Field left"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
-      visible: eq("visual.tagWheel.activeField.mode","custom"),
-      tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
-    { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
-      name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
-      searchTerms:["Lead Field right"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
-      visible: eq("visual.tagWheel.activeField.mode","custom"),
-      tip:"Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did" },
     { kind:"dropdown", id:"panel-value-names", path:"visual.tagWheel.valueNames", default:"default",
       name:"tagWheel Value names", desc:"What the picker prints for a Field that already carries a Value",
       searchTerms:["Value names","Custom text in the picker","Printed name"],
@@ -256,12 +237,6 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
                 {value:"custom",label:"Only custom name"},
                 {value:"both",label:"Custom+Default name"} ],
       tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
-    { kind:"dropdown", id:"wheel-opposite-block", path:"visual.tagWheel.oppositeBlock", default:"hide",
-      name:"Values in the other Block", desc:"What happens to the Values you are not picking while the picker is open",
-      searchTerms:["Opposite Block","Other Block","Hide values"],
-      options:[ {value:"hide",label:"Hide them while the picker is open"},
-                {value:"keep",label:"Keep them in sight"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
     { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:true,
       name:"Highlight the tagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
       searchTerms:["Highlight the line"],
@@ -285,12 +260,6 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
       tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color", allowReset:true },
-    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
-      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" },
     { kind:"custom", id:"scroller-sub", render: subheader("Scroller",
       "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming. It is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview at the top of this group shows both at once") },
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,

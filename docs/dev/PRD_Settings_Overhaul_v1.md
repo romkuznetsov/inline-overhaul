@@ -11033,6 +11033,11 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move lines (left\right) |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move lines (left\right) |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Jump inside note (up\down) |
+| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel behavior |
+| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel behavior |
+| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel behavior |
+| `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | tagWheel behavior |
+| `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel behavior |
 | `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.direction` | Stripe direction (`tags-block-fill-direction`) | Inline appearance |
@@ -11050,15 +11055,10 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
-| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel |
-| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel |
-| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel |
 | `visual.tagWheel.valueNames` | tagWheel Value names (`panel-value-names`) | tagWheel |
-| `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | tagWheel |
 | `visual.tagWheel.highlightLine` | Highlight the tagWheel line (`panel-highlight`) | tagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | tagWheel |
 | `visual.tagWheel.chosenValueColor` | Chosen Value text color (`panel-chosen-color`) | tagWheel |
-| `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel |
 | `visual.tagWheel.scroller.labels` | Scroller Value names (`scroller-labels`) | tagWheel |
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | tagWheel |
 | `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | tagWheel |
@@ -18308,9 +18308,9 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 17 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
-| 6 | Visual | `features.visual.enabled` | 7 | 62 | 13 |
+| 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
 ### Группы по порядку
@@ -18353,6 +18353,7 @@ python tests/prototype/update_prd.py
 | 100 | `fields` | Fields | A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go | да | — |
 | 200 | `line-format` | Separators | Two markers of your choosing carve out the middle of a line. Whatever you write goes between them; the Fields sit outside. Which Fields land on which side is set under <code>Fields</code>, by dragging one across the line | да | — |
 | 300 | `writing-rules` | Writing rules | The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards | да | — |
+| 350 | `tagwheel-behavior` | tagWheel behavior | Where tagWheel lands when it opens, what happens to the Values it is not picking, and what the arrow keys do at the edge of a Block. How it looks is set on the Visual tab | да | — |
 | 400 | `placement-modes` | Placement modes | Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work | да | — |
 | 500 | `prefix-priority` | Prefix priority | Some Values want to change the start of the line — a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who | да | — |
 
@@ -18823,6 +18824,40 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
   - варианты: `text_end` End of your text · `current_position` Leave it where it was · `line_end` End of the line
   - старые названия для поиска: «Cursor behavior»
 
+#### tagWheel behavior — `tagwheel-behavior` (вкладка `pkm`)
+
+_Intro:_ Where tagWheel lands when it opens, what happens to the Values it is not picking, and what the arrow keys do at the edge of a Block. How it looks is set on the Visual tab
+
+_Tip:_ tagWheel is the picker that opens over your line with your Fields laid out across it. These settings decide how it moves, not how it looks: the Field it opens on, whether the Values of the other Block stay in sight, and where the arrows take you past the last Field. Colors, sizes and the scroller live under <code>Visual</code> → <code>tagWheel</code>
+
+- **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
+  - desc: Which Field the picker lands on when it opens
+  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
+  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
+  - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
+- **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
+  - desc: The Field tagWheel lands on when it opens on the left
+  - tip: Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field left»
+- **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
+  - desc: The Field tagWheel lands on when it opens on the right
+  - tip: Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field right»
+- **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
+  - desc: What happens to the Values you are not picking while the picker is open
+  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes
+  - варианты: `hide` Hide them while the picker is open · `keep` Keep them in sight
+  - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
+- **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
+  - desc: What the arrow keys do when there is no next Field on this side
+  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
+  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
+  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
+
 #### Placement modes — `placement-modes` (вкладка `pkm`)
 
 _Intro:_ Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work
@@ -19286,33 +19321,11 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: Show the hash and emoji in the picker, or just the words
   - tip: A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way
   - старые названия для поиска: «Show Prefix»
-- **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
-  - desc: Which Field the picker lands on when it opens
-  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
-  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
-  - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
-- **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
-  - desc: The Field tagWheel lands on when it opens on the left
-  - tip: Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first
-  - варианты: `` First Field of the Block
-  - видна если: `visual.tagWheel.activeField.mode`
-  - старые названия для поиска: «Lead Field left»
-- **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
-  - desc: The Field tagWheel lands on when it opens on the right
-  - tip: Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did
-  - варианты: `` First Field of the Block
-  - видна если: `visual.tagWheel.activeField.mode`
-  - старые названия для поиска: «Lead Field right»
 - **tagWheel Value names** — `panel-value-names`, `dropdown`, path `visual.tagWheel.valueNames`, default `default`
   - desc: What the picker prints for a Field that already carries a Value
   - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows what <code>Color custom tags</code> prints in its place — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
   - варианты: `default` Default name · `custom` Only custom name · `both` Custom+Default name
   - старые названия для поиска: «Value names», «Custom text in the picker», «Printed name»
-- **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
-  - desc: What happens to the Values you are not picking while the picker is open
-  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes
-  - варианты: `hide` Hide them while the picker is open · `keep` Keep them in sight
-  - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
 - **Highlight the tagWheel line** — `panel-highlight`, `toggle`, path `visual.tagWheel.highlightLine`, default `true`
   - desc: Mark the line while the picker is open, so it stands out from the page
   - tip: tagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note
@@ -19333,11 +19346,6 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: The color behind the picker, while the line is marked
   - tip: Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color
   - старые названия для поиска: «Background»
-- **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
-  - desc: What the arrow keys do when there is no next Field on this side
-  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
-  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
-  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
 - **`scroller-sub`** — свой блок, рендерер `?`
 - **Scroller** — `scroller-enabled`, `toggle`, path `visual.tagWheel.scroller.enabled`, default `false`
   - desc: Show the next and previous Values around the current one

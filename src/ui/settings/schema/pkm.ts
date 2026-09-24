@@ -71,6 +71,49 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
+  /* **Поведение tagWheel — своя группа на `Tags & PKM`** (его пункт 2026-09-24,
+     PRD 10.13.260): «нужно создать новый хедер в Tags & PKM `tagWheel behavior`
+     (должен быть над хедером `placement-modes`)». Сюда из `Visual` → `tagWheel`
+     → `Panel` переехали три строки и две подчинённые; ключи конфига не
+     тронуты (З1), переехали только строки панели. */
+  id: "tagwheel-behavior", tab: "pkm", order: 350, heading: "tagWheel behavior",
+  intro: "Where tagWheel lands when it opens, what happens to the Values it is not picking, and what the arrow keys do at the edge of a Block. How it looks is set on the Visual tab",
+  tip: "tagWheel is the picker that opens over your line with your Fields laid out across it. These settings decide how it moves, not how it looks: the Field it opens on, whether the Values of the other Block stay in sight, and where the arrows take you past the last Field. Colors, sizes and the scroller live under <code>Visual</code> → <code>tagWheel</code>",
+  items: [
+    { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
+      name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
+      searchTerms:["Lead Field","Starting Field","Active Field"],
+      options:[ {value:"first",label:"First Field of the Block"},
+                {value:"middle",label:"Middle Field of the Block"},
+                {value:"custom",label:"A Field you choose"} ],
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+    { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
+      name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
+      searchTerms:["Lead Field left"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
+    { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
+      name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
+      searchTerms:["Lead Field right"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did" },
+    { kind:"dropdown", id:"wheel-opposite-block", path:"visual.tagWheel.oppositeBlock", default:"hide",
+      name:"Values in the other Block", desc:"What happens to the Values you are not picking while the picker is open",
+      searchTerms:["Opposite Block","Other Block","Hide values"],
+      options:[ {value:"hide",label:"Hide them while the picker is open"},
+                {value:"keep",label:"Keep them in sight"} ],
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+  ]
+},
+{
   id: "placement-modes", tab: "pkm", order: 400, heading: "Placement modes",
   intro: "Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work",
   tip: "You choose the mode for each Field over in <code>Fields</code>. What you set here is the fine print of each mode \u2014 mainly whether it is allowed to change the very start of the line, the part that makes it a bullet or a checkbox",

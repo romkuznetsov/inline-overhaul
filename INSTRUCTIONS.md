@@ -286,12 +286,12 @@ Under **Navigation → Jump inside note (up\down)**, `Follow the jump target` de
 
 ### The edge of a Block in tagWheel
 
-Under **Visual → tagWheel**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
+Under **Tags & PKM → tagWheel behavior**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
 
 ### The other Block while tagWheel is open
 
 The picker takes the place of the Block it is standing in, and what happens to the other
-one is set under **Visual → tagWheel**, `Values in the other Block`. `Hide them while the
+one is set under **Tags & PKM → tagWheel behavior**, `Values in the other Block`. `Hide them while the
 picker is open` is how it has always worked: the other Block leaves the line for as long
 as you are choosing. `Keep them in sight` leaves it written where it belongs, on its own
 side of your text, so you can see what the line already carries.

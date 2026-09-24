@@ -283,8 +283,9 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 37,
-      "групп в схеме: 21 с настройками, 7 вводных коллаутов, знак плагина (с 2026-09-23, `В-198`: первым на `General`, без заголовка), группа Fields, "
+    assert.equal(SCHEMA.length, 38,
+      "Группа `tagWheel behavior` на `Tags & PKM` заведена 2026-09-24 его пунктом к custom block (PRD 10.13.260): три строки и две подчинённые уехали туда из `tagWheel` → `Panel`, ни одна не пропала. "
+      + "групп в схеме: 21 с настройками, 7 вводных коллаутов, знак плагина (с 2026-09-23, `В-198`: первым на `General`, без заголовка), группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Options IDs` добавлена 2026-08-28 по "
       + "заказу, Binder перенесён 2026-08-29, `Color your Tags` заведена в тот "
@@ -421,8 +422,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 37,
-      "37 групп прототипа разложены без остатка: знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside note (up\\down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your Links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
+    assert.equal(SCHEMA.length + AWAITED.length, 38,
+      "38 групп прототипа разложены без остатка: `tagWheel behavior` заведена 2026-09-24 (PRD 10.13.260) — её строки не новые, они ушли из группы `tagWheel`; знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside note (up\\down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your Links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -3310,13 +3311,12 @@ async function main(): Promise<void> {
     resetSubheaders();
   });
 
-  await test("строки открытия панели стоят в разделе Panel группы tagWheel", () => {
+  await test("строки поведения панели стоят в группе tagWheel behavior на Tags & PKM", () => {
     /*
-     * Своя группа `tagWheel opening` снята 2026-09-21 (его пункт 11), а сам
-     * субхедер того же имени — 2026-09-22 (его пункт 1.1.1): «перенеси в него
-     * wheel-active-field — под panel-markers (субхедер io-tip-sub-
-     * tagwheel-opening не нужен, можешь его удалить)». Три строки остались на
-     * месте, сменился только раздел, в котором они стоят.
+     * Своя группа `tagWheel opening` снята 2026-09-21 (его пункт 11), строки
+     * жили в субхедере `Panel`, а 2026-09-24 его пунктом к custom block
+     * (PRD 10.13.260) уехали в группу `tagWheel behavior` на `Tags & PKM`
+     * вместе с `Values in the other Block` и `tagWheel navigation behavior`.
      */
     const { pane } = makePane();
     assert.equal(groupOf(pane, "visual", "tagWheel opening"), undefined,
@@ -3324,10 +3324,16 @@ async function main(): Promise<void> {
     const group = groupOf(pane, "visual", "tagWheel") as Def;
     assert.ok(group, "группы tagWheel на вкладке нет");
     const items = group.items as Def[];
-    for (const name of ["Active Field on opening", "Left Block active Field",
-                        "Right Block active Field"]) {
-      assert.ok(items.some((d: Def) => d.name === name),
-        "строка «" + name + "» не доехала до группы tagWheel");
+    const behavior = groupOf(pane, "pkm", "tagWheel behavior") as Def;
+    assert.ok(behavior, "группы tagWheel behavior на Tags & PKM нет");
+    const moved = ["Active Field on opening", "Left Block active Field",
+                   "Right Block active Field", "Values in the other Block",
+                   "tagWheel navigation behavior"];
+    for (const name of moved) {
+      assert.ok((behavior.items as Def[]).some((d: Def) => d.name === name),
+        "строка «" + name + "» не доехала до группы tagWheel behavior");
+      assert.ok(!items.some((d: Def) => d.name === name),
+        "строка «" + name + "» осталась в Visual → tagWheel");
     }
     /* Раздел строки — ближайшая подпись над ней. */
     const sectionOf = (name: string): string => {
@@ -3341,8 +3347,6 @@ async function main(): Promise<void> {
       }
       return "";
     };
-    assert.equal(sectionOf("Active Field on opening"), "Panel",
-      "ведущее поле панели стоит не в разделе `Panel`");
     assert.equal(sectionOf("Show tag markers"), "Panel",
       "положительный контроль: в `Panel` не попала даже та строка, под которую его просили");
     assert.equal(sectionOf("Scroller size"), "Scroller",
