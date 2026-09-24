@@ -42,7 +42,7 @@ loader._load = function (request: string, parent: unknown, isMain: boolean): unk
        поэтому заглушка простая. */
     return { Notice: class { }, MarkdownView: class { } };
   }
-  if (request === "@codemirror/state" || request === "@codemirror/view") {
+  if (request === "@codemirror/state" || request === "@codemirror/view" || request === "@codemirror/language") {
     return new Proxy({}, { get: () => function (): unknown { return {}; } });
   }
   return origLoad.call(this, request, parent, isMain);

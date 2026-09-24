@@ -472,19 +472,28 @@ const EDITOR_INJECTIONS = {
   "plain-tag-no-bubble": {
     file: "src/ui/editor/decorations.js",
     find: "        const drawsOwnBubble = entry.kind !== \"link\"\n"
-      + "          && (hasVisualOverride || (entry.kind === \"tag\" && ourLine));",
+      + "          && (hasVisualOverride || (entry.kind === \"tag\" && (ourLine || platformTags.has(from))));",
     replace: "        const drawsOwnBubble = entry.kind !== \"link\" && hasVisualOverride;",
   },
   /*
-   * И та же правка, хватившая лишнего: пузырь рисуется тегу в **любой** строке,
-   * в том числе в обычной заметке без разделителей. Ровно эту границу заказчик
-   * назвал сам: «обычные заметки без разделителей плагин не трогает вовсе».
+   * И та же правка, хватившая лишнего: пузырь рисуется всему, что нашёл
+   * сканер, не спросив Obsidian, — и тег в обратных кавычках становится
+   * пузырём (его слово 2026-09-24 сняло границу строки, но не платформы).
    */
   "plain-tag-any-line": {
     file: "src/ui/editor/decorations.js",
     find: "        const drawsOwnBubble = entry.kind !== \"link\"\n"
-      + "          && (hasVisualOverride || (entry.kind === \"tag\" && ourLine));",
+      + "          && (hasVisualOverride || (entry.kind === \"tag\" && (ourLine || platformTags.has(from))));",
     replace: "        const drawsOwnBubble = entry.kind !== \"link\" && (hasVisualOverride || entry.kind === \"tag\");",
+  },
+  /*
+   * Обратная ошибка: границу строки вернули — тег без цвета в чужой строке
+   * снова остаётся тегом темы.
+   */
+  "plain-tag-our-line-only": {
+    file: "src/ui/editor/decorations.js",
+    find: "(entry.kind === \"tag\" && (ourLine || platformTags.has(from)))",
+    replace: "(entry.kind === \"tag\" && ourLine)",
   },
   /*
    * Обратная ошибка того же правила: строкой плагина считается только та, где

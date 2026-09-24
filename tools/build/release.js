@@ -33,7 +33,9 @@ esbuild.buildSync({
   format: "cjs",
   target: "es2018",
   resolveExtensions: [".ts", ".js", ".json"],   // фаза 0: новый код на TS
-  external: ["obsidian", "@codemirror/view", "@codemirror/state"],
+  /* `@codemirror/language` — дерево разбора Obsidian: тег спрашивается у него
+     (10.13.266). Obsidian отдаёт этот модуль плагинам так же, как два прежних. */
+  external: ["obsidian", "@codemirror/view", "@codemirror/state", "@codemirror/language"],
   legalComments: "none",
   logLevel: "info",
 });

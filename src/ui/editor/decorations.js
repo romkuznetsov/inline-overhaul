@@ -20,6 +20,7 @@
  */
 const cmView = require("@codemirror/view");
 const cmState = require("@codemirror/state");
+const cmLanguage = require("@codemirror/language");
 const __sharedUtils = require("../../core/shared_utils.js");
 const __priorityStripEngine = require("../../core/priority_strip_engine.js");
 const __priorityStripCm6Adapter = require("../../core/priority_strip_cm6_adapter.js");
@@ -28,6 +29,32 @@ const __editorVisualsConfig = require("../../core/editor_visuals_config.js");
 const __devLog = require("../../core/dev_log.js");
 
 function isObj(x) { return __sharedUtils.isObj(x); }
+
+/**
+ * **Где на строке тег видит сама Obsidian** — начала её узлов `hashtag-begin`.
+ *
+ * Наш сканер ищет тег в сыром тексте и не знает ни блока кода, ни вставки в
+ * обратных кавычках; Obsidian знает. Пока пузырь без своего цвета рисовался
+ * только на строке с разделителем, это было неважно. С его слова 2026-09-24
+ * («все теги … управлялись контролами tag view») пузырь рисуется всякому тегу,
+ * и спрашивать, тег ли это, надо у того, кто рисовал его до нас (правило 24).
+ * Имя узла — строка токена HyperMD с `_` вместо пробелов:
+ * `formatting_formatting-hashtag_hashtag-begin_hashtag_meta_tag-todo`
+ * (`app.js` 1.13.7, `hmdHashtag`; замена пробелов — `tokenID` в
+ * `@codemirror/language`).
+ */
+function obsidianTagStarts(state, from, to) {
+  const out = new Set();
+  try {
+    cmLanguage.syntaxTree(state).iterate({
+      from, to,
+      enter: (node) => {
+        if (String(node.name || "").split("_").indexOf("hashtag-begin") !== -1) out.add(node.from);
+      },
+    });
+  } catch (e) { /* проба платформы: дерева нет — ответ «тегов Obsidian на строке нет» */ }
+  return out;
+}
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
 /* Имена берутся из модуля конфига поштучно: тела ниже зовут их без префикса,
@@ -841,6 +868,8 @@ function buildTagVisualLayer(view, plugin) {
       const wheelSpan = tagwheelPanelSpanInLine(text);
       /* Наша ли это строка вообще: спрашивается один раз на строку. */
       const ourLine = lineBelongsToPlugin(text, sep1, sep2);
+      /* Спрашивается только у чужой строки: у своей тег рисуем по сканеру, как прежде. */
+      const platformTags = ourLine ? null : obsidianTagStarts(view.state, line.from, line.to);
       for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
         const token = hit.token;
         if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
@@ -1130,13 +1159,21 @@ function buildTagVisualLayer(view, plugin) {
          * такой строки рисует плагин», и там же граница — «обычные заметки без
          * разделителей плагин не трогает вовсе».
          *
+         * **Границу он снял сам 2026-09-24** (тест 2 нового, значения custom
+         * block на строке без Left/Right): «все теги, даже которые пользователь
+         * не задавал в user-tag-colors, управлялись контролами tag view». В чужой
+         * строке пузырь теперь получает всякий тег, который тегом считает сама
+         * Obsidian (`obsidianTagStarts`), — в блоке кода и в обратных кавычках
+         * его нет. Цена названа: это любая заметка vault в режиме правки; в
+         * режиме чтения теги по-прежнему рисует Obsidian.
+         *
          * **Ссылке и эмодзи-элементу пузырь по-прежнему не рисуется**:
          * заменить `[[Note]]` своим узлом значит забрать у ссылки клик,
          * наведение и перетаскивание — а вернуть их нечем, поиск тут не
          * замена (И-2.2). Им достаётся прозрачность и размер стилем.
          */
         const drawsOwnBubble = entry.kind !== "link"
-          && (hasVisualOverride || (entry.kind === "tag" && ourLine));
+          && (hasVisualOverride || (entry.kind === "tag" && (ourLine || platformTags.has(from))));
         if (!drawsOwnBubble) {
           if (to <= from) continue;
           const styleDeco = buildBlockStyleDecoration(entry, visuals, lineBasePx(lineNo));

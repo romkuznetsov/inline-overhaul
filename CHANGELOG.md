@@ -27,6 +27,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 4. 🎨 **tagWheel settings about how it moves have their own group.** `Active Field on opening`, `Values in the other Block` and `tagWheel navigation behavior` moved to **Tags & PKM → tagWheel behavior**; your values stay as they were, and a backup takes them with the `Tags & PKM` tick.
 5. 🎨 **`Prefix behavior` has two modes, `Strict` and `Insert only`.** A Field that writes at the cursor belongs in a custom block; `Free: insert position` is gone with `Free`.
 6. 🎨 **A Value cannot share its spelling with another Field's Value.** The editor refuses it with a message.
+7. 🎨 **Every tag you edit gets the same bubble.** `Tag view` now shapes all tags in the editor, in any note, and only their colours differ; a tag inside code stays as Obsidian draws it, and reading view is unchanged.
+8. 🐛 **A tag in the middle of your text stays in your text.** On a line without separators, `tagWheel Left` no longer copies it into its Block, and a Right Block command no longer splits your text around it.
 
 ## 0.8.1
 

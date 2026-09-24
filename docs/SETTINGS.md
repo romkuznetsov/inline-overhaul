@@ -429,6 +429,9 @@ the line.
 
 ### Inline appearance → Tag view
 
+These shape every tag in the editor, in any note: a tag with no colours of its own gets the same
+bubble as the rest. A tag inside code is left as Obsidian draws it, and reading view is unchanged.
+
 | Control | Default | What it does |
 |---|---|---|
 | `Tags bubble width` | `100` | Breathing room either side of the word |

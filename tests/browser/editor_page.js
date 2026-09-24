@@ -30,6 +30,7 @@
 
 const { EditorState } = require("@codemirror/state");
 const { EditorView, Decoration, ViewPlugin } = require("@codemirror/view");
+const { StreamLanguage, LanguageSupport } = require("@codemirror/language");
 const decorations = require("../../src/ui/editor/decorations.js");
 const visuals = require("../../src/core/editor_visuals_config.js");
 const scroller = require("../../src/ui/tagwheel_scroller_overlay.js");
@@ -276,6 +277,21 @@ const LINES = [
    *     «красим ссылки» выполнялось бы и правилом «красим всё подряд» (У-113).
    */
   "an image ![pic](https://img.example/a.png) stays the platform's",
+  /*
+   * 18. **Тег, которого Obsidian не видит** — его слово 2026-09-24: «все теги …
+   *     управлялись контролами tag view». Пузырь в чужой строке ставится там,
+   *     где тег видит платформа, а в обратных кавычках его нет. Без этой
+   *     строки правило «спрашивать платформу» проверялось бы только там, где
+   *     сканер и платформа согласны (У-147).
+   */
+  "a plain line with code `see #code1`, a number #789 and a tag #bare5",
+  /*
+   * 19. **Число — не тег для Obsidian, а в строке плагина всё равно наше.**
+   *     Строка с одним разделителем, и в ней `#456`: пузырь ей рисует правило
+   *     «строки плагина», а не платформа. Без неё подмена «строке нужны оба
+   *     разделителя» пряталась бы за дорогой платформы (У-147).
+   */
+  "- [ ] #todo " + SEP + " 1231 #456",
 ];
 
 /*
@@ -403,11 +419,44 @@ function buildLinkMarks(view) {
   return Decoration.set(out, true);
 }
 
+/*
+ * **Дерево разбора — заменитель HyperMD Obsidian по тегам, и только по ним.**
+ * Имена токенов списаны с `app.js` 1.13.7 (`hmdHashtag`): начало тега —
+ * `formatting formatting-hashtag hashtag-begin hashtag meta`, тело —
+ * `hashtag meta hashtag-end`; вставка в обратных кавычках тегов не несёт.
+ * Знаки тела и условие «не одни цифры» — её же образец `aU` и проверка
+ * `/[^0-9]/` рядом с ним.
+ * Слой спрашивает у дерева, тег ли это (`obsidianTagStarts`), и без
+ * заменителя на странице дерево пустое — правило проверялось бы молчанием.
+ */
+const TAG_BODY = /^(?:[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s])+/;
+const hashtagStandIn = new LanguageSupport(StreamLanguage.define({
+  startState: () => ({ inTag: false }),
+  token(stream, st) {
+    if (st.inTag) {
+      stream.match(TAG_BODY);
+      st.inTag = false;
+      return "hashtag meta hashtag-end";
+    }
+    if (stream.match(/^`[^`]*`/)) return null;
+    const prev = stream.pos === 0 ? " " : stream.string.charAt(stream.pos - 1);
+    const body = TAG_BODY.exec(stream.string.slice(stream.pos + 1));
+    if (/\s/.test(prev) && stream.peek() === "#" && body && /[^0-9]/.test(body[0])) {
+      stream.next();
+      st.inTag = true;
+      return "formatting formatting-hashtag hashtag-begin hashtag meta";
+    }
+    stream.next();
+    return null;
+  },
+}));
+
 const view = new EditorView({
   state: EditorState.create({
     doc: LINES.join("\n"),
     extensions: [
       EditorView.lineWrapping,
+      hashtagStandIn,
       decorations.createTagVisualDecorationExtension(plugin),
       linkStandIn,
       extLinkStandIn,

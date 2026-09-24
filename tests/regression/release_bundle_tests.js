@@ -99,7 +99,9 @@ async function run() {
   const bundledSource = fs.readFileSync(distMain, "utf8");
   assert.ok(!/PrivateTaxonomySentinel/.test(bundledSource), "bundle contains no hardcoded private taxonomy sentinel");
   assert.ok(!/require\(["']\.\.?\//.test(bundledSource), "bundle has no local runtime require calls");
-  const allowedExternals = new Set(["obsidian", "@codemirror/view", "@codemirror/state"]);
+  /* `@codemirror/language` — с 2026-09-24: тег спрашивается у дерева разбора
+     Obsidian (10.13.266); Obsidian отдаёт его плагинам наравне с двумя прежними. */
+  const allowedExternals = new Set(["obsidian", "@codemirror/view", "@codemirror/state", "@codemirror/language"]);
   const bundledRequires = Array.from(bundledSource.matchAll(/require\(["']([^"']+)["']\)/g), (match) => match[1]);
   /*
    * Порог до вывода: запрет зелен и тогда, когда `require` в сборке не нашлось
@@ -177,6 +179,7 @@ async function run() {
     }
     if (request === "@codemirror/view") return { WidgetType: baseClass };
     if (request === "@codemirror/state") return {};
+    if (request === "@codemirror/language") return {};
     return originalLoad.call(this, request, parent, isMain);
   };
   try {
