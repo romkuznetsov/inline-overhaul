@@ -19,7 +19,18 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.9.0
+
+_2026-09-24 · [all changes since 0.8.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.1...0.9.0)_
+
+> [!NOTE]
+> 🐛 **2** bug fixes · 🎨 **8** changes you can see · ✨ **4** new things
+>
+> **New in this release**
+> - **Custom blocks write where the cursor is**
+> - **A custom block's Fields step on the Value under the cursor**
+> - **`Tab` can move between custom blocks**
+> - **`Side` colours the outline of a tag**
 
 1. ✨ **Custom blocks write where the cursor is.** `Add Block` under the Fields list makes a Block of your own with its command `tagWheel <block>`: it opens at the cursor, splits the text there, and `Enter` writes the picked Values between your words. On a Value of the block it opens on that Value and replaces it.
 2. ✨ **A custom block's Fields step on the Value under the cursor.** Their `next` and `previous` change that Value; away from one they put the first or the last Value at the cursor.
