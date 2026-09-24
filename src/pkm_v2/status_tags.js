@@ -1247,7 +1247,13 @@ module.exports = {
     if (resolvedActionFieldId) {
       const actionFieldAny = getField(rules.leftMode, resolvedActionFieldId)
         || getField(rules.rightMode, resolvedActionFieldId);
-      if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(actionFieldAny, state.selected)) {
+      /* Дочернему Field навигатора родитель на строке не нужен никогда: его
+         на строку не пишут, и команды листают всех детей (PRD 10.13.269,
+         `В-220`). */
+      const askPrereq = actionFieldAny && actionFieldAny.parentIsNavigator === true
+        ? Object.assign({}, actionFieldAny, { freeOfParent: true })
+        : actionFieldAny;
+      if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(askPrereq, state.selected)) {
         notice(noticeKey("prerequisite-unmet"),
           "{0} waits for {1}: set it on this line first",
           String(actionFieldAny.placeholder || actionFieldAny.id || ""),
@@ -1328,7 +1334,8 @@ module.exports = {
          * разом — `- #home #med #med`. У режима `After parent` вопрос прежний:
          * там значение чужого родителя на строке полю и не принадлежит.
          */
-        const subMapState = targetField.freeOfParent === true
+        const navigator = targetField.parentIsNavigator === true;
+        const subMapState = targetField.freeOfParent === true || navigator
           ? Object.assign({}, state, {
             selected: Object.assign({}, state.selected || {}, { [parentField.id]: "" }),
           })
@@ -1362,7 +1369,9 @@ module.exports = {
           parentField, targetField, parentId,
           findValueById(targetField, state.selected[targetField.id] || ""),
         );
-        const freeOfParent = targetField.freeOfParent === true && (!parentId || parentIsOurs);
+        /* Навигатор: листаются все дети, и родителя команда не трогает — ни
+           отбором, ни записью (`В-220`, PRD 10.13.269). */
+        const freeOfParent = navigator || (targetField.freeOfParent === true && (!parentId || parentIsOurs));
         let allowedSubs;
         if (freeOfParent) {
           allowedSubs = getAllowedSubValues(targetField, "");
@@ -1381,7 +1390,7 @@ module.exports = {
         const currentSubId = state.selected[targetField.id] || "";
         const nextSubId = nextCycleIdByDirection(allowedSubs, currentSubId, direction);
         const parentBefore = parentId;
-        if (freeOfParent && targetField.addsParentValue === true) {
+        if (freeOfParent && !navigator && targetField.addsParentValue === true) {
           /* Родителя дописываем тому значению, которое человек долистал, —
              ответ на «чей это ребёнок» объявлен один раз, в помощниках. Пустое
              место круга — часть круга (10.13.215), и наш родитель уходит со
@@ -1420,7 +1429,20 @@ module.exports = {
       } else {
       const map = fieldTokenMap(targetField, rules, state, core);
       if (!state.selected[targetField.id]) hydrateFieldFromLine(state, rawLine, rules, targetPanel, targetField.id, map);
-      const cycle = activeValuesForField(core, rules, state, targetField);
+      /*
+       * Значения-навигаторы команда родителя пропускает: на строку их не
+       * пишут (PRD 10.13.269, нюанс 5). Все — навигаторы — отказ вслух.
+       */
+      const navChild = rulesHelpers.navigatorChildOf(targetField,
+        (left && left.fields || []).concat(rules.rightMode && rules.rightMode.fields || []));
+      const cycle = activeValuesForField(core, rules, state, targetField)
+        .filter((v) => !navChild || !rulesHelpers.isNavigatorValue(targetField, navChild, v));
+      if (!cycle.length && navChild) {
+        notice(noticeKey("navigator-only"),
+          "Nothing to step through: every Value of {0} is a navigator for its child Field",
+          String(targetField.placeholder || targetField.id || ""));
+        return;
+      }
       if (!cycle.length) return;
       let currentId = state.selected[targetField.id] || "";
       const isPriorityField = isPriorityFieldLike(targetField);

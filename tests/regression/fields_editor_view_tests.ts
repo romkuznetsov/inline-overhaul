@@ -76,6 +76,8 @@ function normalizePkmOrder(raw: Any): Any {
     subWithoutParent: map(o.subWithoutParent), subAddsParent: map(o.subAddsParent),
     /* Третья — положение `Show when press Alt` (`З-36`), по той же причине. */
     subOnAlt: map(o.subOnAlt),
+    /* Четвёртая — `Parent is Navigator` (PRD 10.13.269), по той же причине. */
+    subNavigator: map(o.subNavigator),
     /* Custom block (PRD 10.13.260) — тоже переносится, по той же причине. */
     custom: (Array.isArray(o.custom) ? o.custom : []).map((b: Any) => ({ ...b, keys: drop(b.keys) })),
   };
@@ -1715,6 +1717,43 @@ function heightBtn(host: StubNode): StubNode {
     .patch["pkm"]["fields"]["order"];
   assert.equal(back["subOnAlt"]["status_sub"], false, "вернул `After parent` — ключ `Alt` снят");
   ok("`Show when press Alt` пишется своим ключом и снимается обратным выбором");
+}
+{
+  /*
+   * `Parent is Navigator` (PRD 10.13.269, его заказ 2026-09-24): ряд под
+   * `Child Field`, недоступный при `Hide` (его слово), пишет свой ключ, и при
+   * нём ряд `Parent Value` не нужен — родитель не пишется никогда.
+   */
+  const v = makeView();
+  const rowNamed = (name: string): StubNode | undefined => all(v.host, "io-item").find(r =>
+    String(all(r, "io-item__name")[0]?.textContent || "").trim() === name);
+  const child = all(rowNamed("Child Field") as StubNode, "io-select")[0] as StubNode;
+  child.value = "hide";
+  child.dispatch("change");
+  v.draw();
+  const hidden = all(rowNamed("Parent is Navigator") as StubNode, "io-select")[0] as StubNode;
+  assert.ok(hidden, "ряд навигатора стоит и при `Hide`");
+  assert.equal(hidden.disabled, true, "при `Hide` ряд недоступен — его слово");
+  const back = all(rowNamed("Child Field") as StubNode, "io-select")[0] as StubNode;
+  back.value = "always";
+  back.dispatch("change");
+  v.draw();
+  assert.ok(rowNamed("Parent Value"), "без навигатора при `Always` ряд про родителя есть");
+  const nav = all(rowNamed("Parent is Navigator") as StubNode, "io-select")[0] as StubNode;
+  assert.equal(nav.disabled, false, "при `Always` ряд доступен");
+  assert.equal(nav.value, "off", "умолчание — выключен");
+  v.writes.length = 0;
+  nav.value = "on";
+  nav.dispatch("change");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:sub-navigator:status_sub"],
+    "навигатор — своя запись, и она одна");
+  const bag = (v.writes[0] as Write).patch["pkm"]["fields"]["order"];
+  assert.equal(bag["subNavigator"]["status_sub"], true, "ключ уехал в настройки");
+  v.draw();
+  assert.equal((all(rowNamed("Parent is Navigator") as StubNode, "io-select")[0] as StubNode).value, "on",
+    "после перерисовки показывает записанное");
+  assert.ok(!rowNamed("Parent Value"), "при навигаторе ряда про родителя нет");
+  ok("`Parent is Navigator`: недоступен при `Hide`, пишет свой ключ и прячет `Parent Value`");
 }
 
 {

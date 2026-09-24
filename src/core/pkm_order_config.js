@@ -227,6 +227,35 @@ function ensureBehaviorModesFromOrder(cfg) {
         });
         rightByIdLive.add(key);
       }
+      /*
+       * **Дочерний Field ссылки** (его заказ 2026-09-25, PRD 10.13.269):
+       * определение и разрешения — те же, что у тега ниже, но на правом
+       * списке и с `source`, иначе рантайм напишет значение тегом. Прежде
+       * панель заводила дочерний Field ссылки, а сюда он не доходил: без
+       * `enabled` и `dependsOn` на поле движки его не показывали и команд
+       * ему не заводили.
+       */
+      const linkSubKey = inferSubFieldKey(key);
+      if (linkSubKey) {
+        const idx = rightFieldsLive.findIndex((f) => String(f && f.id || "").trim() === linkSubKey);
+        const base = idx !== -1 ? rightFieldsLive[idx] : {
+          id: linkSubKey,
+          prefix: "#",
+          source: `wikilinks:${linkSubKey}`,
+          disabledForParentValues: [],
+          placeholder: "sub",
+          values: [""],
+        };
+        const next = { ...base, ...subPermissions(order, key, linkSubKey) };
+        if (idx !== -1) rightFieldsLive[idx] = next;
+        else {
+          const parentIdx = rightFieldsLive.findIndex((f) => String(f && f.id || "").trim() === key);
+          if (parentIdx !== -1) rightFieldsLive.splice(parentIdx + 1, 0, next);
+          else rightFieldsLive.push(next);
+          rightByIdLive.add(linkSubKey);
+        }
+        seedSubActive(order, linkSubKey);
+      }
       continue;
     }
     if (!leftByIdLive.has(key)) {
@@ -255,7 +284,6 @@ function ensureBehaviorModesFromOrder(cfg) {
       }
       const subIdx = leftFieldsLive.findIndex((f) => String(f && f.id || "").trim() === subKey);
       if (subIdx !== -1) {
-        const on = String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no";
         /*
          * Оба разрешения дочернего Field переезжают на само поле: движки
          * спрашивают их у поля (`isFieldPrerequisiteMet`, обе дороги), а
@@ -264,17 +292,10 @@ function ensureBehaviorModesFromOrder(cfg) {
          */
         leftFieldsLive[subIdx] = {
           ...leftFieldsLive[subIdx],
-          enabled: on,
-          dependsOn: key,
-          freeOfParent: subFreeOfParent(order, subKey),
-          addsParentValue: subAddsParentValue(order, subKey),
-          showOnAlt: subShowsOnAlt(order, subKey),
+          ...subPermissions(order, key, subKey),
         };
       }
-      if (subKey && !Object.prototype.hasOwnProperty.call(order.active, subKey)) {
-        order.active[subKey] = "no";
-        order.enabled[subKey] = false;
-      }
+      if (subKey) seedSubActive(order, subKey);
     }
   }
 
@@ -378,6 +399,7 @@ function makeDefaultPkmOrder() {
     subWithoutParent: {},
     subAddsParent: {},
     subOnAlt: {},
+    subNavigator: {},
     types: {},
     labels: {},
     strictNames: {},
@@ -407,6 +429,38 @@ function subFreeOfParent(order, subKey) {
 function subAddsParentValue(order, subKey) {
   const bag = isObj(order) && isObj(order.subAddsParent) ? order.subAddsParent : {};
   return bag[subKey] === true;
+}
+
+/**
+ * Разрешения дочернего Field, перенесённые на само поле. Движки спрашивают их у
+ * поля (`isFieldPrerequisiteMet`, обе дороги), а настроек в руках у них нет.
+ * Дом настройки — `order`, дом ответа — поле, и перенос один на тег и ссылку.
+ */
+function subPermissions(order, parentKey, subKey) {
+  return {
+    enabled: String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no",
+    dependsOn: parentKey,
+    freeOfParent: subFreeOfParent(order, subKey),
+    addsParentValue: subAddsParentValue(order, subKey),
+    showOnAlt: subShowsOnAlt(order, subKey),
+    parentIsNavigator: subParentIsNavigator(order, subKey),
+  };
+}
+
+/**
+ * Родительские Values — навигатор (`Parent is Navigator`, PRD 10.13.269): они
+ * только сужают список детей в tagWheel и на строку не пишутся.
+ */
+function subParentIsNavigator(order, subKey) {
+  const bag = isObj(order) && isObj(order.subNavigator) ? order.subNavigator : {};
+  return bag[subKey] === true;
+}
+
+/** Новый дочерний Field выключен, пока человек не выбрал положение. */
+function seedSubActive(order, subKey) {
+  if (Object.prototype.hasOwnProperty.call(order.active, subKey)) return;
+  order.active[subKey] = "no";
+  order.enabled[subKey] = false;
 }
 
 /** Видно ли поле в tagWheel только пока зажат `Alt` (`З-36`). */
@@ -491,7 +545,7 @@ function normalizePkmOrder(rawOrder) {
    * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
    * `left`/`right` нет нарочно.
    */
-  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt"]) {
+  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator"]) {
     if (!isObj(rawOrder[mapKey])) continue;
     for (const k of orderKeys) {
       if (typeof rawOrder[mapKey][k] !== "boolean") continue;

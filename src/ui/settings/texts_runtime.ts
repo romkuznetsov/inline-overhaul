@@ -134,6 +134,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     /* Field ждёт своего предусловия (10.13.4, Н21). Отказ громкий: команду
        позвал человек, и молчание он прочтёт как поломку. */
     "prerequisite-unmet": "{0} waits for {1}: set it on this line first",
+    "navigator-only": "Nothing to step through: every Value of {0} is a navigator for its child Field",
     /* Действие, которого движок больше не разбирает (10.13.170). Команды
        плагина шлют только круговое; такое приезжает от чужого вызова, и
        молчать на нём нельзя — человек не узнает причины. */

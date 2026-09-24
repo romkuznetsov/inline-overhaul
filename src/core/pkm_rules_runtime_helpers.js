@@ -180,6 +180,37 @@ function parentValueEchoesChildValue(parentField, childField, parentValueId, chi
   return parentValueIdForChildValue(parentField, childValue) === parentId;
 }
 
+/**
+ * Дочерний Field, для которого значения этого родителя — навигатор
+ * (`Parent is Navigator`, PRD 10.13.269). Пусто — навигатора у родителя нет.
+ */
+function navigatorChildOf(parentField, fields) {
+  const pid = String(parentField && parentField.id || "").trim();
+  if (!pid) return null;
+  for (const f of (Array.isArray(fields) ? fields : [])) {
+    if (!f || f.parentIsNavigator !== true) continue;
+    if (String(f.dependsOn || "").trim() === pid) return f;
+  }
+  return null;
+}
+
+/**
+ * Навигатор ли это значение родителя: у дочернего Field включён `Parent is
+ * Navigator`, и у значения есть хоть один ребёнок. Значение без детей —
+ * обычное и пишется как прежде (нюанс 6 постановки).
+ *
+ * Объявление одно на все дороги: панель не пишет навигатор на строку,
+ * команда родителя его пропускает (10.13.269).
+ */
+function isNavigatorValue(parentField, childField, parentValue) {
+  if (!childField || childField.parentIsNavigator !== true) return false;
+  if (String(childField.dependsOn || "").trim() !== String(parentField && parentField.id || "").trim()) return false;
+  const tok = String(parentValue && parentValue.token || "").trim();
+  if (!tok) return false;
+  const kids = Array.isArray(childField.values) ? childField.values : [];
+  return kids.some((k) => k && Array.isArray(k.allowedParentValues) && k.allowedParentValues.indexOf(tok) !== -1);
+}
+
 /*
  * **Чтения служебного файла правил здесь больше нет** (PRD 10.13.52, П-8, шаг
  * третий, 2026-09-13). Сняты три объявления: перебор кандидатов пути
@@ -1594,4 +1625,6 @@ module.exports = {
   isFieldPrerequisiteMet,
   parentValueIdForChildValue,
   parentValueEchoesChildValue,
+  navigatorChildOf,
+  isNavigatorValue,
 };

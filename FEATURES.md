@@ -26,7 +26,9 @@ project link, an estimate. You define them; the plugin ships no methodology.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the
   parent has a Value, `Always` offers it on any line, `On Alt` keeps it
   out of tagWheel until you press `Alt` on the parent, `Hide` keeps it out. A press of `Alt`
-  also opens an `After parent` child before the parent has a Value.
+  also opens an `After parent` child before the parent has a Value. Tags and links both have
+  child Fields. With `Parent is Navigator` the parent Values become groups: they narrow the
+  child list in tagWheel and are never written to the line.
 - **Prerequisites.** A Field can stay out of the line until another Field has a Value —
   any Value, or one you name.
 - **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,

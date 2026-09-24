@@ -1243,6 +1243,12 @@ async function runTagWheel(input, quickAddSettings) {
     return out
   }
 
+  function ownKeyPlaced(orderCfg, key) {
+    var o = orderCfg && typeof orderCfg === 'object' ? orderCfg : {}
+    var lists = [o.left, o.right].concat((Array.isArray(o.custom) ? o.custom : []).map(function (b) { return b && b.keys }))
+    return lists.some(function (arr) { return Array.isArray(arr) && arr.indexOf(key) !== -1 })
+  }
+
   function collectSelectedRightEntries(state) {
     var rules = state && state.rules
     var session = state && state.session
@@ -1286,6 +1292,12 @@ async function runTagWheel(input, quickAddSettings) {
        * и она Block читала всегда.
        */
       var entryOrderKey = String(field.orderKey || field.id || '').trim()
+      /* Дочерний Field ссылки своего ключа в Block не имеет и пишется в Block
+         родителя — как дочерний тег (`resolvePanelKeyForField`). Field с
+         предусловием стоит в Block своим ключом и остаётся там (PRD 10.13.269). */
+      if (field.dependsOn && !ownKeyPlaced(state.orderCfg, entryOrderKey)) {
+        entryOrderKey = resolvePanelKeyForField(field, byId)
+      }
       out.push({
         id: field.id,
         orderKey: entryOrderKey,
@@ -1962,6 +1974,8 @@ async function runTagWheel(input, quickAddSettings) {
 
   function applySelection(state, core) {
     if (state && state.custom) { applyCustomSelection(state); return }
+    /* Навигатор на строку не пишется (PRD 10.13.269). */
+    (core || state.core).dropNavigatorSelections(state.rules, state.session, state.originalLine)
     var applyStartedAt = Date.now()
     var beforeSourceLine = String(state && state.originalLine ? state.originalLine : '')
     var beforeControlLine = ''
@@ -3097,6 +3111,8 @@ async function runTagWheel(input, quickAddSettings) {
     session.__todayIso = y + '-' + m + '-' + d
     core.hydrateStateFromParsedLine(rules, session, parsedLine)
     core.sanitizeState(rules, session)
+    /* Навигатор ставится по ребёнку на строке (PRD 10.13.269). */
+    core.deriveNavigatorSelections(rules, session)
     /*
      * Настройка «на каком Field открывать» кладётся в правила тем же
      * приёмом, каким туда кладётся порядок: движок читает правила, а не

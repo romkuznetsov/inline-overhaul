@@ -654,7 +654,27 @@ async function main() {
   const defs = bench.defsFor(cfg);
 
   const sideOf = (key) => ((order.right || []).indexOf(key) !== -1 ? "right" : "left");
-  const fieldKeys = [].concat(order.left || [], order.right || []);
+  /*
+   * **Родитель с навигатором в парах «первое Value» не сверяется** (PRD
+   * 10.13.269). Его первое Value — навигатор: панель его выбирает и на строку
+   * не пишет, а команда родителя его пропускает. Две дороги отвечают на разные
+   * вопросы по замыслу; у навигатора своя половина обхода ниже.
+   */
+  const navPairs = [];
+  for (const mode of [rules.leftMode, rules.rightMode]) {
+    for (const f of (mode && Array.isArray(mode.fields) ? mode.fields : [])) {
+      if (!f || f.parentIsNavigator !== true || !f.dependsOn || f.enabled === false) continue;
+      const all = [].concat(rules.leftMode.fields || [], rules.rightMode.fields || []);
+      const parent = all.find((x) => x && x.id === f.dependsOn);
+      if (parent) navPairs.push({ parent, child: f });
+    }
+  }
+  const navParentKeys = navPairs.map((n) => String(n.parent.orderKey || n.parent.id || ""));
+  const fieldKeys = [].concat(order.left || [], order.right || [])
+    .filter((k) => navParentKeys.indexOf(k) === -1);
+  if (navParentKeys.length) {
+    console.log("родители с навигатором в парах «первое Value» не сверяются: " + navParentKeys.join(", "));
+  }
 
   /*
    * Сколько нажатий вправо доводит панель до нужного Field — спрашивается у
@@ -936,12 +956,22 @@ async function main() {
       const parent = list.find((p) => p && String(p.id || "") === String(f.dependsOn || ""));
       const parentVals = (parent && Array.isArray(parent.values) ? parent.values : [])
         .filter((v) => v && typeof v.token === "string" && v.token && v.active !== false);
-      if (vals.length) ringFields.push({ id, field: f, vals, parentVals });
+      if (vals.length) ringFields.push({ id, field: f, parent, vals, parentVals });
     }
   }
-  const bareTokens = (line) => String(line || "").trim().split(/\s+/)
-    .filter(Boolean)
-    .map((t) => t.replace(/^[^\wА-Яа-я[]+/, ""));
+  /*
+   * **Значение узнаётся в той форме, в какой его пишет поле**: у тега
+   * `#test1`, у ссылки `[[test1]]`. Голое имя без приставки путало одно с
+   * другим, а со скобками мера не узнавала родителя-ссылку вовсе (PRD
+   * 10.13.269: дочерний Field появился и у ссылки).
+   */
+  const wordsOf = (line) => String(line || "").trim().split(/\s+/).filter(Boolean);
+  const isLinkField = (f) => /^wikilinks:/.test(String(f && f.source || ""));
+  const outOf = (f, token) => {
+    const t = String(token || "").trim();
+    if (isLinkField(f)) return "[[" + t.replace(/^\[\[|\]\]$/g, "") + "]]";
+    return /^#/.test(t) ? t : String(f && typeof f.prefix === "string" ? f.prefix : "#") + t;
+  };
   let ringBad = 0;
   let ringChecked = 0;
   async function runRings(ringCfg, label) {
@@ -957,9 +987,9 @@ async function main() {
         line = r && r.line != null ? r.line : line;
         walk.push(line);
         distinct.add(line);
-        const bare = bareTokens(line);
+        const words = wordsOf(line);
         for (const v of rf.vals) {
-          if (bare.filter((t) => t === v.token.replace(/^[^\wА-Яа-я[]+/, "")).length > 1) doubled = v.token;
+          if (words.filter((t) => t === outOf(rf.field, v.token)).length > 1) doubled = v.token;
         }
       }
       /*
@@ -972,8 +1002,7 @@ async function main() {
        * требовала полного списка всегда и объявила дефектом три законные
        * строки — мера была шире предмета (У-193).
        */
-      const onLine = rf.parentVals.filter((p) => bareTokens(c.line).some(
-        (t) => t === String(p.token).replace(/^[^\wА-Яа-я[]+/, "")));
+      const onLine = rf.parentVals.filter((p) => wordsOf(c.line).indexOf(outOf(rf.parent, p.token)) !== -1);
       /*
        * **А при `Add the parent Value` круг открывается со второго шага.**
        * Первое нажатие слушается родителя, которого написал человек, и берёт
@@ -984,7 +1013,9 @@ async function main() {
       const addsOn = Boolean(
         (((ringCfg.pkm || {}).fields || {}).order || {}).subAddsParent
         && ringCfg.pkm.fields.order.subAddsParent[rf.field.id]);
-      const reach = (onLine.length && !addsOn)
+      /* Навигатор: команда листает всех детей и при родителе на строке
+         (`В-220`, PRD 10.13.269). */
+      const reach = (onLine.length && !addsOn && rf.field.parentIsNavigator !== true)
         ? rf.vals.filter((v) => Array.isArray(v.allowedParentValues)
           && onLine.some((p) => v.allowedParentValues.indexOf(p.token) !== -1))
         : rf.vals;
@@ -1033,6 +1064,85 @@ async function main() {
    * «как у него».
    */
   await runRings(configNormalize.migrateConfig(flipped), "родитель наоборот");
+
+  /*
+   * **Четвёртая половина: навигатор** (PRD 10.13.269). Свойство его слов —
+   * «навигатор на строку не пишется, только сужает детей» — ни одной дороге не
+   * принадлежит, и спрашивается у каждой строки корпуса тремя вопросами:
+   *
+   *   1. круг команды дочернего Field ни разу не пишет навигатор, которого не
+   *      было на строке;
+   *   2. панель: выбрать первый навигатор, шаг к ребёнку, первый ребёнок — на
+   *      строке ребёнок **этого** навигатора и нет самого навигатора;
+   *   3. панель, открытая на строке с ребёнком, стоит на его навигаторе.
+   *
+   * Ноль пар — «мерить нечем» (У-88), и это печатается.
+   */
+  let navChecked = 0;
+  let navBad = 0;
+  for (const np of navPairs) {
+    const helpers = require(path.join(ROOT, "src/core/pkm_rules_runtime_helpers.js"));
+    const navVals = (np.parent.values || []).filter((v) => v && v.token
+      && helpers.isNavigatorValue(np.parent, np.child, v));
+    if (!navVals.length) continue;
+    const navTokens = navVals.map((v) => outOf(np.parent, v.token));
+    const kids = (np.child.values || []).filter((v) => v && v.token && v.active !== false);
+    const subId = bench.fieldCommandId(cfg, String(np.child.orderKey || np.child.id), "next");
+    const parentKey = String(np.parent.orderKey || np.parent.id);
+    for (const c of CASES) {
+      navChecked++;
+      const had = wordsOf(c.line);
+      const leaked = (line) => wordsOf(line).filter((t) => navTokens.indexOf(t) !== -1 && had.indexOf(t) === -1);
+      const problems = [];
+      let line = c.line;
+      let firstKid = "";
+      for (let i = 0; i < kids.length + 2; i++) {
+        const r = await bench.runCommandById(cfg, subId, line, Math.min(c.ch, line.length));
+        line = r && r.line != null ? r.line : line;
+        if (i === 0) firstKid = line;
+        if (leaked(line).length) problems.push("команда написала навигатор: " + JSON.stringify(line));
+      }
+      const steps = await stepsTo(parentKey, sideOf(parentKey), c.line, c.ch);
+      if (steps !== null) {
+        const keys = [];
+        for (let i = 0; i < steps; i++) keys.push("ArrowRight");
+        keys.push("ArrowUp", "ArrowRight", "ArrowUp");
+        const p = await bench.runTagWheel(cfg, sideOf(parentKey), c.line, c.ch, keys);
+        if (!p.opened) problems.push("панель не открылась");
+        if (leaked(p.line).length) problems.push("панель написала навигатор: " + JSON.stringify(p.line));
+        /* `ArrowUp` ведёт к **следующему** Value родителя: на строке, где
+           родитель уже стоит, выбран тот, что за ним, а не первый. */
+        const pv = (np.parent.values || []).filter((v) => v && v.token && v.active !== false);
+        const onIdx = pv.findIndex((v) => had.indexOf(outOf(np.parent, v.token)) !== -1);
+        const chosen = onIdx === -1 ? pv[0] : pv[onIdx + 1];
+        if (chosen && helpers.isNavigatorValue(np.parent, np.child, chosen)) {
+          const mine = kids.filter((k) => (k.allowedParentValues || []).indexOf(chosen.token) !== -1)
+            .map((k) => outOf(np.child, k.token));
+          const others = kids.map((k) => outOf(np.child, k.token)).filter((t) => mine.indexOf(t) === -1);
+          const now = wordsOf(p.line).filter((t) => had.indexOf(t) === -1);
+          if (now.some((t) => others.indexOf(t) !== -1)) {
+            problems.push("панель не сузила детей навигатором " + chosen.token + ": " + JSON.stringify(p.line));
+          }
+          if (!now.some((t) => mine.indexOf(t) !== -1)) {
+            problems.push("панель не написала ребёнка навигатора " + chosen.token + ": " + JSON.stringify(p.line));
+          }
+        }
+      }
+      if (firstKid && firstKid !== c.line) {
+        const o = await bench.openSession(cfg, sideOf(parentKey), firstKid, firstKid.length);
+        const kidId = String(o.selected[np.child.id] || "");
+        const kid = (np.child.values || []).find((v) => v && (v.id === kidId || v.token === kidId));
+        const want = kid ? helpers.parentValueIdForChildValue(np.parent, kid) : "";
+        if (o.opened && kid && want && String(o.selected[np.parent.id] || "") !== want) {
+          problems.push("панель на " + JSON.stringify(firstKid) + " не встала на навигатор " + want);
+        }
+      }
+      if (!problems.length && !SHOW_ALL) continue;
+      if (problems.length) navBad++;
+      console.log((problems.length ? "РАЗОШЛОСЬ " : "ok  ") + "навигатор " + np.parent.id + ", строка " + c.name);
+      for (const pr of problems) console.log("    " + pr);
+    }
+  }
 
   /* Запись, которой больше нечего описывать, снимается — иначе список
      перестаёт быть адресом и становится оправданием (У-127). */
@@ -1111,7 +1221,9 @@ async function main() {
      разрешения `Show always` круг со строки не выводится, и это надо видеть. */
   console.log("кругов дочерних полей " + ringChecked + ", расходится " + ringBad
     + (ringFields.length ? "" : "   <-- ни у одного дочернего поля нет `Show always`"));
-  if (bad || subBad || ringBad || caretBad) process.exitCode = 1;
+  console.log("навигатор: строк " + navChecked + ", расходится " + navBad
+    + (navPairs.length ? "" : "   <-- ни у одного дочернего поля нет `Parent is Navigator`"));
+  if (bad || subBad || ringBad || caretBad || navBad) process.exitCode = 1;
 }
 
 main().catch((e) => {

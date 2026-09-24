@@ -72,6 +72,8 @@ function normalizeField(field, modeName, idx, options) {
     /* Видно в tagWheel только пока зажат `Alt` (`З-36`). Тот же перечень: нет
        свойства здесь — панель его не узнает. */
     showOnAlt: field.showOnAlt === true,
+    /* Родительские Values — навигатор (PRD 10.13.269). Тот же перечень. */
+    parentIsNavigator: field.parentIsNavigator === true,
     kind: typeof field.kind === "string" ? field.kind : "",
     marker: typeof field.marker === "string" ? field.marker : "",
     placeholder: typeof field.placeholder === "string" && field.placeholder ? field.placeholder : field.id,

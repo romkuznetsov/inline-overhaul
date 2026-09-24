@@ -386,6 +386,8 @@ export interface OrderState {
   subAddsParent: Record<string, boolean>;
   /** Показывать ли дочерний Field в tagWheel только пока зажат `Alt` (`З-36`). */
   subOnAlt: Record<string, boolean>;
+  /** Родительские Values — навигатор: сужают детей и не пишутся (PRD 10.13.269). */
+  subNavigator: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
   /** Custom block (PRD 10.13.260): свой Block у каретки, по разделу на блок. */

@@ -66,6 +66,7 @@ const FIELD_PROP_NAMES = {
   freeOfParent: "CHILD_NAME",
   addsParentValue: "CHILD_PARENT_NAME",
   showOnAlt: "CHILD_NAME",
+  parentIsNavigator: "CHILD_NAV_NAME",
   yamlKey: "YAML_NAME",
   yamlCardinality: "YAML_KIND_NAME",
   yamlValueRule: "YAML_FORM_NAME",
@@ -137,6 +138,7 @@ const FIELD_PROP_WORDS = {
   freeOfParent: { true: "CHILD_ALWAYS", false: "CHILD_AFTER_PARENT" },
   addsParentValue: { true: "CHILD_PARENT_ADD", false: "CHILD_PARENT_KEEP" },
   showOnAlt: { true: "CHILD_ALT", false: "CHILD_AFTER_PARENT" },
+  parentIsNavigator: { true: "CHILD_NAV_ON", false: "CHILD_NAV_OFF" },
 };
 
 /** Значение словами панели, если у этой настройки они свои. */

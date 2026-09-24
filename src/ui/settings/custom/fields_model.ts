@@ -497,6 +497,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return !!(orderState.subAddsParent && orderState.subAddsParent[key] === true);
   };
 
+  /** Родительские Values — навигатор (`Parent is Navigator`, PRD 10.13.269). */
+  const getSubNavigator = (subKey: string): boolean => {
+    const key = String(subKey || "").trim();
+    if (!key) return false;
+    return !!(orderState.subNavigator && orderState.subNavigator[key] === true);
+  };
+
   /** Ключи, которых нет ни в одном Block, дописываются в правый (как было). */
   const ensureAllKeys = (): void => {
     for (const k of getOrderKeys()) {
@@ -540,6 +547,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         subOnAlt: {
           ...current.subOnAlt,
           ...(p && p.subOnAlt ? p.subOnAlt : {}),
+        },
+        subNavigator: {
+          ...current.subNavigator,
+          ...(p && p.subNavigator ? p.subNavigator : {}),
         },
         types: { ...current.types, ...(p && p.types ? p.types : {}) },
         labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
@@ -887,6 +898,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       subWithoutParent: { ...(liveOrder.subWithoutParent || {}) },
       subAddsParent: { ...(liveOrder.subAddsParent || {}) },
       subOnAlt: { ...(liveOrder.subOnAlt || {}) },
+      subNavigator: { ...(liveOrder.subNavigator || {}) },
     };
     for (const t of targets) {
       delete nextOrder.labels[t];
@@ -898,6 +910,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       delete nextOrder.subWithoutParent[t];
       delete nextOrder.subAddsParent[t];
       delete nextOrder.subOnAlt[t];
+      delete nextOrder.subNavigator[t];
     }
     const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
     const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
@@ -1152,6 +1165,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.subAddsParent = { ...(orderState.subAddsParent || {}), [subKey]: !!on };
     setOrderPatch({ subAddsParent: { [subKey]: !!on } },
       "pkm:behavior:order:sub-parent:" + subKey);
+    return { ok: true };
+  };
+
+  /** Родительские Values — навигатор. Ряд недоступен при `Hide`. */
+  const setSubNavigator = (subKey: string, on: boolean): WriteResult => {
+    orderState.subNavigator = { ...(orderState.subNavigator || {}), [subKey]: !!on };
+    setOrderPatch({ subNavigator: { [subKey]: !!on } },
+      "pkm:behavior:order:sub-navigator:" + subKey);
     return { ok: true };
   };
 
@@ -2473,6 +2494,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     getSubKeyForParent,
     getSubMode,
     getSubAddsParent,
+    getSubNavigator,
     inferSubKey,
     ensureAllKeys,
     getPanelLeadCandidates,
@@ -2500,6 +2522,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setPrerequisite,
     setSubMode,
     setSubAddsParent,
+    setSubNavigator,
     setFreeRoam,
     setActive,
     setLead,

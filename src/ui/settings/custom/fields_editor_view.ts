@@ -170,6 +170,12 @@ const CHILD_OPTIONS = [
  * 2026-09-19). Ряд появляется только при `Show always`: в остальных
  * положениях родитель на строке есть всегда, и выбирать нечего.
  */
+/** Родительские Values — навигатор (PRD 10.13.269). */
+const CHILD_NAV_OPTIONS = [
+  { value: "off", name: "CHILD_NAV_OFF" },
+  { value: "on", name: "CHILD_NAV_ON" },
+] as const;
+
 const CHILD_PARENT_OPTIONS = [
   { value: "keep", name: "CHILD_PARENT_KEEP" },
   { value: "add", name: "CHILD_PARENT_ADD" },
@@ -1169,12 +1175,39 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     }) as never);
 
     /*
+     * Родитель — навигатор (его заказ 2026-09-24, PRD 10.13.269): контрол под
+     * `Child Field`, недоступный при `Hide` — его слово.
+     */
+    const nav = o.model.getSubNavigator(row.subKey);
+    const navRow = itemRow(behaviorSec, {
+      name: say("CHILD_NAV_NAME"),
+      desc: say("CHILD_NAV_DESC"),
+      tip: say("CHILD_NAV_TIP"),
+      tipId: "io-field-child-nav-tip",
+      showTips: o.showTips, showIds: o.showIds,
+    });
+    closers.push(navRow.closeTip);
+    const navPick = selectInput(navRow.control, "io-select", {
+      options: labelled(say, CHILD_NAV_OPTIONS),
+      value: nav ? "on" : "off",
+      label: say("CHILD_NAV_OF", row.strictName),
+    });
+    navPick.disabled = !o.enabled || subMode === "hide";
+    navPick.addEventListener("change", (() => {
+      if (!o.enabled || subMode === "hide") return;
+      if ((navPick.value === "on") === nav) return;
+      o.model.setSubNavigator(row.subKey, navPick.value === "on");
+      o.redraw();
+    }) as never);
+
+    /*
      * Родитель у значения, выбранного без него. Ряд показывается только при
      * `Show always` — по тому же правилу, по которому строки предусловия
      * появляются только при `Yes`: настройка, у которой нет предмета, человеку
-     * не показывается.
+     * не показывается. При навигаторе родитель не пишется никогда — и ряду
+     * снова нечего решать.
      */
-    if (subMode === "always") {
+    if (subMode === "always" && !nav) {
       const parentRow = itemRow(behaviorSec, {
         name: say("CHILD_PARENT_NAME"),
         desc: say("CHILD_PARENT_DESC"),

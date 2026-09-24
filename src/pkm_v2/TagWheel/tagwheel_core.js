@@ -2127,6 +2127,64 @@ function findValueById(values, id) {
   return null
 }
 
+/*
+ * **Родительские Values — навигатор** (`Parent is Navigator`, PRD 10.13.269).
+ * Пара «родитель — дочерний Field с навигатором» ищется в обоих списках полей:
+ * у тега оба в левом, у ссылки оба в правом.
+ */
+function forEachNavigatorPair(rules, fn) {
+  var all = [].concat(
+    rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [],
+    rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [])
+  var i
+  var j
+  for (i = 0; i < all.length; i++) {
+    var child = all[i]
+    if (!child || child.parentIsNavigator !== true || !child.dependsOn) continue
+    for (j = 0; j < all.length; j++) {
+      if (all[j] && all[j].id === child.dependsOn) { fn(all[j], child); break }
+    }
+  }
+}
+
+/**
+ * Панель открыта на строке с ребёнком — навигатор ставится по нему (первый по
+ * порядку Values родителя, нюанс 7). Навигатора на строке нет, иначе список
+ * детей в tagWheel не сузился бы до его группы.
+ */
+function deriveNavigatorSelections(rules, state) {
+  if (!state || !state.selected) return
+  forEachNavigatorPair(rules, function (parent, child) {
+    if (state.selected[parent.id]) return
+    var childId = state.selected[child.id] || ''
+    if (!childId) return
+    var cv = findValueById(Array.isArray(child.values) ? child.values : [], childId)
+    if (!cv) return
+    var pid = __rulesRuntimeHelpers.parentValueIdForChildValue(parent, cv)
+    if (pid) state.selected[parent.id] = pid
+  })
+}
+
+/**
+ * Перед записью навигатор снимается с выбора: он только сужает детей, и на
+ * строку его не пишут (его слово: «это виртуальное value»). Кроме того, что
+ * уже стояло на строке: включённый навигатор не решает судьбу написанного
+ * (правило 107, нюанс 9).
+ */
+function dropNavigatorSelections(rules, state, originalLine) {
+  if (!state || !state.selected) return
+  var words = String(originalLine || '').split(/\s+/)
+  forEachNavigatorPair(rules, function (parent, child) {
+    var pid = state.selected[parent.id] || ''
+    if (!pid) return
+    var pv = findValueById(Array.isArray(parent.values) ? parent.values : [], pid)
+    if (!pv || !__rulesRuntimeHelpers.isNavigatorValue(parent, child, pv)) return
+    var tok = buildOutputToken(parent, pv, rules)
+    if (tok && words.indexOf(tok) !== -1) return
+    state.selected[parent.id] = ''
+  })
+}
+
 /**
  * **Токены полей, которыми панель сейчас управляет.**
  *
@@ -3271,6 +3329,8 @@ module.exports = {
   applyActiveFieldChoiceToRules: applyActiveFieldChoiceToRules,
   chooseActiveFieldId: chooseActiveFieldId,
   hydrateStateFromParsedLine: hydrateStateFromParsedLine,
+  deriveNavigatorSelections: deriveNavigatorSelections,
+  dropNavigatorSelections: dropNavigatorSelections,
   sanitizeState: sanitizeState,
   buildPrefix: buildPrefix,
   isFieldEnabled: isFieldEnabled,

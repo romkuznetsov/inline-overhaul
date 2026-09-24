@@ -240,6 +240,7 @@ The right column is everything about the Field picked on the left:
 | `Prefix behavior` | `Strict` or `Insert only`; how the Field affects the line Prefix. Not shown for a Field in a custom block |
 | `Child Field` | `After parent`, `Always`, `On Alt` or `Hide` |
 | `Parent Value` | With `Always`: leave the line alone, or also write the parent Value |
+| `Parent is Navigator` | `On`: parent Values with children only narrow the child list and are never written; not available with `Hide` |
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |
 | `YAML property` | Which property of a transformed note this Field becomes |

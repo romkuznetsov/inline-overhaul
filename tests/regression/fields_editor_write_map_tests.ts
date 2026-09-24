@@ -475,6 +475,10 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
     why: "кнопка `Add Block` — custom block, его постановка 2026-09-24 (PRD 10.13.260). Имя и "
       + "удаление блока пишут `block-rename` и `block-delete`; сценарий карты их не снимает",
   },
+  {
+    shape: "pkm:behavior:order:sub-navigator:*",
+    why: "ряд `Parent is Navigator` под `Child Field` — его заказ 2026-09-24 (PRD 10.13.269)",
+  },
 ];
 
 /**
