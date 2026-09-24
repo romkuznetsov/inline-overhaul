@@ -341,7 +341,7 @@ edge of the table. Which height you picked is remembered.
 - `name_strict` is the stable runtime/config key; `name_display` is only the UI label.
 - Assign a vault YAML property to each field.
 - Set **Active** to `yes`, `no`, or `hotkey_only`.
-- Set the placement mode per Field to `Strict`, `Insert only`, or `Free` (stored as `off`, `minimal`, and `full`).
+- Set the placement mode per Field to `Strict` or `Insert only` (stored as `off` and `minimal`). A Field that writes where the cursor is goes into a custom block: `Add Block` under the Fields list.
 - Enable a generated subtag lane for tag fields.
 - Delete removes the field and related configuration after confirmation.
 
@@ -797,7 +797,7 @@ still use the left column.
 | — | **Block** | A Field together with its child Fields: they stay on one side and move together |
 | Strip, rails, stripes | **Tag Bars**, **Bar** | The colored bar in the editor margin showing a line's Value and everything nested under it |
 | Deep Editor | the right column of the Fields editor | Has no separate name of its own |
-| free roam (`off` / `minimal` / `full`) | placement modes **Strict** / **Insert only** / **Free** | Stored values are unchanged |
+| free roam (`off` / `minimal`) | placement modes **Strict** / **Insert only** | Stored values are unchanged; the former `full` (**Free**) reads as `off` — its work moved to custom blocks |
 | Prefix Resolver | **Prefix priority** | Which Field's checkbox wins when two carry one |
 | subtag | **child Value** | Stored values `separate` and `combined` are unchanged |
 | separator1, separator2 | **First Separator**, **Second Separator** | The two markers that fence your text off from the Fields |

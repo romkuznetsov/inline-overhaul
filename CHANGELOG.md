@@ -19,6 +19,15 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. ✨ **Custom blocks write where the cursor is.** `Add Block` under the Fields list makes a Block of your own with its command `tagWheel <block>`: it opens at the cursor, splits the text there, and `Enter` writes the picked Values between your words. On a Value of the block it opens on that Value and replaces it.
+2. ✨ **A custom block's Fields step on the Value under the cursor.** Their `next` and `previous` change that Value; away from one they put the first or the last Value at the cursor.
+3. ✨ **`Tab` can move between custom blocks.** `tagWheel - Switch custom blocks on Tab` under **Tags & PKM → tagWheel behavior**; off, `Tab` there does nothing.
+4. 🎨 **tagWheel settings about how it moves have their own group.** `Active Field on opening`, `Values in the other Block` and `tagWheel navigation behavior` moved to **Tags & PKM → tagWheel behavior**; your values stay as they were.
+5. 🎨 **`Prefix behavior` has two modes, `Strict` and `Insert only`.** A Field that writes at the cursor belongs in a custom block; `Free: insert position` is gone with `Free`.
+6. 🎨 **A Value cannot share its spelling with another Field's Value.** The editor refuses it with a message.
+
 ## 0.8.1
 
 _2026-09-24 · [all changes since 0.8.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.0...0.8.1)_

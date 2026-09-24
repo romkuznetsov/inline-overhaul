@@ -31,6 +31,11 @@ project link, an estimate. You define them; the plugin ships no methodology.
   any Value, or one you name.
 - **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,
   after it. The side is set by dragging a Field across the line in the editor.
+- **Custom blocks.** `Add Block` makes a Block of your own that writes where the cursor
+  is, inside your text. It has its own command, `tagWheel <block>`, and its Fields' `next`
+  and `previous` work on the Value under the cursor.
+- **One spelling, one Field.** A Value written the same way as another Field's Value is
+  refused, so a line never leaves the plugin guessing whose `#todo` it is.
 - **A pair of commands per Field**, created on the spot: `<Field> next` and
   `<Field> previous`.
 - **A Value shown as your own text.** The `Show` column draws a Value as an emoji, as
@@ -49,6 +54,10 @@ Fields and their Values; on exit the line is written back as plain markdown.
 
 - **Two commands, two sides.** `tagWheel Left` starts on the Fields before
   your text, `tagWheel Right` on those after it.
+- **A custom block at the cursor.** `tagWheel <block>` opens its Fields where the cursor
+  is and splits the text there; `Enter` writes the picked Values between your words. On a
+  Value of the block it opens on that Value and replaces it. With
+  `tagWheel - Switch custom blocks on Tab` on, `Tab` moves to the next custom block.
 - **The other Block.** While the picker is open it takes the place of the Block it stands
   in. The other one either leaves the line for as long as you are choosing, or stays
   written where it belongs.
@@ -65,7 +74,7 @@ land on a line that never existed. Keeping the other Block in sight removes the 
 where only that Block was filled; the case where the Block under the panel was filled too
 is open.
 
-*Where:* **Visual → tagWheel**, split into `Panel` and `Scroller`. Every subheading in the settings folds with the triangle beside it.
+*Where:* **Visual → tagWheel**, split into `Panel` and `Scroller`; how it moves — the Field it opens on, the other Block, the edge of a Block, `Tab` between custom blocks — under **Tags & PKM → tagWheel behavior**. Every subheading in the settings folds with the triangle beside it.
 
 ## Navigation
 
@@ -190,6 +199,7 @@ Thirteen commands exist always:
 And these appear from what you configure:
 
 - a pair per Field — next Value and previous Value;
+- one per custom block, `tagWheel <block>`;
 - one per Binder row;
 - one per module, to toggle it.
 

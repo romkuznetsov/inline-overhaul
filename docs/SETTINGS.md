@@ -225,13 +225,19 @@ line: everything in `Left Block` is written before your text, everything in `Rig
 after it. Drag a Field across the line to change which Block it is written in, or step it
 with the arrows.
 
+`Add Block` adds a custom block under `Right Block`, named `Custom block 1` and so on.
+A custom block writes its Fields where the cursor is, by its own command
+`tagWheel <block>`. The pencil renames it, the bin deletes it together with its Fields
+after a window that names them. A Field moves into a block and back the same way as
+between `Left Block` and `Right Block`, and the arrows step through the sections in turn.
+
 The right column is everything about the Field picked on the left:
 
 | Row | What it holds |
 |---|---|
 | `Name in tagWheel` | A shorter name for the tagWheel row, where there is little room |
 | `Active` | `Yes`, `No`, or `Commands only` — whether the Field is offered, and where |
-| `Prefix behavior` | `Strict`, `Insert only` or `Free`; how the Field affects the line Prefix |
+| `Prefix behavior` | `Strict` or `Insert only`; how the Field affects the line Prefix. Not shown for a Field in a custom block |
 | `Child Field` | `After parent`, `Show always`, `Show when press Alt` or `Hide` |
 | `Parent Value` | With `Show always`: leave the line alone, or also write the parent Value |
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
@@ -253,7 +259,12 @@ it is drawn as itself, at `custom` as anything you type instead — an emoji in 
 `[[Project A]]`. A shown link still opens the note when clicked.
 
 **A pair of commands appears for every Field you add** — `<Field> next` and
-`<Field> previous` — with no configuration step in between.
+`<Field> previous` — with no configuration step in between. In a custom block they work
+on the Value under the cursor, and away from a Value they put the first or the last one
+there.
+
+A Value cannot be written the same way as a Value of another Field: the editor refuses it
+with a message.
 
 The chevron at the right edge of the group header switches the table between its full
 height, where every control is on screen at once, and a fixed height that scrolls.
@@ -288,17 +299,18 @@ a Block. How it looks is set under `Visual` → `tagWheel`.
 | `Right Block active Field` | unset | The Field it lands on when it opens on the right |
 | `Values in the other Block` | `hide` | What happens to the Values you are not picking while the picker is open |
 | `tagWheel navigation behavior` | `stay` | What the arrows do at the end of a Block: stay in it, or step across |
+| `tagWheel - Switch custom blocks on Tab` | off | `Tab` in a custom block's tagWheel moves on to the next custom block. Shown once a custom block exists |
 
 ### Placement modes
 
-Every Field has a `Prefix behavior` mode. These four settings say what each mode means.
+Every Field in `Left Block` or `Right Block` has a `Prefix behavior` mode. These three
+settings say what each mode means.
 
 | Control | Default | What it does |
 |---|---|---|
 | `Strict: add a bullet` | off | Starts the line with a bullet when the Field has nothing of its own to put there |
 | `Insert only: keep the Prefix` | on | Puts the Value where it belongs and does not touch the start of the line |
 | `Insert only: use Field Prefix` | on | Allows a Value with a Prefix of its own to change the start of the line after all |
-| `Free: insert position` | `smart` | Which end of the line a Value goes to when the cursor is mid-sentence |
 
 ### Prefix priority
 
