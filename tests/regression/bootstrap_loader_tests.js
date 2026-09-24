@@ -3329,7 +3329,9 @@ async function run() {
    * поведении — `block_placement_tests.ts`; здесь закреплено, что развязка
    * делается только у строк с маркером списка, иначе сборка подставит `-`.
    */
-  assertTrue(/function demoteLeftBodyToText\(leftRaw, shape\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
+  /* С 2026-09-24 у развязки третий параметр — «первого разделителя в строке
+     нет» (`В-211`, 10.13.265); поведение — `block_placement_tests.ts`. */
+  assertTrue(/function demoteLeftBodyToText\(leftRaw, shape, noFirstSeparator\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
   /*
    * Признак «значение Field или текст» объявлен **один раз** — 2026-09-11.
    * Вторая копия стояла в `buildFromSegments` под именем `hasLeftTech`, была

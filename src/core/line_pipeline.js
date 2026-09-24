@@ -348,11 +348,32 @@ function looksLikeLeftTokens(body, shape) {
  * строка без списка получила бы список, которого в ней не было. Строки
  * плагина — пункты списка, и разбирается ровно тот случай, который сломан.
  */
-function demoteLeftBodyToText(leftRaw, shape) {
+function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
   const parts = splitLeftPrefix(leftRaw);
   if (!parts.prefix || !parts.body) return null;
-  if (looksLikeLeftTokens(parts.body, shape)) return null;
-  return { left: parts.prefix, text: parts.body };
+  if (!looksLikeLeftTokens(parts.body, shape)) return { left: parts.prefix, text: parts.body };
+  /* Первый разделитель в строке есть — его место и есть граница: зону
+     значений со словом человека внутри доводит своя доводка
+     (`normalizeStructuredSlots`), и она ждёт пустой слот текста. */
+  if (!noFirstSeparator) return null;
+  /*
+   * **Значения в теле есть — но и текст бывает** (`В-211`, его ответ «чинить
+   * в следующем цикле», 10.13.265). Прежде одно значение где угодно
+   * объявляло зоной значений всё тело: `- купить #random хлеб` целиком
+   * уходило в левый сегмент, панель Left дописывала `#random` в свой Block
+   * вторым экземпляром, а команда Right рвала текст на `купить #random` и
+   * `хлеб`. Ответ теперь тот же, что у исходного текста строки: значения,
+   * стоящие подряд в начале, — Block, с первого слова текста — текст, и из
+   * текста в Block уходят только значения Field. Чужой тег посреди текста
+   * остаётся текстом.
+   */
+  const rest = stripLeadingValues(parts.body, shape.markers);
+  const words = rest.split(/\s+/).filter(Boolean);
+  const text = words.filter(function(t) { return !shape.values.has(t); });
+  if (!text.length) return null;
+  const head = parts.body.slice(0, parts.body.length - rest.length).trim();
+  const own = words.filter(function(t) { return shape.values.has(t); });
+  return { left: joinLeftPrefix(parts.prefix, [head].concat(own).filter(Boolean).join(" ")), text: text.join(" ") };
 }
 
 function splitSegments(rawLine, rules) {
@@ -377,7 +398,7 @@ function splitSegments(rawLine, rules) {
   if (sep1 === sep2) {
     const parts = s.split(sep1).map(function(x) { return String(x || "").trim(); });
     if (parts.length <= 1) {
-      const demoted = demoteLeftBodyToText(s, shape);
+      const demoted = demoteLeftBodyToText(s, shape, true);
       if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: "" };
       return { indent: indent, left: s, text: "", dates: "" };
     }
@@ -398,7 +419,9 @@ function splitSegments(rawLine, rules) {
       }
       /* Текста нет, а слева — не токены: значит слева и есть текст. */
       if (!textOnly) {
-        const demoted = demoteLeftBodyToText(parts[0] || "", shape);
+        /* За разделителем правый Block — значит это второй разделитель, а
+           первого в строке нет (`В-211`). */
+        const demoted = demoteLeftBodyToText(parts[0] || "", shape, Boolean(rightOnly));
         if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: rightOnly };
       }
       return { indent: indent, left: parts[0] || "", text: textOnly, dates: rightOnly };
@@ -441,6 +464,10 @@ function splitSegments(rawLine, rules) {
        */
       const headParts = splitLeftPrefix(head);
       if (looksLikeLeftTokens(headParts.body, shape)) {
+        /* Значение слева бывает и посреди текста — ответ тот же, что у строки
+           без разделителей вовсе (`В-211`, 10.13.265). */
+        const demoted = demoteLeftBodyToText(head, shape, true);
+        if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: tail };
         return { indent: indent, left: head, text: "", dates: tail };
       }
       /*
@@ -499,7 +526,7 @@ function splitSegments(rawLine, rules) {
   /* Та же развязка, что и у совпадающих разделителей: текста нет, слева не
      токены — значит слева текст. */
   if (!text) {
-    const demoted = demoteLeftBodyToText(left, shape);
+    const demoted = demoteLeftBodyToText(left, shape, i1 === -1);
     if (demoted) {
       left = demoted.left;
       text = demoted.text;
@@ -795,14 +822,16 @@ function collectManagedTokens(rules) {
   return out;
 }
 
-function extractOriginalTextFromRawLine(rawLine, rules) {
-  const seg = splitSegments(rawLine, rules);
-  if (String(seg.text || "").trim()) return String(seg.text || "").trim();
-  let left = String(seg.left || "").trim();
-  /* Начало строки снимается общим объявлением: три своих образца знали
-     только дефис, только точку и скобки без знака списка. */
-  left = String(__sharedUtils.lineStartOf(left).body || "").trim();
-  const markers = getRightMarkers(rules);
+/**
+ * **Что стоит в начале тела значениями, а с какого слова начинается текст.**
+ * Снимает с начала тег, ссылку, значение элемента целиком и голую дату, пока
+ * они идут подряд, и отдаёт остаток. Спрашивают двое: исходный текст строки
+ * (`extractOriginalTextFromRawLine`) и развязка строки без разделителей
+ * (`demoteLeftBodyToText`) — пока ответ был только у первого, панель и
+ * команда читали такую строку по-разному (`В-211`, 10.13.265).
+ */
+function stripLeadingValues(body, markers) {
+  let left = String(body || "").trim();
   while (true) {
     /* Формы тега и ссылки — общий дом (10.13.141). */
     const mTag = left.match(new RegExp("^(" + __sharedUtils.TAG_TOKEN_SRC + ")\\s*"));
@@ -830,6 +859,17 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
     if (mDateLike) { left = left.slice(mDateLike[0].length).trim(); continue; }
     break;
   }
+  return left;
+}
+
+function extractOriginalTextFromRawLine(rawLine, rules) {
+  const seg = splitSegments(rawLine, rules);
+  if (String(seg.text || "").trim()) return String(seg.text || "").trim();
+  let left = String(seg.left || "").trim();
+  /* Начало строки снимается общим объявлением: три своих образца знали
+     только дефис, только точку и скобки без знака списка. */
+  left = String(__sharedUtils.lineStartOf(left).body || "").trim();
+  left = stripLeadingValues(left, getRightMarkers(rules));
   /*
    * Цикл выше снимает токены только **с начала** тела, и токен, стоящий после
    * прозы, уезжал в «исходный текст» вместе с ней. Дальше

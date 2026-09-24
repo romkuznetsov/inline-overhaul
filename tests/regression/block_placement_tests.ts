@@ -509,4 +509,42 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
   ok("метки собираются у обеих сторон Order, а не у одной правой");
 }
 
+{
+  /*
+   * `В-211`, его ответ «чинить в следующем цикле» (10.13.265). Одно значение
+   * где угодно объявляло зоной значений всю строку без разделителей: панель
+   * Left дописывала посторонний тег копией в свой Block, команда Right рвала
+   * текст. Теперь значения подряд в начале — Block, дальше текст, и из текста
+   * в Block уходят только значения Field.
+   */
+  const withValue: Any = JSON.parse(JSON.stringify(rules));
+  withValue.leftMode.fields[0].values = [{ id: "high", token: "high" }];
+  const split: Any = { ...withValue, io: { separator1: "||", separator2: "::" } };
+  const seg = (line: string, r: Any): string[] => {
+    const s = pipeline.splitSegments(line, r);
+    return [String(s.left || "").trim(), String(s.text || "").trim(), String(s.dates || "").trim()];
+  };
+  assert.deepEqual(seg("- купить #random хлеб", withValue), ["-", "купить #random хлеб", ""],
+    "посторонний тег посреди текста уехал из текста");
+  assert.deepEqual(seg("- #random купить хлеб", withValue), ["- #random", "купить хлеб", ""],
+    "тег в начале строки — Block, как и прежде");
+  assert.deepEqual(seg("- купить #high хлеб", withValue), ["- #high", "купить хлеб", ""],
+    "значение Field посреди текста — значение, а не текст");
+  assert.deepEqual(seg("- #random", withValue), ["- #random", "", ""],
+    "строка из одних значений разбирается как прежде");
+  assert.deepEqual(seg("купить #random хлеб", withValue), ["купить #random хлеб", "", ""],
+    "без знака списка развязки нет: сборка подставила бы `-`");
+  assert.deepEqual(seg("- купить #random хлеб :: \u{1F4C5}2026-09-11", split),
+    ["-", "купить #random хлеб", "\u{1F4C5}2026-09-11"],
+    "с одним вторым разделителем тот же ответ");
+  assert.deepEqual(seg("- купить #random хлеб || \u{1F4C5}2026-09-11", withValue),
+    ["-", "купить #random хлеб", "\u{1F4C5}2026-09-11"],
+    "одинаковые разделители: за единственным правый Block — тот же ответ");
+  /* Отрицательный контроль: первый разделитель есть, слот текста пуст — эту
+     строку доводит `normalizeStructuredSlots`, и разбор её не трогает. */
+  assert.deepEqual(seg("- #random купить ||", withValue), ["- #random купить", "", ""],
+    "строка с первым разделителем разобрана по-новому");
+  ok("В-211: посторонний тег посреди текста строки без разделителей остаётся текстом");
+}
+
 console.log("\n" + passed + " проверок пройдено");
