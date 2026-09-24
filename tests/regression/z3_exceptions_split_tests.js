@@ -50,10 +50,19 @@ const path = require("path");
 const root = path.resolve(__dirname, "..", "..");
 const claude = fs.readFileSync(path.join(root, "CLAUDE.md"), "utf8");
 const z3doc = fs.readFileSync(path.join(root, "docs", "dev", "Z3_EXCEPTIONS.md"), "utf8");
-const prd = fs.readFileSync(
+/* История PRD 3.3 живёт своим файлом с 2026-09-25 (PRD разделён по его пункту
+   «файл prd уже достиг невообразимых размеров»); в ядре PRD остались запреты
+   З1…З8 и ссылка сюда — её наличие спрошено здесь же. */
+const prdCore = fs.readFileSync(
   path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md"),
   "utf8"
 );
+const prd = fs.readFileSync(
+  path.join(root, "docs", "dev", "prd", "PRD_3_3_Z3_HISTORY.md"),
+  "utf8"
+);
+assert.ok(prdCore.includes("prd/PRD_3_3_Z3_HISTORY.md"),
+  "ядро PRD не ссылается на историю исключений: раздел 3.3 потерял адрес");
 
 const ORDINALS = [
   "первое", "второе", "третье", "четвёртое", "пятое", "шестое", "седьмое",
@@ -185,11 +194,10 @@ rows.forEach((row, i) => {
 
 /* ---------- 2. абзацы в PRD 3.3 ---------- */
 
-const secStart = prd.indexOf("### 3.3 Запреты");
-assert.ok(secStart > 0, "раздел 3.3 в PRD не найден");
-const secEnd = prd.indexOf("\n## ", secStart);
-assert.ok(secEnd > secStart, "конец раздела 3.3 в PRD не найден");
-const section = prd.slice(secStart, secEnd);
+/* Файл истории — весь раздел: границей абзаца последнего исключения служит
+   конец файла, а кроме абзацев исключений в файле ничего нет. */
+const section = prd;
+assert.ok(!/^#### 10\.13\./m.test(section), "в историю исключений попала запись 10.13");
 
 /* Нарезка по пометкам «Исключение …» / «Исключения …, … и …». Границей служит
    следующая пометка, а у последней — конец раздела: без этой границы абзац

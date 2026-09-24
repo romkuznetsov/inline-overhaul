@@ -17,6 +17,9 @@ import io, os, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRD = os.path.join(ROOT, "docs", "dev", "PRD_Settings_Overhaul_v1.md")
+# Приложение B живёт своим файлом с 2026-09-25: PRD разделён по его пункту
+# «файл prd уже достиг невообразимых размеров».
+APPENDIX = os.path.join(ROOT, "docs", "dev", "prd", "PRD_B_INVENTORY.md")
 PROTO = os.path.join(ROOT, "docs", "prototype", "settings_prototype.html")
 TESTS = os.path.join(ROOT, "tests", "prototype")
 
@@ -44,13 +47,14 @@ head = s.index("| итог | v1 |")
 tail = s.index("---\n\n## 10. ", head)
 s = s[:head] + reconcile + "\n\n" + s[tail:]
 
-# ---- приложение B: целиком ------------------------------------------
-b = s.index("## Приложение B. Опись целевого состояния")
-s = s[:b] + ("## Приложение B. Опись целевого состояния\n\n"
-             "Сгенерировано из `docs/prototype/settings_prototype.html` командой:\n\n"
-             "```\npython tests/prototype/update_prd.py\n```\n\n"
-             "Руками не правится. При изменении прототипа опись перегенерируется, "
-             "и её diff показывает, что именно изменилось в текстах.\n\n") + inventory + "\n"
+# ---- приложение B: своим файлом, целиком -------------------------------
+appendix = ("## Приложение B. Опись целевого состояния\n\n"
+            "Сгенерировано из `docs/prototype/settings_prototype.html` командой:\n\n"
+            "```\npython tests/prototype/update_prd.py\n```\n\n"
+            "Руками не правится. При изменении прототипа опись перегенерируется, "
+            "и её diff показывает, что именно изменилось в текстах.\n\n") + inventory + "\n"
 
 io.open(PRD, "w", encoding="utf-8", newline="\n").write(s)
-print("PRD обновлён: " + str(len(s.split(chr(10)))) + " строк")
+io.open(APPENDIX, "w", encoding="utf-8", newline="\n").write(appendix)
+print("PRD обновлён: " + str(len(s.split(chr(10)))) + " строк, опись: "
+      + str(len(appendix.split(chr(10)))) + " строк")

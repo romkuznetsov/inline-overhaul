@@ -14,6 +14,9 @@ const { spawnSync } = require("child_process");
 const root = path.resolve(__dirname, "..", "..");
 const proto = path.join(root, "docs", "prototype", "settings_prototype.html");
 const prd = path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md");
+/* Приложение B — своим файлом с 2026-09-25 (PRD разделён). */
+const appendix = path.join(root, "docs", "dev", "prd", "PRD_B_INVENTORY.md");
+const both = () => fs.readFileSync(prd, "utf8") + fs.readFileSync(appendix, "utf8");
 
 const CHECKS = [
   ["gates.js", "схема, тексты и CSS"],
@@ -40,14 +43,14 @@ for (const [file, what] of CHECKS) {
 }
 
 /* Г24: документ и прототип не разошлись. Перегенерация не должна менять PRD. */
-const before = fs.readFileSync(prd, "utf8");
+const before = both();
 const r = spawnSync("python", [path.join(__dirname, "update_prd.py")],
   { cwd: root, encoding: "utf8", timeout: 120000 });
 if (r.status !== 0) {
   failed++;
   console.log("FAIL  update_prd.py    перегенерация не запустилась");
   console.log("      " + ((r.stderr || r.stdout || "").trim().split("\n").slice(-4).join("\n      ")));
-} else if (fs.readFileSync(prd, "utf8") !== before) {
+} else if (both() !== before) {
   failed++;
   console.log("FAIL  update_prd.py    PRD разошёлся с прототипом: перегенерация изменила документ");
   console.log("      это не ошибка скрипта, а расхождение: закоммить перегенерированный PRD");

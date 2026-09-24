@@ -33,6 +33,12 @@ const RULES = [
     instead: "правьте исходники, затем npm run build",
   },
   {
+    /* Приложение B PRD своим файлом с 2026-09-25 (PRD разделён). */
+    match: rel => rel === "docs/dev/prd/PRD_B_INVENTORY.md",
+    why: "Приложение B PRD — опись, сгенерированная из прототипа",
+    instead: "правьте docs/prototype/settings_prototype.html, затем python tests/prototype/update_prd.py",
+  },
+  {
     match: rel => rel === "tests/prototype/v1_inventory.tsv",
     why: "это замороженная опись настроек версии 1: она фиксирует прошлое",
     instead: "если сверка расходится, решение записывается в раздел 9 PRD, а не в данные",
@@ -40,7 +46,6 @@ const RULES = [
 ];
 
 const PRD = "docs/dev/PRD_Settings_Overhaul_v1.md";
-const APPENDIX = "## Приложение B. Опись целевого состояния";
 
 /**
  * Путь может прийти как C:\..., так и в стиле Git Bash (/c/...). Второй
@@ -90,22 +95,12 @@ process.stdin.on("end", () => {
     }
   }
 
-  /* PRD: раздел 9 и Приложение B выводятся из прототипа, остальное - руками. */
+  /* PRD: раздел 9 выводится из прототипа, остальное - руками. Приложение B —
+     своим файлом и стережётся списком выше. */
   if (rel === PRD) {
     if (tool === "Write") {
-      deny("PRD целиком не перезаписывается: раздел 9 и Приложение B генерируются " +
+      deny("PRD целиком не перезаписывается: раздел 9 генерируется " +
         "(python tests/prototype/update_prd.py). Правьте нужный раздел через Edit.");
-    }
-    const old = typeof args.old_string === "string" ? args.old_string : "";
-    if (old) {
-      let text = "";
-      try { text = fs.readFileSync(path.join(ROOT, PRD), "utf8"); } catch { process.exit(0); }
-      const appendixAt = text.indexOf(APPENDIX);
-      const hit = text.indexOf(old);
-      if (appendixAt >= 0 && hit >= 0 && hit > appendixAt) {
-        deny("этот текст лежит в Приложении B, а оно генерируется из прототипа. " +
-          "Правьте docs/prototype/settings_prototype.html, затем python tests/prototype/update_prd.py.");
-      }
     }
   }
 
