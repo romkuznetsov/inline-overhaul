@@ -50,6 +50,7 @@ export interface PluginInternals {
   /** Закрыть открытую сессию панели; `true`, если было что закрывать. */
   closeTagWheelSession: () => boolean;
   normalizePkmOrder: (raw: Any) => Any;
+  serializePkmOrderForMacro: (cfg: Any) => string;
   ensureBehaviorModesFromOrder: (cfg: Any) => void;
   DEFAULT_CONFIG: Any;
   /* Разрешение цвета тега: те самые функции, которыми плагин решает, каким

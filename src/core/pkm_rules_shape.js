@@ -25,6 +25,7 @@
 
 const __sharedUtils = require("./shared_utils.js");
 const __rulesNormalizer = require("./tagwheel_rules_normalizer.js");
+const __pkmOrderConfig = require("./pkm_order_config.js");
 
 function isObj(x) {
   return __sharedUtils.isObj(x);
@@ -38,8 +39,47 @@ function slice(node, key) {
   return isObj(node) && isObj(node[key]) ? node[key] : {};
 }
 
+/**
+ * Определения Fields для одного Block: Left и Right или один custom block
+ * (PRD 10.13.260).
+ *
+ * Шов один на все движки: Left и Right получают правила **без** Field из
+ * custom block — для них это текст строки, и переставлять или снимать его они
+ * не вправе (пункт 13). Панель custom block получает только свои Field, а её
+ * порядок — это её Block, записанный как левый: ядро панели умеет ходить по
+ * одному Block, и второго правила «как ходить по полям» заводить незачем.
+ */
+function scopeToBlock(behavior, blockId) {
+  /* Порядок в конфиге уже нормализован `migrateConfig`; второй проход здесь
+     менял бы правила Left и Right там, где custom block ни при чём. */
+  const order = isObj(behavior.order) ? behavior.order : {};
+  const blocks = Array.isArray(order.custom) ? order.custom : [];
+  const custom = __pkmOrderConfig.customBlockKeys(order);
+  const block = blockId ? blocks.find((b) => b && b.id === blockId) : null;
+  /* Блоков нет — правила те же, что до custom block, знак в знак. */
+  if (!custom.size && !block) return;
+  const mine = block ? __pkmOrderConfig.customBlockKeys({ custom: [block] }) : null;
+  const keep = (f) => {
+    const ids = [String(f && f.id || "").trim(), String(f && f.orderKey || "").trim()];
+    const inCustom = ids.some((k) => k && custom.has(k));
+    return mine ? ids.some((k) => k && mine.has(k)) : !inCustom;
+  };
+  for (const side of ["leftMode", "rightMode"]) {
+    const mode = behavior[side];
+    if (isObj(mode) && Array.isArray(mode.fields)) mode.fields = mode.fields.filter(keep);
+  }
+  /* Карты порядка теряют ключи чужих блоков; свои у панели блока остаются. */
+  const scoped = __pkmOrderConfig.orderWithoutCustom({ ...order, custom: blocks.filter((b) => b !== block) });
+  if (block) {
+    scoped.left = Array.isArray(block.keys) ? block.keys.slice() : [];
+    scoped.right = [];
+    scoped.lead = {};
+  }
+  behavior.order = scoped;
+}
+
 /** Форма правил PKM, собранная из конфига версии 2. */
-function buildRulesShapeFromConfig(cfg) {
+function buildRulesShapeFromConfig(cfg, blockId) {
   const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
   const fields = slice(pkm, "fields");
   const placement = slice(pkm, "placement");
@@ -55,6 +95,7 @@ function buildRulesShapeFromConfig(cfg) {
   behavior.leftMode = cloneJson(slice(fields, "tags"));
   behavior.rightMode = cloneJson(slice(fields, "links"));
   behavior.projects = cloneJson(slice(fields, "projects"));
+  scopeToBlock(behavior, String(blockId || ""));
   behavior.typeCheckboxByValue = cloneJson(slice(fields, "checkboxByValue"));
   behavior.prefixRules = Object.assign(cloneJson(slice(pkm, "prefixRules")), {
     priorityMode: slice(pkm, "prefixPriority").decideBy,
@@ -160,8 +201,8 @@ function buildRulesShapeFromConfig(cfg) {
  * досыпка формы списка Fields. Она вынесена в свой модуль и зовётся отсюда,
  * а не переписывается (У-32).
  */
-function buildRulesForEngines(cfg) {
-  const shape = buildRulesShapeFromConfig(cfg);
+function buildRulesForEngines(cfg, blockId) {
+  const shape = buildRulesShapeFromConfig(cfg, blockId);
   const deps = {
     isObj: isObj,
     err: function(message) { throw new Error(String(message || "normalizeMode failed")); },

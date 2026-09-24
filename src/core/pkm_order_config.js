@@ -133,6 +133,9 @@ function ensureBehaviorModesFromOrder(cfg) {
   };
   for (const k of order.left || []) push(k);
   for (const k of order.right || []) push(k);
+  /* Field из custom block — такие же определения, только Block у них свой
+     (PRD 10.13.260): без этой строки фильтр ниже выбросил бы их определения. */
+  for (const block of order.custom || []) for (const k of block.keys || []) push(k);
 
   const builtInLeftIds = new Set();
   const builtInRightIds = new Set();
@@ -379,6 +382,8 @@ function makeDefaultPkmOrder() {
     labels: {},
     strictNames: {},
     propertiesByField: {},
+    /* Custom block (PRD 10.13.260): `[{ id, name, keys }]`, по разделу на блок. */
+    custom: [],
   };
 }
 
@@ -426,6 +431,9 @@ function normalizePkmOrder(rawOrder) {
   };
   if (Array.isArray(rawOrder.left)) for (const x of rawOrder.left) collectKey(x);
   if (Array.isArray(rawOrder.right)) for (const x of rawOrder.right) collectKey(x);
+  if (Array.isArray(rawOrder.custom)) {
+    for (const b of rawOrder.custom) if (isObj(b) && Array.isArray(b.keys)) for (const x of b.keys) collectKey(x);
+  }
   if (isObj(rawOrder.labels)) for (const k of Object.keys(rawOrder.labels)) if (rawOrder.labels[k] !== null && rawOrder.labels[k] !== undefined && String(rawOrder.labels[k]).trim()) collectKey(k);
   if (isObj(rawOrder.strictNames)) for (const k of Object.keys(rawOrder.strictNames)) if (rawOrder.strictNames[k] !== null && rawOrder.strictNames[k] !== undefined && String(rawOrder.strictNames[k]).trim()) collectKey(k);
   if (isObj(rawOrder.active)) for (const k of Object.keys(rawOrder.active)) if (rawOrder.active[k] !== null && rawOrder.active[k] !== undefined && String(rawOrder.active[k]).trim()) collectKey(k);
@@ -449,6 +457,9 @@ function normalizePkmOrder(rawOrder) {
   out.left = normalizeList(rawOrder.left, out.left);
   out.right = normalizeList(rawOrder.right, out.right);
   const ordered = new Set(out.left.concat(out.right));
+  out.custom = normalizeCustomBlocks(rawOrder.custom, discovered, ordered);
+  /* Ключ custom block размещён: в `right` он не дописывается (У-237). */
+  for (const b of out.custom) for (const k of b.keys) ordered.add(k);
   for (const k of orderFields) {
     if (ordered.has(k)) continue;
     out.right.push(k);
@@ -496,8 +507,10 @@ function normalizePkmOrder(rawOrder) {
   if (isObj(rawOrder.freeRoam)) {
     for (const k of orderKeys) {
       const raw = String(rawOrder.freeRoam[k] || "").trim().toLowerCase();
-      if (raw === "minimal" || raw === "full") out.freeRoam[k] = raw;
-      else if (raw === "off") out.freeRoam[k] = "off";
+      /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в
+         custom block, и `full` уходит в умолчание, как любое незнакомое. */
+      if (raw === "minimal") out.freeRoam[k] = raw;
+      else if (raw === "off" || raw === "full") out.freeRoam[k] = "off";
     }
   }
   for (const k of orderFields) {
@@ -551,13 +564,74 @@ function normalizePkmOrder(rawOrder) {
   for (const k of orderKeys) out.enabled[k] = out.active[k] !== "no";
   for (const k of orderKeys) {
     const raw = String(out.freeRoam && out.freeRoam[k] ? out.freeRoam[k] : "off").trim().toLowerCase();
-    out.freeRoam[k] = raw === "minimal" || raw === "full" ? raw : "off";
+    out.freeRoam[k] = raw === "minimal" ? raw : "off";
+  }
+  return out;
+}
+
+/**
+ * Custom block — свой Block у каретки (PRD 10.13.260).
+ *
+ * Один Field — один блок: ключ, уже стоящий в Left или Right, в блок не
+ * берётся — прежнее место сильнее, — и ключ, взятый одним блоком, не берёт
+ * второй. `id` выдаётся при создании и больше не меняется: на нём стоит
+ * идентификатор команды, а значит и хоткей. Имя — непустое и без повторов.
+ */
+function normalizeCustomBlocks(raw, discovered, placed) {
+  const out = [];
+  const taken = new Set(placed);
+  const ids = new Set();
+  const names = new Set();
+  for (const b of Array.isArray(raw) ? raw : []) {
+    if (!isObj(b)) continue;
+    const id = String(b.id || "").trim().toLowerCase();
+    const name = String(b.name || "").replace(/\s+/g, " ").trim();
+    if (!/^[a-z0-9-]+$/.test(id) || ids.has(id) || !name || names.has(name.toLowerCase())) continue;
+    const keys = [];
+    for (const k of Array.isArray(b.keys) ? b.keys : []) {
+      const key = normalizeOrderFieldKey(k);
+      if (!key || /_sub$/.test(key) || !discovered.has(key) || taken.has(key)) continue;
+      keys.push(key);
+      taken.add(key);
+    }
+    ids.add(id);
+    names.add(name.toLowerCase());
+    out.push({ id, name, keys });
+  }
+  return out;
+}
+
+/** Ключи всех custom block вместе с их дочерними (`<ключ>_sub`). */
+function customBlockKeys(order) {
+  const out = new Set();
+  for (const b of (isObj(order) && Array.isArray(order.custom)) ? order.custom : []) {
+    for (const k of Array.isArray(b && b.keys) ? b.keys : []) {
+      out.add(k);
+      out.add(`${k}_sub`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Порядок, каким его видят Left и Right: без ключей custom block (PRD
+ * 10.13.260, пункт 13). Для их движков значение custom block — текст строки.
+ */
+function orderWithoutCustom(order) {
+  const drop = customBlockKeys(order);
+  const out = cloneJson(order);
+  delete out.custom;
+  if (!drop.size) return out;
+  for (const mapKey of Object.keys(out)) {
+    const bag = out[mapKey];
+    if (Array.isArray(bag)) out[mapKey] = bag.filter((k) => !drop.has(k));
+    else if (isObj(bag)) for (const k of Object.keys(bag)) if (drop.has(k)) delete bag[k];
   }
   return out;
 }
 
 function serializePkmOrderForMacro(cfg) {
-  const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
+  const order = orderWithoutCustom(normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order")));
   const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
   /* Имена внутри `freeRoamBehavior` — часть контракта макросов рантайма
      (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`), поэтому меняются только
@@ -634,6 +708,8 @@ module.exports = {
   makeDefaultPkmOrder,
   STRICT_FIELD_NAME_RE,
   normalizePkmOrder,
+  customBlockKeys,
+  orderWithoutCustom,
   serializePkmOrderForMacro,
   serializeDateRuntimeConfigForMacro,
 };
