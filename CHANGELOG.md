@@ -19,7 +19,12 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.8.1
+
+_2026-09-24 · [all changes since 0.8.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.0...0.8.1)_
+
+> [!NOTE]
+> 🐛 **1** bug fix · 🎨 **3** changes you can see
 
 1. 🎨 **Two Visual groups have clearer names.** `Jump highlight` is now `Cursor jump highlight`, and `Color your Tags` is now `Color custom tags`: it colours the tags that are not a Value of any Field in `Tags & PKM → Fields`, and says so.
 2. 🎨 **`Color custom tags` moved to the bottom of `Visual`.**
