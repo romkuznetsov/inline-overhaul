@@ -609,10 +609,10 @@ async function main(): Promise<void> {
     assert.equal(steps?.control?.type, "dropdown");
     /* У стандартного значения приписка — его заказ 2026-09-20, пункт 13. */
     assert.deepEqual(steps?.control?.options, {
-      "line-note": "Line, then note (default)",
-      "line-tree-note": "Line, tree, then note",
-      "line-tree-header-note": "Line, tree, heading, then note",
-      "word-line-tree-header-note": "Word, line, tree, heading, then note",
+      "line-note": "Line, note (default)",
+      "line-tree-note": "Line, tree, note",
+      "line-tree-header-note": "Line, tree, heading, note",
+      "word-line-tree-header-note": "Word, line, tree, heading, note",
       "custom": "Custom",
     });
 

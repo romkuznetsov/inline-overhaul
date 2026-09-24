@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🎨 **Shorter choices in the panel's drop-down lists.** Every choice now says only what it picks — `The line only` is `Line only`, `Center of the screen` is `Center`, `Show when press Alt` is `On Alt`; your settings stay as they were.
+
 ## 0.9.0
 
 _2026-09-24 · [all changes since 0.8.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.1...0.9.0)_

@@ -18630,7 +18630,7 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
 - **Selection steps** — `select-all-steps`, `dropdown`, path `editor.selectAll.mode`, default `line-note`
   - desc: How much more gets picked up on each press
   - tip: <b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note
-  - варианты: `line-note` Line, then note · `line-tree-note` Line, tree, then note · `line-tree-header-note` Line, tree, heading, then note · `word-line-tree-header-note` Word, line, tree, heading, then note · `custom` Custom
+  - варианты: `line-note` Line, note · `line-tree-note` Line, tree, note · `line-tree-header-note` Line, tree, heading, note · `word-line-tree-header-note` Word, line, tree, heading, note · `custom` Custom
   - выключена если: `editor.selectAll.enabled`
   - старые названия для поиска: «Select-all mode»
 - **Steps to cycle through** — `select-all-custom-head`, `note`
@@ -18681,14 +18681,14 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
   - старые названия для поиска: «Smart Enter», «Do not split the line»
 - **Where it works** — `smart-enter-scope`, `dropdown`, path `editor.smartEnter.scope`, default `line`
   - desc: How much of the line the key treats as one record
-  - tip: <b>Anywhere in the line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Only in your text</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second
-  - варианты: `line` Anywhere in the line · `text` Only in your text
+  - tip: <b>Whole line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Text only</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second
+  - варианты: `line` Whole line · `text` Text only
   - выключена если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Smart Enter scope», «Only in your text»
 - **Prefix on the new line** — `smart-enter-prefix`, `dropdown`, path `editor.smartEnter.newLinePrefix`, default `same`
   - desc: What the line <code>Smart Enter</code> adds starts with
-  - tip: <b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin
-  - варианты: `same` Same as the line above · `none` None · `number-only` None, unless the line is numbered
+  - tip: <b>Same as above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>Numbered lines only</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin
+  - варианты: `same` Same as above · `none` None · `number-only` Numbered lines only
   - выключена если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Keep the bullet», «New line Prefix», «Carry the Prefix over»
 - **`smart-paste-sub`** — свой блок, рендерер `?`
@@ -18729,14 +18729,14 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
   - старые названия для поиска: «Enable Move Line»
 - **Moving behavior** — `move-lines-no-selection`, `dropdown`, path `navigation.moveLine.noSelectionMode`, default `line-only`
   - desc: Whether the tree under the line travels with it
-  - tip: Say a line has three lines indented under it. <b>The line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>The whole tree</b> keeps the four together and moves them as one block
-  - варианты: `line-only` The line only · `with-children` The whole tree
+  - tip: Say a line has three lines indented under it. <b>Line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>Whole tree</b> keeps the four together and moves them as one block
+  - варианты: `line-only` Line only · `with-children` Whole tree
   - выключена если: `navigation.moveLine.enabled`
   - старые названия для поиска: «No-selection mode»
 - **Moving headings** — `move-lines-heading`, `dropdown`, path `navigation.moveLine.headerMode`, default `move-as-line`
   - desc: If you are moving a heading, this decides whether the whole section moves or just the heading line
   - tip: With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings
-  - варианты: `move-as-line` Heading only · `move-with-section` Heading with its section
+  - варианты: `move-as-line` Heading only · `move-with-section` Whole section
   - выключена если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Header mode»
 - **Cross heading boundaries** — `move-lines-cross`, `toggle`, path `navigation.moveLine.crossSectionAllowed`, default `true`
@@ -18757,7 +18757,7 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
 - **Where the line lands** — `move-lines-view-position`, `dropdown`, path `navigation.moveLine.viewPosition`, default `center`
   - desc: The place on screen the moved line is scrolled to
   - tip: The same place every time, so the note does not jump: one press does not center the line while the next throws it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
-  - варианты: `center` Center of the screen · `top` Top of the screen · `bottom` Bottom of the screen
+  - варианты: `center` Center · `top` Top · `bottom` Bottom
   - видна если: `navigation.moveLine.keepInView`
   - выключена если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Scroll position», «Center on move»
@@ -18776,13 +18776,13 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - старые названия для поиска: «Enable inline text move»
 - **Movement step** — `move-text-step`, `dropdown`, path `navigation.moveSelection.inlineMoveMode`, default `auto`
   - desc: How far the highlighted text goes on each press
-  - tip: <b>Automatic</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way
-  - варианты: `auto` Automatic · `char` One character · `word` Whole word · `disabled` Off
+  - tip: <b>Auto</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way
+  - варианты: `auto` Auto · `char` Character · `word` Word · `disabled` Off
   - выключена если: `navigation.moveSelection.inlineEnabled`
   - старые названия для поиска: «Inline move mode»
 - **Step out of the word** — `move-text-word-escape`, `toggle`, path `navigation.moveSelection.inlineWordEscape`, default `false`
   - desc: Let a highlighted part of a word carry on past the word it came from
-  - tip: Only <code>Automatic</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Automatic</code> moves them letter by letter — but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point — the highlighted piece goes wherever you press. Off is the way it has always worked
+  - tip: Only <code>Auto</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Auto</code> moves them letter by letter — but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point — the highlighted piece goes wherever you press. Off is the way it has always worked
   - видна если: `navigation.moveSelection.inlineMoveMode`
   - выключена если: `navigation.moveSelection.inlineEnabled`
   - старые названия для поиска: «Leave the word», «Word escape»
@@ -18803,8 +18803,8 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - выключена если: `navigation.moveSelection.prefixCyclerEnabled`
 - **After the last one** — `prefix-cycle-end`, `dropdown`, path `navigation.moveSelection.onCycleEnd`, default `indent`
   - desc: What happens when you reach the bottom of the list below
-  - tip: <b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Increase indent</b> stops cycling and starts pushing the line to the right instead
-  - варианты: `indent` Increase indent · `wrap` Start over
+  - tip: <b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Indent</b> stops cycling and starts pushing the line to the right instead
+  - варианты: `indent` Indent · `wrap` Start over
   - выключена если: `navigation.moveSelection.prefixCyclerEnabled`
   - старые названия для поиска: «On cycle end»
 - **Change the indent** — `indent-fallback`, `toggle`, path `navigation.moveSelection.indentFallbackEnabled`, default `true`
@@ -18824,8 +18824,8 @@ _Tip:_ A tagged line has three parts: what comes before your text, your text, an
   - старые названия для поиска: «Enable Navigate Inline»
 - **Step size** — `in-line-step`, `dropdown`, path `navigation.navigateInline.stepMode`, default `word`
   - desc: How big a hop the cursor makes each time
-  - tip: <b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Straight to the start or end</b> skips the middle entirely and lands at one end of your text
-  - варианты: `word` Word · `sentence` Sentence · `begin-end` Straight to the start or end
+  - tip: <b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Start or end</b> skips the middle entirely and lands at one end of your text
+  - варианты: `word` Word · `sentence` Sentence · `begin-end` Start or end
   - выключена если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «Step mode»
 - **Continue past Separators** — `in-line-cross`, `toggle`, path `navigation.navigateInline.boundaryJump`, default `false`
@@ -18835,8 +18835,8 @@ _Tip:_ A tagged line has three parts: what comes before your text, your text, an
   - старые названия для поиска: «Allow crossing Separators», «Continue past Separators»
 - **What to do at the end** — `in-line-boundary`, `dropdown`, path `navigation.navigateInline.onBoundary`, default `wrap`
   - desc: When there is nowhere further to go in the line
-  - tip: Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap to the other end</b> sends it back to the first word of the same stretch. <b>Go to the next line</b> leaves the line entirely
-  - варианты: `stay` Stay put · `wrap` Wrap to the other end · `next-line` Go to the next line
+  - tip: Say the cursor is on the last word before the closing Separator and you press again. <b>Stop</b> does nothing. <b>Wrap around</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely
+  - варианты: `stay` Stop · `wrap` Wrap around · `next-line` Next line
   - выключена если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «On boundary», «At the far end»
 
@@ -18852,21 +18852,21 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - старые названия для поиска: «Enable Jump To Header»
 - **Jump target** — `heading-jumps-mode`, `dropdown`, path `navigation.jumpToHeader.jumpMode`, default `edge`
   - desc: Hop between headings, or crawl from one written line to the next
-  - tip: <b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be
-  - варианты: `edge` Heading to heading · `line` Line by line
+  - tip: <b>Headings</b> is for finding your way around a long note. <b>Lines</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be
+  - варианты: `edge` Headings · `line` Lines
   - выключена если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Jump mode»
 - **Where in the section** — `heading-jumps-edge`, `dropdown`, path `navigation.jumpToHeader.edgeMode`, default `start-end`
   - desc: Land at the start of the part you jump to, or at its end
   - tip: <b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting
-  - варианты: `start-end` Alternate start and end · `start` Start only · `end` End only
+  - варианты: `start-end` Start and end · `start` Start only · `end` End only
   - видна если: `navigation.jumpToHeader.jumpMode`
   - выключена если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Edge behavior»
 - **Cursor position after jumping** — `heading-jumps-cursor`, `dropdown`, path `navigation.jumpToHeader.jumpCursorPosition`, default `section-end`
   - desc: Where on that line the cursor ends up
-  - tip: <b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags
-  - варианты: `start` Line start · `end` Line end · `section-start` Start of your text · `section-end` End of your text
+  - tip: <b>Text end</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Text start</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags
+  - варианты: `start` Line start · `end` Line end · `section-start` Text start · `section-end` Text end
   - выключена если: `navigation.jumpToHeader.enabled`
   - см. также: `separator-2` — Where your text ends is set by the second Separator
   - старые названия для поиска: «Jump cursor position», «Cursor on arrival»
@@ -18878,7 +18878,7 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
 - **Where the target lands** — `heading-jumps-view-position`, `dropdown`, path `navigation.jumpToHeader.viewPosition`, default `center`
   - desc: The place on screen the line you jump to is scrolled to
   - tip: The same place every time, and the same three choices <code>Moving behavior</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
-  - варианты: `center` Center of the screen · `top` Top of the screen · `bottom` Bottom of the screen
+  - варианты: `center` Center · `top` Top · `bottom` Bottom
   - видна если: `navigation.jumpToHeader.centerCursor`
   - выключена если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Scroll position», «Center on jump»
@@ -18918,18 +18918,18 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
 - **Child tag format** — `child-tag-format`, `dropdown`, path `pkm.behavior.childTagFormat`, default `separate`
   - desc: When a Value sits under another one, whether they are written as two tags or one
   - tip: Say <code>doing</code> has <code>review</code> under it. Two separate tags give you <code>#doing #review</code>, and searching for <code>#doing</code> finds the line. One combined tag gives <code>#doing/review</code>, which keeps the pair together in Obsidian’s tag list but means a search for the parent needs a slash. Every preview on the Visual tab follows whichever you pick
-  - варианты: `separate` Separate tags (#doing #review) · `combined` One tag (#doing/review)
+  - варианты: `separate` Separate (#doing #review) · `combined` Nested (#doing/review)
   - см. также: `tag-preview` — See it in the tag appearance preview
   - старые названия для поиска: «Subtag format»
 - **When a line empties out** — `cycle-end-behavior`, `dropdown`, path `pkm.behavior.cycleEndBehavior`, default `keep-bullet`
   - desc: What is left behind when cycling removes the last Value
-  - tip: Step a Field back past its first Value and the tag comes off the line. If that was the only thing on it, you are left with <code>- </code> and nothing else. <code>Keep the list bullet</code> leaves it as a list item ready for typing; <code>Clear the line</code> leaves a blank line
-  - варианты: `keep-bullet` Keep the list bullet · `clear-prefix` Clear the line
+  - tip: Step a Field back past its first Value and the tag comes off the line. If that was the only thing on it, you are left with <code>- </code> and nothing else. <code>Keep bullet</code> leaves it as a list item ready for typing; <code>Clear line</code> leaves a blank line
+  - варианты: `keep-bullet` Keep bullet · `clear-prefix` Clear line
   - старые названия для поиска: «Line Prefix after end of cycle»
 - **Cursor after an action** — `cursor-policy`, `dropdown`, path `pkm.behavior.cursorPolicy`, default `text_end`
   - desc: Where the cursor waits once a tag or date has been set
   - tip: Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from
-  - варианты: `text_end` End of your text · `current_position` Leave it where it was · `line_end` End of the line
+  - варианты: `text_end` Text end · `current_position` Don't move · `line_end` Line end
   - старые названия для поиска: «Cursor behavior»
 
 #### tagWheel behavior — `tagwheel-behavior` (вкладка `pkm`)
@@ -18940,30 +18940,30 @@ _Tip:_ tagWheel is the picker that opens over your line with your Fields laid ou
 
 - **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
   - desc: Which Field the picker lands on when it opens
-  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>A Field you choose</code> on its first; with the cursor on one of its Values it opens on that Value’s Field
-  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
+  - tip: tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field</code> lands on the one standing first in your order. <code>Middle Field</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>Chosen Field</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>Chosen Field</code> on its first; with the cursor on one of its Values it opens on that Value’s Field
+  - варианты: `first` First Field · `middle` Middle Field · `custom` Chosen Field
   - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
 - **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
   - desc: The Field tagWheel lands on when it opens on the left
   - tip: Only Fields standing in the Left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the Left Block falls back to its first
-  - варианты: `` First Field of the Block
+  - варианты: `` First Field
   - видна если: `visual.tagWheel.activeField.mode`
   - старые названия для поиска: «Lead Field left»
 - **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
   - desc: The Field tagWheel lands on when it opens on the right
-  - tip: Only Fields standing in the Right Block are offered. Leave it on <code>First Field of the Block</code> and the right side opens on its first Field
-  - варианты: `` First Field of the Block
+  - tip: Only Fields standing in the Right Block are offered. Leave it on <code>First Field</code> and the right side opens on its first Field
+  - варианты: `` First Field
   - видна если: `visual.tagWheel.activeField.mode`
   - старые названия для поиска: «Lead Field right»
 - **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
   - desc: What happens to the Values you are not picking while the picker is open
-  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text
-  - варианты: `hide` Hide them while the picker is open · `keep` Keep them in sight
+  - tip: tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Show</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text
+  - варианты: `hide` Hide · `keep` Show
   - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
 - **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
   - desc: What the arrow keys do when there is no next Field on this side
-  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the Left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block
-  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
+  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in Block</code> keeps you there: past the last Field you land back on the first. <code>Next Block</code> makes the two into one ring — step right off the end of the Left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block
+  - варианты: `stay` Stay in Block · `next-block` Next Block
   - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
 - **Switch custom blocks on Tab** — `wheel-custom-tab`, `toggle`, path `visual.tagWheel.customTab`, default `false`
   - desc: Tab in a custom block’s tagWheel moves on to the next custom block
@@ -19004,8 +19004,8 @@ _Tip:_ This block matters only if two of your Values both want the start of the 
   - старые названия для поиска: «Main checkbox priority», «Prefix Resolver»
 - **Field order source** — `prefix-priority-source`, `dropdown`, path `pkm.prefixPriority.fieldOrderSource`, default `manual`
   - desc: Use the order your Fields are already in, or arrange a separate one
-  - tip: Two Values may both want to change the start of the line, and then one of them has to win. <code>By Field order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual order</code> gives this question its own list, independent of the Blocks
-  - варианты: `auto` By Field order · `manual` Manual order
+  - tip: Two Values may both want to change the start of the line, and then one of them has to win. <code>Field order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual</code> gives this question its own list, independent of the Blocks
+  - варианты: `auto` Field order · `manual` Manual
   - видна если: `pkm.prefixPriority.decideBy`
   - старые названия для поиска: «Field order mode»
 - **`field-order-list`** — свой блок, рендерер `renderFieldOrderList`
@@ -19072,8 +19072,8 @@ _Tip:_ Three ways of finding one are tried in turn, and the first that works win
 
 - **Note name** — `naming-mode`, `dropdown`, path `transform.inline2note.noteName.mode`, default `auto`
   - desc: Take the name from the line, or stop and ask you for it
-  - tip: <b>Ask me</b> opens a small box with the suggested name already filled in, so you can accept it or type your own
-  - варианты: `auto` From the line · `manual` Ask me
+  - tip: <b>Ask</b> opens a small box with the suggested name already filled in, so you can accept it or type your own
+  - варианты: `auto` From line · `manual` Ask
   - старые названия для поиска: «Note name mode»
 - **Name brackets** — `naming-delimiters`, `text`, path `transform.inline2note.noteName.delimiters`, default `[]`
   - desc: Two characters. Whatever you put between them becomes the name
@@ -19086,8 +19086,8 @@ _Tip:_ Three ways of finding one are tried in turn, and the first that works win
   - старые названия для поиска: «Auto title word count»
 - **If the name already taken** — `naming-collision`, `dropdown`, path `transform.inline2note.nameCollision.mode`, default `new_note`
   - desc: What to do when you already have a note with that name
-  - tip: <b>Create a second note</b> adds a number to the name and never touches what you already wrote — the safe choice. <b>Add to the existing one</b> is what you want for a running log. <b>Replace what is in it</b> throws the old contents away, and this plugin cannot give them back
-  - варианты: `new_note` Create a second note · `add_to_note` Add to the existing one · `overwrite` Replace what is in it
+  - tip: <b>New note</b> adds a number to the name and never touches what you already wrote — the safe choice. <b>Add to existing</b> is what you want for a running log. <b>Overwrite</b> throws the old contents away, and this plugin cannot give them back
+  - варианты: `new_note` New note · `add_to_note` Add to existing · `overwrite` Overwrite
   - старые названия для поиска: «Name collision mode», «If the name is taken»
 
 #### Note content — `note-content` (вкладка `transform`)
@@ -19098,8 +19098,8 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
 
 - **Where to put the text** — `content-position`, `dropdown`, path `transform.inline2note.placement.position`, default `end`
   - desc: At the top of the note, or after whatever is already there
-  - tip: If you are adding to a note over and over — a diary, a log of calls — pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference. <b>At custom heading</b> is for a note laid out in sections: name the heading below and every entry lands at the end of that section, whatever else the note gains over time
-  - варианты: `beginning` At the beginning · `end` At the end · `custom-header` At custom heading
+  - tip: If you are adding to a note over and over — a diary, a log of calls — pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference. <b>Under heading</b> is for a note laid out in sections: name the heading below and every entry lands at the end of that section, whatever else the note gains over time
+  - варианты: `beginning` Beginning · `end` End · `custom-header` Under heading
   - старые названия для поиска: «Where to place inline text?»
 - **Name of the heading** — `content-target-header`, `text`, path `transform.inline2note.placement.targetHeader`, default `""`
   - desc: The heading your text is filed under
@@ -19108,17 +19108,17 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
 - **If heading not found** — `content-header-missing`, `dropdown`, path `transform.inline2note.placement.fallback`, default `end`
   - desc: Where the heading is added when the note has none
   - tip: A brand new note, or one you have not laid out yet, has no such heading — so the heading is <b>written for you</b> here, and your text goes under it. It is written exactly as you named it above, hashes and all, so the next entry finds it and joins the same section instead of starting a second one
-  - варианты: `beginning` At the beginning · `end` At the end
+  - варианты: `beginning` Beginning · `end` End
   - видна если: `transform.inline2note.placement.position`
 - **Line above the text** — `content-header-mode`, `dropdown`, path `transform.inline2note.placement.headerMode`, default `datetime`
   - desc: Something to put above your text so entries stay apart
   - tip: Useful when a note collects many entries: a date, or a word of your own, keeps them from running together. Whether that line is a heading is a separate question, and the row below answers it
-  - варианты: `custom` Fixed text · `datetime` Date and time · `none` Nothing
+  - варианты: `custom` Fixed text · `datetime` Date and time · `none` None
   - старые названия для поиска: «Inserted block header»
 - **Line above is a heading** — `content-header-level`, `dropdown`, path `transform.inline2note.placement.headerLevel`, default `3`
   - desc: Make that line a heading you can fold, or leave it as plain text
   - tip: A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself — this row puts them in, so the boxes below hold only the text
-  - варианты: `0` No (plain text) · `1` 1 · `2` 2 · `3` 3 · `4` 4 · `5` 5 · `6` 6
+  - варианты: `0` Plain text · `1` 1 · `2` 2 · `3` 3 · `4` 4 · `5` 5 · `6` 6
   - видна если: `transform.inline2note.placement.headerMode`
 - **Text of the line above** — `content-header-text`, `text`, path `transform.inline2note.placement.customHeader`, default `Captured`
   - desc: Typed into the note exactly as you write it here
@@ -19139,14 +19139,14 @@ _Tip:_ The note is written first, and only then is your line touched, so nothing
 - **`source-preview`** — свой блок, рендерер `renderSourcePreview`
 - **Sub-lines (tree) behavior** — `content-sublines`, `dropdown`, path `transform.inline2note.sublines`, default `stay`
   - desc: Leave them where they are, or take them into the note too
-  - tip: Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on
-  - варианты: `stay` Leave them · `remove` Take them along
+  - tip: Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> moves only the line you pressed on
+  - варианты: `stay` Keep · `remove` Move
   - видна если: `transform.inline2note.enabled`
   - старые названия для поиска: «Sublines behavior»
 - **What happens with current line** — `source-text`, `dropdown`, path `transform.inline2note.sourceProcessing.text`, default `remove`
   - desc: The text goes into the note either way — this is about the line you pressed on
-  - tip: <b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own — useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Leave it, but not the name</b> keeps the rest of your text and lets the link stand where the name came from, so nothing is said twice. <b>Keep the first words</b> does the same and trims what is left to the number of words below. Sub-lines are a separate question, and the row above answers it
-  - варианты: `remove` Take it away · `leave` Leave it · `leave_named` Leave it, but not the name · `words` Keep the first words
+  - tip: <b>Remove</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Keep</b> keeps the line readable on its own — useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Keep without name</b> keeps the rest of your text and lets the link stand where the name came from, so nothing is said twice. <b>Keep first words</b> does the same and trims what is left to the number of words below. Sub-lines are a separate question, and the row above answers it
+  - варианты: `remove` Remove · `leave` Keep · `leave_named` Keep without name · `words` Keep first words
   - видна если: `transform.inline2note.enabled`
   - старые названия для поиска: «What happens to your text»
 - **Words to keep** — `source-keep-words`, `number`, path `transform.inline2note.sourceProcessing.keepWords`, default `3`
@@ -19202,8 +19202,8 @@ _Tip:_ A line often names the notes it belongs to — a project, a person, a pla
   - старые названия для поиска: «Create wikilink to transformed note in reference notes», «Backlinks into the notes you mention», «Automatic MOC»
 - **Where to put the link** — `backlink-position`, `dropdown`, path `transform.inline2note.backlink.placement.position`, default `end`
   - desc: At the top of that note, or after whatever is already there
-  - tip: <b>At the end</b> keeps the links in the order you filed them, which is what a growing list wants. <b>At custom heading</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section
-  - варианты: `beginning` At the beginning · `end` At the end · `custom-header` At custom heading
+  - tip: <b>End</b> keeps the links in the order you filed them, which is what a growing list wants. <b>Under heading</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section
+  - варианты: `beginning` Beginning · `end` End · `custom-header` Under heading
   - видна если: `transform.inline2note.backlink.enabled`
   - старые названия для поиска: «Where the backlink goes»
 - **Name of the heading** — `backlink-target-header`, `text`, path `transform.inline2note.backlink.placement.targetHeader`, default `""`
@@ -19213,7 +19213,7 @@ _Tip:_ A line often names the notes it belongs to — a project, a person, a pla
 - **If heading not found** — `backlink-header-missing`, `dropdown`, path `transform.inline2note.backlink.placement.fallback`, default `end`
   - desc: Where the heading is added when that note has none
   - tip: A note that has not been laid out yet has no such heading — so the heading is written for you here, and the link goes under it. It is written exactly as you named it above, hashes and all, so the next link finds it and joins the same section
-  - варианты: `beginning` At the beginning · `end` At the end
+  - варианты: `beginning` Beginning · `end` End
   - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.placement.position`
 
 #### Smart Rules — `smart-rules` (вкладка `transform`)
@@ -19356,7 +19356,7 @@ _Tip:_ Bars are drawn from the colors of one Field, and you pick which one below
 - **Which Field draws Bars** — `bars-field`, `dropdown`, path `visual.tagBars.fieldId`, default `""`
   - desc: Bars work with tag Fields only, and only for the one chosen here
   - tip: Pick the one thing you scan a page for — usually how far along something is, or how urgent it is. The list is your own tag Fields: a Field of another type has no Value color, and a Bar is drawn in the color of the Value. Switch between Fields and the Bars in the preview above change shape, not just color, because different lines carry different Fields
-  - варианты: `` No Field chosen
+  - варианты: `` None
   - видна если: `visual.tagBars.active`
   - см. также: `field-editor` — Bar colors are the Value colors under Fields
   - старые названия для поиска: «Strip Field»
@@ -19379,7 +19379,7 @@ _Tip:_ Bars are drawn from the colors of one Field, and you pick which one below
 - **Bar arrangement** — `bars-mode`, `dropdown`, path `visual.tagBars.mode`, default `default`
   - desc: Which lane each level of the tree draws its Bar in
   - tip: Bars are drawn in lanes, one per level, left to right. With <b>parent keeps the outer lane</b> the top line of a tree always owns the leftmost lane, its child the next one in, and so on — so a lane always means the same depth, and you can read nesting by counting from the left. With <b>lanes rotate</b> each new level takes the next lane round in turn, which keeps deep trees narrower but means a lane no longer tells you the depth
-  - варианты: `default` Parent keeps the outer lane · `crossing` Lanes rotate
+  - варианты: `default` Parent outside · `crossing` Rotate
   - видна если: `visual.tagBars.active`
   - старые названия для поиска: «Strip mode»
 - **Bar thickness** — `bars-thickness`, `slider`, path `visual.tagBars.thickness`, default `2`
@@ -19431,8 +19431,8 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «Show Prefix»
 - **tagWheel Value names** — `panel-value-names`, `dropdown`, path `visual.tagWheel.valueNames`, default `default`
   - desc: What the picker prints for a Field that already carries a Value
-  - tip: A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
-  - варианты: `default` Default name · `custom` Only custom name · `both` Custom+Default name
+  - tip: A Field that already carries a Value shows that Value in the picker. <code>Default</code> shows it the way it goes into your line, marks and all. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom + default</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank
+  - варианты: `default` Default · `custom` Custom · `both` Custom + default
   - старые названия для поиска: «Value names», «Custom text in the picker», «Printed name»
 - **Highlight the tagWheel line** — `panel-highlight`, `toggle`, path `visual.tagWheel.highlightLine`, default `true`
   - desc: Mark the line while the picker is open, so it stands out from the page
@@ -19461,14 +19461,14 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «tagWheel Scroller»
 - **Scroller opening direction** — `scroller-direction`, `dropdown`, path `visual.tagWheel.scroller.direction`, default `full`
   - desc: Which way the Values unroll from the Field you are on
-  - tip: The scroller shows the Values around the one you are on. Upwards keeps your line at the bottom of it and your note visible below; downwards does the opposite. <code>Both ways</code> centers the current Value and is easiest to read when a Field has many Values
-  - варианты: `up` Upwards · `down` Downwards · `full` Both ways
+  - tip: The scroller shows the Values around the one you are on. <code>Up</code> keeps your line at the bottom of it and your note visible below; <code>Down</code> does the opposite. <code>Both</code> centers the current Value and is easiest to read when a Field has many Values
+  - варианты: `up` Up · `down` Down · `full` Both
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Scroller direction», «Opens»
 - **Scroller Value names** — `scroller-labels`, `dropdown`, path `visual.tagWheel.scroller.labels`, default `value`
   - desc: What the box shows for each neighboring Value
-  - tip: <code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Only custom name</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank
-  - варианты: `value` Default name · `custom` Only custom name · `both` Custom+Default name
+  - tip: <code>Default</code> shows the Value the way it goes into your line, marks and all. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom + default</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank
+  - варианты: `value` Default · `custom` Custom · `both` Custom + default
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Scroller names», «Custom text in the scroller», «Printed name», «As written», «Custom text when set»
 - **Scroller background color** — `scroller-fill`, `color`, path `visual.tagWheel.scroller.fillColor`, default `""`

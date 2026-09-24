@@ -239,16 +239,16 @@ exactly as it was.
 
 `Where it works` decides how much of the line counts as one record. `Anywhere in the
 line` keeps the whole line together: wherever the cursor stands — in a Block, on a
-Separator or in your text — the key adds a line below. `Only in your text` narrows it to
+Separator or in your text — the key adds a line below. `Text only` narrows it to
 the text slot, the part between your Separators, so `Enter` inside a Block goes back to
 being Obsidian’s own. If a line carries only one Separator, the text slot is whatever
 lies after the first or before the second.
 
 `Prefix on the new line` decides what the new line starts with, and it has three
-settings. `Same as the line above` repeats the marker exactly as Obsidian does it on its
+settings. `Same as above` repeats the marker exactly as Obsidian does it on its
 own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox
 arrives empty, because a line you have not written yet is not a task you have done.
-`None` starts the new line bare. `None, unless the line is numbered` does the same but
+`None` starts the new line bare. `Numbered lines only` does the same but
 keeps the count going, so a numbered list does not lose its place; a checkbox still goes,
 because there the answer is no to everything except the numbering. The indent is kept by
 all three.
@@ -286,14 +286,14 @@ Under **Navigation → Jump inside a note (up/down)**, `Follow the jump target` 
 
 ### The edge of a Block in tagWheel
 
-Under **Tags & PKM → tagWheel behavior**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
+Under **Tags & PKM → tagWheel behavior**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in Block` is the way it has always worked: past the last Field you land back on the first. `Next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
 
 ### The other Block while tagWheel is open
 
 The picker takes the place of the Block it is standing in, and what happens to the other
 one is set under **Tags & PKM → tagWheel behavior**, `Values in the other Block`. `Hide them while the
 picker is open` is how it has always worked: the other Block leaves the line for as long
-as you are choosing. `Keep them in sight` leaves it written where it belongs, on its own
+as you are choosing. `Show` leaves it written where it belongs, on its own
 side of your text, so you can see what the line already carries.
 
 Either way nothing is written or removed: what you pick lands on the line when the picker
@@ -458,7 +458,7 @@ tagWheel and direct increase/decrease commands use the same field, ordering, pre
 
 Optional **Visual → tagWheel → tagWheel Scroller** shows nearby values above editor text. Set direction to `up`, `down`, or `full`, and visible size from 1 to 20 items per side.
 
-One known limit, measured rather than guessed: while the panel is open it holds its strip in the text of the note, which takes the Values it stands on out of the line for that moment. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Setting `Values in the other Block` to `Keep them in sight` removes the case where only that Block was filled; the case where the Block under the panel was filled too is still open, and the fix for it is structural.
+One known limit, measured rather than guessed: while the panel is open it holds its strip in the text of the note, which takes the Values it stands on out of the line for that moment. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Setting `Values in the other Block` to `Show` removes the case where only that Block was filled; the case where the Block under the panel was filled too is still open, and the fix for it is structural.
 
 ### Prefix priority
 
@@ -612,7 +612,7 @@ Before first use, review these initial defaults:
 - **Sublines behavior:** Stay
 - **Name collision:** `new_note` (create a new note, adding a suffix when needed)
 - **Value YAML rule:** Raw
-- **Template body placement:** end (`At custom heading` is off until you pick it)
+- **Template body placement:** end (`Under heading` is off until you pick it)
 - **Inserted block header:** current datetime
 - **Open transformed note:** off; target does not auto-open
 
@@ -647,7 +647,7 @@ status: inbox
 
 For new/overwrite operations, transformed source content is inserted at the beginning of the template body, at its end, or at the end of a section you name.
 
-**At custom heading** asks for two more things. **Name of the heading** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If heading not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
+**Under heading** asks for two more things. **Name of the heading** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If heading not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
 
 The inserted block header can be:
 
@@ -663,7 +663,7 @@ A smart rule routes a source line to a template based on tags, element markers, 
 
 - Values within one condition group use OR matching.
 - Non-empty groups on the same rule all must match.
-- **Advanced settings** on a rule decides where the text lands for that rule alone. `Default` follows **Note content**; `Set for this rule` opens the same rows and keeps them with the rule. Switching back to `Default` does not erase what you set.
+- **Advanced settings** on a rule decides where the text lands for that rule alone. `Default` follows **Note content**; `Custom` opens the same rows and keeps them with the rule. Switching back to `Default` does not erase what you set.
 - Rules fold. The mark in the card header collapses a rule to two lines — its name and one summary line with the conditions, the template and the folder — and the controls stay in the header. The panel opens with rules folded; a rule you have just added stays open until you fold it. Folding is a view, not a setting: it is not written into your configuration.
 - Rules are checked in order; first matching enabled rule with a target template wins.
 - If no rule matches, the default template is used.

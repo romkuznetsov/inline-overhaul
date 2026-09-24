@@ -1691,7 +1691,7 @@ function heightBtn(host: StubNode): StubNode {
     String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode;
   const pick = all(childRow, "io-select")[0] as StubNode;
   assert.equal(String(pick.children.find(c => String(c.value) === "alt")?.textContent || "").trim(),
-    "Show when press Alt", "положение названо его словами");
+    "On Alt", "положение названо коротко — его заказ 2026-09-24 о подписях списков");
   pick.value = "alt";
   pick.dispatch("change");
   assert.deepEqual(v.writes.map(w => w.reason),

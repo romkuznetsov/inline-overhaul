@@ -1954,10 +1954,10 @@ const SCHEMA = [
       name:"Selection steps", desc:"How much more gets picked up on each press",
       searchTerms:["Select-all mode"], disabled: not("editor.selectAll.enabled"),
       options:[
-        { value:"line-note", label:"Line, then note" },
-        { value:"line-tree-note", label:"Line, tree, then note" },
-        { value:"line-tree-header-note", label:"Line, tree, heading, then note" },
-        { value:"word-line-tree-header-note", label:"Word, line, tree, heading, then note" },
+        { value:"line-note", label:"Line, note" },
+        { value:"line-tree-note", label:"Line, tree, note" },
+        { value:"line-tree-header-note", label:"Line, tree, heading, note" },
+        { value:"word-line-tree-header-note", label:"Word, line, tree, heading, note" },
         { value:"custom", label:"Custom" }
       ],
       tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note" },
@@ -2041,9 +2041,9 @@ const SCHEMA = [
       name:"Where it works", desc:"How much of the line the key treats as one record",
       searchTerms:["Smart Enter scope","Only in your text"],
       disabled: not("editor.smartEnter.enabled"),
-      options:[ {value:"line",label:"Anywhere in the line"},
-                {value:"text",label:"Only in your text"} ],
-      tip:"<b>Anywhere in the line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Only in your text</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second" },
+      options:[ {value:"line",label:"Whole line"},
+                {value:"text",label:"Text only"} ],
+      tip:"<b>Whole line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Text only</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second" },
     /* Три положения, а не два: решение заказчика 2026-09-13. Он сам назвал
        исключение недодуманным — «нет, но кроме как если префикс нумерация,
        тогда да» — и выбрал его третьим положением, а не правилом внутри
@@ -2053,10 +2053,10 @@ const SCHEMA = [
       name:"Prefix on the new line", desc:"What the line <code>Smart Enter</code> adds starts with",
       searchTerms:["Keep the bullet","New line Prefix","Carry the Prefix over"],
       disabled: not("editor.smartEnter.enabled"),
-      options:[ {value:"same",label:"Same as the line above"},
+      options:[ {value:"same",label:"Same as above"},
                 {value:"none",label:"None"},
-                {value:"number-only",label:"None, unless the line is numbered"} ],
-      tip:"<b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" },
+                {value:"number-only",label:"Numbered lines only"} ],
+      tip:"<b>Same as above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>Numbered lines only</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" },
     /* Smart paste (`З-31`, `З-32`). Имя его, и оно поменялось 2026-09-21:
        «сразу хочу изменить название на Smart paste». Свой раздел, как у трёх
        соседних, и умолчание выключено по той же причине: клавиша принадлежит
@@ -2126,12 +2126,12 @@ const SCHEMA = [
     { kind:"dropdown", id:"move-lines-no-selection", path:"navigation.moveLine.noSelectionMode", default:"line-only",
       name:"Moving behavior", desc:"Whether the tree under the line travels with it",
       searchTerms:["No-selection mode"], disabled: not("navigation.moveLine.enabled"),
-      options:[ {value:"line-only",label:"The line only"}, {value:"with-children",label:"The whole tree"} ],
-      tip:"Say a line has three lines indented under it. <b>The line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>The whole tree</b> keeps the four together and moves them as one block" },
+      options:[ {value:"line-only",label:"Line only"}, {value:"with-children",label:"Whole tree"} ],
+      tip:"Say a line has three lines indented under it. <b>Line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>Whole tree</b> keeps the four together and moves them as one block" },
     { kind:"dropdown", id:"move-lines-heading", path:"navigation.moveLine.headerMode", default:"move-as-line",
       name:"Moving headings", desc:"If you are moving a heading, this decides whether the whole section moves or just the heading line",
       searchTerms:["Header mode"], disabled: not("navigation.moveLine.enabled"),
-      options:[ {value:"move-as-line",label:"Heading only"}, {value:"move-with-section",label:"Heading with its section"} ],
+      options:[ {value:"move-as-line",label:"Heading only"}, {value:"move-with-section",label:"Whole section"} ],
       tip:"With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings" },
     { kind:"toggle", id:"move-lines-cross", path:"navigation.moveLine.crossSectionAllowed", default:true,
       name:"Cross heading boundaries", desc:"Let a line travel past a heading into the part of the note below it",
@@ -2152,9 +2152,9 @@ const SCHEMA = [
       name:"Where the line lands", desc:"The place on screen the moved line is scrolled to",
       searchTerms:["Scroll position","Center on move"],
       visible: on("navigation.moveLine.keepInView"), disabled: not("navigation.moveLine.enabled"),
-      options:[ {value:"center",label:"Center of the screen"},
-                {value:"top",label:"Top of the screen"},
-                {value:"bottom",label:"Bottom of the screen"} ],
+      options:[ {value:"center",label:"Center"},
+                {value:"top",label:"Top"},
+                {value:"bottom",label:"Bottom"} ],
       tip:"The same place every time, so the note does not jump: one press does not center the line while the next throws it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
@@ -2174,15 +2174,15 @@ const SCHEMA = [
     { kind:"dropdown", id:"move-text-step", path:"navigation.moveSelection.inlineMoveMode", default:"auto",
       name:"Movement step", desc:"How far the highlighted text goes on each press",
       searchTerms:["Inline move mode"], disabled: not("navigation.moveSelection.inlineEnabled"),
-      options:[ {value:"auto",label:"Automatic"}, {value:"char",label:"One character"},
-                {value:"word",label:"Whole word"}, {value:"disabled",label:"Off"} ],
-      tip:"<b>Automatic</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way" },
+      options:[ {value:"auto",label:"Auto"}, {value:"char",label:"Character"},
+                {value:"word",label:"Word"}, {value:"disabled",label:"Off"} ],
+      tip:"<b>Auto</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way" },
     { kind:"toggle", id:"move-text-word-escape", path:"navigation.moveSelection.inlineWordEscape", default:false,
       name:"Step out of the word", desc:"Let a highlighted part of a word carry on past the word it came from",
       searchTerms:["Leave the word","Word escape"],
       visible: eq("navigation.moveSelection.inlineMoveMode","auto"),
       disabled: not("navigation.moveSelection.inlineEnabled"),
-      tip:"Only <code>Automatic</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Automatic</code> moves them letter by letter \u2014 but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point \u2014 the highlighted piece goes wherever you press. Off is the way it has always worked" },
+      tip:"Only <code>Auto</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Auto</code> moves them letter by letter \u2014 but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point \u2014 the highlighted piece goes wherever you press. Off is the way it has always worked" },
     { kind:"toggle", id:"move-text-cross", path:"navigation.moveSelection.inlineBoundaryJump", default:true,
       name:"Continue past Separators", desc:"Let the highlighted text leave your text and move into the tags at either end",
       disabled: not("navigation.moveSelection.inlineEnabled"),
@@ -2202,9 +2202,9 @@ const SCHEMA = [
       tip:"On, both keys change the marker while the line sits at the left edge: <code>Move right</code> walks down the list below and <code>Move left</code> walks back up. <b>An indented line is not part of this</b> \u2014 there <code>Move right</code> indents as it always did, and cycling stays a <code>Move left</code> job. <b>The price is at the left edge</b>: a line with no indent is no longer pushed by <code>Move right</code> while the list still has somewhere to go, and what happens when it runs out is <code>After the last one</code> \u2014 with <b>Start over</b> the key never pushes at all, and indenting is left to <code>Tab</code>. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents" },
     { kind:"dropdown", id:"prefix-cycle-end", path:"navigation.moveSelection.onCycleEnd", default:"indent",
       name:"After the last one", desc:"What happens when you reach the bottom of the list below",
-      tip:"<b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Increase indent</b> stops cycling and starts pushing the line to the right instead",
+      tip:"<b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Indent</b> stops cycling and starts pushing the line to the right instead",
       searchTerms:["On cycle end"], disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
-      options:[ {value:"indent",label:"Increase indent"}, {value:"wrap",label:"Start over"} ] },
+      options:[ {value:"indent",label:"Indent"}, {value:"wrap",label:"Start over"} ] },
 
     { kind:"toggle", id:"indent-fallback", path:"navigation.moveSelection.indentFallbackEnabled", default:true,
       name:"Change the indent", desc:"When neither of the two jobs above applies, move the line right or left instead",
@@ -2225,22 +2225,22 @@ const SCHEMA = [
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",
       name:"Jump target", desc:"Hop between headings, or crawl from one written line to the next",
       searchTerms:["Jump mode"], disabled: not("navigation.jumpToHeader.enabled"),
-      options:[ {value:"edge",label:"Heading to heading"}, {value:"line",label:"Line by line"} ],
-      tip:"<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be" },
+      options:[ {value:"edge",label:"Headings"}, {value:"line",label:"Lines"} ],
+      tip:"<b>Headings</b> is for finding your way around a long note. <b>Lines</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be" },
     { kind:"dropdown", id:"heading-jumps-edge", path:"navigation.jumpToHeader.edgeMode", default:"start-end",
       name:"Where in the section", desc:"Land at the start of the part you jump to, or at its end",
       tip:"<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
       searchTerms:["Edge behavior"],
       visible: eq("navigation.jumpToHeader.jumpMode","edge"), disabled: not("navigation.jumpToHeader.enabled"),
-      options:[ {value:"start-end",label:"Alternate start and end"},
+      options:[ {value:"start-end",label:"Start and end"},
                 {value:"start",label:"Start only"}, {value:"end",label:"End only"} ] },
     { kind:"dropdown", id:"heading-jumps-cursor", path:"navigation.jumpToHeader.jumpCursorPosition", default:"section-end",
       name:"Cursor position after jumping", desc:"Where on that line the cursor ends up",
       searchTerms:["Jump cursor position", "Cursor on arrival"], disabled: not("navigation.jumpToHeader.enabled"),
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
-                {value:"section-start",label:"Start of your text"},
-                {value:"section-end",label:"End of your text"} ],
-      tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Start of your text</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags",
+                {value:"section-start",label:"Text start"},
+                {value:"section-end",label:"Text end"} ],
+      tip:"<b>Text end</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Text start</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags",
       seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } },
     /* \u041c\u0435\u0441\u0442\u043e \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0430: \u0437\u0430\u043a\u0430\u0437 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-09-06, \u00ab\u0442\u0430\u043a\u0430\u044f \u0436\u0435
        \u043e\u043f\u0446\u0438\u044f, \u043a\u0430\u043a \u0443 \u043f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u043e\u043a\u0438\u00bb (PRD 10.13.37). \u0422\u0443\u043c\u0431\u043b\u0435\u0440 \u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u0438 \u043a\u043b\u044e\u0447
@@ -2255,9 +2255,9 @@ const SCHEMA = [
       name:"Where the target lands", desc:"The place on screen the line you jump to is scrolled to",
       searchTerms:["Scroll position","Center on jump"],
       visible: on("navigation.jumpToHeader.centerCursor"), disabled: not("navigation.jumpToHeader.enabled"),
-      options:[ {value:"center",label:"Center of the screen"},
-                {value:"top",label:"Top of the screen"},
-                {value:"bottom",label:"Bottom of the screen"} ],
+      options:[ {value:"center",label:"Center"},
+                {value:"top",label:"Top"},
+                {value:"bottom",label:"Bottom"} ],
       tip:"The same place every time, and the same three choices <code>Moving behavior</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
@@ -2273,10 +2273,10 @@ const SCHEMA = [
       searchTerms:["Enable Navigate Inline"] },
     { kind:"dropdown", id:"in-line-step", path:"navigation.navigateInline.stepMode", default:"word",
       name:"Step size", desc:"How big a hop the cursor makes each time",
-      tip:"<b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Straight to the start or end</b> skips the middle entirely and lands at one end of your text",
+      tip:"<b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Start or end</b> skips the middle entirely and lands at one end of your text",
       searchTerms:["Step mode"], disabled: not("navigation.navigateInline.enabled"),
       options:[ {value:"word",label:"Word"}, {value:"sentence",label:"Sentence"},
-                {value:"begin-end",label:"Straight to the start or end"} ] },
+                {value:"begin-end",label:"Start or end"} ] },
     { kind:"toggle", id:"in-line-cross", path:"navigation.navigateInline.boundaryJump", default:false,
       name:"Continue past Separators", desc:"Let the cursor leave your text and walk into the tags at either end",
       searchTerms:["Allow crossing Separators", "Continue past Separators"], disabled: not("navigation.navigateInline.enabled"),
@@ -2284,9 +2284,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"in-line-boundary", path:"navigation.navigateInline.onBoundary", default:"wrap",
       name:"What to do at the end", desc:"When there is nowhere further to go in the line",
       searchTerms:["On boundary", "At the far end"], disabled: not("navigation.navigateInline.enabled"),
-      tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap to the other end</b> sends it back to the first word of the same stretch. <b>Go to the next line</b> leaves the line entirely",
-      options:[ {value:"stay",label:"Stay put"}, {value:"wrap",label:"Wrap to the other end"},
-                {value:"next-line",label:"Go to the next line"} ] }
+      tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stop</b> does nothing. <b>Wrap around</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
+      options:[ {value:"stay",label:"Stop"}, {value:"wrap",label:"Wrap around"},
+                {value:"next-line",label:"Next line"} ] }
   ]
 },
 
@@ -2321,15 +2321,15 @@ const SCHEMA = [
     { kind:"dropdown", id:"child-tag-format", path:"pkm.behavior.childTagFormat", default:"separate",
       name:"Child tag format", desc:"When a Value sits under another one, whether they are written as two tags or one",
       searchTerms:["Subtag format"],
-      options:[ {value:"separate",label:"Separate tags (#doing #review)"},
-                {value:"combined",label:"One tag (#doing/review)"} ],
+      options:[ {value:"separate",label:"Separate (#doing #review)"},
+                {value:"combined",label:"Nested (#doing/review)"} ],
       tip:"Say <code>doing</code> has <code>review</code> under it. Two separate tags give you <code>#doing #review</code>, and searching for <code>#doing</code> finds the line. One combined tag gives <code>#doing/review</code>, which keeps the pair together in Obsidian\u2019s tag list but means a search for the parent needs a slash. Every preview on the Visual tab follows whichever you pick",
       seeAlso:{ id:"tag-preview", label:"See it in the tag appearance preview" } },
     { kind:"dropdown", id:"cycle-end-behavior", path:"pkm.behavior.cycleEndBehavior", default:"keep-bullet",
       name:"When a line empties out", desc:"What is left behind when cycling removes the last Value",
       searchTerms:["Line Prefix after end of cycle"],
-      options:[ {value:"keep-bullet",label:"Keep the list bullet"}, {value:"clear-prefix",label:"Clear the line"} ],
-      tip:"Step a Field back past its first Value and the tag comes off the line. If that was the only thing on it, you are left with <code>- </code> and nothing else. <code>Keep the list bullet</code> leaves it as a list item ready for typing; <code>Clear the line</code> leaves a blank line" },
+      options:[ {value:"keep-bullet",label:"Keep bullet"}, {value:"clear-prefix",label:"Clear line"} ],
+      tip:"Step a Field back past its first Value and the tag comes off the line. If that was the only thing on it, you are left with <code>- </code> and nothing else. <code>Keep bullet</code> leaves it as a list item ready for typing; <code>Clear line</code> leaves a blank line" },
     { kind:"dropdown", id:"cursor-policy", path:"pkm.behavior.cursorPolicy", default:"text_end",
       name:"Cursor after an action", desc:"Where the cursor waits once a tag or date has been set",
       searchTerms:["Cursor behavior"],
@@ -2337,9 +2337,9 @@ const SCHEMA = [
          помечает стандартный вариант «(default)», и два ответа на один вопрос
          читались подряд — `End of your text (recommended) (default)`. Какой
          вариант чаще всего нужен, говорит `tip` ниже. */
-      options:[ {value:"text_end",label:"End of your text"},
-                {value:"current_position",label:"Leave it where it was"},
-                {value:"line_end",label:"End of the line"} ],
+      options:[ {value:"text_end",label:"Text end"},
+                {value:"current_position",label:"Don't move"},
+                {value:"line_end",label:"Line end"} ],
       tip:"Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from" }
   ]
 },
@@ -2359,22 +2359,22 @@ const SCHEMA = [
     { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
       name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
       searchTerms:["Lead Field","Starting Field","Active Field"],
-      options:[ {value:"first",label:"First Field of the Block"},
-                {value:"middle",label:"Middle Field of the Block"},
-                {value:"custom",label:"A Field you choose"} ],
-      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>A Field you choose</code> on its first; with the cursor on one of its Values it opens on that Value’s Field" },
+      options:[ {value:"first",label:"First Field"},
+                {value:"middle",label:"Middle Field"},
+                {value:"custom",label:"Chosen Field"} ],
+      tip:"tagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field</code> lands on the one standing first in your order. <code>Middle Field</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>Chosen Field</code> opens two more settings, one per Block. A custom block opens on its first or its middle Field the same way, and with <code>Chosen Field</code> on its first; with the cursor on one of its Values it opens on that Value’s Field" },
     { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
       name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
       searchTerms:["Lead Field left"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
+      options:[ {value:"",label:"First Field"} ], optionsFrom:"left-block-fields",
       visible: eq("visual.tagWheel.activeField.mode","custom"),
       tip:"Only Fields standing in the Left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the Left Block falls back to its first" },
     { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
       name:"Right Block active Field", desc:"The Field tagWheel lands on when it opens on the right",
       searchTerms:["Lead Field right"],
-      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
+      options:[ {value:"",label:"First Field"} ], optionsFrom:"right-block-fields",
       visible: eq("visual.tagWheel.activeField.mode","custom"),
-      tip:"Only Fields standing in the Right Block are offered. Leave it on <code>First Field of the Block</code> and the right side opens on its first Field" },
+      tip:"Only Fields standing in the Right Block are offered. Leave it on <code>First Field</code> and the right side opens on its first Field" },
     /* Значения противоположного Block: заказ заказчика 2026-09-12. «Сейчас при
        открытии tagwheel из строки визуально исчезают все элементы из
        противоположного block, даже если они уже были выбраны. Хочу добавить
@@ -2383,9 +2383,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"wheel-opposite-block", path:"visual.tagWheel.oppositeBlock", default:"hide",
       name:"Values in the other Block", desc:"What happens to the Values you are not picking while the picker is open",
       searchTerms:["Opposite Block","Other Block","Hide values"],
-      options:[ {value:"hide",label:"Hide them while the picker is open"},
-                {value:"keep",label:"Keep them in sight"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text" },
+      options:[ {value:"hide",label:"Hide"},
+                {value:"keep",label:"Show"} ],
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Show</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text" },
     /*
      * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
      * коробке соседних значений отношения не имеет: пока субхедеры были
@@ -2396,9 +2396,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
       name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the Left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block" },
+      options:[ {value:"stay",label:"Stay in Block"},
+                {value:"next-block",label:"Next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in Block</code> keeps you there: past the last Field you land back on the first. <code>Next Block</code> makes the two into one ring — step right off the end of the Left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way. A custom block is not part of the ring: there the arrows always stay in the same Block" },
     /*
      * `Tab` между custom block — его пункт 2026-09-24 (PRD 10.13.260): «нужно
      * добавить отдельный контрол `Switch custom blocks on Tab`».
@@ -2446,10 +2446,10 @@ const SCHEMA = [
       tip:"<b>Field order</b> is the simple answer: whichever Field comes first in your list gets its way. <b>Prefix order</b> is for when you care about the openings themselves \u2014 say an urgent mark should always beat a tick, no matter which Field asked for it" },
     { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"manual",
       name:"Field order source", desc:"Use the order your Fields are already in, or arrange a separate one",
-      tip:"Two Values may both want to change the start of the line, and then one of them has to win. <code>By Field order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual order</code> gives this question its own list, independent of the Blocks",
+      tip:"Two Values may both want to change the start of the line, and then one of them has to win. <code>Field order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual</code> gives this question its own list, independent of the Blocks",
       searchTerms:["Field order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
-      options:[ {value:"auto",label:"By Field order"}, {value:"manual",label:"Manual order"} ] },
+      options:[ {value:"auto",label:"Field order"}, {value:"manual",label:"Manual"} ] },
     { kind:"custom", id:"field-order-list", render: renderFieldOrderList,
       visible:{ deps:["pkm.prefixPriority.decideBy","pkm.prefixPriority.fieldOrderSource"],
                 test: c => c.get("pkm.prefixPriority.decideBy") === "by-section"
@@ -2722,7 +2722,7 @@ const SCHEMA = [
          (Р8), и в панели их быть не должно. Первая строка отвечает за
          значение по умолчанию: без неё список показывал первый Field,
          когда не выбрано ничего (замечание заказчика 1.5.3.2). */
-      options:[ {value:"",label:"No Field chosen"} ], optionsFrom:"tag-fields",
+      options:[ {value:"",label:"None"} ], optionsFrom:"tag-fields",
       tip:"Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. The list is your own tag Fields: a Field of another type has no Value color, and a Bar is drawn in the color of the Value. Switch between Fields and the Bars in the preview above change shape, not just color, because different lines carry different Fields",
       seeAlso:{ id:"field-editor", label:"Bar colors are the Value colors under Fields" } },
     { kind:"slider", id:"bars-count", path:"visual.tagBars.stripesToShow", default:2,
@@ -2743,7 +2743,7 @@ const SCHEMA = [
     { kind:"dropdown", id:"bars-mode", path:"visual.tagBars.mode", default:"default",
       name:"Bar arrangement", desc:"Which lane each level of the tree draws its Bar in",
       searchTerms:["Strip mode"], visible: on("visual.tagBars.active"),
-      options:[ {value:"default",label:"Parent keeps the outer lane"}, {value:"crossing",label:"Lanes rotate"} ],
+      options:[ {value:"default",label:"Parent outside"}, {value:"crossing",label:"Rotate"} ],
       tip:"Bars are drawn in lanes, one per level, left to right. With <b>parent keeps the outer lane</b> the top line of a tree always owns the leftmost lane, its child the next one in, and so on \u2014 so a lane always means the same depth, and you can read nesting by counting from the left. With <b>lanes rotate</b> each new level takes the next lane round in turn, which keeps deep trees narrower but means a lane no longer tells you the depth" },
     { kind:"slider", id:"bars-thickness", path:"visual.tagBars.thickness", default:2,
       min:1, max:12, step:1, unit:"px",
@@ -2809,10 +2809,10 @@ const SCHEMA = [
     { kind:"dropdown", id:"panel-value-names", path:"visual.tagWheel.valueNames", default:"default",
       name:"tagWheel Value names", desc:"What the picker prints for a Field that already carries a Value",
       searchTerms:["Value names","Custom text in the picker","Printed name"],
-      options:[ {value:"default",label:"Default name"},
-                {value:"custom",label:"Only custom name"},
-                {value:"both",label:"Custom+Default name"} ],
-      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default name</code> shows it the way it goes into your line, marks and all. <code>Only custom name</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
+      options:[ {value:"default",label:"Default"},
+                {value:"custom",label:"Custom"},
+                {value:"both",label:"Custom + default"} ],
+      tip:"A Field that already carries a Value shows that Value in the picker. <code>Default</code> shows it the way it goes into your line, marks and all. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom + default</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Field never goes blank" },
     { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:true,
       name:"Highlight the tagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
       searchTerms:["Highlight the line"],
@@ -2861,10 +2861,10 @@ const SCHEMA = [
       searchTerms:["tagWheel Scroller"] },
     { kind:"dropdown", id:"scroller-direction", path:"visual.tagWheel.scroller.direction", default:"full",
       name:"Scroller opening direction", desc:"Which way the Values unroll from the Field you are on",
-      tip:"The scroller shows the Values around the one you are on. Upwards keeps your line at the bottom of it and your note visible below; downwards does the opposite. <code>Both ways</code> centers the current Value and is easiest to read when a Field has many Values",
+      tip:"The scroller shows the Values around the one you are on. <code>Up</code> keeps your line at the bottom of it and your note visible below; <code>Down</code> does the opposite. <code>Both</code> centers the current Value and is easiest to read when a Field has many Values",
       searchTerms:["Scroller direction","Opens"], visible: on("visual.tagWheel.scroller.enabled"),
-      options:[ {value:"up",label:"Upwards"}, {value:"down",label:"Downwards"},
-                {value:"full",label:"Both ways"} ] },
+      options:[ {value:"up",label:"Up"}, {value:"down",label:"Down"},
+                {value:"full",label:"Both"} ] },
     /* Чем подписаны соседние значения в коробке — его заказ 2026-09-20: «в
        настройках скроллера нужно добавить режим отображения (дефолтные
        названия или custom (при наличии)) — чтобы при прокручивании
@@ -2879,12 +2879,12 @@ const SCHEMA = [
        трогаются — `value` остаётся `value`, иначе поехал бы конфиг. */
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
       name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
-      tip:"<code>Default name</code> shows the Value the way it goes into your line, marks and all. <code>Only custom name</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom+Default name</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
+      tip:"<code>Default</code> shows the Value the way it goes into your line, marks and all. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>) — an emoji, a short word. <code>Custom + default</code> shows both, the custom text first. Where no custom text is given, all three print the written Value, so a Value never goes blank",
       searchTerms:["Scroller names","Custom text in the scroller","Printed name","As written","Custom text when set"],
       visible: on("visual.tagWheel.scroller.enabled"),
-      options:[ {value:"value",label:"Default name"},
-                {value:"custom",label:"Only custom name"},
-                {value:"both",label:"Custom+Default name"} ] },
+      options:[ {value:"value",label:"Default"},
+                {value:"custom",label:"Custom"},
+                {value:"both",label:"Custom + default"} ] },
     /* Цвета скроллера (PRD 10.13.15, замечание заказчика D6 от 2026-09-02).
        Скроллер не читал ни одной настройки цвета: его коробка была целиком из
        переменных темы, а подпись цвета текста панели обещала как раз его. Пустое
@@ -3077,9 +3077,9 @@ const SCHEMA = [
   items: [
     { kind:"dropdown", id:"naming-mode", path:"transform.inline2note.noteName.mode", default:"auto",
       name:"Note name", desc:"Take the name from the line, or stop and ask you for it",
-      tip:"<b>Ask me</b> opens a small box with the suggested name already filled in, so you can accept it or type your own",
+      tip:"<b>Ask</b> opens a small box with the suggested name already filled in, so you can accept it or type your own",
       searchTerms:["Note name mode"],
-      options:[ {value:"auto",label:"From the line"}, {value:"manual",label:"Ask me"} ] },
+      options:[ {value:"auto",label:"From line"}, {value:"manual",label:"Ask"} ] },
     { kind:"text", id:"naming-delimiters", path:"transform.inline2note.noteName.delimiters", default:"[]", mono:true,
       name:"Name brackets", desc:"Two characters. Whatever you put between them becomes the name",
       searchTerms:["Title delimiters", "Explicit name delimiters", "Name brackets"],
@@ -3091,9 +3091,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"naming-collision", path:"transform.inline2note.nameCollision.mode", default:"new_note",
       name:"If the name already taken", desc:"What to do when you already have a note with that name",
       searchTerms:["Name collision mode", "If the name is taken"],
-      options:[ {value:"new_note",label:"Create a second note"}, {value:"add_to_note",label:"Add to the existing one"},
-                {value:"overwrite",label:"Replace what is in it"} ],
-      tip:"<b>Create a second note</b> adds a number to the name and never touches what you already wrote \u2014 the safe choice. <b>Add to the existing one</b> is what you want for a running log. <b>Replace what is in it</b> throws the old contents away, and this plugin cannot give them back" }
+      options:[ {value:"new_note",label:"New note"}, {value:"add_to_note",label:"Add to existing"},
+                {value:"overwrite",label:"Overwrite"} ],
+      tip:"<b>New note</b> adds a number to the name and never touches what you already wrote \u2014 the safe choice. <b>Add to existing</b> is what you want for a running log. <b>Overwrite</b> throws the old contents away, and this plugin cannot give them back" }
   ]
 },
 {
@@ -3105,9 +3105,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"content-position", path:"transform.inline2note.placement.position", default:"end",
       name:"Where to put the text", desc:"At the top of the note, or after whatever is already there",
       searchTerms:["Where to place inline text?"],
-      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"},
-                {value:"custom-header",label:"At custom heading"} ],
-      tip:"If you are adding to a note over and over \u2014 a diary, a log of calls \u2014 pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference. <b>At custom heading</b> is for a note laid out in sections: name the heading below and every entry lands at the end of that section, whatever else the note gains over time" },
+      options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"},
+                {value:"custom-header",label:"Under heading"} ],
+      tip:"If you are adding to a note over and over \u2014 a diary, a log of calls \u2014 pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference. <b>Under heading</b> is for a note laid out in sections: name the heading below and every entry lands at the end of that section, whatever else the note gains over time" },
     /* Заказчик 2026-09-08 (З-4): «добавить в content-position опцию `At custom
        header` — выбор конкретного хедера, под которым должен вставляться
        исходная инлайн запись». Его решение по спорному месту: запись ложится
@@ -3120,7 +3120,7 @@ const SCHEMA = [
     { kind:"dropdown", id:"content-header-missing", path:"transform.inline2note.placement.fallback",
       default:"end",
       name:"If heading not found", desc:"Where the heading is added when the note has none",
-      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"} ],
+      options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"} ],
       tip:"A brand new note, or one you have not laid out yet, has no such heading — so the heading is <b>written for you</b> here, and your text goes under it. It is written exactly as you named it above, hashes and all, so the next entry finds it and joins the same section instead of starting a second one",
       visible: eq("transform.inline2note.placement.position","custom-header") },
     { kind:"dropdown", id:"content-header-mode", path:"transform.inline2note.placement.headerMode", default:"datetime",
@@ -3128,13 +3128,13 @@ const SCHEMA = [
       tip:"Useful when a note collects many entries: a date, or a word of your own, keeps them from running together. Whether that line is a heading is a separate question, and the row below answers it",
       searchTerms:["Inserted block header"],
       options:[ {value:"custom",label:"Fixed text"}, {value:"datetime",label:"Date and time"},
-                {value:"none",label:"Nothing"} ] },
+                {value:"none",label:"None"} ] },
     { kind:"dropdown", id:"content-header-level", path:"transform.inline2note.placement.headerLevel", default:"3",
       name:"Line above is a heading", desc:"Make that line a heading you can fold, or leave it as plain text",
       tip:"A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
       visible:{ deps:["transform.inline2note.placement.headerMode"],
                 test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
-      options:[ {value:"0",label:"No (plain text)"}, {value:"1",label:"1"}, {value:"2",label:"2"},
+      options:[ {value:"0",label:"Plain text"}, {value:"1",label:"1"}, {value:"2",label:"2"},
                 {value:"3",label:"3"}, {value:"4",label:"4"}, {value:"5",label:"5"}, {value:"6",label:"6"} ] },
     { kind:"text", id:"content-header-text", clearable:true, path:"transform.inline2note.placement.customHeader", default:"Captured", mono:true,
       name:"Text of the line above", desc:"Typed into the note exactly as you write it here",
@@ -3160,9 +3160,9 @@ const SCHEMA = [
        родительской (замечание заказчика B18, 2026-09-02). */
     { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
       name:"Sub-lines (tree) behavior", desc:"Leave them where they are, or take them into the note too",
-      tip:"Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
+      tip:"Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> moves only the line you pressed on",
       searchTerms:["Sublines behavior"],
-      options:[ {value:"stay",label:"Leave them"}, {value:"remove",label:"Take them along"} ],
+      options:[ {value:"stay",label:"Keep"}, {value:"remove",label:"Move"} ],
       visible: on("transform.inline2note.enabled") },
     /* Судьба текста и ссылка — разные настройки (решение заказчика
        2026-09-01). До этого обе жили в одном тумблере, и половина
@@ -3170,10 +3170,10 @@ const SCHEMA = [
     { kind:"dropdown", id:"source-text", path:"transform.inline2note.sourceProcessing.text", default:"remove",
       name:"What happens with current line", desc:"The text goes into the note either way \u2014 this is about the line you pressed on",
       searchTerms:["What happens to your text"],
-      options:[ {value:"remove",label:"Take it away"}, {value:"leave",label:"Leave it"},
-                {value:"leave_named",label:"Leave it, but not the name"},
-                {value:"words",label:"Keep the first words"} ],
-      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Leave it, but not the name</b> keeps the rest of your text and lets the link stand where the name came from, so nothing is said twice. <b>Keep the first words</b> does the same and trims what is left to the number of words below. Sub-lines are a separate question, and the row above answers it",
+      options:[ {value:"remove",label:"Remove"}, {value:"leave",label:"Keep"},
+                {value:"leave_named",label:"Keep without name"},
+                {value:"words",label:"Keep first words"} ],
+      tip:"<b>Remove</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Keep</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Keep without name</b> keeps the rest of your text and lets the link stand where the name came from, so nothing is said twice. <b>Keep first words</b> does the same and trims what is left to the number of words below. Sub-lines are a separate question, and the row above answers it",
       visible: on("transform.inline2note.enabled") },
     { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
       name:"Words to keep", desc:"How much of the line stays behind",
@@ -3264,9 +3264,9 @@ const SCHEMA = [
     { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
       name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
       searchTerms:["Where the backlink goes"],
-      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"},
-                {value:"custom-header",label:"At custom heading"} ],
-      tip:"<b>At the end</b> keeps the links in the order you filed them, which is what a growing list wants. <b>At custom heading</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section",
+      options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"},
+                {value:"custom-header",label:"Under heading"} ],
+      tip:"<b>End</b> keeps the links in the order you filed them, which is what a growing list wants. <b>Under heading</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section",
       visible: on("transform.inline2note.backlink.enabled") },
     { kind:"text", id:"backlink-target-header", clearable:true,
       path:"transform.inline2note.backlink.placement.targetHeader", default:"", mono:true,
@@ -3279,7 +3279,7 @@ const SCHEMA = [
     { kind:"dropdown", id:"backlink-header-missing", path:"transform.inline2note.backlink.placement.fallback",
       default:"end",
       name:"If heading not found", desc:"Where the heading is added when that note has none",
-      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"} ],
+      options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"} ],
       tip:"A note that has not been laid out yet has no such heading — so the heading is written for you here, and the link goes under it. It is written exactly as you named it above, hashes and all, so the next link finds it and joins the same section",
       visible:{ deps:["transform.inline2note.backlink.enabled","transform.inline2note.backlink.placement.position"],
                 test: c => Boolean(c.get("transform.inline2note.backlink.enabled"))
@@ -5895,9 +5895,9 @@ function elementRows(host, f) {
   } else if (f.step === "command") {
     row({ name:"Command", key:"command",
       desc:"What the press writes into the Value instead of stepping it",
-      tip:"<code>The current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs",
+      tip:"<code>Current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs",
       options:[
-        { value:"now",     label:"The current date and time" },
+        { value:"now",     label:"Current date and time" },
         { value:"randomN", label:"Random numbers" },
         { value:"randomE", label:"Random characters" }
       ] },
@@ -5980,8 +5980,8 @@ function propertyRow(host, f) {
   }, ctl => {
     const s = selectEl(ctl, [
       { value:"auto", label:"Auto" },
-      { value:"one",  label:"One Value" },
-      { value:"list", label:"A list" }
+      { value:"one",  label:"Single Value" },
+      { value:"list", label:"List" }
     ], f.cardinality || "auto", "Property type for " + f.name);
     s.addEventListener("change", () => { f.cardinality = s.value; renderContent(); refreshPreviews(); });
   });
@@ -6067,11 +6067,11 @@ function placementRows(host, f) {
        Здесь до 2026-09-23 стояли два прежних — `Yes` и `No`. */
     row({ name:"Child Field", key:"child",
       desc:"When the child Field is offered: after a parent Value, always, on an Alt press, or never",
-      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked \u2014 and a press of <code>Alt</code> on the parent opens it before that. <b>Show always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>Show when press Alt</b> keeps it out of tagWheel until you press <code>Alt</code> on the parent: it appears next to the parent, so you can step onto it and pick a Value \u2014 even before the parent has one, and then the Value stands without a parent. Press <code>Alt</code> again and it hides, and the Value you picked stays on the line. <code>Alt</code> together with another key is a hotkey and does not open it. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
+      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked \u2014 and a press of <code>Alt</code> on the parent opens it before that. <b>Always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>On Alt</b> keeps it out of tagWheel until you press <code>Alt</code> on the parent: it appears next to the parent, so you can step onto it and pick a Value \u2014 even before the parent has one, and then the Value stands without a parent. Press <code>Alt</code> again and it hides, and the Value you picked stays on the line. <code>Alt</code> together with another key is a hotkey and does not open it. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
       options:[
         { value:"after-parent", label:"After parent" },
-        { value:"always",       label:"Show always" },
-        { value:"alt",          label:"Show when press Alt" },
+        { value:"always",       label:"Always" },
+        { value:"alt",          label:"On Alt" },
         { value:"hide",         label:"Hide" }
       ] },
       f.childMode || (f.childOn === false ? "hide" : "after-parent"),
@@ -6890,7 +6890,7 @@ function renderSmartRules(host) {
       const shown = r.conditions.map(c => c.field ? c.field + " \u2014 any Value" : (c.value || "(empty)"));
       const folder = r.folderMode === "folder"
         ? (r.folder || "Another folder\u2026")
-        : (r.folderMode === "near" ? "Next to the current note" : "Default");
+        : (r.folderMode === "near" ? "Next to note" : "Default");
       /* \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a 2026-09-09: \u00ab\u0441\u0436\u0430\u0442\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u0434\u0430\u0451\u0442\u0441\u044f \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0441\u043a\u0443\u0434\u043d\u043e\u2026 \u0441\u0434\u0435\u043b\u0430\u0439,
          \u0447\u0442\u043e\u0431\u044b \u0431\u044b\u043b\u043e `Use when: #todo` | `Template: template1.md` |
          `Folder: 333`\u00bb. \u041f\u0440\u043e\u0431\u0435\u043b \u043c\u0435\u0436\u0434\u0443 \u043f\u043e\u0434\u043f\u0438\u0441\u044c\u044e \u0438 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435\u043c \u0441\u0442\u043e\u0438\u0442 \u0432 \u0442\u0435\u043a\u0441\u0442\u0435
@@ -6961,7 +6961,7 @@ function renderSmartRules(host) {
     el("span", null, where, "Move to folder");
     const mode = selectEl(where, [
       { value:"default", label:"Default" },
-      { value:"near",    label:"Next to the current note" },
+      { value:"near",    label:"Next to note" },
       { value:"folder",  label:"Another folder\u2026" }
     ], r.folderMode || "default", "Move to folder for rule " + (i + 1));
     mode.addEventListener("change", () => {
@@ -6987,7 +6987,7 @@ function renderSmartRules(host) {
     el("span", null, adv, "Advanced settings");
     const advMode = selectEl(adv, [
       { value:"default", label:"Default" },
-      { value:"custom",  label:"Set for this rule" }
+      { value:"custom",  label:"Custom" }
     ], r.placementMode || "default", "Advanced settings for rule " + (i + 1));
     advMode.addEventListener("change", () => {
       r.placementMode = advMode.value;
@@ -7022,24 +7022,24 @@ function renderSmartRules(host) {
       };
 
       plPick("Where to put the text", "position", [
-        { value:"beginning",     label:"At the beginning" },
-        { value:"end",           label:"At the end" },
-        { value:"custom-header", label:"At custom heading" }
+        { value:"beginning",     label:"Beginning" },
+        { value:"end",           label:"End" },
+        { value:"custom-header", label:"Under heading" }
       ]);
       if (p.position === "custom-header") {
         plType("Name of the heading", "targetHeader", "# Heading name");
         plPick("If heading not found", "fallback", [
-          { value:"beginning", label:"At the beginning" },
-          { value:"end",       label:"At the end" }
+          { value:"beginning", label:"Beginning" },
+          { value:"end",       label:"End" }
         ]);
       }
       plPick("Line above the text", "headerMode", [
         { value:"custom",   label:"Fixed text" },
         { value:"datetime", label:"Date and time" },
-        { value:"none",     label:"Nothing" }
+        { value:"none",     label:"None" }
       ]);
       if (p.headerMode !== "none") {
-        plPick("Line above is a heading", "headerLevel", [{ value:"0", label:"No (plain text)" }]
+        plPick("Line above is a heading", "headerLevel", [{ value:"0", label:"Plain text" }]
           .concat(["1","2","3","4","5","6"].map(n => ({ value:n, label:n }))));
       }
       if (p.headerMode === "custom") plType("Text of the line above", "customHeader", "");

@@ -238,8 +238,8 @@ The right column is everything about the Field picked on the left:
 | `Name in tagWheel` | A shorter name for the tagWheel row, where there is little room |
 | `Active` | `Yes`, `No`, or `Commands only` — whether the Field is offered, and where |
 | `Prefix behavior` | `Strict` or `Insert only`; how the Field affects the line Prefix. Not shown for a Field in a custom block |
-| `Child Field` | `After parent`, `Show always`, `Show when press Alt` or `Hide` |
-| `Parent Value` | With `Show always`: leave the line alone, or also write the parent Value |
+| `Child Field` | `After parent`, `Always`, `On Alt` or `Hide` |
+| `Parent Value` | With `Always`: leave the line alone, or also write the parent Value |
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |
 | `YAML property` | Which property of a transformed note this Field becomes |
@@ -499,7 +499,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 | Control | Default | What it does |
 |---|---|---|
 | `Show tag markers` | on | Show the hash and emoji in the picker, or just the words |
-| `tagWheel Value names` | `Default name` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
+| `tagWheel Value names` | `Default` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
 | `Inactive Field text color` | unset | The Field names you are not standing on |
 | `Active Field text color` | unset | The Field you are on |
@@ -512,7 +512,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 |---|---|---|
 | `Scroller` | off | Shows the next and previous Values around the current one |
 | `Scroller opening direction` | `full` | Which way the Values unroll |
-| `Scroller Value names` | `Default name` | Whether the box shows a neighboring Value as written, as the custom text from `Color custom tags`, or both |
+| `Scroller Value names` | `Default` | Whether the box shows a neighboring Value as written, as the custom text from `Color custom tags`, or both |
 | `Scroller background color` | unset | Behind the box of neighboring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighboring Values stay visible |
