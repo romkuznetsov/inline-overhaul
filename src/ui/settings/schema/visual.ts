@@ -259,7 +259,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
     { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
-      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color", allowReset:true },
+      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carry the color", allowReset:true },
     { kind:"custom", id:"scroller-sub", render: subheader("Scroller",
       "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming. It is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview at the top of this group shows both at once") },
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,

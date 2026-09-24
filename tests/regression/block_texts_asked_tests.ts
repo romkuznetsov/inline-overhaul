@@ -91,7 +91,8 @@ const BUILT: ReadonlyArray<{ owner: string; match: RegExp; where: string; count:
     owner: "user-tag-list",
     match: /^HEAD_/,
     where: 'custom/user_tags.ts: say("HEAD_" + title.toUpperCase()) — подпись колонки по её имени',
-    count: 5,
+    /* Шестая — `Side`, его пункт цикла 89. */
+    count: 6,
   },
 ];
 

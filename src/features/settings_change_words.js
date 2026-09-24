@@ -53,6 +53,7 @@ const FIELD_EDITOR = (__blockTexts.BLOCK_TEXTS || {})["field-editor"] || {};
 const VALUE_VISUAL_NAMES = {
   fillColor: "VALUE_FILL_COLOR",
   textColor: "VALUE_TEXT_COLOR",
+  borderColor: "VALUE_SIDE_COLOR",
   visibility: "VALUE_SHOWN_NAME",
   customText: "VALUE_CUSTOM_NAME",
 };

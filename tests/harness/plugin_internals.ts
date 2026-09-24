@@ -113,7 +113,9 @@ export interface PluginInternals {
   blockValueClassFor: (entry: Any, visuals: Any) => string;
   BLOCK_VALUE_CLASS: string;
   lineBelongsToPlugin: (lineText: string, sep1: string, sep2: string) => boolean;
-  TAG_BUBBLE_ACCENT_CLASS: string;
+  TAG_BUBBLE_THEME_CLASS: string;
+  TAG_BUBBLE_SIDE_CLASS: string;
+  isClearColor: (value: string) => boolean;
   TAG_BUBBLE_CLICKABLE_CLASS: string;
   computeTagVisualStyle: (textSizePct: number, bubbleWidthPct: number, bubbleHeightPct: number, shapePct: number) => Any;
   TAG_EMPTY_BUBBLE_BASE_PX: number;

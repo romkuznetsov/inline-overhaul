@@ -36,7 +36,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate easier and much more. Try each group and keep what fits the way you write"
+          "jumping between headings to navigate more easily and much more. Try each group and keep what fits the way you write"
   },
   keyboard: {
     head: "Everything about keys lives here",
@@ -134,7 +134,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
         { text: "Rewrite every description", fields: ["status"], children: [
           { text: "Tag Bars", fields: ["status", "priority"], children: [] },
           { text: "tagWheel panel", fields: ["status"], children: [] },
-          { text: "proof-read the tips", fields: ["priority"], children: [] }
+          { text: "Proofread the tips", fields: ["priority"], children: [] }
         ] }
       ] },
       { text: "Merge the prototype into the PRD", fields: [], children: [] },

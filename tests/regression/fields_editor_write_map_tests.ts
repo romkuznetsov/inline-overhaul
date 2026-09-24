@@ -448,6 +448,7 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
   { shape: "pkm:behavior:order:deep:checkbox:*:prefix", why: "вторая запись того же контрола" },
   { shape: "pkm:visuals:tag:fill:*", why: "пикер заливки: в старой доске он писал по другому событию и в карту попадал как «без записи»" },
   { shape: "pkm:visuals:tag:text:*", why: "пикер цвета текста, то же самое" },
+  { shape: "pkm:visuals:tag:side:*", why: "цвет рамки Value — колонка `Side`, его пункт цикла 89" },
   { shape: "pkm:visuals:tag:color-reset:*", why: "сброс цвета одной кнопкой вместо двух — fill-reset и text-reset (решение заказчика 2026-08-27)" },
   { shape: "pkm:behavior:order:delete:*", why: "удаление Field: старая карта диалог не подтверждала" },
   { shape: "pkm:behavior:delete-field:*", why: "вторая запись удаления Field, там же" },
@@ -637,6 +638,7 @@ const DROPPED: Array<{ path: string; why: string }> = [
  */
 const UNSEEN: Array<{ path: string; why: string }> = [
   { path: "pkm.fields.elements.fields", why: "удаление Field: старая карта диалог не подтверждала" },
+  { path: "visual.tags.byTag.*.*.borderColor", why: "цвет рамки Value — колонка `Side`, его пункт цикла 89" },
   { path: "pkm.fields.order.custom", why: "список custom block — кнопка `Add Block`, его постановка 2026-09-24 (PRD 10.13.260)" },
 ];
 

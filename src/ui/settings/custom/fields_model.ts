@@ -229,6 +229,8 @@ export interface ValueVisual {
   /** Пусто — цвет не задан и берётся из темы. */
   fillColor: string;
   textColor: string;
+  /** Цвет рамки (`Side`); пусто — рамка темы. */
+  borderColor: string;
   visibility: ValueVisibility;
   customText: string;
 }
@@ -1647,6 +1649,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return {
       fillColor: normalizeHex(row["fillColor"]),
       textColor: normalizeHex(row["textColor"]),
+      borderColor: normalizeHex(row["borderColor"]),
       visibility: normalizeVisibility(row["visibility"]),
       customText: String(row["customText"] || "").trim(),
     };
@@ -1682,6 +1685,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const next = {
       fillColor: has("fillColor") ? normalizeHex(patch.fillColor) : normalizeHex(current["fillColor"]),
       textColor: has("textColor") ? normalizeHex(patch.textColor) : normalizeHex(current["textColor"]),
+      borderColor: has("borderColor") ? normalizeHex(patch.borderColor) : normalizeHex(current["borderColor"]),
       visibility: has("visibility") ? normalizeVisibility(patch.visibility) : normalizeVisibility(current["visibility"]),
       customText: has("customText") ? String(patch.customText || "").trim() : String(current["customText"] || "").trim(),
     };

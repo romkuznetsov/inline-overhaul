@@ -964,7 +964,7 @@ function heightBtn(host: StubNode): StubNode {
   /* Подпись колонки лежит своим узлом: под ней стоит «?», и textContent
      ячейки читался бы вместе с ним. */
   const titles = head.children.map(c => String(all(c, "io-vals__coltext")[0]?.textContent || "").trim());
-  assert.deepEqual(titles, ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""],
+  assert.deepEqual(titles, ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Side", "Preview", ""],
     "колонки таблицы Values идут в порядке Ф7");
   ok("Ф7: девять колонок в порядке ручка, Level, Value, Prefix, Show, Fill, Text, Preview, удаление");
 }
@@ -1344,7 +1344,7 @@ function heightBtn(host: StubNode): StubNode {
   const v = makeView();
   const parent = all(v.host, "io-vals__row")[0] as StubNode;
   const colors = parent.children.map(c => all(c, "io-colin")[0]).filter(Boolean) as StubNode[];
-  assert.equal(colors.length, 2, "у значения две колонки цвета: заливка и текст");
+  assert.equal(colors.length, 3, "у значения три колонки цвета: заливка, текст и рамка (`Side`, цикл 89)");
   assert.equal(colors[0]?.value, "#222222", "заливка показана из конфига");
   assert.equal(colors[1]?.value, "#ffffff", "цвет текста тоже");
   ok("цвета значения показаны из конфига, а не из темы");
@@ -1508,8 +1508,8 @@ function heightBtn(host: StubNode): StubNode {
   assert.deepEqual(withTip, titled,
     "подсказка есть у каждой подписанной колонки: без неё остались " +
     titled.filter(t => !withTip.includes(t)).join(", "));
-  assert.deepEqual(titled, ["Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview"],
-    "и подписанных колонок семь — порядок Ф7");
+  assert.deepEqual(titled, ["Level", "Value", "Prefix", "Show", "Fill", "Text", "Side", "Preview"],
+    "и подписанных колонок восемь — порядок Ф7 и `Side` (цикл 89)");
   ok("замечание 4: подсказка стоит у каждой из семи подписанных колонок");
 }
 {
@@ -2445,7 +2445,10 @@ const linkSubField = (cfg: Any): Any =>
   assert.ok(Number.isFinite(declared) && Number.isFinite(listCol) && Number.isFinite(detailPad),
     "ширина таблицы, колонки списка и поля правой колонки объявлены числами");
   const needsPane = declared + listCol + detailPad * 2 + 3;
-  assert.ok(needsPane <= 633,
+  /* Поднят с 633 до 665 (цикл 89): колонка `Side` по его пункту — 28px и
+     зазор. Цена названа ему вопросом: в панели уже 665px таблица снова
+     прокручивается вбок. */
+  assert.ok(needsPane <= 665,
     "таблица Values требует панель шириной " + needsPane + "px — это уже прокрутка вправо");
   ok("шестой круг 2: таблица Values помещается в узкую панель, " + needsPane + "px");
 }
@@ -2857,7 +2860,7 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
        * заданный цвет обязан остаться собой.
        */
       const inputs = all(all(v.host, "io-vals__row")[1] as StubNode, "io-colin");
-      assert.equal(inputs.length, 2, "в строке два поля цвета: заливка и текст");
+      assert.equal(inputs.length, 3, "в строке три поля цвета: заливка, текст и рамка");
       return {
         own: String((inputs[0] as StubNode).value || ""),
         unset: String((inputs[1] as StubNode).value || ""),

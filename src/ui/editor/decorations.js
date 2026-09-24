@@ -81,7 +81,9 @@ const {
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,
-  TAG_BUBBLE_ACCENT_CLASS,
+  TAG_BUBBLE_THEME_CLASS,
+  TAG_BUBBLE_SIDE_CLASS,
+  isClearColor,
   TAG_BUBBLE_CLICKABLE_CLASS,
   LINK_SHOWN_CLASS,
   buildBlockStyleCss,
@@ -116,6 +118,7 @@ const {
   scanHyperlinksInLine,
   buildBlockKindsFromConfig,
   buildWikilinkValueTestFromConfig,
+  buildLineSplitFromConfig,
   tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
   tagwheelPanelSegmentInLine,
@@ -458,12 +461,13 @@ class LinkVisualTokenWidget extends cmView.WidgetType {
 }
 
 class TagVisualTokenWidget extends cmView.WidgetType {
-  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin, basePx, tagBasePx, inBlock) {
+  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin, basePx, tagBasePx, inBlock, borderColor) {
     super();
     this.plugin = plugin || null;
     this.tokenText = String(tokenText || "");
     this.fillColor = String(fillColor || "");
     this.textColor = String(textColor || "");
+    this.borderColor = String(borderColor || "");
     this.opacity = Number(opacity);
     this.emptyMode = emptyMode === true;
     this.sizePct = Number(sizePct);
@@ -500,6 +504,7 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       && other.tokenText === this.tokenText
       && other.fillColor === this.fillColor
       && other.textColor === this.textColor
+      && other.borderColor === this.borderColor
       && other.opacity === this.opacity
       && other.emptyMode === this.emptyMode
       && other.sizePct === this.sizePct
@@ -551,18 +556,18 @@ class TagVisualTokenWidget extends cmView.WidgetType {
      * объявления одного правила расходятся молча (У-32).
      */
     /*
-     * Тег без своей заливки берёт **акцентный цвет темы** — то есть выглядит
-     * как тег, которому цвет задали. Первая версия брала `--tag-background`,
-     * и в теме Minimal это `transparent`: пузырь вышел невидимым, и заказчик
-     * ответил «хочу, чтобы они были одинаковые» (2026-09-12, второй заход).
+     * Тег без своей заливки — вид тега темы (`TAG_BUBBLE_THEME_CLASS`), и
+     * `#FFFFFF` в заливке значит «без заливки» (`isClearColor`, его пункт
+     * цикла 89). Рамка своего цвета (`Side`) стоит поверх любого из двух.
      */
     const isTag = this.tokenText.charAt(0) === "#";
-    const accent = isTag && !this.fillColor;
+    const filled = !!this.fillColor && !isClearColor(this.fillColor);
     el.className = [
       TAG_BUBBLE_CLASS,
       this.emptyMode ? TAG_BUBBLE_EMPTY_CLASS : "",
-      this.fillColor ? TAG_BUBBLE_FILLED_CLASS : "",
-      accent ? TAG_BUBBLE_ACCENT_CLASS : "",
+      filled ? TAG_BUBBLE_FILLED_CLASS : "",
+      isTag && !filled ? TAG_BUBBLE_THEME_CLASS : "",
+      isTag && this.borderColor ? TAG_BUBBLE_SIDE_CLASS : "",
       isTag ? TAG_BUBBLE_CLICKABLE_CLASS : "",
     ].filter(Boolean).join(" ");
     if (isTag) {
@@ -621,7 +626,8 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       el.style.setProperty("--io-tagbubble-width",
         `${Math.round(TAG_EMPTY_BUBBLE_BASE_PX * emptyScale)}px`);
     }
-    if (this.fillColor) el.style.setProperty("--io-tagbubble-bg", this.fillColor);
+    if (this.fillColor) el.style.setProperty("--io-tagbubble-bg", isClearColor(this.fillColor) ? "transparent" : this.fillColor);
+    if (this.borderColor) el.style.setProperty("--io-tagbubble-side", isClearColor(this.borderColor) ? "transparent" : this.borderColor);
     /*
      * Цвет текста не задан — берётся тот же, каким рисует пузырь Value в
      * панели: `--text-on-accent`, «текст на цветной подложке»
@@ -847,6 +853,7 @@ function buildTagVisualLayer(view, plugin) {
   /* И то же про ссылку: род значения мало, когда род — ссылка (В-141). Строится
      один раз на проход, как и состав Block. */
   const isLinkValue = buildWikilinkValueTestFromConfig(cfg);
+  const splitLine = buildLineSplitFromConfig(cfg);
 
   const readRowForToken = (token) => readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
   for (const lineNo of visibleLineNumbers(view)) {
@@ -870,7 +877,7 @@ function buildTagVisualLayer(view, plugin) {
       const ourLine = lineBelongsToPlugin(text, sep1, sep2);
       /* Спрашивается только у чужой строки: у своей тег рисуем по сканеру, как прежде. */
       const platformTags = ourLine ? null : obsidianTagStarts(view.state, line.from, line.to);
-      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
+      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue, splitLine)) {
         const token = hit.token;
         if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
         scannedTokens.push(token);
@@ -1074,6 +1081,7 @@ function buildTagVisualLayer(view, plugin) {
         if (suppressed) continue;
         const hasVisualOverride = !!row && (!!normalizeHexColorInput(row.fillColor)
           || !!normalizeHexColorInput(row.textColor)
+          || !!normalizeHexColorInput(row.borderColor)
           || resolveEffectiveTagVisualMode(row) !== "default");
         /*
          * Значение поля-ссылки со своим текстом — его заказ 2026-09-20,
@@ -1200,6 +1208,7 @@ function buildTagVisualLayer(view, plugin) {
             effectiveMode,
             fillColor: String(look.fillColor || ""),
             textColor: String(look.textColor || ""),
+            borderColor: String(look.borderColor || ""),
             customText: String(look.customText || ""),
             displayTextOverride: effectiveMode === "custom" ? String(look.customText || "").trim() : "",
           });
@@ -1219,7 +1228,7 @@ function buildTagVisualLayer(view, plugin) {
              документ совпадают знак в знак, и ходить по нему надо как по тексту. */
           atomic: effectiveMode === "custom" || effectiveMode === "empty",
           deco: cmView.Decoration.replace({
-            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo), lineTagBasePx(lineNo), sizing.inBlock),
+            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo), lineTagBasePx(lineNo), sizing.inBlock, look.borderColor),
             inclusive: false,
           }),
         });
@@ -1685,12 +1694,13 @@ function blockFillDocRanges(view, plugin) {
      строки не зависит, а обход полей стоит столько же. */
   const blockKinds = buildBlockKindsFromConfig(cfg);
   const isLinkValue = buildWikilinkValueTestFromConfig(cfg);
+  const splitLine = buildLineSplitFromConfig(cfg);
   const out = [];
   for (const lineNo of visibleLineNumbers(view)) {
     {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
-      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
+      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue, splitLine)) {
         /* Сторона (З-12, `Stripe direction`): отбор стоит здесь, где отрезок
            уже получил зону, и до перевода в положения документа — дальше о
            стороне не спрашивает никто. Правило одно на обе отрисовки (У-217). */

@@ -785,6 +785,7 @@ function normalizeTagVisualMapsV2(cfg) {
     return {
       fillColor: normalizeHexColorInput(src.fillColor),
       textColor: normalizeHexColorInput(src.textColor),
+      borderColor: normalizeHexColorInput(src.borderColor),
       visibility: normalizeVisibility(src.visibility, fallbackVisibility),
       customText: String(src.customText || "").trim(),
     };

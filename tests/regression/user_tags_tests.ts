@@ -180,7 +180,7 @@ const TWO_TAGS = {
    * переживала. Порядок — тот же, что у таблицы Values, минус `Level` и
    * `Prefix` (замечание заказчика 1.5.2.2).
    */
-  const WANT = ["Tag", "Show", "Fill", "Text", "Preview", ""];
+  const WANT = ["Tag", "Show", "Fill", "Text", "Side", "Preview", ""];
   assert.deepEqual(head.children.map(n => String(n.textContent || "").replace("?", "").trim()),
     WANT,
     "колонки и их порядок: тег, показ, две заливки, предпросмотр и кнопки");

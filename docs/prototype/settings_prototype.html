@@ -25,6 +25,13 @@
   --text-faint:    #94939f;
   --text-on-accent:#ffffff;
   --text-accent:   #6c5cd0;
+  /* Вид тега темы — умолчания Obsidian (`app.css` 1.13.7): им рисуется пузырь
+     Value без своих цветов (его пункт цикла 89). */
+  --tag-background: color-mix(in oklch, var(--interactive-accent) 10%, transparent);
+  --tag-color: var(--text-accent);
+  --tag-border-width: 0px;
+  --tag-border-color: color-mix(in oklch, var(--interactive-accent) 15%, transparent);
+  --tag-weight: inherit;
 
   --interactive-accent:       #6c5cd0;
   --interactive-accent-hover: #7d6ddb;
@@ -606,9 +613,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   line-height: calc(1 + 0.35 * min(1, var(--io-bubble-y)));
   padding: calc(2.5px * var(--io-bubble-y)) calc(9px * var(--io-bubble-x));
   border-radius: calc(11px * var(--io-corners) + 2px);
-  background: var(--io-bubble-bg, var(--interactive-accent));
-  color: var(--text-on-accent);
+  background: var(--io-bubble-bg, var(--tag-background));
+  color: var(--io-bubble-fg, var(--tag-color));
+  font-weight: var(--tag-weight);
+  border: var(--tag-border-width) solid var(--tag-border-color);
 }
+.io-bubble--filled { color: var(--io-bubble-fg, var(--text-on-accent)); }
+.io-bubble--side { border: max(var(--tag-border-width), 1px) solid var(--io-bubble-side); }
 /* A bubble with no text is still a bubble: same height, filled, just narrow. */
 .io-bubble--empty {
   width: calc(30px * var(--io-empty-x));
@@ -761,6 +772,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* Его пункт 2026-09-24: «кнопка add field выглядит некрасиво». Рядом с обычной
    кнопкой она была жирной и плоской; здесь у обеих один вес и одна тень. */
 .io-fields__add .io-btn--cta { font-weight: inherit; box-shadow: var(--input-shadow); }
+/* Его замечание к тесту 2, цикл 89: кнопки равномерно заполняют столбец. */
+.io-fields__add > .io-btn { flex: 1 1 0; min-width: 0; }
 .io-fields__detail { padding: 14px 16px 16px; min-width: 0; }
 .io-fields__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
 .io-fields__title h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-normal); }
@@ -1044,7 +1057,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   .io-dlg .io-select, .io-dlg .io-text { width: 100%; }
 }
 /* new in round three */
-.io-bubble { color: var(--io-bubble-fg, var(--text-on-accent)); }
 
 .io-tline { display: flex; align-items: center; padding: 2px 0; }
 .io-branch--bar { border-left-color: var(--io-bar-color, var(--text-faint)); }
@@ -1134,7 +1146,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    On 2026-08-28 the floors were rebalanced, not raised: Level and Text took
    the points Show and Preview gave up, so the head reads in full and the
    table still fits a narrow pane. */
-.io-vals__inner { min-width: 408px; }
+.io-vals__inner { min-width: 440px; }
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
   grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) minmax(0, 1fr) 44px;
 }
@@ -1204,9 +1216,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    (замечание заказчика 1.5.2.2). Шесть колонок: тег, показ, две заливки,
    предпросмотр и кнопки. */
 .io-vals--tags .io-vals__head, .io-vals--tags .io-vals__row {
-  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px minmax(72px, 1.4fr) 44px;
+  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px 40px minmax(72px, 1.4fr) 44px;
 }
-.io-vals__inner--tags { min-width: 352px; }
+.io-vals__inner--tags { min-width: 396px; }
 
 /* Какие Fields остаются на исходной строке (1.6.5.1): строка на Field,
    флажок слева, тип справа приглушённым. */
@@ -1338,7 +1350,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
      подпись шире, и колонку задаёт она. */
   grid-template-columns:
     14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(54px, 1fr) 24px 28px minmax(52px, 1fr) 40px;
+    minmax(54px, 1fr) 24px 28px 28px minmax(52px, 1fr) 40px;
 }
 /* The «?» sits under the caption, not beside it: beside it the mark
    overlapped the next cell, because these columns are narrow. */
@@ -2367,7 +2379,7 @@ const SCHEMA = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide them while the picker is open"},
                 {value:"keep",label:"Keep them in sight"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written stay in sight always, as part of your text" },
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text" },
     /*
      * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
      * коробке соседних значений отношения не имеет: пока субхедеры были
@@ -2827,7 +2839,7 @@ const SCHEMA = [
     { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
-      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carries the color", allowReset:true },
+      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the tagWheel line</code> on: the marks are what carry the color", allowReset:true },
     /*
      * **Скроллер — субхедер, а не своя группа** (его слово 2026-09-17, ночь):
      * «я хочу, чтобы все настройки tagwheel были в одном месте. Может быть не
@@ -3053,7 +3065,7 @@ const SCHEMA = [
 },
 {
   id: "naming", tab: "transform", order: 200, heading: "New note naming",
-  intro: "The new note needs a name. This block defines how to choose a name of a new note",
+  intro: "The new note needs a name. This block defines how the name of a new note is chosen",
   tip: "Three ways of finding one are tried in turn, and the first that works wins: the text between your chosen brackets, then a heading on the line, then simply the first few words",
   visible: on("transform.inline2note.enabled"),
   items: [
@@ -3296,7 +3308,7 @@ const SCHEMA = [
        плагин без спроса не пишет. */
     { kind:"toggle", id:"backup-autosave", path:"advanced.backups.autosave", default:false,
       name:"Autosave", desc:"Keep a copy of your settings whenever they change outside the panel",
-      tip:"On every start of Obsidian the plugin compares your settings file with the last autosave it made, and writes a new one when the two differ — so a file arriving from another device, from your sync or from a copy has a way back. The copy is full: every tab and the hotkeys of this plugin. Under the heading <code>What changed</code> in each note is the list of settings that differ from the previous autosave. Ten newest copies are kept and older ones are removed. This is not the same thing as undo: to step back one change inside the panel, use the command <code>Undo last settings change</code>" },
+      tip:"On every start of Obsidian the plugin compares your settings file with the last autosave it made, and writes a new one when the two differ — so a file arriving from another device, from your sync or from a copy has a way back. The copy is full: every tab and the hotkeys of this plugin. Under the heading <code>What changed</code> in each note is the list of settings that differ from the previous autosave. The ten newest copies are kept and older ones are removed. This is not the same thing as undo: to step back one change inside the panel, use the command <code>Undo last settings change</code>" },
     { kind:"toggle", id:"backup-before-restore", path:"advanced.backups.beforeRestore", default:true,
       name:"Save a backup before restoring", desc:"Write what you have now into the folder above before an earlier backup replaces it",
       tip:"On, every restore leaves you a way back, and that copy is named with <code>Autogenerated</code> at the end so you can tell it from the ones you saved yourself. Off, restoring writes straight over what you have and the confirmation says so — pick that if you restore often and the folder fills up with copies you never asked for" },
@@ -3307,7 +3319,7 @@ const SCHEMA = [
                 {label:"Restore a backup", action:"restore-backup", warning:true} ] },
     { kind:"buttons", id:"settings-reset-actions",
       name:"Start over", desc:"Delete everything you have set up here and go back to the plugin\u2019s own defaults",
-      tip:"Everything means everything: every tab, every Field, every Value, every rule, every Binder row, and the hotkeys you gave to plugin commands. Hotkeys of other plugins are left alone. A backup of what you have now is written first, into the folder above, named with <code>Autogenerated</code> at the end, so the way back is the button next to this one \u2014 which is also what this is for: a way to check that a backup really brings everything back. This button writes that copy always, whatever the toggle above says: here it is the only way back there is",
+      tip:"Everything means everything: every tab, every Field, every Value, every rule, every Binder row, and the hotkeys you gave to plugin commands. Hotkeys of other plugins are left alone. A backup of what you have now is written first, into the folder above, named with <code>Autogenerated</code> at the end, so the way back is the button next to this one \u2014 which is also what this is for: a way to check that a backup really brings everything back. This button always writes that copy, whatever the toggle above says: here it is the only way back there is",
       buttons:[ {label:"Delete all my settings", action:"reset-settings", warning:true} ] }
   ]
 },
@@ -4524,9 +4536,15 @@ function bubble(parent, v, textOverride) {
   const empty = v.shown === "nothing";
   const label = empty ? " " : (textOverride != null ? textOverride
     : (v.shown === "custom" ? (v.custom || " ") : "#" + v.token));
-  const b = el("span", "io-bubble" + (empty ? " io-bubble--empty" : ""), parent, label);
-  cssVar(b, "--io-bubble-bg", v.color);
+  /* Без своей заливки — вид тега темы; `#FFFFFF` значит «прозрачно», и в
+     заливке, и в рамке (`Side`) — его пункт цикла 89. */
+  const clear = c => String(c || "").toLowerCase() === "#ffffff";
+  const filled = !!v.color && !clear(v.color);
+  const b = el("span", "io-bubble" + (empty ? " io-bubble--empty" : "")
+    + (filled ? " io-bubble--filled" : "") + (v.borderColor ? " io-bubble--side" : ""), parent, label);
+  if (v.color) cssVar(b, "--io-bubble-bg", clear(v.color) ? "transparent" : v.color);
   if (v.textColor) cssVar(b, "--io-bubble-fg", v.textColor);
+  if (v.borderColor) cssVar(b, "--io-bubble-side", clear(v.borderColor) ? "transparent" : v.borderColor);
   return b;
 }
 function pickPair(f) {
@@ -4618,7 +4636,7 @@ const PREVIEW_TEXTS = {
         { text: "Rewrite every description", fields: ["status"], children: [
           { text: "Tag Bars", fields: ["status", "priority"], children: [] },
           { text: "tagWheel panel", fields: ["status"], children: [] },
-          { text: "proof-read the tips", fields: ["priority"], children: [] }
+          { text: "Proofread the tips", fields: ["priority"], children: [] }
         ] }
       ] },
       { text: "Merge the prototype into the PRD", fields: [], children: [] },
@@ -5033,7 +5051,7 @@ const TAB_CALLOUTS = {
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate easier and much more. Try each group and keep what fits the way you write"
+          "jumping between headings to navigate more easily and much more. Try each group and keep what fits the way you write"
   },
   keyboard: {
     head: "Everything about keys lives here",
@@ -5686,6 +5704,7 @@ function valuesTable(host, f) {
     Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
     Fill: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
     Text: "The color of the writing inside that bubble — not the text of the Value, which is the <code>Value</code> column. If the two colors read badly together, <code>Preview</code> says so",
+    Side: "The color of the bubble outline. Untouched it comes from your theme. Pure white means no outline, and in <code>Fill</code> it means no fill",
     Preview: "This Value drawn the way the editor will draw it, with both colors and the <code>Show</code> choice already applied. Nothing here is a setting: it is the row showing what the columns to its left have built. A warning sign appears when the two colors are too close to read, with the contrast it measured"
   };
   /* Подсказка раскрывается под шапкой во всю ширину таблицы, а не внутри
@@ -5699,7 +5718,7 @@ function valuesTable(host, f) {
    * значению другого Field не читает вовсе.
    */
   (isLink ? ["", "Level", "Value", "Prefix", "Show", ""]
-          : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""])
+          : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Side", "Preview", ""])
     .forEach(t => {
       const cell = el("div", "io-vals__col", head);
       el("span", "io-vals__coltext", cell, t);
@@ -5749,6 +5768,7 @@ function valuesTable(host, f) {
         };
         mkColor("color", "Fill color");
         mkColor("textColor", "Text color");
+        mkColor("borderColor", "Side color");
         const pv = el("div", "io-vals__prev", row);
         applyTagVars(pv);
         bubble(pv, v);
@@ -5763,9 +5783,9 @@ function valuesTable(host, f) {
      * Value навсегда (решение заказчика 2026-08-27). Одна кнопка на оба
      * цвета, и стоит она перед удалением.
      */
-    if (!isLink && (v.color || v.textColor)) {
+    if (!isLink && (v.color || v.textColor || v.borderColor)) {
       const reset = iconBtn(tools, "↺", "Reset the colors of " + v.token + " back to the colors of the theme");
-      reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; renderContent(); });
+      reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; v.borderColor = ""; renderContent(); });
     }
     /* Удаление красное: это единственная кнопка в строке, которая уносит
        данные (замечание заказчика 2026-08-27). */
@@ -6498,12 +6518,13 @@ function renderUserTagColors(host) {
     Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
     Fill: "The color of the bubble behind the tag",
     Text: "The color of the writing on the bubble",
+    Side: "The color of the bubble outline. Pure white means no outline, and in <code>Fill</code> it means no fill",
     /* Подсказка колонки `Preview` завелась 2026-09-08 вместе с остальными:
        её не было ни здесь, ни в таблице Values, и заказчик назвал обе. */
     Preview: "The tag drawn the way the editor will draw it, with both colors and the <code>Show</code> choice applied. A warning sign appears when the two colors are too close to read, with the contrast it measured"
   };
   const tipSlot = el("div", "io-vals__tipslot", inner);
-  ["Tag", "Show", "Fill", "Text", "Preview", ""].forEach(title => {
+  ["Tag", "Show", "Fill", "Text", "Side", "Preview", ""].forEach(title => {
     const cell = el("div", "io-vals__col", head);
     el("span", "io-vals__coltext", cell, title);
     if (COLTIP[title]) attachTip(cell, COLTIP[title], title, tipSlot, tipSlot);
@@ -6541,6 +6562,7 @@ function renderUserTagColors(host) {
       };
       mkColor("color", "Fill color");
       mkColor("textColor", "Text color");
+      mkColor("borderColor", "Side color");
 
       /* Своя колонка предпросмотра — как в таблице Values. */
       const prev = el("div", "io-vals__prev", row);
@@ -6549,10 +6571,10 @@ function renderUserTagColors(host) {
       contrastNote(prev, v);
 
       const tools = el("div", "io-valtools", row);
-      if (v.color || v.textColor) {
+      if (v.color || v.textColor || v.borderColor) {
         const reset = iconBtn(tools, "\u21BA",
           "Reset the colors of #" + v.token + " back to the colors of the theme");
-        reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; draw(); });
+        reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; v.borderColor = ""; draw(); });
       }
       const del = iconBtn(tools, "\u2715", "Remove #" + v.token);
       del.classList.add("io-icon--danger");
@@ -6566,7 +6588,7 @@ function renderUserTagColors(host) {
     btn.addEventListener("click", () => {
       const raw = String(add.value || "").trim().replace(/^#/, "");
       if (!raw) return;
-      USER_TAGS.push({ token: raw, color: "", textColor: "", shown: "value" });
+      USER_TAGS.push({ token: raw, color: "", textColor: "", borderColor: "", shown: "value" });
       draw();
     });
   };
@@ -6590,7 +6612,7 @@ function renderBinder(host) {
    */
   const COLTIP = {
     Inserts: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
-    "Command name": "How the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
+    "Command name": "What the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
     Description: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
     Hotkey: "The keys assigned to this command right now. Press the cell and Obsidian's own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself"
   };

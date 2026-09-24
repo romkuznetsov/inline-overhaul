@@ -43,7 +43,7 @@ function paint(fill: string, text: string): Any {
  * запоминает, с чем позвали поиск. Сам вызов взят из `app.js` 1.13.7, где
  * платформа открывает поиск по клику на тег.
  */
-function paintWithApp(token: string, fill: string): Any {
+function paintWithApp(token: string, fill: string, border = ""): Any {
   const calls: string[] = [];
   const plugin = {
     app: {
@@ -54,7 +54,8 @@ function paintWithApp(token: string, fill: string): Any {
       },
     },
   };
-  const w = new I.TagVisualTokenWidget(token, fill, "", 1, false, 100, 100, 100, 100, 0, "", plugin);
+  const w = new I.TagVisualTokenWidget(token, fill, "", 1, false, 100, 100, 100, 100, 0, "", plugin,
+    undefined, undefined, false, border);
   return { el: w.toDOM(), calls };
 }
 
@@ -585,8 +586,8 @@ const filled = (el: Any): boolean =>
    */
   const { el, calls } = paintWithApp("#todo", "");
   const cls = String(el.className || "").split(/\s+/);
-  assert.ok(cls.includes(I.TAG_BUBBLE_ACCENT_CLASS),
-    "у пузыря без своей заливки обязан быть класс темы, иначе он выйдет бесцветным: " + el.className);
+  assert.ok(cls.includes(I.TAG_BUBBLE_THEME_CLASS),
+    "у пузыря без своей заливки обязан быть класс вида темы: " + el.className);
   assert.ok(!cls.includes(I.TAG_BUBBLE_FILLED_CLASS), "заливки своей у него нет");
   assert.ok(cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS), "и класс «по мне можно щёлкнуть»");
   el.dispatch("mousedown", { button: 0, preventDefault() {}, stopPropagation() {} });
@@ -607,10 +608,34 @@ const filled = (el: Any): boolean =>
   const cls = String(el.className || "").split(/\s+/);
   assert.ok(!cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS),
     "ссылке щелчок по тегу не приделывается: " + el.className);
-  assert.ok(!cls.includes(I.TAG_BUBBLE_ACCENT_CLASS), "и цвет тега ей не достаётся");
+  assert.ok(!cls.includes(I.TAG_BUBBLE_THEME_CLASS), "и вид тега ей не достаётся");
   el.dispatch("mousedown", { button: 0, preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(calls, [], "и поиска по ней не открывается");
   ok("ссылке пузырь тега не приделывается");
+}
+
+{
+  /*
+   * **`#FFFFFF` — прозрачно, и в заливке, и в рамке** (его пункт цикла 89:
+   * «при fill = `#FFFFFF` цвет был прозрачным… не хочу делать отдельный
+   * контрол на прозрачность»; то же о `Side`). Заливка `#FFFFFF` — не своя
+   * подложка, а вид темы с прозрачным фоном.
+   */
+  assert.ok(I.isClearColor("#FFFFFF") && I.isClearColor("#ffffff"), "белый в любом регистре — прозрачно");
+  assert.ok(!I.isClearColor("#fffffe") && !I.isClearColor(""), "и только он");
+  const clear = paintWithApp("#todo", "#FFFFFF").el;
+  const clearCls = String(clear.className || "").split(/\s+/);
+  assert.ok(!clearCls.includes(I.TAG_BUBBLE_FILLED_CLASS), "белой подложки нет: " + clear.className);
+  assert.ok(clearCls.includes(I.TAG_BUBBLE_THEME_CLASS), "текст и рамка — темы");
+  assert.equal(clear.style.getPropertyValue("--io-tagbubble-bg"), "transparent", "фон прозрачный");
+  const red = paintWithApp("#todo", "", "#ff0000").el;
+  assert.ok(String(red.className).split(/\s+/).includes(I.TAG_BUBBLE_SIDE_CLASS), "свой цвет рамки — свой класс");
+  assert.equal(red.style.getPropertyValue("--io-tagbubble-side"), "#ff0000", "и цвет рамки переменной");
+  const none = paintWithApp("#todo", "", "#FFFFFF").el;
+  assert.equal(none.style.getPropertyValue("--io-tagbubble-side"), "transparent", "рамка #FFFFFF прозрачна");
+  const plain = paintWithApp("#todo", "").el;
+  assert.ok(!String(plain.className).split(/\s+/).includes(I.TAG_BUBBLE_SIDE_CLASS), "без Side рамка темы");
+  ok("#FFFFFF прозрачен в заливке и рамке, Side красит рамку");
 }
 
 {

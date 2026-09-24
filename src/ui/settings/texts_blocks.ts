@@ -138,6 +138,7 @@ export const BLOCK_TEXTS = {
      */
     VALUE_FILL_TIP: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
     VALUE_TEXT_TIP: "The color of the writing inside that bubble — not the text of the Value, which is the <code>Value</code> column. If the two colors read badly together, <code>Preview</code> says so",
+    VALUE_SIDE_TIP: "The color of the bubble outline. Untouched it comes from your theme. Pure white means no outline, and in <code>Fill</code> it means no fill",
     VALUE_PREVIEW_TIP: "This Value drawn the way the editor will draw it, with both colors and the <code>Show</code> choice already applied. Nothing here is a setting: it is the row showing what the columns to its left have built. A warning sign appears when the two colors are too close to read, with the contrast it measured",
     SHOWN_DEFAULT: "default",
     SHOWN_EMPTY: "empty",
@@ -167,6 +168,7 @@ export const BLOCK_TEXTS = {
      * у самого пикера: сосед рядом брал слово у каталога, а он нет.
      */
     VALUE_TEXT_COLOR: "Text color",
+    VALUE_SIDE_COLOR: "Side color",
     VALUE_SHOWN_NAME: "Show",
     VALUE_CUSTOM_NAME: "Custom text",
     VALUE_RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
@@ -405,7 +407,7 @@ export const BLOCK_TEXTS = {
        Раскрываются в слот под шапкой, во всю ширину таблицы: ячейка шапки тут
        шириной в шесть десятков точек. */
     COL_INSERTS_TIP: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
-    COL_COMMAND_NAME_TIP: "How the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
+    COL_COMMAND_NAME_TIP: "What the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
     COL_DESCRIPTION_TIP: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
     COL_HOTKEY_TIP: "The keys assigned to this command right now. Press the cell and Obsidian's own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
@@ -458,12 +460,14 @@ export const BLOCK_TEXTS = {
     HEAD_SHOW: "Show",
     HEAD_FILL: "Fill",
     HEAD_TEXT: "Text",
+    HEAD_SIDE: "Side",
     HEAD_PREVIEW: "Preview",
     TEXT_COLOR: "Text color",
     TAG_TIP: "The tag as it is written in a line. With <code>#</code> or without it — both are read the same way",
     SHOWN_TIP: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
     FILL_TIP: "The color of the bubble behind the tag",
     TEXT_TIP: "The color of the writing on the bubble",
+    SIDE_TIP: "The color of the bubble outline. Pure white means no outline, and in <code>Fill</code> it means no fill",
     /* Пятая колонка была единственной без подсказки (заказ заказчика
        2026-09-08). Чип предпросмотра у своего тега свой, как в таблице
        Values, и предупреждение о контрасте показывает он же. */
@@ -477,6 +481,7 @@ export const BLOCK_TEXTS = {
     ROW_ARIA: "Tag {0}",
     SHOWN_FOR: "Show, for {0}",
     FILL_COLOR: "Fill color",
+    SIDE_COLOR: "Side color",
     RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
     REMOVE: "Remove {0}",
   },

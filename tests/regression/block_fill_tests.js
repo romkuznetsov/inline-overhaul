@@ -1677,4 +1677,42 @@ function rowBoxOf(row) {
   assertEq(trusted(1, 63, 0), true, "высоты ряда платформа не сказала — верим счёту");
 })();
 
+/*
+ * **Один разделитель, за ним правый Block — слева текст, а не Left Block** (его
+ * замечание к тесту 6, цикл 89). После `Due next` строка
+ * `- купить #random хлеб :: 📅…` несёт один разделитель; разбор читает его
+ * вторым (`В-211`), а слой оформления красил `#random` подложкой и кеглем Left
+ * Block. Спрашивается разбор (`buildLineSplitFromConfig`), конфиг — фикстура
+ * через `migrateConfig` (правило 2).
+ */
+(function testSingleSeparatorReadAsSecondKeepsTextOutOfLeft() {
+  const fs = require("fs");
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const cfg = normalize.migrateConfig(
+    JSON.parse(fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")),
+    { log: () => {} },
+  );
+  const sep = cfg.pkm.lineFormat.separator1;
+  assertEq(sep, cfg.pkm.lineFormat.separator2, "фикстура — случай одинаковых разделителей");
+  const markers = visuals.buildElementMarkersFromConfig(cfg);
+  const kinds = visuals.buildBlockKindsFromConfig(cfg);
+  const isLink = visuals.buildWikilinkValueTestFromConfig(cfg);
+  const split = visuals.buildLineSplitFromConfig(cfg);
+  assertTrue(typeof split === "function", "разбор строки собрался из конфига");
+  const zoneOf = (line, token, withSplit) => {
+    const hit = visuals.scanLineVisualTokens(line, sep, sep, markers, kinds, isLink, withSplit ? split : undefined)
+      .find((h) => h.token === token);
+    return hit && hit.zone;
+  };
+  const dated = `- купить #random хлеб ${sep} ${markers[0].marker}2026-09-24`;
+  /* Контроль: без разбора — прежний ответ, иначе проверка слепа (У-37). */
+  assertEq(zoneOf(dated, "#random", false), "left", "без разбора тег читался Left Block");
+  assertEq(zoneOf(dated, "#random", true), "middle", "тег посреди текста — текст");
+  assertEq(visuals.blockFillSpansInLine(dated, sep, sep, markers, kinds, isLink, split)
+    .filter((s) => s.zone === "left"), [], "подложки Left Block на тексте нет");
+  /* За разделителем текст — разделитель первый, ответ прежний. */
+  assertEq(zoneOf(`- купить #random хлеб ${sep} текст`, "#random", true), "left",
+    "строка с текстом за разделителем не меняется");
+})();
+
 console.log("Block fill regression tests: OK");

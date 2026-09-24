@@ -304,15 +304,15 @@ else ok("схема загружена: групп " + SCHEMA.length);
 
   const tableMin = px(/\.io-vals__inner\s*\{\s*min-width:\s*(\d+)px/, "min-width таблицы Values");
 
-  /* Сетка таблицы: девять колонок, из них одна тянется. */
+  /* Сетка таблицы: десять колонок — девять Ф7 и `Side` (его пункт цикла 89). */
   const grid = /\.io-vals__head,\s*\.io-vals__row\s*\{[^}]*grid-template-columns:([^;]+);/.exec(css);
   const gapM = /\.io-vals__head,\s*\.io-vals__row\s*\{[^}]*gap:\s*(\d+)px/.exec(css);
   const padM = /\.io-vals__head,\s*\.io-vals__row\s*\{[^}]*padding:\s*\d+px\s+(\d+)px/.exec(css);
   if (!grid || !gapM || !padM) fail("не нашёл сетку таблицы Values в styles.css");
   else {
     const parts = String(grid[1]).trim().split(/\s+(?![^(]*\))/);
-    if (parts.length !== 9) fail("Ф7: колонок в сетке таблицы Values " + parts.length + ", а должно быть девять");
-    else ok("Ф7: в сетке таблицы Values девять колонок");
+    if (parts.length !== 10) fail("Ф7: колонок в сетке таблицы Values " + parts.length + ", а должно быть десять");
+    else ok("Ф7: в сетке таблицы Values десять колонок");
     /*
      * Нижняя граница каждой колонки: у `minmax(X, …)` это X, у пиксельной —
      * она сама. Сумма границ плюс зазоры и поля — самая узкая раскладка, при

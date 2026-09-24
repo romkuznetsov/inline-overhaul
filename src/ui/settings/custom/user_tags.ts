@@ -40,7 +40,7 @@ import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 /* ---- тексты: сняты с прототипа (Приложение B) --------------------------- */
 
 /* Порядок колонок — как в таблице Values, без `Level` и `Prefix` (1.5.2.2). */
-export const HEAD = ["Tag", "Show", "Fill", "Text", "Preview", ""] as const;
+export const HEAD = ["Tag", "Show", "Fill", "Text", "Side", "Preview", ""] as const;
 
 /**
  * Имена строк каталога для подсказок колонок: слова живут в `texts_blocks.ts`
@@ -52,6 +52,7 @@ const COLUMN_TIPS: Readonly<Record<string, string>> = {
   Show: "SHOWN_TIP",
   Fill: "FILL_TIP",
   Text: "TEXT_TIP",
+  Side: "SIDE_TIP",
   /* `Preview` была единственной подписанной колонкой без подсказки — заказ
      заказчика 2026-09-08: «tip ко всем элементам, у которых еще нет». */
   Preview: "PREVIEW_TIP",
@@ -82,6 +83,8 @@ export interface UserTagRow {
   token: string;
   fillColor: string;
   textColor: string;
+  /** Цвет рамки (`Side`); пусто — рамка темы. */
+  borderColor: string;
   visibility: "default" | "empty";
 }
 
@@ -152,6 +155,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
           token,
           fillColor: normalizeHex(row["fillColor"]),
           textColor: normalizeHex(row["textColor"]),
+          borderColor: normalizeHex(row["borderColor"]),
           visibility: normalizeShown(row["visibility"]),
         });
       }
@@ -166,6 +170,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
       write(tok, {
         fillColor: has("fillColor") ? normalizeHex(patch.fillColor) : normalizeHex(current["fillColor"]),
         textColor: has("textColor") ? normalizeHex(patch.textColor) : normalizeHex(current["textColor"]),
+        borderColor: has("borderColor") ? normalizeHex(patch.borderColor) : normalizeHex(current["borderColor"]),
         visibility: has("visibility") ? normalizeShown(patch.visibility) : normalizeShown(current["visibility"]),
       }, reason);
     },
@@ -202,6 +207,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
           [now]: {
             fillColor: normalizeHex(current["fillColor"]),
             textColor: normalizeHex(current["textColor"]),
+            borderColor: normalizeHex(current["borderColor"]),
             visibility: normalizeShown(current["visibility"]),
           },
           [was]: null,
@@ -215,7 +221,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
       if (!tok) return;
       /* Уже есть — второй записью не портим цвета первого. */
       if (Object.prototype.hasOwnProperty.call(userTagsOf(plugin.getConfig()), tok)) return;
-      write(tok, { fillColor: "", textColor: "", visibility: "default" },
+      write(tok, { fillColor: "", textColor: "", borderColor: "", visibility: "default" },
         "pkm:visuals:user-tags:add");
     },
   };
@@ -314,12 +320,12 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
         "pkm:visuals:user-tags:visibility");
     }) as never);
 
-    const color = (key: "fillColor" | "textColor", label: string, reason: string): void => {
+    const color = (key: "fillColor" | "textColor" | "borderColor", label: string, reason: string): void => {
       const wrap = el(line, "div");
       /* Пока своего цвета нет, в образце стоит цвет темы — тот, которым тема
          и рисует тег. Разбор общий с проверкой контраста (C31, C39). */
-      const own = key === "fillColor" ? row.fillColor : row.textColor;
-      const fromTheme = toHexColor(key === "fillColor" ? theme.fill : theme.text);
+      const own = row[key];
+      const fromTheme = toHexColor(key === "fillColor" ? theme.fill : key === "textColor" ? (row.fillColor ? theme.onFill : theme.text) : theme.side);
       const input = wrap.createEl("input", {
         cls: "io-colin",
         type: "color",
@@ -334,6 +340,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     };
     color("fillColor", say("FILL_COLOR"), "pkm:visuals:user-tags:fill");
     color("textColor", say("TEXT_COLOR"), "pkm:visuals:user-tags:text");
+    color("borderColor", say("SIDE_COLOR"), "pkm:visuals:user-tags:side");
 
     /* Своя колонка предпросмотра — как в таблице Values. */
     const cell = el(line, "div", "io-vals__prev");
@@ -342,13 +349,14 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
       token: row.token.replace(/^#/, ""),
       fill: row.fillColor,
       text: row.textColor,
+      side: row.borderColor,
       shown: row.visibility === "empty" ? "empty" : "value",
       custom: "",
       depth: 0,
     });
     /* У пустого тега текста нет, читать нечего (Н18). */
     if (row.visibility !== "empty") {
-      const ratio = contrastRatio(row.fillColor || theme.fill, row.textColor || theme.text);
+      const ratio = contrastRatio(row.fillColor || theme.fill, row.textColor || (row.fillColor ? theme.onFill : theme.text));
       if (ratio < CONTRAST_FLOOR) {
         const warn = el(cell, "span", "io-warn", "\u26A0");
         /* Одна подсказка на узел — и только `aria-label`. */
@@ -362,7 +370,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
      * какой-то цвет, — и без этой кнопки выбранный однажды цвет оставался бы
      * у тега навсегда и при смене темы не подстраивался.
      */
-    if (row.fillColor || row.textColor) {
+    if (row.fillColor || row.textColor || row.borderColor) {
       const back = btn(tools, "io-icon", {
         text: "\u21BA",
         label: say("RESET_COLORS", row.token),
@@ -370,7 +378,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
       back.disabled = !o.enabled;
       back.addEventListener("click", (() => {
         if (!o.enabled) return;
-        o.onVisual(row, { fillColor: "", textColor: "" }, "pkm:visuals:user-tags:color-reset");
+        o.onVisual(row, { fillColor: "", textColor: "", borderColor: "" }, "pkm:visuals:user-tags:color-reset");
       }) as never);
     }
     /* Удаление красное: единственная кнопка строки, которая уносит данные. */

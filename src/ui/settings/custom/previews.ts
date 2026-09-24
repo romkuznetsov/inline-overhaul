@@ -285,9 +285,15 @@ export function bubbleLabel(v: PreviewValue, override?: string): string {
  */
 export function bubble(parent: El, v: PreviewValue, override?: string): El {
   const empty = v.shown === "empty";
-  const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : ""), bubbleLabel(v, override));
-  cssVar(b, "--io-bubble-bg", v.fill);
+  /* Без своей заливки — вид тега темы; `#FFFFFF` значит «прозрачно», и в
+     заливке, и в рамке (`Side`) — его пункт цикла 89. Правило одно на
+     заметку и панель (`isClearColor`). */
+  const filled = !!v.fill && !visualsConfig.isClearColor(v.fill);
+  const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : "")
+    + (filled ? " io-bubble--filled" : "") + (v.side ? " io-bubble--side" : ""), bubbleLabel(v, override));
+  cssVar(b, "--io-bubble-bg", v.fill && visualsConfig.isClearColor(v.fill) ? "transparent" : v.fill);
   if (v.text) cssVar(b, "--io-bubble-fg", v.text);
+  if (v.side) cssVar(b, "--io-bubble-side", visualsConfig.isClearColor(v.side) ? "transparent" : v.side);
   return b;
 }
 

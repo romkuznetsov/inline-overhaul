@@ -19,6 +19,7 @@ const __priorityStripEngine = require("./priority_strip_engine.js");
    дома общие, своих копий здесь быть не должно (В-141, У-32). */
 const __rulesShape = require("./pkm_rules_shape.js");
 const __rulesHelpers = require("./pkm_rules_runtime_helpers.js");
+const __linePipeline = require("./line_pipeline.js");
 
 /* Те же однострочные обёртки, что были в `main.js`: тела переехавших функций
    зовут их этими именами, и переписывать тела ради переезда нельзя (У-11). */
@@ -179,18 +180,29 @@ const TAG_BUBBLE_CLASS = "io-tagbubble";
 const TAG_BUBBLE_EMPTY_CLASS = "io-tagbubble--empty";
 const TAG_BUBBLE_FILLED_CLASS = "io-tagbubble--filled";
 /*
- * Пузырь тега, которому человек своего цвета не задавал: заливка — акцентный
- * цвет темы, текст — «текст на подложке», то есть ровно так же, как у тега со
- * своим цветом (его решение 2026-09-12, второй заход).
- *
- * **Первая версия брала `--tag-background`, и это оказалось неверно.** У темы
- * Minimal — той, что стоит у заказчика, — фон тега объявлен `transparent`, а
- * вид держится на рамке (`theme.css`, строка 1729). Пузырь честно взял «цвет
- * темы» и вышел невидимым: «визуально дефолтные теги отличаются от тегов, в
- * которых пользователь изменил text/fill — хочу, чтобы они были одинаковые».
- * Имя класса поэтому тоже сменилось: оно называет то, что делает (У-103).
+ * Пузырь тега без своей заливки рисуется **видом тега темы**: фон, текст, рамка
+ * и насыщенность — переменными `--tag-*`, которыми Obsidian рисует `a.tag` и
+ * `.cm-hashtag` (`app.css` 1.13.7). Его слово, цикл 89: «по умолчанию цвет
+ * заливки и текста тегов был как в используемой теме, а менялся на другие цвета
+ * только пользователем при изменении fill и text». Это отменяет его решение
+ * 2026-09-12 («хочу, чтобы они были одинаковые» — тогда дефолтный тег брал
+ * акцент): с цикла 88 пузырь у всякого тега, и одинаковыми их делает тема.
+ * У Minimal фон тега `transparent`, и вид держит рамка — так и задумано.
  */
-const TAG_BUBBLE_ACCENT_CLASS = "io-tagbubble--accent";
+const TAG_BUBBLE_THEME_CLASS = "io-tagbubble--theme";
+/* Свой цвет рамки (`Side`, его пункт цикла 89): рамка есть и там, где тема
+   своей не рисует. */
+const TAG_BUBBLE_SIDE_CLASS = "io-tagbubble--side";
+
+/**
+ * `#FFFFFF` в цвете заливки или рамки значит «прозрачно» — его слово, цикл 89:
+ * «при fill = `#FFFFFF` цвет был прозрачным… не хочу делать отдельный контрол
+ * на прозрачность», и то же о рамке. Одно объявление на слой заметки и на
+ * панель (У-32).
+ */
+function isClearColor(value) {
+  return normalizeHexColorInput(value) === "#ffffff";
+}
 /* Пузырь, по которому можно щёлкнуть: это тег, и у него есть поиск. */
 const TAG_BUBBLE_CLICKABLE_CLASS = "io-tagbubble--clickable";
 /*
@@ -431,6 +443,7 @@ function normalizeRuntimeTagVisualRow(row) {
   return {
     fillColor: normalizeHexColorInput(src.fillColor),
     textColor: normalizeHexColorInput(src.textColor),
+    borderColor: normalizeHexColorInput(src.borderColor),
     visibility,
     customText: String(src.customText || "").trim(),
   };
@@ -443,6 +456,7 @@ function scoreTagVisualRow(row, sourceRank) {
   if (effective === "custom" && safe.customText) score += 5;
   if (safe.fillColor) score += 2;
   if (safe.textColor) score += 1;
+  if (safe.borderColor) score += 1;
   score += Number.isFinite(Number(sourceRank)) ? Number(sourceRank) : 0;
   return score;
 }
@@ -548,6 +562,41 @@ function lineSeparatorBounds(lineText, sep1, sep2) {
     last: i2,
     lastEnd: i2 >= 0 ? i2 + s2.length : -1,
   };
+}
+
+/**
+ * Где кончается Left Block: у первого разделителя — или раньше, у первого
+ * слова текста.
+ *
+ * **Ответ берётся у разбора строки, и это починка** (его замечание к тесту 6,
+ * цикл 89). Строка `- купить #random хлеб :: 📅…` несёт один разделитель, и по
+ * положению он первый; разбор же (`В-211`, `demoteLeftBodyToText`) читает его
+ * вторым — за ним правый Block, до него текст. Слой оформления отвечал сам и
+ * красил `#random` подложкой и кеглем Left Block. Второе объявление того же
+ * правила здесь разошлось бы снова, поэтому спрашивается `splitLine` — разбор
+ * движков, собранный из конфига.
+ */
+function leftZoneEnd(src, at, splitLine) {
+  if (at.first < 0 || at.first !== at.last || typeof splitLine !== "function") return at.first;
+  const seg = splitLine(src);
+  if (!seg || !seg.text || !seg.dates) return at.first;
+  const word = String(seg.text).split(/\s+/)[0];
+  for (let i = src.indexOf(word); i >= 0 && i < at.first; i = src.indexOf(word, i + 1)) {
+    if (i === 0 || /\s/.test(src[i - 1])) return i;
+  }
+  return at.first;
+}
+
+/** Разбор строки движками для слоя оформления; `null`, если правила не собрались. */
+function buildLineSplitFromConfig(cfg) {
+  try {
+    const rules = __rulesShape.buildRulesForEngines(cfg);
+    return function splitLine(text) {
+      try { return __linePipeline.splitSegments(text, rules); } catch (_) { return null; }
+    };
+  } catch (_) {
+    return null;
+  }
 }
 
 function resolveTagVisualZone(lineText, tokenStart, sep1, sep2) {
@@ -669,7 +718,7 @@ function buildElementMarkersFromConfig(cfg) {
  * не отдельный тег. Побеждает тот, кто начался раньше, а при равном начале —
  * тот, кто длиннее.
  */
-function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue) {
+function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue, splitLine) {
   const src = String(text || "");
   const found = [];
   /*
@@ -712,17 +761,23 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLi
     return (b.end - b.index) - (a.end - a.index);
   });
 
+  const at = lineSeparatorBounds(src, sep1, sep2);
+  const leftEnd = leftZoneEnd(src, at, splitLine);
   const out = [];
   let claimedTo = -1;
   for (const entry of found) {
     if (entry.index < claimedTo) continue;
+    /* Между первым словом текста и разделителем — текст, а не Left Block (`leftZoneEnd`). */
+    const zone = entry.index >= leftEnd && entry.index < at.first
+      ? "middle"
+      : resolveTagVisualZone(src, entry.index, sep1, sep2);
     out.push({
       token: entry.token,
       kind: entry.kind,
       index: entry.index,
       end: entry.end,
       zone: blockValueZone(
-        resolveTagVisualZone(src, entry.index, sep1, sep2),
+        zone,
         entry.kind,
         blockKinds,
         entry.token,
@@ -1864,15 +1919,18 @@ function buildWikilinkValueTestFromConfig(cfg) {
  * «если values left\right block отсутствуют, то эта подложка не должна
  * появляться».
  */
-function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue) {
+function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue, splitLine) {
   const src = String(text || "");
   /* Значение считается значением **этого** Block, только если такие в нём
      бывают. Вопрос задаётся один раз — при разборе строки (`blockValueZone`):
      пока его знала одна подложка, кегль и прозрачность Block доставались тому
      же токену, которому полосы уже не давали. Разбор строки у движков решает
      иначе, и это отдельный вопрос — у него свой ответ и своя цена (10.13.187). */
-  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers, blockKinds, isLinkValue);
+  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers, blockKinds, isLinkValue, splitLine);
   const at = lineSeparatorBounds(src, sep1, sep2);
+  /* Разделитель прочитан вторым — Left Block кончается у текста, и
+     разделителя, до которого тянуться, у него нет (`leftZoneEnd`). */
+  const leftEnd = leftZoneEnd(src, at, splitLine);
   const out = [];
   for (const zone of ["left", "right"]) {
     let start = -1;
@@ -1894,14 +1952,14 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLi
      * между блоком и разделителем нет вовсе, и это законно.
      */
     const gapFrom = zone === "left" ? end : at.lastEnd;
-    const gapTo = zone === "left" ? at.first : start;
+    const gapTo = zone === "left" ? leftEnd : start;
     /*
      * Дальняя граница разделителя — вторая половина шкалы `Band width`: на
      * сотне подложка разделитель включает. Слева это конец первого
      * разделителя, справа — начало последнего; ближняя граница у обоих та, что
      * уже названа в `gapFrom`/`gapTo`.
      */
-    const sepFar = zone === "left" ? at.firstEnd : at.last;
+    const sepFar = zone === "left" ? (leftEnd === at.first ? at.firstEnd : leftEnd) : at.last;
     out.push({
       zone,
       start,
@@ -2428,7 +2486,9 @@ module.exports = {
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,
-  TAG_BUBBLE_ACCENT_CLASS,
+  TAG_BUBBLE_THEME_CLASS,
+  TAG_BUBBLE_SIDE_CLASS,
+  isClearColor,
   TAG_BUBBLE_CLICKABLE_CLASS,
   LINK_SHOWN_CLASS,
   computeTagVisualStyle,
@@ -2456,6 +2516,7 @@ module.exports = {
   buildBlockKindsFromConfig,
   blockOwnsToken,
   buildWikilinkValueTestFromConfig,
+  buildLineSplitFromConfig,
   blockValueZone,
   buildBlockStyleCss,
   blockValueStyleVars,

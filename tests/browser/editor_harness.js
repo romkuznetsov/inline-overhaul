@@ -506,14 +506,14 @@ const EDITOR_INJECTIONS = {
     replace: "  return at.first >= 0 && at.last >= 0 && at.first !== at.last;",
   },
   /*
-   * Заливка у пузыря без своего цвета потеряна: тег пропадает с глаз. Ровно
-   * это и вышло у заказчика на первой версии правки, где заливка бралась из
-   * `--tag-background`, а его тема объявляет её прозрачной.
+   * Пузырь без своего цвета снова берёт акцент, а не вид тега темы —
+   * состояние до цикла 89, из которого пришло его слово «по умолчанию цвет
+   * заливки и текста тегов был как в используемой теме».
    */
-  "plain-tag-colorless": {
+  "plain-tag-accent": {
     file: "styles.css",
-    find: "  background-color: var(--interactive-accent);",
-    replace: "  background-color: transparent;",
+    find: "  background-color: var(--io-tagbubble-bg, var(--tag-background));",
+    replace: "  background-color: var(--interactive-accent);",
   },
   /*
    * Оверлей скроллера: правило показа сломано. Перенос `display` из свойств

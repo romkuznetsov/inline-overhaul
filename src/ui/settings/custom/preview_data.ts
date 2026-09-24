@@ -36,6 +36,8 @@ export interface PreviewValue {
   fill: string;
   /** Цвет текста; пусто — берётся из темы. */
   text?: string;
+  /** Цвет рамки (`Side`); пусто — рамка темы, `#ffffff` — без рамки. */
+  side?: string;
   shown: ValueShown;
   /** Свой текст, когда `shown` равен `custom`. */
   custom?: string;

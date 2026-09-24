@@ -71,7 +71,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
 },
 {
   id: "naming", tab: "transform", order: 200, heading: "New note naming",
-  intro: "The new note needs a name. This block defines how to choose a name of a new note",
+  intro: "The new note needs a name. This block defines how the name of a new note is chosen",
   tip: "Three ways of finding one are tried in turn, and the first that works wins: the text between your chosen brackets, then a heading on the line, then simply the first few words",
   visible: on("transform.inline2note.enabled"),
   items: [

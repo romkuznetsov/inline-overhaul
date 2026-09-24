@@ -279,12 +279,20 @@ export function cssVarValue(node: El, name: string): string {
 export interface ThemePair {
   fill: string;
   text: string;
+  side: string;
+  /** Текст на своей заливке, когда цвет текста не задан (`.io-bubble--filled`). */
+  onFill: string;
 }
 
 export function themePair(node: El): ThemePair {
   return {
-    fill: cssVarValue(node, "--interactive-accent"),
-    text: cssVarValue(node, "--text-on-accent"),
+    /* Вид тега темы — его пункт цикла 89: тег без своих цветов рисуется так,
+       как его рисует тема. Прозрачный фон темы в `#rrggbb` не разбирается, и
+       пикер покажет белый — это и есть «прозрачно». */
+    fill: cssVarValue(node, "--tag-background"),
+    text: cssVarValue(node, "--tag-color"),
+    side: cssVarValue(node, "--tag-border-color"),
+    onFill: cssVarValue(node, "--text-on-accent"),
   };
 }
 

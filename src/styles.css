@@ -791,9 +791,15 @@
      упирается (замечание заказчика 2026-09-09). Правило то же, что у заметки в
      `computeTagVisualStyle`, со своим основанием — 1.35 против 1.2. */
   line-height: calc(1 + 0.35 * min(1, var(--io-bubble-y)));
-  background: var(--io-bubble-bg, var(--interactive-accent));
-  color: var(--io-bubble-fg, var(--text-on-accent));
+  /* Без своей заливки — вид тега темы (его пункт цикла 89): те же переменные,
+     что у пузыря в заметке. Рамка — темы, свой цвет — `Side`. */
+  background: var(--io-bubble-bg, var(--tag-background));
+  color: var(--io-bubble-fg, var(--tag-color));
+  font-weight: var(--tag-weight);
+  border: var(--tag-border-width, 0px) solid var(--tag-border-color, transparent);
 }
+.io-bubble--filled { color: var(--io-bubble-fg, var(--text-on-accent)); }
+.io-bubble--side { border: max(var(--tag-border-width, 0px), 1px) solid var(--io-bubble-side); }
 /* Value без текста — всё ещё Value: та же высота, только уже и без надписи. */
 .io-bubble--empty {
   width: calc(30px * var(--io-empty-x));
@@ -1259,6 +1265,9 @@
    кнопкой она была жирной и плоской; здесь у обеих один вес и одна тень.
    Удвоенный класс — против `.io-btn.io-btn--cta` ниже по файлу. */
 .io-fields__add .io-btn--cta.io-btn--cta { font-weight: inherit; box-shadow: var(--input-shadow); }
+/* Его замечание к тесту 2, цикл 89: «сделай кнопки шире, чтобы они равномерно
+   заполнили пространство столбца». */
+.io-fields__add > .io-btn { flex: 1 1 0; min-width: 0; }
 
 /* Список Fields, разделённый линией строки, на которой стоит текст (Ф1). */
 .io-side {
@@ -1605,16 +1614,16 @@
  * колонки пришлось поджать — особенно `Fill`, `Text` и `Preview`, между
  * которыми и стоял лишний воздух.
  */
-.io-vals__inner { min-width: 408px; }
+.io-vals__inner { min-width: 440px; }
 /* 206px нижних границ, четыре зазора по 4 и поля по 10 с каждой стороны. */
 /* Color your Tags: та же таблица, что Values, без `Level` и `Prefix`
    (замечание заказчика 1.5.2.2). Шесть колонок: тег, показ, две заливки,
    предпросмотр и кнопки. */
 .io-vals--tags .io-vals__head,
 .io-vals--tags .io-vals__row {
-  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px minmax(72px, 1.4fr) 44px;
+  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px 40px minmax(72px, 1.4fr) 44px;
 }
-.io-vals__inner--tags { min-width: 352px; }
+.io-vals__inner--tags { min-width: 396px; }
 
 /* Какие Fields остаются на исходной строке (замечание заказчика 1.6.5.1):
    строка на Field, флажок слева, тип справа приглушённым. */
@@ -1927,7 +1936,7 @@
    */
   grid-template-columns:
     14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(54px, 1fr) 24px 28px minmax(52px, 1fr) 40px;
+    minmax(54px, 1fr) 24px 28px 28px minmax(52px, 1fr) 40px;
 }
 /*
  * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
@@ -3457,19 +3466,31 @@
   color: var(--io-tagbubble-fg, var(--text-on-accent));
 }
 /*
- * Тег, которому человек цвета не задавал. Пузырь рисуем мы — иначе настройки
- * размера до него не доезжают вовсе, — а заливка берётся **акцентная**, и
- * текст на ней тот же, что у пузыря со своим цветом: решение заказчика
- * 2026-09-12, «хочу, чтобы они были одинаковые».
+ * Тег без своей заливки — **вид тега темы**: те же переменные, которыми
+ * Obsidian рисует `a.tag` и `.cm-hashtag` (`app.css` 1.13.7). Его слово,
+ * цикл 89: «по умолчанию цвет заливки и текста тегов был как в используемой
+ * теме». Отменяет его решение 2026-09-12 (акцентная заливка): у Minimal фон
+ * тега `transparent`, вид держит рамка, и так и задумано.
  *
- * **Почему не `--tag-background`.** Так было в первой версии, и на его теме
- * (Minimal) фон тега объявлен `transparent`: пузырь честно взял цвет темы и
- * пропал с глаз. Переменная темы тут годится ровно одна — та, которой тема
- * красит **выделенное**, а не та, которой она красит тег (У-161).
+ * Заливка `#FFFFFF` приезжает сюда же прозрачной (`isClearColor`): свой
+ * `--io-tagbubble-bg` сильнее фона темы.
  */
-.io-tagbubble--accent {
-  background-color: var(--interactive-accent);
-  color: var(--io-tagbubble-fg, var(--text-on-accent));
+.io-tagbubble--theme {
+  background-color: var(--io-tagbubble-bg, var(--tag-background));
+  color: var(--io-tagbubble-fg, var(--tag-color));
+  font-weight: var(--tag-weight);
+}
+/*
+ * Рамка — у всякого тега, как у темы: ширина и цвет её. Свой цвет рамки
+ * (`Side`, его пункт цикла 89) сильнее цвета темы, и рамка тогда есть и там,
+ * где тема своей не рисует; `#FFFFFF` приезжает прозрачным — рамки не видно, а
+ * место её остаётся, и соседний текст не прыгает.
+ */
+.io-tagbubble--clickable {
+  border: var(--tag-border-width, 0px) solid var(--tag-border-color, transparent);
+}
+.io-tagbubble--side {
+  border: max(var(--tag-border-width, 0px), 1px) solid var(--io-tagbubble-side);
 }
 /*
  * Щелчок по тегу открывает поиск — за это отвечает `openTagSearch`, а здесь
@@ -3480,9 +3501,12 @@
 .io-tagbubble--clickable {
   cursor: var(--cursor-link, pointer);
 }
-.io-tagbubble--accent.io-tagbubble--clickable:hover {
-  background-color: var(--interactive-accent-hover, var(--interactive-accent));
+.io-tagbubble--theme.io-tagbubble--clickable:hover {
+  background-color: var(--io-tagbubble-bg, var(--tag-background-hover, var(--tag-background)));
+  color: var(--io-tagbubble-fg, var(--tag-color-hover, var(--tag-color)));
+  border-color: var(--tag-border-color-hover, var(--tag-border-color, transparent));
 }
+.io-tagbubble--side.io-tagbubble--clickable:hover { border-color: var(--io-tagbubble-side); }
 
 /*
  * Значение поля-ссылки, показанное своим текстом (его заказ 2026-09-20,

@@ -251,6 +251,7 @@ function columnTips(isLink: boolean): Record<string, string> {
     Show: "VALUE_SHOWN_TIP",
     Fill: "VALUE_FILL_TIP",
     Text: "VALUE_TEXT_TIP",
+    Side: "VALUE_SIDE_TIP",
     Preview: "VALUE_PREVIEW_TIP",
   };
 }
@@ -1423,6 +1424,7 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
   token: string;
   fill: string;
   text: string;
+  side: string;
   shown: ValueVisibility;
   custom: string;
 }): El {
@@ -1432,6 +1434,7 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
     token: plain(v.token),
     fill: v.fill,
     text: v.text,
+    side: v.side,
     shown: v.shown === "default" ? "value" : v.shown,
     custom: v.custom,
     depth: 0,
@@ -1445,7 +1448,7 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
    * (4.0:1) значок получало, а белое на жёлтом (1.7:1) — нет, хотя читается
    * хуже. Незаданный цвет — не отсутствие цвета, а цвет темы.
    */
-  const ratio = contrastRatio(v.fill || theme.fill, v.text || theme.text);
+  const ratio = contrastRatio(v.fill || theme.fill, v.text || (v.fill ? theme.onFill : theme.text));
   if (ratio >= CONTRAST_FLOOR) return drawn;
   const warn = el(cell, "span", "io-warn", "\u26A0");
   /* Одна подсказка на узел — и только `aria-label`: `title` рисует вторую. */
@@ -1504,7 +1507,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
    */
   const columns = isLink
     ? ["", "Level", "Value", "Prefix", "Show", ""]
-    : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""];
+    : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Side", "Preview", ""];
   const tips = columnTips(isLink);
   for (const title of columns) {
     const cell = el(headRow, "div", "io-vals__col");
@@ -1718,7 +1721,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
 
       /* Цвета и образец — только у тега: у ссылки своего цвета нет, её красит
          тема, и образцом ей служит сама строка заметки. */
-      const color = (key: "fillColor" | "textColor", label: string, reason: string): void => {
+      const color = (key: "fillColor" | "textColor" | "borderColor", label: string, reason: string): void => {
         const wrap = el(line, "div");
         /*
          * Пока своего цвета у Value нет, в образце стоит цвет **темы** — тот,
@@ -1734,8 +1737,8 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
          * Белый остаётся последним запасным: у заглушки DOM темы нет, а
          * значение полю нужно всегда.
          */
-        const own = key === "fillColor" ? visual.fillColor : visual.textColor;
-        const fromTheme = toHexColor(key === "fillColor" ? theme.fill : theme.text);
+        const own = visual[key];
+        const fromTheme = toHexColor(key === "fillColor" ? theme.fill : key === "textColor" ? (visual.fillColor ? theme.onFill : theme.text) : theme.side);
         const input = wrap.createEl("input", {
           cls: "io-colin",
           type: "color",
@@ -1752,11 +1755,13 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       if (!isLink) {
         color("fillColor", say("VALUE_FILL_COLOR"), "pkm:visuals:tag:fill");
         color("textColor", say("VALUE_TEXT_COLOR"), "pkm:visuals:tag:text");
+        color("borderColor", say("VALUE_SIDE_COLOR"), "pkm:visuals:tag:side");
 
         previewBubble = previewCell(line, o, theme, {
           token: v.token,
           fill: visual.fillColor,
           text: visual.textColor,
+          side: visual.borderColor,
           shown: visual.visibility,
           custom: visual.customText,
         });
@@ -1774,7 +1779,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     if (!isLink) {
       const fieldId = ve.parentFieldId || row.strictName;
       const visual = o.model.getValueVisual(fieldId, v.token);
-      if (visual.fillColor || visual.textColor) {
+      if (visual.fillColor || visual.textColor || visual.borderColor) {
         const back = btn(tools, "io-icon", {
           text: "\u21ba",
           label: say("VALUE_RESET_COLORS", v.token),
@@ -1782,7 +1787,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
         back.disabled = !o.enabled;
         back.addEventListener("click", (() => {
           if (!o.enabled) return;
-          o.model.setValueVisual(fieldId, v.token, { fillColor: "", textColor: "" },
+          o.model.setValueVisual(fieldId, v.token, { fillColor: "", textColor: "", borderColor: "" },
             "pkm:visuals:tag:color-reset:" + fieldId);
           o.redraw();
         }) as never);
