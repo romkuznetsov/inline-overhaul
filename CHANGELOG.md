@@ -23,12 +23,17 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 1. ✨ **Custom blocks write where the cursor is.** `Add Block` under the Fields list makes a Block of your own with its command `tagWheel <block>`: it opens at the cursor, splits the text there, and `Enter` writes the picked Values between your words. On a Value of the block it opens on that Value and replaces it.
 2. ✨ **A custom block's Fields step on the Value under the cursor.** Their `next` and `previous` change that Value; away from one they put the first or the last Value at the cursor.
-3. ✨ **`Tab` can move between custom blocks.** `tagWheel - Switch custom blocks on Tab` under **Tags & PKM → tagWheel behavior**; off, `Tab` there does nothing.
+3. ✨ **`Tab` can move between custom blocks.** `Switch custom blocks on Tab` under **Tags & PKM → tagWheel behavior**; off, `Tab` there does nothing.
 4. 🎨 **tagWheel settings about how it moves have their own group.** `Active Field on opening`, `Values in the other Block` and `tagWheel navigation behavior` moved to **Tags & PKM → tagWheel behavior**; your values stay as they were, and a backup takes them with the `Tags & PKM` tick.
 5. 🎨 **`Prefix behavior` has two modes, `Strict` and `Insert only`.** A Field that writes at the cursor belongs in a custom block; `Free: insert position` is gone with `Free`.
 6. 🎨 **A Value cannot share its spelling with another Field's Value.** The editor refuses it with a message.
 7. 🎨 **Every tag you edit gets the same bubble.** `Tag view` now shapes all tags in the editor, in any note, and only their colours differ; a tag inside code stays as Obsidian draws it, and reading view is unchanged.
 8. 🐛 **A tag in the middle of your text stays in your text.** On a line without separators, `tagWheel Left` no longer copies it into its Block, and a Right Block command no longer splits your text around it.
+9. 🎨 **A tag with no colours of its own looks like a tag of your theme.** Fill, text and outline come from the theme until you pick your own; pure white in `Fill` means no fill.
+10. ✨ **`Side` colours the outline of a tag.** A new column in the Values table and in `Color custom tags`; pure white means no outline, and the reset button takes it back to the theme.
+11. 🐛 **A tag in your text keeps its size after `next` on a Right Block Field.** A line with one separator and a date after it no longer draws the text before it as Left Block.
+12. 🎨 **Clearer panel texts.** `Standard commands` is now `Main commands`, headings are called headings, and the tips name settings the way the panel shows them.
+13. 🎨 **`Add Block` and `Add Field` fill the width of the Fields column.**
 
 ## 0.8.1
 
