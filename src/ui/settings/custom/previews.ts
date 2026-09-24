@@ -850,7 +850,9 @@ export const linePreview: CustomRender = (host, ctx) => {
   const draw = (): void => {
     holder.empty();
     foot.empty();
-    applyTagVars(holder, ctx, { plainSize: true });
+    /* Полосы Block в этом превью нет — его слово, цикл 90: «убери из этого live
+       preview полоску tags-block-fill-color». */
+    applyTagVars(holder, ctx, { plainSize: true, blockFill: false });
     const { fields, example } = previewFields(ctx);
 
     const cell = (cls: string, fill?: (c: El) => void): El => {

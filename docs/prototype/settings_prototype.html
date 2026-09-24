@@ -1307,7 +1307,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 
 /* the structure diagram: three rows, and separator captions taken out of
    the flow so a long word cannot widen a narrow column */
-.io-struct { grid-template-rows: auto auto auto; row-gap: 2px; }
+.io-struct { grid-template-rows: auto auto auto; row-gap: 2px; }/* Превью строки компактнее — его слово, цикл 90: «размеры элементов left/right
+   block… слишком крупные, сделай покомпактнее». Ползунки `Tag view` действуют
+   теми же множителями. */
+.io-struct .io-bubble {
+  font-size: 0.85em;
+  padding: calc(1.5px * var(--io-bubble-y)) calc(6px * var(--io-bubble-x));
+}
 .io-struct__block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .io-struct__tick {
   width: 1px; height: 9px; margin: 0 auto;
@@ -4701,7 +4707,8 @@ function renderLinePreview(host) {
      word cannot widen the narrow separator column. */
   const draw = () => {
     holder.textContent = "";
-    applyTagVars(holder, { plainSize: true });
+    /* Полосы Block в этом превью нет — его слово, цикл 90. */
+    applyTagVars(holder, { plainSize: true, blockFill: false });
 
     const cell = (cls, fill) => {
       const c = el("div", "io-struct__cell " + cls, holder);

@@ -1710,6 +1710,11 @@ function rowBoxOf(row) {
   assertEq(zoneOf(dated, "#random", true), "middle", "тег посреди текста — текст");
   assertEq(visuals.blockFillSpansInLine(dated, sep, sep, markers, kinds, isLink, split)
     .filter((s) => s.zone === "left"), [], "подложки Left Block на тексте нет");
+  /* Открытая панель Right за разделителем (его замечание к тесту 3, цикл 90):
+     пока идёт сессия, за `::` стоит полоса, а не значение. */
+  const session = `- купить #random хлеб ${sep} ==**[Due]**==`;
+  assertEq(zoneOf(session, "#random", false), "left", "без разбора тег под панелью читался Left Block");
+  assertEq(zoneOf(session, "#random", true), "middle", "при открытой панели тег посреди текста — текст");
   /* За разделителем текст — разделитель первый, ответ прежний. */
   assertEq(zoneOf(`- купить #random хлеб ${sep} текст`, "#random", true), "left",
     "строка с текстом за разделителем не меняется");

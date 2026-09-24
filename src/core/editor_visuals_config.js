@@ -578,8 +578,18 @@ function lineSeparatorBounds(lineText, sep1, sep2) {
  */
 function leftZoneEnd(src, at, splitLine) {
   if (at.first < 0 || at.first !== at.last || typeof splitLine !== "function") return at.first;
-  const seg = splitLine(src);
-  if (!seg || !seg.text || !seg.dates) return at.first;
+  /*
+   * **Открытая панель за разделителем — тоже правый Block** (его замечание к
+   * тесту 3, цикл 90: «открываю tagwheel right block, то textblock по прежнему
+   * воспринимается как left block»). Пока идёт сессия, за разделителем стоит
+   * не значение, а полоса `==…==`, и разбор её правым Block не узнаёт. Тогда
+   * спрашивается голова строки без разделителя — тот же ответ, что у строки
+   * без разделителей вовсе.
+   */
+  const wheel = tagwheelPanelSpanInLine(src);
+  const panelAfter = !!wheel && wheel.start >= at.firstEnd;
+  const seg = splitLine(panelAfter ? src.slice(0, at.first) : src);
+  if (!seg || !seg.text || (!panelAfter && !seg.dates)) return at.first;
   const word = String(seg.text).split(/\s+/)[0];
   for (let i = src.indexOf(word); i >= 0 && i < at.first; i = src.indexOf(word, i + 1)) {
     if (i === 0 || /\s/.test(src[i - 1])) return i;

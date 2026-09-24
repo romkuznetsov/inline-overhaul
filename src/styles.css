@@ -3609,3 +3609,11 @@
   visibility: hidden;
   font-weight: 500;
 }
+
+/* Превью строки компактнее — его слово, цикл 90: «размеры элементов left/right
+   block… слишком крупные, сделай покомпактнее». Ползунки `Tag view` действуют
+   теми же множителями. */
+.io-struct .io-bubble {
+  font-size: 0.85em;
+  padding: calc(1.5px * var(--io-bubble-y)) calc(6px * var(--io-bubble-x));
+}
