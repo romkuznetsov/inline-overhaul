@@ -103,9 +103,11 @@ const PANEL_INJECTIONS = {
    */
   "cancel-keeps-panel": {
     file: "src/pkm_v2/TagWheel/tagwheel.js",
+    /* Каретку `Esc` с 2026-09-24 возвращает и custom block — к её месту
+       (PRD 10.13.260); подмена пошла за текстом (У-94). */
     find: "    clearPanelMask(state)\n    unwritePanelLine(state)\n"
-      + "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
-    replace: "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
+      + "    state.editor.setCursor({ line: state.lineNumber,\n      ch: state.custom ? state.custom.caretCh : state.originalLine.length })",
+    replace: "    state.editor.setCursor({ line: state.lineNumber,\n      ch: state.custom ? state.custom.caretCh : state.originalLine.length })",
   },
   /*
    * Полоса обратно встаёт **на место** значений, а не рядом: план записи не
@@ -198,6 +200,15 @@ const PANEL_INJECTIONS = {
     find: "          if (!e.repeat) state.altTap = true",
     replace: "          if (!e.repeat) { state.altTap = true; setAltOpen(state, true) }",
   },
+  /*
+   * Полоса custom block уезжает из-под каретки в конец строки — ровно так
+   * встала бы панель, которая не знает, где каретка (PRD 10.13.260).
+   */
+  "custom-strip-at-end": {
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
+    find: "    var from = c.span ? c.span.from : c.caretCh\n    var to = c.span ? c.span.to : c.caretCh\n    var lo = 0",
+    replace: "    var from = line.length\n    var to = line.length\n    var lo = 0",
+  },
   "scroller-silent": {
     file: "src/ui/tagwheel_scroller_overlay.js",
     find: "function getAnchorRect(editor, lineNumber, controlLine) {\n  try {",
@@ -206,8 +217,27 @@ const PANEL_INJECTIONS = {
 };
 
 /** Конфиг фикстуры, правила и ключи — всё теми же функциями, что у плагина. */
+/*
+ * **Custom block страницы** (PRD 10.13.260): один блок с одним Field. В
+ * фикстуре его нет, и заводит его страница сама — умолчание «блоков нет» то
+ * состояние, в котором проверять нечего (У-112). Правила Left/Right от него не
+ * меняются: Field блока до них не доезжает (`scopeToBlock`).
+ */
+const CUSTOM_VALUE = "calm";
+
+function withCustomBlock(raw) {
+  const order = raw.pkm.fields.order;
+  order.types = Object.assign({}, order.types, { Mood: "tag" });
+  order.labels = Object.assign({}, order.labels, { Mood: "Mood" });
+  order.strictNames = Object.assign({}, order.strictNames, { Mood: "Mood" });
+  order.custom = [{ id: "b1", name: "Custom block 1", keys: ["Mood"] }];
+  raw.pkm.fields.tags.fields.push({ id: "Mood", prefix: "#", placeholder: "Mood",
+    values: [{ id: CUSTOM_VALUE, token: CUSTOM_VALUE }, { id: "busy", token: "busy" }] });
+  return normalize.migrateConfig(raw);
+}
+
 function buildFixture() {
-  const cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8")));
+  const cfg = withCustomBlock(normalize.migrateConfig(JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8"))));
   /*
    * **Режим подписей коробки открывает сама страница** (У-112): умолчание контрола —
    * то состояние, в котором проверять нечего. Свой текст задан **одному** значению
@@ -248,6 +278,7 @@ function buildFixture() {
     lines: linesFor(cfg),
     settingsLeft,
     settingsRight: Object.assign({}, pane, defById("open-tagwheel-right").makeSettings(cfg)),
+    settingsCustom: Object.assign({}, pane, defById("open-tagwheel-custom-b1").makeSettings(cfg)),
   };
 }
 
@@ -260,4 +291,4 @@ async function openPanel(injection) {
   });
 }
 
-module.exports = { PANEL_INJECTIONS, openPanel, buildFixture, SCROLLER_CUSTOM_TEXT };
+module.exports = { PANEL_INJECTIONS, openPanel, buildFixture, SCROLLER_CUSTOM_TEXT, CUSTOM_VALUE };

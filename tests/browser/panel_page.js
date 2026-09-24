@@ -158,6 +158,19 @@ window.__ioPanelOpen = async function (side, lineNumber) {
 };
 
 /**
+ * Открыть панель custom block у каретки (PRD 10.13.260): каретка ставится
+ * посреди строки, туда, где её ставит человек, а не в конец.
+ */
+window.__ioPanelOpenCustom = async function (lineNumber, ch) {
+  const n = Number(lineNumber || 0);
+  editor.setCursor({ line: n, ch: Number(ch || 0) });
+  said.length = 0;
+  await runtime.runCommand({ app, command: "tagWheel", settings: FIXTURE.settingsCustom });
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return window.__ioPanelProbe();
+};
+
+/**
  * Нажатие человека — **настоящее событие окна**, а не вызов обработчика.
  *
  * Панель вешает `keydown` на этап перехвата у `window`, и путь от клавиши до

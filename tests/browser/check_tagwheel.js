@@ -23,7 +23,7 @@
  * человек начал.
  */
 
-const { openPanel, PANEL_INJECTIONS, SCROLLER_CUSTOM_TEXT } = require("./panel_harness.js");
+const { openPanel, PANEL_INJECTIONS, SCROLLER_CUSTOM_TEXT, CUSTOM_VALUE } = require("./panel_harness.js");
 
 /* Значение, которое панель закрывает собой на строке страницы: оно стоит в
    противоположном Block и на экране появиться не должно. Берётся из той же
@@ -310,6 +310,43 @@ async function main() {
     else if (back.back !== back.at) bad("`→` не вернул курсор на `" + back.at + "`, а поставил на `" + back.back + "`");
     else if (back.open) bad("ушёл с поля `" + back.at + "` на `" + back.away + "` и вернулся — дочернее поле открылось снова без `Alt`");
 
+    /* ---- 12. Custom block: панель у каретки посреди строки (PRD 10.13.260) --
+     *
+     * Каретка ставится **после `1231`**, в середину текста, и спрашивается то,
+     * чего Left/Right не делают: полоса стоит у каретки, а не в зоне Block;
+     * `Hide` прячет значение правого Block; `Enter` вставляет выбранное между
+     * словами одной ступенью, и `Ctrl+Z` возвращает строку, с которой начали.
+     * Контроль «открылось» первым (У-152). */
+    const custom = await page.evaluate(async () => {
+      await window.__ioPanelKey("Escape");
+      const line0 = window.__ioPanelProbe().lineText;
+      const at = line0.indexOf("1231") + 4;
+      const opened = await window.__ioPanelOpenCustom(0, at);
+      const stepped2 = await window.__ioPanelKey("ArrowUp");
+      const applied2 = await window.__ioPanelKey("Enter");
+      const undone2 = await window.__ioPanelUndo();
+      return { line0, opened, stepped: stepped2, applied: applied2, undone: undone2 };
+    });
+    if (!custom.opened.active) {
+      bad("панель custom block не открылась" + (custom.opened.said.length
+        ? ", и сказала: " + JSON.stringify(custom.opened.said) : ", и промолчала"));
+    } else {
+      const drawn = String(custom.opened.lineDrawn || "");
+      if (!/1231\s*\*\*\[Mood\]\*\*/.test(drawn.replace(/==/g, ""))) {
+        bad("полоса custom block не встала у каретки после `1231`: «" + drawn + "»");
+      }
+      if (drawn.indexOf(HIDDEN_VALUE) >= 0) {
+        bad("`Hide` не спрятал значение правого Block при панели custom block: «" + drawn + "»");
+      }
+      const want = custom.line0.replace("1231", "1231 #" + CUSTOM_VALUE);
+      if (custom.applied.lineText !== want) {
+        bad("`Enter` custom block записал «" + custom.applied.lineText + "» вместо «" + want + "»");
+      }
+      if (!custom.undone.unchanged) {
+        bad("`Ctrl+Z` после custom block вернул «" + custom.undone.doc + "», а не исходную строку");
+      }
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {
@@ -324,7 +361,9 @@ async function main() {
       + " отрисовки на строке с длинным Block порвано на " + torn.viewportPieces
       + ", подложек " + torn.bandTotal + " и ни одной вдвойне, кнопки `→` при"
       + " открытой панели нет и после закрытия она вернулась; в положении"
-      + " `Custom+Default name` коробка печатает " + JSON.stringify(bothTexts));
+      + " `Custom+Default name` коробка печатает " + JSON.stringify(bothTexts)
+      + "; custom block у каретки нарисован «" + custom.opened.lineDrawn + "», Enter дал «"
+      + custom.applied.lineText + "», Ctrl+Z вернул исходное");
   } finally {
     await browser.close();
   }
