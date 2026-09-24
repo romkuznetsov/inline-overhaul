@@ -22,6 +22,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 ## Unreleased
 
 1. 🎨 **Shorter choices in the panel's drop-down lists.** Every choice now says only what it picks — `The line only` is `Line only`, `Center of the screen` is `Center`, `Show when press Alt` is `On Alt`; your settings stay as they were.
+2. 🐛 **Adding a Value no longer jumps to the first Field.** The Fields editor keeps the Field you picked while you add Values, rename or add Fields.
 
 ## 0.9.0
 

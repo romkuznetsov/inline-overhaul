@@ -305,6 +305,8 @@ function askRenameModal(
 
 /* ---- блок --------------------------------------------------------------- */
 
+const VIEW_STATE = new WeakMap<object, FieldsViewState>();
+
 export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
   const p = ctx.platform;
   const box = el(host, "div", "io-fieldsblock");
@@ -323,8 +325,14 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
     try { new N(text); } catch { console.error("inline-overhaul: " + text); }
   };
 
-  /** Выбранный Field — состояние вида, в конфиг не пишется (О0). */
-  const state: FieldsViewState = { selected: "" };
+  /*
+   * Выбранный Field — состояние вида, в конфиг не пишется (О0). Живёт у
+   * платформы, а не у блока: пересборка вкладки (новый Field меняет список
+   * `Left Block active Field` на той же вкладке) рисует блок заново, и
+   * состояние в замыкании блока сбрасывало выбор к первому Field.
+   */
+  let state = VIEW_STATE.get(p);
+  if (!state) { state = { selected: "" }; VIEW_STATE.set(p, state); }
 
   /*
    * Перерисовка идёт подменой узла, а не очисткой на месте. Причина из

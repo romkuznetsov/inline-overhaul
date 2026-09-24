@@ -305,6 +305,17 @@ export class SettingsPane {
    */
   private localized: { stamp: string; schema: readonly SettingsGroup[]; tabs: readonly TabDef[]; t: Resolve } | null = null;
 
+  /**
+   * С каким списком значений собраны определения — по источнику. Запись в
+   * `pkm.fields` задевает зависимость `left-block-fields`, но список меняет
+   * лишь тогда, когда меняется имя, вид или Block какого-то Field. С 10.13.260
+   * этот список стоит на той же вкладке, что редактор Fields, и пересборка на
+   * каждой записи создавала редактор заново — выбранный Field сбрасывался к
+   * первому (его замечание 2026-09-25). Пересобираем, только если список
+   * и правда другой.
+   */
+  private builtOptions = new Map<string, string>();
+
   constructor(deps: TabDeps) {
     this.deps = deps;
     this.describer = new Describer(deps.fragments);
@@ -700,7 +711,10 @@ export class SettingsPane {
         if (out.includes(source)) continue;
         const deps = OPTION_SOURCE_DEPS[source] || [];
         const hit = deps.some(d => changed.some(c => SettingsPane.touches(d, c)));
-        if (hit) out.push(source);
+        if (!hit) continue;
+        const built = this.builtOptions.get(source);
+        if (built !== undefined && built === JSON.stringify(this.optionsFor(source, this.ctx()))) continue;
+        out.push(source);
       }
     }
     return out;
@@ -932,7 +946,11 @@ export class SettingsPane {
        * чтением, которым их берут предпросмотры, — второй разбор того же
        * формата разошёлся бы с первым (П11).
        */
-      optionsFrom: source => this.optionsFor(source, ctx),
+      optionsFrom: source => {
+        const got = this.optionsFor(source, ctx);
+        this.builtOptions.set(source, JSON.stringify(got));
+        return got;
+      },
       activeTab: this.active,
     };
     if (this.deps.tabStrip) {
