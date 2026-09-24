@@ -98,7 +98,15 @@ const PARTS = [
   { id: "general", label: "General", branches: ["features", "general"] },
   { id: "keyboard", label: "Keyboard", branches: ["editor"] },
   { id: "navigation", label: "Navigation", branches: ["navigation"] },
-  { id: "pkm", label: "Tags & PKM", branches: ["pkm"] },
+  /*
+   * Три строки раздела `tagWheel behavior` стоят на `Tags & PKM`, а ключи их
+   * остались в ветке `visual` (З1, PRD 10.13.260). Галочка — вкладка, поэтому
+   * они едут с галочкой той вкладки, где их видно: его ответ `В-210`,
+   * 2026-09-24. Список сверяет со схемой пин в `settings_backup_tests.ts`.
+   */
+  { id: "pkm", label: "Tags & PKM", branches: ["pkm"],
+    leaves: ["visual.tagWheel.activeField", "visual.tagWheel.oppositeBlock",
+      "visual.tagWheel.edgeMode", "visual.tagWheel.customTab"] },
   { id: "visual", label: "Visual", branches: ["visual"] },
   { id: "transform", label: "Transform", branches: ["transform"] },
   { id: "advanced", label: "Advanced", branches: ["advanced"] },
@@ -125,6 +133,30 @@ const HOTKEY_SCOPE_DEFAULT = "own";
 function normalizeHotkeyScope(value) {
   const raw = String(value === undefined || value === null ? "" : value).trim().toLowerCase();
   return HOTKEY_SCOPES.indexOf(raw) >= 0 ? raw : HOTKEY_SCOPE_DEFAULT;
+}
+
+/** Листья, которые едут не с веткой, а с галочкой своей вкладки. */
+function borrowedLeaves() {
+  const out = [];
+  for (const part of PARTS) {
+    for (const path of Array.isArray(part.leaves) ? part.leaves : []) out.push({ path, part: part.id });
+  }
+  return out;
+}
+
+/**
+ * Поставить в `out` листья чужой ветки по галочке их вкладки: отмеченная —
+ * лист из `onWanted`, не отмеченная — из `onUnwanted`. Нет листа — нет и в
+ * результате: копия описывает отмеченную часть целиком.
+ */
+function placeBorrowed(out, partIds, onWanted, onUnwanted) {
+  const ids = Array.isArray(partIds) ? partIds : allPartIds();
+  for (const { path, part } of borrowedLeaves()) {
+    const value = readLeaf(ids.indexOf(part) >= 0 ? onWanted : onUnwanted, path);
+    if (value === undefined) deleteLeaf(out, path);
+    else writeLeaf(out, path, cloneJson(value));
+  }
+  return out;
 }
 
 /** Все идентификаторы частей. Порядок тот же, что на полосе вкладок. */
@@ -182,7 +214,7 @@ function selectParts(cfg, partIds) {
     if (PART_BRANCHES[key] && !wanted[key]) continue;
     out[key] = cloneJson(cfg[key]);
   }
-  return out;
+  return placeBorrowed(out, partIds, cfg, null);
 }
 
 /**
@@ -213,7 +245,7 @@ function mergeParts(current, restored, partIds) {
   for (const branch of Object.keys(wanted)) {
     if (!isObj(restored) || restored[branch] === undefined) delete out[branch];
   }
-  return keepLocalLeaves(current, out);
+  return keepLocalLeaves(current, placeBorrowed(out, partIds, restored, current));
 }
 
 /** Комментарий человека одной строкой: переводы строк в шапке недопустимы. */

@@ -998,25 +998,46 @@ function sampleConfig(): Record<string, unknown> {
    */
   const { SCHEMA, TABS } = await import("../../src/ui/settings/schema/index.ts");
   /*
-   * Строки, живущие на чужой вкладке со своей веткой, — поимённо. Группа
-   * `tagWheel behavior` переехала на `Tags & PKM` (PRD 10.13.260), а ключи
-   * остались в `visual` (З1): галочка `Visual` везёт их, `Tags & PKM` — нет.
-   * Цена названа в вопросе к нему; новое имя сюда без причины не вписывается.
+   * **Строка на чужой вкладке едет с галочкой своей вкладки** (`В-210`, его
+   * ответ 2026-09-24): раздел `tagWheel behavior` стоит на `Tags & PKM`, а
+   * ключи его — в `visual` (З1). Такие строки часть объявляет листьями
+   * (`leaves`), и сверка здесь двусторонняя: каждая строка вкладки с путём
+   * вне её веток покрыта её листом, и каждый лист покрывает хотя бы одну
+   * строку этой вкладки.
    */
-  const BORROWED = new Set(["tagwheel-behavior"]);
+  const declared = new Map<string, Set<string>>();
+  const leavesOf = new Map<string, string[]>();
+  for (const part of backup.PARTS as Any[]) {
+    declared.set(part.id, new Set<string>(part.branches));
+    leavesOf.set(part.id, Array.isArray(part.leaves) ? part.leaves : []);
+  }
+  const covered = (tab: string, p: string): string =>
+    (leavesOf.get(tab) || []).find(leaf => p === leaf || p.startsWith(leaf + ".")) || "";
   const fromSchema = new Map<string, Set<string>>();
+  const usedLeaves = new Set<string>();
+  let borrowedRows = 0;
   for (const group of SCHEMA as Any[]) {
     const set = fromSchema.get(group.tab) || new Set<string>();
     for (const item of (group.items || []) as Any[]) {
-      if (BORROWED.has(group.id) && String(item?.path || "").startsWith("visual.")) continue;
-      if (item && typeof item.path === "string" && item.path) set.add(String(item.path).split(".")[0] as string);
+      if (!item || typeof item.path !== "string" || !item.path) continue;
+      const branch = String(item.path).split(".")[0] as string;
+      const leaf = covered(group.tab, item.path);
+      if (leaf && !(declared.get(group.tab) || new Set()).has(branch)) {
+        usedLeaves.add(group.tab + ":" + leaf);
+        borrowedRows += 1;
+        continue;
+      }
+      set.add(branch);
     }
     if (group.module) set.add(String(group.module).split(".")[0] as string);
     fromSchema.set(group.tab, set);
   }
-
-  const declared = new Map<string, Set<string>>();
-  for (const part of backup.PARTS as Any[]) declared.set(part.id, new Set<string>(part.branches));
+  assert.ok(borrowedRows >= 4, "положительный контроль: строк на чужой вкладке " + borrowedRows);
+  for (const [tab, leaves] of leavesOf) {
+    for (const leaf of leaves) {
+      assert.ok(usedLeaves.has(tab + ":" + leaf), "лист " + leaf + " у галочки " + tab + " не покрывает ни одной её строки");
+    }
+  }
 
   for (const [tab, branches] of fromSchema) {
     const mine = declared.get(tab);
@@ -1027,6 +1048,35 @@ function sampleConfig(): Record<string, unknown> {
   assert.equal(backup.PARTS.length, (TABS as Any[]).length,
     "частей и вкладок разное число");
   ok("галочки состава выведены из схемы, а не выписаны руками");
+}
+
+{
+  /*
+   * Восстановление по галочкам — строки `tagWheel behavior` идут с `Tags &
+   * PKM`, а не с `Visual` (`В-210`). Стороны разведены нарочно (У-147):
+   * в копии и в нынешнем конфиге у строк разные значения.
+   */
+  const current = {
+    pkm: { behavior: { cursorPolicy: "line_end" } },
+    visual: { tagWheel: { edgeMode: "stay", scroller: { size: 3 } } },
+  };
+  const restored = {
+    pkm: { behavior: { cursorPolicy: "text_end" } },
+    visual: { tagWheel: { edgeMode: "next-block", scroller: { size: 9 } } },
+  };
+  const onlyPkm = backup.mergeParts(current, restored, ["pkm"]);
+  assert.equal(onlyPkm.visual?.tagWheel?.edgeMode, "next-block", "галочка Tags & PKM не вернула строку своей вкладки");
+  assert.equal(onlyPkm.visual?.tagWheel?.scroller?.size, 3, "галочка Tags & PKM тронула строку Visual");
+  assert.equal(onlyPkm.pkm.behavior.cursorPolicy, "text_end", "положительный контроль: ветка pkm не восстановлена");
+  const onlyVisual = backup.mergeParts(current, restored, ["visual"]);
+  assert.equal(onlyVisual.visual?.tagWheel?.edgeMode, "stay", "галочка Visual вернула строку чужой вкладки");
+  assert.equal(onlyVisual.visual?.tagWheel?.scroller?.size, 9, "галочка Visual не вернула свою строку");
+  const saved = backup.selectParts(restored, ["pkm"]);
+  assert.equal(saved.visual?.tagWheel?.edgeMode, "next-block", "в копию с одной Tags & PKM строка не легла");
+  assert.equal(saved.visual?.tagWheel?.scroller, undefined, "в копию с одной Tags & PKM легла строка Visual");
+  const savedVisual = backup.selectParts(restored, ["visual"]);
+  assert.equal(savedVisual.visual?.tagWheel?.edgeMode, undefined, "в копию с одной Visual легла строка Tags & PKM");
+  ok("строки tagWheel behavior сохраняются и восстанавливаются галочкой Tags & PKM, а не Visual");
 }
 
 {
