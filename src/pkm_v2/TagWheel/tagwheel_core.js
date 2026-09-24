@@ -2790,10 +2790,18 @@ function getNavigableFieldSequence(rules, state) {
 }
 
 /**
- * @param {object} [labels] чем подписывать выбранные значения (`З-38`); не
- *   передан — печатается написанное, как было до 2026-09-21
+ * **Полоса панели сама по себе** — ячейки Field и их обёртка, без строки
+ * вокруг.
+ *
+ * Вынесена из `renderControlLine` 2026-09-24 для custom block (PRD
+ * 10.13.260): его полоса встаёт у каретки, а не в зону Block, и строку вокруг
+ * собирает панель блока. Тело перенесено без правки — `renderControlLine`
+ * зовёт её же, и у полосы по-прежнему одно объявление.
+ *
+ * @param {object} [labels] чем подписывать выбранные значения (`З-38`)
+ * @returns {{head: string, shownTokens: string[], keepOpposite: boolean}}
  */
-function renderControlLine(rules, state, parsedLine, labels) {
+function renderPanelStrip(rules, state, labels) {
   var mode = getMode(rules, state.mode)
   var groups = getRenderedGroupsForMode(rules, state, mode)
 
@@ -2809,7 +2817,6 @@ function renderControlLine(rules, state, parsedLine, labels) {
     if (Array.isArray(disp.tokens)) shownTokens = shownTokens.concat(disp.tokens)
   }
 
-  var tail = parsedLine.text || ''
   var head = cells.join(' ')
   var panelCfg = rules.ui && rules.ui.activePanel ? rules.ui.activePanel : null
   var keepOpposite = false
@@ -2822,6 +2829,19 @@ function renderControlLine(rules, state, parsedLine, labels) {
     if (useHighlight) head = '==' + head + '=='
     keepOpposite = panelCfg.keepOppositeBlock === true
   }
+  return { head: head, shownTokens: shownTokens, keepOpposite: keepOpposite }
+}
+
+/**
+ * @param {object} [labels] чем подписывать выбранные значения (`З-38`); не
+ *   передан — печатается написанное, как было до 2026-09-21
+ */
+function renderControlLine(rules, state, parsedLine, labels) {
+  var strip = renderPanelStrip(rules, state, labels)
+  var shownTokens = strip.shownTokens
+  var tail = parsedLine.text || ''
+  var head = strip.head
+  var keepOpposite = strip.keepOpposite
 
   /*
    * **Противоположный Block: прятать или оставить на виду** (10.13.87, заказ
@@ -3275,6 +3295,8 @@ module.exports = {
   getUnmanagedRightTokens: getUnmanagedRightTokens,
   assembleFinalLine: assembleFinalLine,
   renderControlLine: renderControlLine,
+  /* Полоса без строки вокруг — её ставит у каретки custom block (10.13.260). */
+  renderPanelStrip: renderPanelStrip,
   /* Подпись значения в полосе — чистая функция над токеном и картой своих
      текстов, и проверяется она без Obsidian: правило `З-38` иначе жило бы
      только на пути, где панель уже открыта (правило 122). */

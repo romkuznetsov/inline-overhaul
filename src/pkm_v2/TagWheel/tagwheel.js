@@ -29,6 +29,14 @@ var TAGWHEEL_EDGE_MODE_OPTION = 'TagWheel edge mode'
 var TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = 'TagWheel active field mode'
 var TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = 'TagWheel active field left'
 var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
+/* Custom block (PRD 10.13.260): какой блок открыть, все блоки ради `Tab`,
+   шаг команды Field блока, правила Left/Right ради `Values in the other
+   Block` и сам `Tab`. */
+var CUSTOM_BLOCK_OPTION = 'Custom block'
+var CUSTOM_BLOCKS_OPTION = 'Custom blocks'
+var CUSTOM_CYCLE_OPTION = 'Custom cycle'
+var LINE_RULES_DATA_OPTION = 'Line rules data'
+var TAGWHEEL_CUSTOM_TAB_OPTION = 'TagWheel custom tab'
 /*
  * Свои модули — литеральным `require`, по одному на модуль (У-89).
  *
@@ -214,6 +222,60 @@ function cursorOutsidePanelStrip(text, plan, ch) {
   if (span[0] > 0) return span[0] - 1
   if (span[1] < src.length) return span[1] + 1
   return ch
+}
+
+/**
+ * **Значение под кареткой custom block** — отрезок слова, на котором она стоит
+ * (PRD 10.13.260, правка 2026-09-24). Его слова: «каретка стоит в тексте
+ * value, сразу после него, либо до него» — `|aaa`, `aa|a`, `aaa|`. Каретка
+ * между двумя пробелами слова не касается, и ответ тогда `null`: это
+ * «отсутствие значения».
+ *
+ * Слово — то, что стоит между пробелами, кроме ссылки: `[[две части]]`
+ * берётся целиком, иначе значение-ссылку с пробелом не узнать вовсе. Что это
+ * слово значит, решает не этот помощник, а разбор строки — `customHitAtCaret`.
+ */
+function customWordSpan(line, ch) {
+  var src = String(line == null ? '' : line)
+  var at = Math.max(0, Math.min(src.length, Number(ch) || 0))
+  var open = src.lastIndexOf('[[', at)
+  if (open !== -1) {
+    var close = src.indexOf(']]', open)
+    var closedBefore = src.lastIndexOf(']]', at - 1)
+    if (close !== -1 && close + 2 >= at && !(closedBefore > open && closedBefore + 2 < at)) {
+      return { from: open, to: close + 2, text: src.slice(open, close + 2) }
+    }
+  }
+  var from = at
+  var to = at
+  while (from > 0 && !/\s/.test(src.charAt(from - 1))) from--
+  while (to < src.length && !/\s/.test(src.charAt(to))) to++
+  if (from === to) return null
+  return { from: from, to: to, text: src.slice(from, to) }
+}
+
+/**
+ * **Как вставка custom block встаёт в строку** (PRD 10.13.260, пункт 6):
+ * пробел до, если перед ней не пробел и не начало строки, и после, если за
+ * ней не пробел и не конец строки. Пустая вставка на месте значения — это
+ * снятие значения, и из двух пробелов вокруг остаётся один.
+ *
+ * @returns {{from:number, to:number, insert:string, caret:number}|null}
+ *   `null` — писать нечего
+ */
+function customInsertPlan(line, from, to, text) {
+  var src = String(line == null ? '' : line)
+  var before = src.slice(0, from)
+  var after = src.slice(to)
+  var body = String(text == null ? '' : text)
+  if (!body) {
+    if (from === to) return null
+    if (/\s$/.test(before) && /^\s/.test(after)) to += 1
+    return { from: from, to: to, insert: '', caret: from }
+  }
+  var lead = before && !/\s$/.test(before) ? ' ' : ''
+  var tail = after && !/^\s/.test(after) ? ' ' : ''
+  return { from: from, to: to, insert: lead + body + tail, caret: from + lead.length + body.length }
 }
 
 function isLowSurrogate(code) {
@@ -592,6 +654,12 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (out.activeFieldRight == null && typeof qa[TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION] === 'string') {
     out.activeFieldRight = qa[TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION]
   }
+  /* Custom block (PRD 10.13.260). */
+  if (!out.customBlock && typeof qa[CUSTOM_BLOCK_OPTION] === 'string') out.customBlock = qa[CUSTOM_BLOCK_OPTION]
+  if (out.customBlocks == null && qa[CUSTOM_BLOCKS_OPTION] != null) out.customBlocks = qa[CUSTOM_BLOCKS_OPTION]
+  if (!out.customCycle && typeof qa[CUSTOM_CYCLE_OPTION] === 'string') out.customCycle = qa[CUSTOM_CYCLE_OPTION]
+  if (out.lineRulesData == null && qa[LINE_RULES_DATA_OPTION] != null) out.lineRulesData = qa[LINE_RULES_DATA_OPTION]
+  if (out.customTab == null && qa[TAGWHEEL_CUSTOM_TAB_OPTION] != null) out.customTab = qa[TAGWHEEL_CUSTOM_TAB_OPTION] === true
   return out
 }
 
@@ -808,6 +876,11 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_MODE || TAGWHEEL_ACTIVE_FIELD_MODE_OPTION)
     TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_LEFT || TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION)
     TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_RIGHT || TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION)
+    CUSTOM_BLOCK_OPTION = String(keys.CUSTOM_BLOCK || CUSTOM_BLOCK_OPTION)
+    CUSTOM_BLOCKS_OPTION = String(keys.CUSTOM_BLOCKS || CUSTOM_BLOCKS_OPTION)
+    CUSTOM_CYCLE_OPTION = String(keys.CUSTOM_CYCLE || CUSTOM_CYCLE_OPTION)
+    LINE_RULES_DATA_OPTION = String(keys.LINE_RULES_DATA || LINE_RULES_DATA_OPTION)
+    TAGWHEEL_CUSTOM_TAB_OPTION = String(keys.TAGWHEEL_CUSTOM_TAB || TAGWHEEL_CUSTOM_TAB_OPTION)
   }
 
   function getDomainRegistry() {
@@ -1552,7 +1625,335 @@ async function runTagWheel(input, quickAddSettings) {
     return finalize.checkboxBelongsToFieldUnified(rules, fieldId, token)
   }
 
+  /* ---- custom block (PRD 10.13.260) ----------------------------------- */
+
+  /*
+   * Панель custom block — **та же панель на своих правилах**: Field блока
+   * записаны в них левым Block (`scopeToBlock` в `pkm_rules_shape.js`), и ядро
+   * ходит по ним тем же `getNavigableFieldSequence`, рисует ту же полосу, те же
+   * `Alt` и дочерние поля. Своё у блока — только место полосы (у каретки, а не
+   * в зоне Block) и запись: `Enter` пишет вставку у каретки обычной правкой, а
+   * не пересборку строки.
+   */
+
+  /** Часы сессии: из них элементы-даты считают «сегодня» и «сейчас». */
+  function stampClock(session) {
+    var now = new Date()
+    var hh = String(now.getHours())
+    var mm = String(now.getMinutes())
+    if (hh.length < 2) hh = '0' + hh
+    if (mm.length < 2) mm = '0' + mm
+    session.__nowHHmm = hh + ':' + mm
+    var y = now.getFullYear()
+    var m = String(now.getMonth() + 1)
+    var d = String(now.getDate())
+    if (m.length < 2) m = '0' + m
+    if (d.length < 2) d = '0' + d
+    session.__todayIso = y + '-' + m + '-' + d
+    return session
+  }
+
+  function newCustomSession(core_, rules_) {
+    var session_ = stampClock(core_.makeInitialState(rules_, 'left'))
+    session_.altOpen = false
+    return session_
+  }
+
+  /** Field блока в его порядке: родитель, за ним его дочерние. */
+  function customBlockFields(rules_) {
+    var keys = rules_ && rules_.behavior && rules_.behavior.order && Array.isArray(rules_.behavior.order.left)
+      ? rules_.behavior.order.left
+      : []
+    var all = (rules_.leftMode && Array.isArray(rules_.leftMode.fields) ? rules_.leftMode.fields : [])
+      .concat(rules_.rightMode && Array.isArray(rules_.rightMode.fields) ? rules_.rightMode.fields : [])
+    var out = []
+    var push = function (f) { if (f && f.id && out.indexOf(f) === -1) out.push(f) }
+    var ki
+    for (ki = 0; ki < keys.length; ki++) {
+      var key = String(keys[ki] || '')
+      var f = all.find(function (x) { return x && String(x.orderKey || '') === key })
+        || all.find(function (x) { return x && String(x.id || '') === key })
+      if (!f) continue
+      push(f)
+      all.filter(function (x) { return x && String(x.dependsOn || '') === String(f.id) }).forEach(push)
+    }
+    return out
+  }
+
+  /**
+   * На значении ли какого-нибудь Field блока стоит каретка. Слово под ней
+   * узнаёт **разбор строки** — тот же вопрос, которым панель узнаёт значения
+   * Left/Right (правило 72), а не своё сравнение написаний.
+   */
+  function customHitAtCaret(core_, rules_, line, ch) {
+    var span = customWordSpan(line, ch)
+    if (!span) return null
+    var probe = newCustomSession(core_, rules_)
+    core_.hydrateStateFromParsedLine(rules_, probe, core_.parseLine(span.text, rules_))
+    var ids = customBlockFields(rules_)
+      .filter(function (f) { return String(probe.selected[f.id] || '') })
+      .map(function (f) { return f.id })
+    return ids.length ? { span: span, selected: probe.selected, fieldIds: ids } : null
+  }
+
+  /** Как значение Field пишется в строку: тем же текстом, что в его Block. */
+  function customTokenFor(core_, rules_, session_, field) {
+    if (!field || !String(session_.selected[field.id] || '')) return ''
+    var kind = String(field.kind || '')
+    if (kind === 'nowTime' || kind === 'estimatedCycle' || kind === 'dateOffset' || kind === 'genericElement') {
+      var only = {}
+      var key
+      for (key in session_) {
+        if (Object.prototype.hasOwnProperty.call(session_, key)) only[key] = session_[key]
+      }
+      only.selected = {}
+      only.selected[field.id] = session_.selected[field.id]
+      return String(core_.buildRightDates(rules_, only)[0] || '')
+    }
+    var all = rules_.leftMode.fields.concat(rules_.rightMode.fields)
+    return selectedTagTokenForField(field, session_, rules_, makeFieldById(all))
+  }
+
+  /** Вставка `Enter`: выбранное всех Field блока в порядке блока. */
+  function customTokens(state_) {
+    var combined = String(state_.rules.behavior && state_.rules.behavior.subtagFormat || '') === 'combined'
+    return customBlockFields(state_.rules)
+      .filter(function (f) { return !(combined && f.dependsOn) })
+      .map(function (f) { return customTokenFor(state_.core, state_.rules, state_.session, f) })
+      .filter(Boolean)
+  }
+
+  /** Обычная правка — одна ступень отмены; каретка встаёт за вставкой. */
+  function writeCustomInsert(editor_, lineNo, line, from, to, text) {
+    var plan = customInsertPlan(line, from, to, text)
+    if (!plan) return false
+    editor_.replaceRange(plan.insert, { line: lineNo, ch: plan.from }, { line: lineNo, ch: plan.to })
+    editor_.setCursor({ line: lineNo, ch: plan.caret })
+    return true
+  }
+
+  /**
+   * Где в строке текст человека — для `Values in the other Block = Hide`:
+   * прячется всё, что вокруг него. Зоны считает разбор Left/Right на их
+   * правилах. Каретка не в тексте — ответ `null`, и прятать нечего: полосу
+   * некуда поставить так, чтобы спрятанное не накрыло её место.
+   */
+  function customTextZone(line, from, to, lineRules) {
+    if (!lineRules || !linePipeline || typeof linePipeline.splitSegments !== 'function') return null
+    var seg = linePipeline.splitSegments(line, lineRules)
+    var text = String(seg && seg.text || '')
+    if (!text) return null
+    var at = line.indexOf(text)
+    while (at !== -1) {
+      if (at <= from && to <= at + text.length) return { from: at, to: at + text.length }
+      at = line.indexOf(text, at + 1)
+    }
+    return null
+  }
+
+  /**
+   * Вид строки с полосой custom block: **текст разрывается на месте каретки**
+   * (его пункт 2026-09-24) — слева и справа всё, что было, и полоса между.
+   * Стоит каретка на значении — полоса встаёт на его место.
+   */
+  function customControlLine(state_) {
+    var c = state_.custom
+    var line = state_.originalLine
+    var strip = state_.core.renderPanelStrip(state_.rules, state_.session, state_.valueNamesCfg)
+    var from = c.span ? c.span.from : c.caretCh
+    var to = c.span ? c.span.to : c.caretCh
+    var lo = 0
+    var hi = line.length
+    var prefix = ''
+    if (!strip.keepOpposite) {
+      var zone = customTextZone(line, from, to, c.lineRules)
+      if (zone) {
+        lo = zone.from
+        hi = zone.to
+        prefix = keptLinePrefix(line)
+      }
+    }
+    var before = prefix + line.slice(lo, from)
+    var after = line.slice(to, hi)
+    var l = before && !/\s$/.test(before) ? ' ' : ''
+    var r = after && !/^\s/.test(after) ? ' ' : ''
+    c.caretVisibleCh = before.length
+    return before + l + strip.head + r + after
+  }
+
+  /** Вид строки для любой панели: Left/Right — как было, custom — у каретки. */
+  function panelView(state_) {
+    if (state_.custom) return customControlLine(state_)
+    return withKeptPrefix(state_.originalLine,
+      state_.core.renderControlLine(state_.rules, state_.session, state_.parsedLine, state_.valueNamesCfg))
+  }
+
+  function applyCustomSelection(state_) {
+    var c = state_.custom
+    var text = customTokens(state_).join(' ')
+    clearPanelMask(state_)
+    unwritePanelLine(state_)
+    var from = c.span ? c.span.from : c.caretCh
+    var to = c.span ? c.span.to : c.caretCh
+    if (!writeCustomInsert(state_.editor, state_.lineNumber, state_.originalLine, from, to, text)) {
+      state_.editor.setCursor({ line: state_.lineNumber, ch: c.caretCh })
+    }
+    cleanupTagWheelState(state_)
+  }
+
+  /**
+   * `Tab` в панели custom block (пункт 8): выключен контрол — ничего; включён —
+   * следующий блок по порядку, с последнего на первый. Выбранное в прежнем
+   * блоке выбрасывается (`В-208`), панель остаётся у той же каретки.
+   */
+  function switchCustomBlock(state_) {
+    var c = state_.custom
+    if (!state_.customTab || !c.blocks.length) return
+    var at = c.blocks.findIndex(function (b) { return b.id === c.blockId })
+    var next = c.blocks[(at + 1) % c.blocks.length]
+    if (!next || next.id === c.blockId) return
+    c.blockId = next.id
+    c.span = null
+    state_.rules = next.rules
+    state_.orderCfg = next.orderCfg
+    state_.parsedLine = state_.core.parseLine(state_.originalLine, next.rules)
+    state_.session = newCustomSession(state_.core, next.rules)
+    state_.session.activeField = state_.core.resolveInitialActiveField(next.rules, state_.session, 'left')
+  }
+
+  /**
+   * Правила соседнего блока — тем же порядком шагов, что у открытого:
+   * порядок, `applyOrderToRules`, выбор ведущего поля. Готовятся при открытии,
+   * чтобы `Tab` менял блок без ожидания.
+   */
+  function prepareBlockRules(raw, o) {
+    var next = JSON.parse(JSON.stringify(raw))
+    if (!next.behavior || typeof next.behavior !== 'object') next.behavior = {}
+    next.behavior.dateRuntimeConfig = o.dateRuntimeCfg
+    var orderNext = o.parseOrderConfigFn(JSON.stringify(next.behavior.order || {}), o.normalizeOrderKey)
+    rulesHelpers.applyOrderToRules(next, orderNext)
+    if (o.sf === 'separate' || o.sf === 'combined') next.behavior.subtagFormat = o.sf
+    o.core.validateRules(next)
+    o.core.applyActiveFieldChoiceToRules(next, customActiveFieldChoice(o.runtimeInput))
+    return { rules: next, orderCfg: orderNext }
+  }
+
+  /*
+   * `Active Field on opening` в custom block (пункт 10): первый или средний
+   * Field блока, а `A Field you choose` — как первый. Его слово: «не стоит
+   * усложнять логику».
+   */
+  function customActiveFieldChoice(input_) {
+    var mode = String(input_.activeFieldMode || '').trim().toLowerCase()
+    return { mode: mode === 'middle' ? 'middle' : 'first', left: '', right: '' }
+  }
+
+  /**
+   * Команда `next`/`previous` Field блока — **по месту каретки** (правка
+   * 2026-09-24): на значении этого Field меняет его на соседнее, иначе ставит
+   * у каретки первое (`next`) или последнее (`previous`) новой копией.
+   */
+  function runCustomCycle(o, line, cursor_) {
+    var cycle = null
+    try { cycle = JSON.parse(String(o.runtimeInput.customCycle || '')) } catch (_eCycle) {
+      /* Шаг приходит строкой настройки, её собирает реестр команд; сломанная —
+         значит команда не наша, и ниже человеку скажут об этом вслух. */
+    }
+    var key = String(cycle && cycle.key || '')
+    var field = customBlockFields(o.rules).find(function (f) {
+      return String(f.orderKey || '') === key || String(f.id || '') === key
+    })
+    if (!field) {
+      notice(tagWheelNoticeKey('custom-no-field'), 'tagWheel: this Field is not in a custom block any more')
+      return
+    }
+    var session_ = newCustomSession(o.core, o.rules)
+    var hit = customHitAtCaret(o.core, o.rules, line, cursor_.ch)
+    var span = hit && hit.fieldIds.indexOf(field.id) !== -1 ? hit.span : null
+    if (span) session_.selected[field.id] = hit.selected[field.id]
+    session_.activeFieldId = field.id
+    o.core.cycleValue(o.rules, session_, cycle.direction === 'decrease' ? -1 : 1)
+    o.core.sanitizeState(o.rules, session_)
+    var token = customTokenFor(o.core, o.rules, session_, field)
+    writeCustomInsert(o.editor, cursor_.line, line,
+      span ? span.from : cursor_.ch, span ? span.to : cursor_.ch, token)
+  }
+
+  /**
+   * Открыть панель custom block у каретки (PRD 10.13.260). Каретка на
+   * значении Field блока — панель открывается на нём и показывает его
+   * выбранным (пункт 5); иначе пустой (пункт 4).
+   */
+  async function openCustomBlock(o) {
+    var input_ = o.runtimeInput
+    /* Выделение — каретка на его конце, выделенный текст не трогается. */
+    var cursor_ = o.editor.getCursor('to')
+    var line = String(o.editor.getLine(cursor_.line) || '')
+    if (input_.customCycle) { runCustomCycle(o, line, cursor_); return }
+
+    var blockId = String(input_.customBlock || '')
+    var raw = input_.customBlocks
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw) } catch (_eBlocks) {
+        /* Список блоков собирает реестр команд; сломанный значит «соседей нет»:
+           `Tab` ничего не сделает, а сам блок откроется. */
+        raw = []
+      }
+    }
+    o.core.applyActiveFieldChoiceToRules(o.rules, customActiveFieldChoice(input_))
+    var blocks = (Array.isArray(raw) ? raw : []).filter(function (b) { return b && b.id && b.rules })
+      .map(function (b) {
+        if (String(b.id) === blockId) return { id: blockId, rules: o.rules, orderCfg: o.orderCfg }
+        var ready = prepareBlockRules(b.rules, o)
+        return { id: String(b.id), rules: ready.rules, orderCfg: ready.orderCfg }
+      })
+
+    var session_ = newCustomSession(o.core, o.rules)
+    session_.activeField = o.core.resolveInitialActiveField(o.rules, session_, 'left')
+    var hit = customHitAtCaret(o.core, o.rules, line, cursor_.ch)
+    if (hit) {
+      hit.fieldIds.forEach(function (fid) { session_.selected[fid] = hit.selected[fid] })
+      session_.activeFieldId = hit.fieldIds[0]
+    }
+    o.core.sanitizeState(o.rules, session_)
+
+    var state = {
+      active: true,
+      core: o.core,
+      editor: o.editor,
+      rules: o.rules,
+      lineNumber: cursor_.line,
+      originalLine: line,
+      parsedLine: o.core.parseLine(line, o.rules),
+      session: session_,
+      cycleEndBehavior: input_.cycleEndBehavior,
+      cursorPolicy: input_.cursorPolicy,
+      orderCfg: o.orderCfg,
+      app: o.app,
+      lineFinalize: o.lineFinalize,
+      targetPanel: 'left',
+      originalCursorCh: cursor_.ch,
+      keyHandler: null,
+      scrollerCfg: o.scrollerCfg,
+      valueNamesCfg: o.valueNamesCfg,
+      /* `tagWheel navigation behavior` к custom block не относится (пункт 11). */
+      edgeMode: 'stay',
+      scrollerOverlay: null,
+      customTab: input_.customTab === true,
+      custom: {
+        blockId: blockId,
+        blocks: blocks,
+        lineRules: __pkmOptionKeysMod.rulesFromSettings(input_, 'lineRulesData'),
+        span: hit ? hit.span : null,
+        caretCh: cursor_.ch,
+        caretVisibleCh: cursor_.ch,
+      },
+    }
+    await mountSession(state)
+  }
+
   function applySelection(state, core) {
+    if (state && state.custom) { applyCustomSelection(state); return }
     var applyStartedAt = Date.now()
     var beforeSourceLine = String(state && state.originalLine ? state.originalLine : '')
     var beforeControlLine = ''
@@ -1896,6 +2297,8 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function getControlCursorCh(state, controlLine) {
+    /* Панель custom block держит каретку у полосы, а не по правилу курсора. */
+    if (state && state.custom) return state.custom.caretVisibleCh
     var cp = macroShared.normalizeCursorPolicy(state && state.cursorPolicy)
     var control = String(controlLine || '')
     if (cp === 'text_end') return macroShared.getCursorAtTextEnd(control, state && state.rules ? state.rules : {})
@@ -2232,7 +2635,8 @@ async function runTagWheel(input, quickAddSettings) {
        отменять после неё нечего. */
     clearPanelMask(state)
     unwritePanelLine(state)
-    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })
+    state.editor.setCursor({ line: state.lineNumber,
+      ch: state.custom ? state.custom.caretCh : state.originalLine.length })
     cleanupTagWheelState(state)
   }
 
@@ -2321,6 +2725,152 @@ async function runTagWheel(input, quickAddSettings) {
     return other
   }
 
+  /**
+   * **Подключить сессию панели**: коробка скроллера, перехват клавиш, `Alt`,
+   * шов закрытия снаружи и первая отрисовка. Вынесено 2026-09-24 из открытия
+   * Left/Right без правки тела — тот же порядок шагов нужен панели custom
+   * block (PRD 10.13.260), и второе объявление «как панель подключается»
+   * разошлось бы с первым молча (У-32).
+   */
+  async function mountSession(state) {
+    if (state.scrollerCfg.enabled) {
+      try {
+        var scrollerMod = await loadTagWheelScrollerOverlay()
+        state.scrollerOverlay = scrollerMod.createTagWheelScrollerOverlay({
+          direction: state.scrollerCfg.direction,
+          size: state.scrollerCfg.size,
+          /* Цвета коробки (10.13.15). Пусто — оверлей оставляет цвета темы. */
+          fillColor: state.scrollerCfg.fillColor,
+          textColor: state.scrollerCfg.textColor,
+        })
+      } catch (eScroller) {
+        state.scrollerOverlay = null
+        reportTagWheelError(eScroller)
+      }
+    }
+
+    state.keyHandler = function(e) {
+      if (!state.active) return
+
+      var keymap = state.rules.behavior.keymap || {}
+      var handled = false
+      /*
+       * Нажатие `Alt` считается, только если между нажатием и отпусканием не
+       * было другой клавиши (`З-36`): `Alt+↑` — это его хоткей, а не
+       * открытие поля. И `Alt+Tab` поэтому поля не переключает.
+       */
+      if (e.key !== 'Alt') state.altTap = false
+
+      try {
+        if (e.key === (keymap.nextField || 'ArrowRight')) {
+          nextVirtualField(state, 1)
+          handled = true
+        } else if (e.key === (keymap.prevField || 'ArrowLeft')) {
+          nextVirtualField(state, -1)
+          handled = true
+        } else if (e.key === (keymap.valueUp || 'ArrowUp')) {
+          state.core.cycleValue(state.rules, state.session, 1)
+          handled = true
+        } else if (e.key === (keymap.valueDown || 'ArrowDown')) {
+          state.core.cycleValue(state.rules, state.session, -1)
+          handled = true
+        } else if (e.key === (keymap.switchMode || 'Tab') && state.custom) {
+          /* Панель Left/Right сюда не приходит никогда (пункт 8). */
+          switchCustomBlock(state)
+          handled = true
+        } else if (e.key === (keymap.switchMode || 'Tab')) {
+          state.session.mode = state.session.mode === 'left' ? 'right' : 'left'
+          /* Имя ведущего поля кладёт разрешитель; согласование — за
+             `ensureActiveFieldId`. Второе объявление здесь теряло элемент
+             ровно так же, как на открытии. */
+          state.session.activeField = state.core.resolveInitialActiveField(state.rules, state.session, state.session.mode)
+          ensureActiveFieldId(state)
+          handled = true
+        } else if (e.key === (keymap.apply || 'Enter')) {
+          applySelection(state, state.core)
+          handled = true
+        } else if (e.key === (keymap.cancel || 'Escape')) {
+          cancelSelection(state)
+          handled = true
+        } else if (e.key === 'Alt') {
+          /* Переключает поле отпускание (`keyUpHandler` ниже), здесь только
+             отметка «началось нажатие». Своя обработка гасит и то, что
+             Windows делает с одиночным `Alt`, — фокус на меню окна. */
+          if (!e.repeat) state.altTap = true
+          handled = true
+        }
+      } catch (err) {
+        try {
+          cleanupTagWheelState(state)
+        } catch (_) {
+          /*
+           * Уборка, и она обязана быть тихой: об отказе, из-за которого мы
+           * сюда попали, человеку говорится следующей строкой, и второй
+           * отказ — самой уборки — не имеет права съесть это сообщение.
+           */
+        }
+        notice(tagWheelNoticeKey('error'), 'TagWheel error: {0}',
+          (err && err.message) ? err.message : err)
+        reportTagWheelError(err)
+        handled = true
+      }
+
+      if (handled) {
+        state.core.sanitizeState(state.rules, state.session)
+        ensureActiveFieldId(state)
+        if (state.active) {
+          /* Вид панели — не правка человека, и в историю отмен он не идёт. */
+          drawPanelLine(state, panelView(state))
+        }
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    /*
+     * Закрыть сессию снаружи (Д-2 разбора готовности, 2026-09-08).
+     *
+     * Панель вешает `keydown` на этап перехвата, и обработчик снимает только
+     * `cleanupTagWheelState`. Выгрузка плагина его не звала: человек выключал
+     * плагин с открытой панелью, и перехват продолжал съедать стрелки и Enter
+     * до перезагрузки окна, а строка оставалась с видом панели в тексте
+     * заметки.
+     *
+     * Шов — одна функция на самом состоянии, и она зовёт **тот же**
+     * `cancelSelection`, которым сессию закрывает `Esc`: второе объявление
+     * «как закрывается панель» разошлось бы с первым молча (У-32). Снятие
+     * перехвата важнее возврата строки, поэтому при отказе записи
+     * `cleanupTagWheelState` зовётся всё равно — редактора при выгрузке может
+     * уже не быть.
+     */
+    state.cancel = function() {
+      try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
+    }
+    /*
+     * Отпущенный `Alt` (`З-36`) переключает дочернее поле, если это было
+     * одиночное нажатие. Живёт и снимается вместе с перехватом `keydown` —
+     * `cleanupTagWheelState`, в том числе при выгрузке плагина.
+     */
+    state.keyUpHandler = function(e) {
+      if (!e || e.key !== 'Alt' || !state.active) return
+      var tap = state.altTap === true
+      state.altTap = false
+      if (tap && setAltOpen(state, state.session.altOpen !== true)) {
+        ensureActiveFieldId(state)
+        drawPanelLine(state, panelView(state))
+      }
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    state.session.altOpen = false
+    window.__tagWheelState = state
+    ensureActiveFieldId(state)
+    window.addEventListener('keydown', state.keyHandler, true)
+    window.addEventListener('keyup', state.keyUpHandler, true)
+
+    drawPanelLine(state, panelView(state))
+  }
+
   var preApp = resolveTagWheelApp(input)
   /*
    * Имена ключей настроек берутся у модуля, который лежит в бандле, — работа
@@ -2384,6 +2934,19 @@ async function runTagWheel(input, quickAddSettings) {
     if (!activeHelpersReady) {
       activeState.active = false
     } else {
+      /*
+       * Второе нажатие применяет выбор — но только своей командой (PRD
+       * 10.13.260, пункт 12). Блоки друг с другом не взаимодействуют: команда
+       * чужого блока, `tagWheel Left`/`Right` при панели блока и шаг Field
+       * блока при любой панели отказывают вслух.
+       */
+      var wantBlock = String(runtimeInput.customBlock || '')
+      var haveBlock = activeState.custom ? String(activeState.custom.blockId) : ''
+      if (runtimeInput.customCycle || wantBlock !== haveBlock) {
+        notice(__sayModule.noticeKey('pkm', 'tagwheel-open'),
+          'tagWheel is open on this line: finish it with Enter or close it with Escape first')
+        return
+      }
       applySelection(activeState, activeState.core)
       return
     }
@@ -2492,6 +3055,17 @@ async function runTagWheel(input, quickAddSettings) {
     }
     core.validateRules(rules)
 
+    var customBlockId = String(runtimeInput.customBlock || '').trim()
+    if (customBlockId) {
+      await openCustomBlock({
+        core: core, editor: editor, rules: rules, orderCfg: orderCfg, app: app_,
+        runtimeInput: runtimeInput, lineFinalize: lineFinalize, scrollerCfg: scrollerCfg,
+        valueNamesCfg: valueNamesCfg, dateRuntimeCfg: dateRuntimeCfg, sf: sf,
+        parseOrderConfigFn: parseOrderConfigFn, normalizeOrderKey: normalizeOrderKey,
+      })
+      return
+    }
+
     var cursor = editor.getCursor()
     var lineNumber = cursor.line
     var originalLine = String(editor.getLine(lineNumber) || '')
@@ -2571,143 +3145,7 @@ async function runTagWheel(input, quickAddSettings) {
       scrollerOverlay: null
     }
 
-    if (scrollerCfg.enabled) {
-      try {
-        var scrollerMod = await loadTagWheelScrollerOverlay()
-        state.scrollerOverlay = scrollerMod.createTagWheelScrollerOverlay({
-          direction: scrollerCfg.direction,
-          size: scrollerCfg.size,
-          /* Цвета коробки (10.13.15). Пусто — оверлей оставляет цвета темы. */
-          fillColor: scrollerCfg.fillColor,
-          textColor: scrollerCfg.textColor,
-        })
-      } catch (eScroller) {
-        state.scrollerOverlay = null
-        reportTagWheelError(eScroller)
-      }
-    }
-
-    state.keyHandler = function(e) {
-      if (!state.active) return
-
-      var keymap = state.rules.behavior.keymap || {}
-      var handled = false
-      /*
-       * Нажатие `Alt` считается, только если между нажатием и отпусканием не
-       * было другой клавиши (`З-36`): `Alt+↑` — это его хоткей, а не
-       * открытие поля. И `Alt+Tab` поэтому поля не переключает.
-       */
-      if (e.key !== 'Alt') state.altTap = false
-
-      try {
-        if (e.key === (keymap.nextField || 'ArrowRight')) {
-          nextVirtualField(state, 1)
-          handled = true
-        } else if (e.key === (keymap.prevField || 'ArrowLeft')) {
-          nextVirtualField(state, -1)
-          handled = true
-        } else if (e.key === (keymap.valueUp || 'ArrowUp')) {
-          state.core.cycleValue(state.rules, state.session, 1)
-          handled = true
-        } else if (e.key === (keymap.valueDown || 'ArrowDown')) {
-          state.core.cycleValue(state.rules, state.session, -1)
-          handled = true
-        } else if (e.key === (keymap.switchMode || 'Tab')) {
-          state.session.mode = state.session.mode === 'left' ? 'right' : 'left'
-          /* Имя ведущего поля кладёт разрешитель; согласование — за
-             `ensureActiveFieldId`. Второе объявление здесь теряло элемент
-             ровно так же, как на открытии. */
-          state.session.activeField = state.core.resolveInitialActiveField(state.rules, state.session, state.session.mode)
-          ensureActiveFieldId(state)
-          handled = true
-        } else if (e.key === (keymap.apply || 'Enter')) {
-          applySelection(state, state.core)
-          handled = true
-        } else if (e.key === (keymap.cancel || 'Escape')) {
-          cancelSelection(state)
-          handled = true
-        } else if (e.key === 'Alt') {
-          /* Переключает поле отпускание (`keyUpHandler` ниже), здесь только
-             отметка «началось нажатие». Своя обработка гасит и то, что
-             Windows делает с одиночным `Alt`, — фокус на меню окна. */
-          if (!e.repeat) state.altTap = true
-          handled = true
-        }
-      } catch (err) {
-        try {
-          cleanupTagWheelState(state)
-        } catch (_) {
-          /*
-           * Уборка, и она обязана быть тихой: об отказе, из-за которого мы
-           * сюда попали, человеку говорится следующей строкой, и второй
-           * отказ — самой уборки — не имеет права съесть это сообщение.
-           */
-        }
-        notice(tagWheelNoticeKey('error'), 'TagWheel error: {0}',
-          (err && err.message) ? err.message : err)
-        reportTagWheelError(err)
-        handled = true
-      }
-
-      if (handled) {
-        state.core.sanitizeState(state.rules, state.session)
-        ensureActiveFieldId(state)
-        if (state.active) {
-          /* Вид панели — не правка человека, и в историю отмен он не идёт. */
-          drawPanelLine(state, withKeptPrefix(state.originalLine,
-            state.core.renderControlLine(state.rules, state.session, state.parsedLine,
-              state.valueNamesCfg)))
-        }
-        e.preventDefault()
-        e.stopPropagation()
-      }
-    }
-
-    /*
-     * Закрыть сессию снаружи (Д-2 разбора готовности, 2026-09-08).
-     *
-     * Панель вешает `keydown` на этап перехвата, и обработчик снимает только
-     * `cleanupTagWheelState`. Выгрузка плагина его не звала: человек выключал
-     * плагин с открытой панелью, и перехват продолжал съедать стрелки и Enter
-     * до перезагрузки окна, а строка оставалась с видом панели в тексте
-     * заметки.
-     *
-     * Шов — одна функция на самом состоянии, и она зовёт **тот же**
-     * `cancelSelection`, которым сессию закрывает `Esc`: второе объявление
-     * «как закрывается панель» разошлось бы с первым молча (У-32). Снятие
-     * перехвата важнее возврата строки, поэтому при отказе записи
-     * `cleanupTagWheelState` зовётся всё равно — редактора при выгрузке может
-     * уже не быть.
-     */
-    state.cancel = function() {
-      try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
-    }
-    /*
-     * Отпущенный `Alt` (`З-36`) переключает дочернее поле, если это было
-     * одиночное нажатие. Живёт и снимается вместе с перехватом `keydown` —
-     * `cleanupTagWheelState`, в том числе при выгрузке плагина.
-     */
-    state.keyUpHandler = function(e) {
-      if (!e || e.key !== 'Alt' || !state.active) return
-      var tap = state.altTap === true
-      state.altTap = false
-      if (tap && setAltOpen(state, state.session.altOpen !== true)) {
-        ensureActiveFieldId(state)
-        drawPanelLine(state, withKeptPrefix(state.originalLine,
-          state.core.renderControlLine(state.rules, state.session, state.parsedLine,
-            state.valueNamesCfg)))
-      }
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    session.altOpen = false
-    window.__tagWheelState = state
-    ensureActiveFieldId(state)
-    window.addEventListener('keydown', state.keyHandler, true)
-    window.addEventListener('keyup', state.keyUpHandler, true)
-
-    drawPanelLine(state, withKeptPrefix(originalLine,
-      core.renderControlLine(rules, session, parsedLine, valueNamesCfg)))
+    await mountSession(state)
     /*
      * Успешное открытие молчит.
      *
@@ -2778,6 +3216,9 @@ module.exports.normalizeEdgeMode = normalizeEdgeMode
    проверяется она без Obsidian (10.13.53). */
 module.exports.setLineOutsideHistory = setLineOutsideHistory
 module.exports.lineDiffChange = lineDiffChange
+/* Custom block: слово под кареткой и форма вставки — чистые функции (10.13.260). */
+module.exports.customWordSpan = customWordSpan
+module.exports.customInsertPlan = customInsertPlan
 module.exports.keptLinePrefix = keptLinePrefix
 module.exports.withKeptPrefix = withKeptPrefix
 /* Место каретки при открытой панели — чистая функция над планом записи, и

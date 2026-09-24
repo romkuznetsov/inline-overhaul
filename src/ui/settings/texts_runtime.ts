@@ -116,6 +116,8 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
      */
     "rules-missing": "tagWheel: no rules came with the command - open it from the command list or its hotkey",
     "emoji-required": "tagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
+    /* Команда Field custom block пришла, а Field в блоке уже нет (PRD 10.13.260). */
+    "custom-no-field": "tagWheel: this Field is not in a custom block any more",
     error: "tagWheel error: {0}",
   },
 

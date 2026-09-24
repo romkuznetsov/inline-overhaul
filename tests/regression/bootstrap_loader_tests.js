@@ -2346,12 +2346,19 @@ async function run() {
    */
   const openTail = (() => {
     /* Предмет переехал 2026-09-13: отрисовка открытия зовётся одной строкой
-       (`drawPanelLine`), и участок считается от неё (У-94). */
-    const from = tagwheelSrc.indexOf("    drawPanelLine(state, withKeptPrefix(originalLine,");
-    assertTrue(from > 0, "tagwheel open path still renders the initial control line");
-    const to = tagwheelSrc.indexOf("} catch (e) {", from);
-    assertTrue(to > from, "tagwheel open path still has its catch branch");
-    return tagwheelSrc.slice(from, to);
+       (`drawPanelLine`), и участок считается от неё (У-94). 2026-09-24 она
+       переехала ещё раз — в `mountSession`, общий для Left/Right и custom
+       block (PRD 10.13.260), — и участков стало два: хвост подключения сессии
+       и путь открытия от него до ветки отказа. */
+    const mount = tagwheelSrc.indexOf("  async function mountSession(state) {");
+    assertTrue(mount > 0, "tagwheel still mounts its session in one place");
+    const from = tagwheelSrc.indexOf("    drawPanelLine(state, panelView(state))\n  }\n", mount);
+    assertTrue(from > mount, "tagwheel open path still renders the initial control line");
+    const call = tagwheelSrc.lastIndexOf("    await mountSession(state)\n");
+    assertTrue(call > from, "tagwheel open path still ends in mountSession");
+    const to = tagwheelSrc.indexOf("} catch (e) {", call);
+    assertTrue(to > call, "tagwheel open path still has its catch branch");
+    return tagwheelSrc.slice(from, from + 60) + tagwheelSrc.slice(call, to);
   })();
   assertFalse(/notice\(/.test(openTail), "opening TagWheel says nothing when it works");
   /* Ищется вызов, а не слова: объяснение в комментарии рядом со снятой
@@ -3369,8 +3376,8 @@ async function run() {
    */
   assertTrue(/fillColor: hex\(raw\.scrollerFillColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller fill colour");
   assertTrue(/textColor: hex\(raw\.scrollerTextColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller text colour");
-  assertTrue(/fillColor: scrollerCfg\.fillColor/.test(tagwheelSrc), "tagwheel passes the scroller fill colour to the overlay");
-  assertTrue(/textColor: scrollerCfg\.textColor/.test(tagwheelSrc), "tagwheel passes the scroller text colour to the overlay");
+  assertTrue(/fillColor: state\.scrollerCfg\.fillColor/.test(tagwheelSrc), "tagwheel passes the scroller fill colour to the overlay");
+  assertTrue(/textColor: state\.scrollerCfg\.textColor/.test(tagwheelSrc), "tagwheel passes the scroller text colour to the overlay");
   /*
    * Край Block (10.13.35). Решение проверено по-настоящему в
    * `tests/TagWheel/tagwheel_tests.js` — `planFieldStep` чистая функция и
@@ -3400,8 +3407,12 @@ async function run() {
     "tagwheel читает режим подписей полосы из настроек рантайма");
   assertTrue(/valueNamesCfg: valueNamesCfg,/.test(tagwheelSrc),
     "tagwheel держит режим подписей полосы на состоянии сессии");
-  assertTrue(/renderControlLine\(rules, session, parsedLine, valueNamesCfg\)/.test(tagwheelSrc),
+  /* Вид панели собирает `panelView` с 2026-09-24 (PRD 10.13.260): Left/Right
+     и custom block, у второго полоса без строки вокруг (У-94). */
+  assertTrue(/renderControlLine\(state_\.rules, state_\.session, state_\.parsedLine, state_\.valueNamesCfg\)/.test(tagwheelSrc),
     "и отдаёт его тому, кто рисует полосу");
+  assertTrue(/renderPanelStrip\(state_\.rules, state_\.session, state_\.valueNamesCfg\)/.test(tagwheelSrc),
+    "и полосе custom block тоже");
   /*
    * Три ключа подписей переносятся из реестра имён так же, как остальные.
    * Пока их там не было, они держались на литерале в этом файле: значение
@@ -4087,13 +4098,18 @@ async function run() {
      * `tagwheel_tests.js`, но там вид панели собирает сама проверка — а вот
      * **кто зовёт** эту функцию в плагине, видно только отсюда (У-56).
      */
-    for (const call of [
-      "          drawPanelLine(state, withKeptPrefix(state.originalLine,",
-      "    drawPanelLine(state, withKeptPrefix(originalLine,",
-    ]) {
-      assertTrue(src.includes(call),
-        "вид панели собирается без сохранённого начала строки: нет `" + call + "`");
-    }
+    /*
+     * С 2026-09-24 вид собирает одна функция — `panelView` (PRD 10.13.260):
+     * Left/Right через `withKeptPrefix`, custom block своей полосой у каретки
+     * поверх строки человека. Спрашивается и дом, и то, что ни один вызов
+     * отрисовки его не обходит (У-94).
+     */
+    assertTrue(/function panelView\(state_\) \{[\s\S]{0,200}return withKeptPrefix\(state_\.originalLine,/.test(src),
+      "вид панели собирается без сохранённого начала строки: `panelView` не зовёт `withKeptPrefix`");
+    const draws = src.match(/(?<!function )drawPanelLine\(state, [^)]*\)/g) || [];
+    assertTrue(draws.length >= 3, "положительный контроль: вызовов отрисовки панели " + draws.length);
+    assertEq(draws.filter(d => d !== "drawPanelLine(state, panelView(state)").join("; "), "",
+      "отрисовка панели обходит `panelView`");
     assertEq(offenders.join("; "), "",
       "в TagWheel строка пишется через setLineOutsideHistory: прямой setLine оставляет ступень отмены");
   }

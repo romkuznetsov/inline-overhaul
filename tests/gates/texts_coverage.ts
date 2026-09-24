@@ -68,8 +68,9 @@ const NOT_READ: ReadonlyArray<{ match: RegExp; why: string }> = [
 const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> = [
   {
     file: "src/ui/settings/schema/custom_texts.ts",
-    left: 15,
-    why: "имена команд: их показывает палитра Obsidian, и переводить их нельзя (Я2)",
+    left: 16,
+    why: "имена команд: их показывает палитра Obsidian, и переводить их нельзя (Я2). "
+      + "Шестнадцатое — шаблон `tagWheel <block>` команды custom block, 2026-09-24 (PRD 10.13.260)",
   },
   {
     file: "src/features/settings_backup.js",
@@ -90,8 +91,9 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
   },
   {
     file: "src/ui/settings/custom/command_reference.ts",
-    left: 4,
-    why: "имена строк прототипа, по которым узнаются семьи команд: адрес, а не текст (Я2)",
+    left: 5,
+    why: "имена строк прототипа, по которым узнаются семьи команд: адрес, а не текст (Я2). "
+      + "Пятая — семья команд custom block, 2026-09-24 (PRD 10.13.260)",
   },
   {
     /*
