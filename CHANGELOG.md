@@ -19,7 +19,21 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.10.0
+
+_2026-09-26 · [all changes since 0.9.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.9.0...0.10.0)_
+
+> [!NOTE]
+> 🐛 **4** bug fixes · 🎨 **2** changes you can see · ✨ **7** new things
+>
+> **New in this release**
+> - **Child Fields for links**
+> - **`Parent is Navigator`**
+> - **`Prerequisite` takes any Field and child Values**
+> - **Three navigator options in `Inline to note`**
+> - **A child Field waits for what its parent waits for**
+> - **`Jump over neighbor trees` in `Move lines`**
+> - **Link Values can point into a folder**
 
 1. 🎨 **Shorter choices in the panel's drop-down lists.** Every choice now says only what it picks — `The line only` is `Line only`, `Center of the screen` is `Center`, `Show when press Alt` is `On Alt`; your settings stay as they were.
 2. ✨ **Child Fields for links.** A link Field gets its `Child Field` like a tag: its child Values show up in tagWheel under the parent and have their own `next` and `previous` commands.
