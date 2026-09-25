@@ -78,6 +78,8 @@ function normalizePkmOrder(raw: Any): Any {
     subOnAlt: map(o.subOnAlt),
     /* Четвёртая — `Parent is Navigator` (PRD 10.13.269), по той же причине. */
     subNavigator: map(o.subNavigator),
+    /* Пятая — `YAML of navigator values` (PRD 10.13.272), по той же причине. */
+    yamlNavigator: map(o.yamlNavigator),
     /* Custom block (PRD 10.13.260) — тоже переносится, по той же причине. */
     custom: (Array.isArray(o.custom) ? o.custom : []).map((b: Any) => ({ ...b, keys: drop(b.keys) })),
   };
@@ -1754,6 +1756,27 @@ function heightBtn(host: StubNode): StubNode {
     "после перерисовки показывает записанное");
   assert.ok(!rowNamed("Parent Value"), "при навигаторе ряда про родителя нет");
   ok("`Parent is Navigator`: недоступен при `Hide`, пишет свой ключ и прячет `Parent Value`");
+
+  /* `YAML of navigator values` (PRD 10.13.272): ряд есть только при навигаторе. */
+  const yamlNav = all(rowNamed("YAML of navigator values") as StubNode, "io-select")[0] as StubNode;
+  assert.ok(yamlNav, "при навигаторе ряд в разделе свойства есть");
+  assert.equal(yamlNav.value, "off", "умолчание — выключен");
+  v.writes.length = 0;
+  yamlNav.value = "on";
+  yamlNav.dispatch("change");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:yaml-navigator:status_sub"],
+    "своя запись, и она одна");
+  assert.equal((v.writes[0] as Write).patch["pkm"]["fields"]["order"]["yamlNavigator"]["status_sub"], true,
+    "ключ уехал в настройки");
+  v.draw();
+  assert.equal((all(rowNamed("YAML of navigator values") as StubNode, "io-select")[0] as StubNode).value, "on",
+    "после перерисовки показывает записанное");
+  const offNav = all(rowNamed("Parent is Navigator") as StubNode, "io-select")[0] as StubNode;
+  offNav.value = "off";
+  offNav.dispatch("change");
+  v.draw();
+  assert.ok(!rowNamed("YAML of navigator values"), "без навигатора ряда нет");
+  ok("`YAML of navigator values`: только при навигаторе, пишет свой ключ");
 }
 
 {
@@ -2596,9 +2619,9 @@ const PREREQ_VALUE = "Prerequisite Value";
 {
   const v = makePrereqView();
   v.select("Status");
-  /* У тега `status` соседей по своему списку определений нет: единственный
-     другой тег — его же дочерний Field. Строки нет вовсе (З8). */
-  assert.equal(rowNamed(v.host(), PREREQ), null, "ждать некого — строки предусловия нет");
+  /* С 2026-09-25 тег ждёт кого угодно (его замечание к тесту 3 цикла 93):
+     у `status` есть ссылка и элемент, и строка есть. */
+  assert.ok(rowNamed(v.host(), PREREQ), "у тега есть кого ждать — строка предусловия есть");
   v.select("Project");
   assert.ok(rowNamed(v.host(), PREREQ), "у ссылки сосед по списку есть, и строка появилась");
   assert.equal(rowNamed(v.host(), PREREQ_WHICH), null,
@@ -2702,19 +2725,19 @@ const PREREQ_VALUE = "Prerequisite Value";
 
 {
   /*
-   * Обратная сторона: тег ждёт только тега. Граница списков определений
-   * открыта в одну сторону — так решено, потому что `dependsOn` у левого Field
-   * движок читает ещё и как «дочерний тег» (Н24).
+   * Обратная сторона открыта его замечанием к тесту 3 цикла 93 (2026-09-25):
+   * «я хочу, чтобы я мог в качестве Prerequisite выбрать любой тип field».
+   * До того тег ждал только тега (Н24).
    */
   const v = makePrereqView();
   v.select("Status");
-  assert.equal(rowNamed(v.host(), PREREQ), null,
-    "у тега в фикстуре других тегов нет, и ждать ему некого");
-  const res = v.model.setPrerequisite("status", "projects", "");
-  assert.equal(res.ok, false, "модель не даст тегу ждать ссылку");
-  assert.ok(String(res.error || "").includes("Tag Field"),
-    "и объясняет почему: " + String(res.error || ""));
-  ok("Н24: тег ждёт только тега — граница открыта в одну сторону");
+  pickIn(v.host(), PREREQ + " for status", "yes");
+  const which = selectLabelled(v.host(), PREREQ_WHICH + " for status") as StubNode;
+  assert.deepEqual(which.children.map(c => String(c.textContent || "").trim()),
+    ["Not chosen", "project", "due"], "тег ждёт и ссылку, и элемент");
+  const res = v.model.setPrerequisite("status", "project", "");
+  assert.equal(res.ok, true, "модель даёт тегу ждать ссылку: " + String(res.error || ""));
+  ok("Н24: тег ждёт кого угодно — граница открыта в обе стороны");
 }
 
 {

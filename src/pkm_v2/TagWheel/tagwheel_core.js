@@ -265,11 +265,10 @@ function validateRules(rules) {
     err('behavior.defaultMode must be left or right')
   }
 
-  /* Левый список ищет родителя только у себя, правый — в обоих: разбор
-     у `validateMode`. */
+  /* Оба списка ищут родителя в обоих: разбор у `validateMode`. */
   var leftScope = Array.isArray(rules.leftMode && rules.leftMode.fields) ? rules.leftMode.fields : []
   var rightScope = Array.isArray(rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : []
-  validateMode(rules.leftMode, 'leftMode', leftScope)
+  validateMode(rules.leftMode, 'leftMode', leftScope.concat(rightScope))
   validateMode(rules.rightMode, 'rightMode', leftScope.concat(rightScope))
 
   if (!isObj(rules.projects)) err('projects section is required')
@@ -573,10 +572,10 @@ function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
  * сломанной — с той разницей, что здесь это не молчаливое выключение Field,
  * а исключение: TagWheel не открывался вовсе.
  *
- * Граница открыта в ту же одну сторону, что и в `reconcileModeDependencies`
- * (`src/core/pkm_rules_runtime_helpers.js`): правый список ищет родителя в
- * обоих, левый — только у себя. Два прохода обязаны сходиться, иначе один
- * стирает связь, а второй на неё ругается.
+ * Граница открыта в обе стороны, как и в `reconcileModeDependencies`
+ * (`src/core/pkm_rules_runtime_helpers.js`): с 2026-09-25 тег может ждать и
+ * ссылку, и элемент (его замечание к тесту 3 цикла 93). Два прохода обязаны
+ * сходиться, иначе один стирает связь, а второй на неё ругается.
  *
  * Сама проверка остаётся: `dependsOn` на Field, которого нет нигде, — отказ.
  */

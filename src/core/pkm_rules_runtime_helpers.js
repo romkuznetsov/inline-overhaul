@@ -124,12 +124,41 @@ function isFieldPrerequisiteMet(field, selected, fields) {
    * панели, и поля команд, и общего конфига у этого объявления нет. Ставит
    * флаг `pkm_order_config.js`, разбирая настройку `subWithoutParent`.
    */
-  if (!parentValue) return field.freeOfParent === true;
   const only = Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues : null;
+  /*
+   * **Ждать можно и дочернее Value** (его замечание к тесту 3 цикла 93:
+   * «чтобы в качестве пререквизита можно было использовать и дочерние
+   * values»). Панель кладёт в список значение ребёнка рядом со значениями
+   * родителя; выполняет его дочернее Value, стоящее на строке, — есть там
+   * родитель или нет.
+   */
+  if (only && only.length && childValuesOnLine(parentKey, field, bag, fields).some((k) => only.indexOf(k) !== -1)) {
+    return true;
+  }
+  if (!parentValue) return field.freeOfParent === true;
   if (only && only.length && only.indexOf(parentValue) === -1) return false;
   const never = Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues : null;
   if (never && never.length && never.indexOf(parentValue) !== -1) return false;
   return true;
+}
+
+/**
+ * Дочерние Values Field `parentKey`, стоящие на строке: `id` и токен каждого.
+ * Дочернее — значит у значения названы родители (`allowedParentValues`);
+ * Field, который просто ждёт того же родителя, своих Values сюда не даёт.
+ */
+function childValuesOnLine(parentKey, field, bag, fields) {
+  const out = [];
+  for (const f of (Array.isArray(fields) ? fields : [])) {
+    if (!f || f === field || String(f.dependsOn || "").trim() !== parentKey) continue;
+    const sel = String(bag[f.id] || "").trim();
+    if (!sel) continue;
+    const cv = (Array.isArray(f.values) ? f.values : [])
+      .find((v) => v && (String(v.id || "") === sel || String(v.token || "") === sel));
+    if (!cv || !Array.isArray(cv.allowedParentValues) || !cv.allowedParentValues.length) continue;
+    out.push(String(cv.id || ""), String(cv.token || ""));
+  }
+  return out.filter(Boolean);
 }
 
 /**
@@ -1473,7 +1502,7 @@ function applyOrderToRules(rules, orderCfg, options) {
 
   /* Левый список ищет родителя только у себя, правый — в обоих: см. разбор
      у `reconcileModeDependencies`. */
-  reconcileModeDependencies(rules.leftMode, leftFields);
+  reconcileModeDependencies(rules.leftMode, leftFields.concat(rightFields));
   reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
 
   /*

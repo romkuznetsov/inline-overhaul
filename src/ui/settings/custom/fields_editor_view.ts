@@ -1398,6 +1398,34 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
     commit(() => { o.model.setYamlValueRule(row.key, ruleSelect.value); });
   }) as never);
 
+  /*
+   * Навигатор ребёнка — в свойство родителя (`YAML of navigator values`, его
+   * ответ В-224, PRD 10.13.272). Ряд есть только у Field, чьи Values —
+   * навигатор: у остальных навигатора нет, и решать нечего (З8).
+   */
+  if (row.subKey && o.model.getSubNavigator(row.subKey)) {
+    const navYaml = o.model.getYamlNavigator(row.subKey);
+    const navRow = itemRow(detail, {
+      name: say("YAML_NAV_NAME"),
+      desc: say("YAML_NAV_DESC"),
+      tip: say("YAML_NAV_TIP"),
+      tipId: "io-field-yaml-navigator-tip",
+      showTips: o.showTips, showIds: o.showIds,
+    });
+    closers.push(navRow.closeTip);
+    const navPick = selectInput(navRow.control, "io-select", {
+      options: labelled(say, CHILD_NAV_OPTIONS),
+      value: navYaml ? "on" : "off",
+      label: say("YAML_NAV_OF", row.strictName),
+    });
+    navPick.disabled = !o.enabled;
+    navPick.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      if ((navPick.value === "on") === navYaml) return;
+      commit(() => { o.model.setYamlNavigator(row.subKey, navPick.value === "on"); });
+    }) as never);
+  }
+
   if (cfg) {
     /*
      * Превью стоит справа, в колонке контролов, и той же ширины, что поле

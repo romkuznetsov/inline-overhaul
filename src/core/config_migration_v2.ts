@@ -347,6 +347,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      заказ 2026-09-16). Ветка целиком новая — пары в версии 1 у неё нет, и без
      маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
   keepV2("transform.inline2note.backlink.enabled"),
+  /* `Link to Navigator` и `Keep sub-fields` (PRD 10.13.272): ключи новые. */
+  keepV2("transform.inline2note.backlink.navigator"),
+  keepV2("transform.inline2note.sourceProcessing.keepSubFields"),
   keepV2("transform.inline2note.backlink.placement.position"),
   keepV2("transform.inline2note.backlink.placement.targetHeader"),
   keepV2("transform.inline2note.backlink.placement.fallback"),

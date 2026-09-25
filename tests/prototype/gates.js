@@ -78,6 +78,9 @@ const LONG_NAME_OK = {
      `Switch custom blocks on Tab`». His exact words, capital after
      the dash included, so the sentence-case rule steps aside for it too. */
   "wheel-custom-tab": "Switch custom blocks on Tab",
+  /* В-224, answered 2026-09-25: «нужен отдельный контрол в backlinks
+     `Link to Navigator`». His exact words, capital N included. */
+  "backlink-navigator": "Link to Navigator",
 };
 
 /* A key combination, quoted or bare: 'Ctrl+A', Cmd + A, Shift+Tab. */

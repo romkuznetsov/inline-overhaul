@@ -21,6 +21,8 @@ const __noticeKey = __sayModule.noticeKey;
    правила для него собирает тот же сборщик, что и для движков. */
 const __linePipeline = require("../core/line_pipeline.js");
 const __rulesShape = require("../core/pkm_rules_shape.js");
+const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
+const __domainRegistry = require("../core/pkm_domain_registry.js");
 
 function getRulesShapeModule() { return __rulesShape; }
 
@@ -80,6 +82,8 @@ const DEFAULT_INLINE2NOTE = {
    */
   backlink: {
     enabled: false,
+    /* `Link to Navigator` — PRD 10.13.272, его ответ В-224. */
+    navigator: false,
     placement: {
       position: "end",
       targetHeader: "",
@@ -88,6 +92,8 @@ const DEFAULT_INLINE2NOTE = {
   },
   sourceProcessing: {
     cleanupFieldIds: [],
+    /* `Keep sub-fields` — PRD 10.13.272, его ответы В-224 и В-228. */
+    keepSubFields: false,
     /*
      * Судьба текста исходной строки, отдельно от ссылки (решение заказчика
      * 2026-09-01). Умолчание совпадает с прежним поведением при
@@ -436,6 +442,7 @@ function normalizeInline2Note(raw) {
   const backlinkPlacement = normalizePlacement(isObj(backlink.placement) ? backlink.placement : {});
   out.backlink = {
     enabled: backlink.enabled === true,
+    navigator: backlink.navigator === true,
     /*
      * Оставляются ровно три ключа — те, у которых есть контрол. Остальное, что
      * умеет `placement`, здесь было бы ключом, который движок нормализует и
@@ -451,6 +458,7 @@ function normalizeInline2Note(raw) {
 
   const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
   out.sourceProcessing.cleanupFieldIds = Array.isArray(sp.cleanupFieldIds) ? sp.cleanupFieldIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
+  out.sourceProcessing.keepSubFields = sp.keepSubFields === true;
   out.sourceProcessing.token = Object.prototype.hasOwnProperty.call(sp, "token")
     ? String(sp.token || "").trim()
     : DEFAULT_INLINE2NOTE.sourceProcessing.token;
@@ -1346,11 +1354,37 @@ function buildTransformContext(parsed, cfg) {
   }
   }
 
-  const dependencySafeMatches = matches.filter((row) => {
-    const field = fieldById[String(row && row.fieldId || "").trim()];
-    const parentId = String(field && field.dependsOn || "").trim();
-    return !parentId || !!byFieldId[parentId];
-  });
+  /*
+   * **Value, чей Field ждёт, в заметку не идёт — и спрашивается это у общего
+   * дома предусловия** (`isFieldPrerequisiteMet`, одно объявление на панель и
+   * команды). Своё правило «родитель стоит на строке» здесь было третьим
+   * объявлением и не знало ни `Show always`, ни навигатора: строка
+   * `- #test1-1 :: text`, где навигатор `#test1` не пишется, не отдавала
+   * заметке ни одного Value (цикл 94, 2026-09-25).
+   */
+  /* У значений конфига `id` бывает не записан; движки получают его токеном
+     при сборке правил, и помощники отвечают `id` — даём им ту же форму. */
+  const withIds = fields.map((f) => Object.assign({}, f, {
+    values: (Array.isArray(f.values) ? f.values : [])
+      .map((v) => (isObj(v) && !v.id && v.token ? Object.assign({}, v, { id: String(v.token) }) : v)),
+  }));
+  const withIdsById = {};
+  for (const f of withIds) withIdsById[String(f.id || "").trim()] = f;
+  const selectedOnLine = {};
+  for (const row of matches) {
+    const field = withIdsById[String(row && row.fieldId || "").trim()];
+    if (!field) continue;
+    const raw = String(row.rawToken || "").trim();
+    const bare = String(__sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
+    const prefix = String(field.prefix || "");
+    const v = field.values.find((x) => isObj(x) && [raw, bare].some((w) => {
+      const tok = String(x.token || "");
+      return tok === w || prefix + tok === w;
+    }));
+    selectedOnLine[row.fieldId] = String(v ? v.id : raw);
+  }
+  const dependencySafeMatches = matches.filter((row) => __rulesHelpers.isFieldPrerequisiteMet(
+    withIdsById[String(row && row.fieldId || "").trim()], selectedOnLine, withIds));
   const dependencySafeByFieldId = {};
   for (let i = 0; i < dependencySafeMatches.length; i++) {
     const row = dependencySafeMatches[i];
@@ -1466,9 +1500,9 @@ const YAML_LIST_PROPERTY_TYPES = new Set(["multitext", "tags", "aliases", "list"
 function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
   const out = {};
   const byFieldId = isObj(transformContext && transformContext.byFieldId) ? transformContext.byFieldId : {};
-  const rows = Array.isArray(transformContext && transformContext.matches)
+  const rows = withNavigatorRows(Array.isArray(transformContext && transformContext.matches)
     ? transformContext.matches
-    : Object.keys(byFieldId).map((k) => byFieldId[k]);
+    : Object.keys(byFieldId).map((k) => byFieldId[k]), cfg);
   const yamlFormat = String(cfg && cfg.transform && cfg.transform.inline2note && cfg.transform.inline2note.yamlNoteFormat || "raw").trim().toLowerCase();
   const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
@@ -1574,6 +1608,49 @@ function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
       continue;
     }
     if (!out[yamlKey].includes(value)) out[yamlKey].push(value);
+  }
+  return out;
+}
+
+/**
+ * `YAML of navigator values` = `On` (PRD 10.13.272, его ответ В-227):
+ * навигатор ребёнка идёт в свойство родительского Field. На строке
+ * навигатора нет, поэтому он дописывается совпадением родителя — перед
+ * ребёнком, у двух навигаторов оба, — и дальше идёт тем же путём, что любое
+ * Value. Ребёнок остаётся в своём свойстве.
+ */
+function withNavigatorRows(rows, cfg) {
+  const fields = getModeFields(cfg);
+  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
+  const out = [];
+  const added = new Set();
+  for (const row of rows) {
+    const child = fields.find((f) => String(f.id) === String(row && row.fieldId || ""));
+    const parent = child && child.parentIsNavigator === true && child.yamlNavigator === true
+      ? fields.find((f) => String(f.id) === String(child.dependsOn || ""))
+      : null;
+    const yamlKey = parent ? String(propertiesByField[String(parent.id)] || "").trim() : "";
+    if (parent && yamlKey) {
+      const raw = String(row.rawToken || "").trim();
+      const bare = String(__sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
+      const cprefix = String(child.prefix || "");
+      const cv = (Array.isArray(child.values) ? child.values : [])
+        .find((v) => isObj(v) && [raw, bare].some((w) => String(v.token || "") === w || cprefix + String(v.token || "") === w));
+      const isLink = String(parent.source || "").indexOf("wikilinks:") === 0;
+      for (const ptok of (cv && Array.isArray(cv.allowedParentValues) ? cv.allowedParentValues : [])) {
+        const tok = String(ptok || "").trim();
+        if (!tok || added.has(tok)) continue;
+        added.add(tok);
+        out.push({
+          fieldId: String(parent.id),
+          fieldType: isLink ? "wikilink" : String(row.fieldType || "tag"),
+          yamlProperty: yamlKey,
+          rawToken: isLink ? `[[${tok}]]` : (tok.startsWith("#") ? tok : `${String(parent.prefix || "#")}${tok}`),
+        });
+      }
+    }
+    out.push(row);
   }
   return out;
 }
@@ -2174,6 +2251,24 @@ function backlinkTargetsFromContext(context) {
 }
 
 /**
+ * Цели ссылки вместе с навигаторами (`Link to Navigator`, PRD 10.13.272).
+ * Навигатор ребёнка-ссылки на строку не пишется, и заметка навигатора иначе
+ * не узнала бы о новой; при `On` она получает ссылку тоже — у ребёнка с двумя
+ * навигаторами оба (его ответ В-225). Навигатора ищет тот же признак, что у
+ * `Smart Rules`: навигатор-тег — не заметка, и в цели он не попадает.
+ * Навигатор, уже стоящий на строке, второй раз не пишется.
+ */
+function backlinkTargetsWithNavigators(context, cfg, i2n) {
+  const targets = backlinkTargetsFromContext(context);
+  if (!(isObj(i2n && i2n.backlink) && i2n.backlink.navigator === true)) return targets;
+  const seen = new Set(targets.map(normalizeRuleWikilink));
+  const present = { tags: new Set(), wikilinks: new Set(seen), emojiMarkers: new Set() };
+  addNavigatorsOfChildren(cfg, present);
+  for (const w of present.wikilinks) if (!seen.has(w)) targets.push(w);
+  return targets;
+}
+
+/**
  * Путь заметки, на которую показывает значение поля.
  *
  * **Спрашивается у платформы, а не выводится образцом** (У-91):
@@ -2246,7 +2341,7 @@ function backlinkLineFor(targetPath) {
  * сказать вслух. Поэтому у каждой цели свой заход, и неудача одной не отменяет
  * остальных.
  */
-async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n) {
+async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n, pluginCfg) {
   const cfg = isObj(i2n && i2n.backlink) ? i2n.backlink : {};
   if (cfg.enabled !== true) return { written: [], skipped: [], failed: [] };
   const line = backlinkLineFor(targetPath);
@@ -2258,7 +2353,7 @@ async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2
   const vault = app && app.vault;
   if (!vault) throw new Error("vault unavailable for backlink write");
   const selfPath = String(targetPath || "").trim();
-  for (const target of backlinkTargetsFromContext(context)) {
+  for (const target of backlinkTargetsWithNavigators(context, pluginCfg, i2n)) {
     const path = resolveBacklinkNotePath(app, target);
     /* Ссылка на самоё себя не пишется: строка может ссылаться на заметку с тем
        же именем, которое ей же и достаётся. */
@@ -2613,7 +2708,20 @@ function resolveSourceCleanupFieldIds(i2n, cfg) {
     : [];
   const fields = getModeFields(cfg);
   const known = new Set(fields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
-  return selected.filter((id) => known.has(id));
+  const kept = selected.filter((id) => known.has(id));
+  /*
+   * `Keep sub-fields` = `On`: у отмеченного Field остаются и дочерние Values.
+   * У дочернего Field своей строки в списке нет (дочерность — уровень Value,
+   * В7), поэтому он идёт следом за родителем. Копия в заметку уходит и так:
+   * оставленное на строке из заметки не вычитается (его ответ В-228).
+   */
+  if (i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepSubFields === true) {
+    for (const id of kept.slice()) {
+      const sub = __domainRegistry.inferSubFieldKey(id);
+      if (known.has(sub) && kept.indexOf(sub) === -1) kept.push(sub);
+    }
+  }
+  return kept;
 }
 
 /**
@@ -3705,7 +3813,7 @@ async function runInline2Note(plugin, runtimeOptions) {
    * знает. Отказ здесь громкий, но не роняющий: он говорит, в какую заметку не
    * получилось записать, и остальные получают своё.
    */
-  await writeBacklinksIntoReferencedNotes(plugin, transformContext, actualTarget.path, i2n);
+  await writeBacklinksIntoReferencedNotes(plugin, transformContext, actualTarget.path, i2n, cfg);
   if (i2n.openTarget) {
     try {
       const opened = plugin.app.vault.getAbstractFileByPath(actualTarget.path);
@@ -3805,6 +3913,7 @@ module.exports = {
      Наружу отданы все четыре куска: их спрашивают проверки по одному, а
      проверка, которая зовёт только целое, не скажет, какой из них сломался. */
   backlinkTargetsFromContext,
+  backlinkTargetsWithNavigators,
   resolveBacklinkNotePath,
   noteAlreadyLinksTo,
   backlinkLineFor,

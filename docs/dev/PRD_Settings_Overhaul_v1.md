@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (77)
+### Пути, которых не было в описи v1.0 (79)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1003,10 +1003,12 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.placement.headerLevel` | Line above is a heading (`content-header-level`) | Note content |
 | `transform.inline2note.sourceProcessing.text` | What happens with current line (`source-text`) | Source line |
 | `transform.inline2note.sourceProcessing.keepWords` | Words to keep (`source-keep-words`) | Source line |
+| `transform.inline2note.sourceProcessing.keepSubFields` | Keep sub-fields (`source-keep-sub`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.enabled` | Dim transformed line (`source-dim`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.opacity` | Opacity of transformed line (`source-dim-opacity`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.color` | Color of transformed line (`source-dim-color`) | Source line |
 | `transform.inline2note.backlink.enabled` | Link the notes you mention (`backlink-enabled`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.navigator` | Link to Navigator (`backlink-navigator`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.targetHeader` | Name of the heading (`backlink-target-header`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.fallback` | If heading not found (`backlink-header-missing`) | Auto-MOC in your links |

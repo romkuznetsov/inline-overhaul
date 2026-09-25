@@ -587,6 +587,39 @@ function configWithDefaultLabels(): Any {
   ok("модель требует помощников состояния вслух, а не отвечает молча");
 }
 
+/* ======================================================================
+ * `Prerequisite Field` и `Prerequisite Value` (его замечание к тесту 3 цикла
+ * 93, 2026-09-25): тег ждёт кого угодно, а в списке Values под родителем
+ * стоят его дочерние Values с отступом.
+ * ====================================================================== */
+
+{
+  const base = baseConfig();
+  base.pkm.fields.order.left.push("prio");
+  Object.assign(base.pkm.fields.order.labels, { prio: "Prio" });
+  Object.assign(base.pkm.fields.order.strictNames, { prio: "prio" });
+  Object.assign(base.pkm.fields.order.types, { prio: "tag" });
+  Object.assign(base.pkm.fields.order.active, { prio: "yes", status_sub: "yes" });
+  Object.assign(base.pkm.fields.order.enabled, { prio: true, status_sub: true });
+  base.pkm.fields.tags.fields[0].values[1].subtags = ["early"];
+  base.pkm.fields.tags.fields.push(
+    { id: "status_sub", prefix: "#", dependsOn: "status", values: [{ token: "early", active: true, allowedParentValues: ["doing"] }] },
+    { id: "prio", prefix: "#", values: [{ token: "high", active: true }] },
+  );
+  const p = makePanel(base, "prio");
+  const m = p.model();
+  const keys = (m.getPrerequisite("prio").candidates as Any[]).map((c: Any) => c.key);
+  assert.ok(keys.indexOf("project") !== -1, "тег может ждать ссылку: " + JSON.stringify(keys));
+  assert.ok(keys.indexOf("status") !== -1, "и тег по-прежнему: " + JSON.stringify(keys));
+  assert.equal(m.setPrerequisite("prio", "project", "").ok, true, "запись «тег ждёт ссылку» принята");
+  assert.equal(fieldById(p.cfg(), "leftMode", "prio").dependsOn, "project", "и дошла до конфига");
+  m.setPrerequisite("prio", "status", "");
+  const labels = (p.model().getPrerequisite("prio").values as Any[]).map((v: Any) => v.label);
+  assert.deepEqual(labels, ["todo", "doing", "\u00a0\u00a0\u00a0\u00a0early"],
+    "дочернее Value стоит под своим родителем с отступом: " + JSON.stringify(labels));
+  ok("Prerequisite: тег ждёт любого Field, дочерние Values в списке под родителем");
+}
+
 console.log("\n" + passed + " проверок пройдено");
 
 

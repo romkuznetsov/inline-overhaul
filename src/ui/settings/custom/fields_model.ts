@@ -504,6 +504,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return !!(orderState.subNavigator && orderState.subNavigator[key] === true);
   };
 
+  /** Навигатор ребёнка — в свойство родителя (`YAML of navigator values`, PRD 10.13.272). */
+  const getYamlNavigator = (subKey: string): boolean => {
+    const key = String(subKey || "").trim();
+    if (!key) return false;
+    return !!(orderState.yamlNavigator && orderState.yamlNavigator[key] === true);
+  };
+
   /** Ключи, которых нет ни в одном Block, дописываются в правый (как было). */
   const ensureAllKeys = (): void => {
     for (const k of getOrderKeys()) {
@@ -551,6 +558,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         subNavigator: {
           ...current.subNavigator,
           ...(p && p.subNavigator ? p.subNavigator : {}),
+        },
+        yamlNavigator: {
+          ...current.yamlNavigator,
+          ...(p && p.yamlNavigator ? p.yamlNavigator : {}),
         },
         types: { ...current.types, ...(p && p.types ? p.types : {}) },
         labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
@@ -899,6 +910,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       subAddsParent: { ...(liveOrder.subAddsParent || {}) },
       subOnAlt: { ...(liveOrder.subOnAlt || {}) },
       subNavigator: { ...(liveOrder.subNavigator || {}) },
+      yamlNavigator: { ...(liveOrder.yamlNavigator || {}) },
     };
     for (const t of targets) {
       delete nextOrder.labels[t];
@@ -911,6 +923,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       delete nextOrder.subAddsParent[t];
       delete nextOrder.subOnAlt[t];
       delete nextOrder.subNavigator[t];
+      delete nextOrder.yamlNavigator[t];
     }
     const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
     const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
@@ -1173,6 +1186,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.subNavigator = { ...(orderState.subNavigator || {}), [subKey]: !!on };
     setOrderPatch({ subNavigator: { [subKey]: !!on } },
       "pkm:behavior:order:sub-navigator:" + subKey);
+    return { ok: true };
+  };
+
+  const setYamlNavigator = (subKey: string, on: boolean): WriteResult => {
+    orderState.yamlNavigator = { ...(orderState.yamlNavigator || {}), [subKey]: !!on };
+    setOrderPatch({ yamlNavigator: { [subKey]: !!on } },
+      "pkm:behavior:order:yaml-navigator:" + subKey);
     return { ok: true };
   };
 
@@ -1515,10 +1535,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * того, в каком Block Field пишется (`ensureBehaviorModesFromOrder` в
    * `main.js` раскладывает их именно так).
    *
-   * Для предусловия отсюда следует, кого можно ждать. `reconcileModeDependencies`
-   * в `pkm_rules_runtime_helpers.js` ищет `dependsOn` у левого списка только в
-   * нём самом, а у правого — в обоих (решение заказчика 2026-08-27, разбор там
-   * же). Значит ссылка и элемент ждут кого угодно, а тег — только тега.
+   * Кого можно ждать, от списка не зависит: `reconcileModeDependencies` в
+   * `pkm_rules_runtime_helpers.js` ищет `dependsOn` обоих списков в обоих (его
+   * замечание к тесту 3 цикла 93, 2026-09-25). Список здесь нужен для записи.
    */
   const poolOf = (fieldId: string): "leftMode" | "rightMode" | "" => {
     const behavior = behaviorOf(plugin.getConfig());
@@ -1558,17 +1577,35 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return false;
   };
 
-  /** Значения Field так, как их видит рантайм: `id`, а при его отсутствии — токен. */
+  /**
+   * Значения Field так, как их видит рантайм: `id`, а при его отсутствии —
+   * токен. Под каждым — его дочерние Values с отступом: ждать можно и их
+   * (его замечание к тесту 3 цикла 93). Отступ — неразрывные пробелы: у
+   * `<option>` своего отступа нет.
+   */
   const valueIdsOf = (fieldId: string): Array<{ value: string; label: string }> => {
     const out: Array<{ value: string; label: string }> = [];
     const seen = new Set<string>();
-    for (const raw of asArray(fieldObject(fieldId)["values"])) {
+    const push = (raw: unknown, indent: string): string => {
       const row = asObject(raw);
       const token = String(row["token"] || "").trim();
       const id = String(row["id"] || token).trim();
-      if (!id || seen.has(id)) continue;
+      if (!id || seen.has(id)) return "";
       seen.add(id);
-      out.push({ value: id, label: token || id });
+      out.push({ value: id, label: indent + (token || id) });
+      return token;
+    };
+    /* Дочерний Field ищется так же, как у таблицы Values (`valuesEditor`). */
+    const behavior = behaviorOf(plugin.getConfig());
+    const subKey = `${fieldId}_sub`;
+    const child = findFieldByOrderKey(modeFields(behavior, "leftMode"), subKey)
+      || findFieldByOrderKey(modeFields(behavior, "rightMode"), subKey);
+    const kids = asArray(asObject(child)["values"]);
+    const parentsOf = (raw: unknown): string[] => asArray(asObject(raw)["allowedParentValues"]).map(x => String(x || ""));
+    for (const raw of asArray(fieldObject(fieldId)["values"])) {
+      const token = push(raw, "");
+      if (!token) continue;
+      for (const kid of kids) if (parentsOf(kid).indexOf(token) !== -1) push(kid, "\u00a0\u00a0\u00a0\u00a0");
     }
     return out;
   };
@@ -1580,7 +1617,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const allowed = asArray(self["enabledForParentValues"])
       .map(x => String(x || "").trim())
       .filter(Boolean);
-    const pool = poolOf(key);
     const candidates: Array<{ key: string; label: string }> = [];
     for (const row of listFields()) {
       /*
@@ -1588,11 +1624,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
        * родителем, и он сам показывается только под ним.
        */
       if (row.parent || row.key === key) continue;
-      /*
-       * Тег ждёт только тега; ссылка и элемент — кого угодно. Граница списков
-       * открыта в одну сторону, и открыта она в движке: см. `poolOf`.
-       */
-      if (pool === "leftMode" && poolOf(row.key) !== "leftMode") continue;
       if (dependsChainReaches(row.key, key)) continue;
       candidates.push({ key: row.key, label: row.strictName || row.key });
     }
@@ -1617,14 +1648,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
       return { ok: false, error: SAY.ERR_SELF_PREREQ };
-    }
-    /*
-     * Тег может ждать только тега: движок открывает границу списков в одну
-     * сторону. Записать можно было бы что угодно, но рантайм такую связь сотрёт
-     * и выключит Field — а панель показала бы его включённым.
-     */
-    if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
-      return { ok: false, error: SAY.ERR_TAG_PREREQ };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex(f => idOf(f) === key);
@@ -2495,6 +2518,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     getSubMode,
     getSubAddsParent,
     getSubNavigator,
+    getYamlNavigator,
     inferSubKey,
     ensureAllKeys,
     getPanelLeadCandidates,
@@ -2523,6 +2547,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setSubMode,
     setSubAddsParent,
     setSubNavigator,
+    setYamlNavigator,
     setFreeRoam,
     setActive,
     setLead,

@@ -400,6 +400,8 @@ function makeDefaultPkmOrder() {
     subAddsParent: {},
     subOnAlt: {},
     subNavigator: {},
+    /* `YAML of navigator values` (PRD 10.13.272): ключ — дочерний Field. */
+    yamlNavigator: {},
     types: {},
     labels: {},
     strictNames: {},
@@ -444,6 +446,7 @@ function subPermissions(order, parentKey, subKey) {
     addsParentValue: subAddsParentValue(order, subKey),
     showOnAlt: subShowsOnAlt(order, subKey),
     parentIsNavigator: subParentIsNavigator(order, subKey),
+    yamlNavigator: subYamlNavigator(order, subKey),
   };
 }
 
@@ -453,6 +456,16 @@ function subPermissions(order, parentKey, subKey) {
  */
 function subParentIsNavigator(order, subKey) {
   const bag = isObj(order) && isObj(order.subNavigator) ? order.subNavigator : {};
+  return bag[subKey] === true;
+}
+
+/**
+ * Навигатор ребёнка идёт в свойство родителя (`YAML of navigator values`,
+ * PRD 10.13.272). Навигатора на строке нет, и без этого в заметку ему
+ * взяться неоткуда.
+ */
+function subYamlNavigator(order, subKey) {
+  const bag = isObj(order) && isObj(order.yamlNavigator) ? order.yamlNavigator : {};
   return bag[subKey] === true;
 }
 
@@ -545,7 +558,7 @@ function normalizePkmOrder(rawOrder) {
    * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
    * `left`/`right` нет нарочно.
    */
-  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator"]) {
+  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator"]) {
     if (!isObj(rawOrder[mapKey])) continue;
     for (const k of orderKeys) {
       if (typeof rawOrder[mapKey][k] !== "boolean") continue;

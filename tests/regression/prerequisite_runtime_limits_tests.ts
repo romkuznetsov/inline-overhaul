@@ -208,14 +208,17 @@ const shown = (b: { field: Any; mode: Any; rules: Any }, selected: Any): boolean
 
 {
   /*
-   * Обратное направление осталось закрытым, и это решение, а не забывчивость:
-   * `dependsOn` у левого Field движок читает ещё и как «дочерний тег».
+   * Обратное направление открыто его замечанием к тесту 3 цикла 93
+   * (2026-09-25): «я хочу, чтобы я мог в качестве Prerequisite выбрать любой
+   * тип field». До того движок стирал связь и выключал тег.
    */
   const b = build({ where: "left", dependsOn: "projects", needs: "Alpha" });
-  assert.equal(b.field.enabled, false, "тег не может ждать ссылку: движок выключает его");
-  assert.equal(String(b.field.dependsOn || ""), "", "связь стёрта");
-  assert.equal(shown(b, { projects: "Alpha" }), false, "тег не появляется");
-  ok("чужой список: тег ждать ссылку по-прежнему не может — граница открыта в одну сторону");
+  assert.notEqual(b.field.enabled, false, "тег ждёт ссылку и не выключен");
+  assert.equal(String(b.field.dependsOn || ""), "projects", "связь пережила применение Order");
+  assert.equal(shown(b, {}), false, "у ссылки значения нет — тег молчит");
+  assert.equal(shown(b, { projects: "Beta" }), false, "другое значение ссылки — молчит");
+  assert.equal(shown(b, { projects: "Alpha" }), true, "названное значение ссылки — тег показан");
+  ok("чужой список: тег ждёт ссылку — граница открыта в обе стороны");
 }
 
 {
@@ -299,8 +302,8 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
 }
 
 {
-  /* И то же самое в другую сторону: левый список чужого родителя не видит,
-     как и раньше — граница у обоих проходов открыта в одну сторону. */
+  /* И в другую сторону: с 2026-09-25 левый список видит родителя в правом
+     (его замечание к тесту 3 цикла 93) — у обоих проходов одна граница. */
   const raw: Any = {
     io: { separator1: " | ", separator2: " -- " },
     leftMode: {
@@ -313,9 +316,8 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
     behavior: { defaultMode: "left", order: {} },
     projects: { items: [] },
   };
-  assert.match(opens(raw), /leftMode\.fields\[second\]\.dependsOn references missing field: projects/,
-    "тег, ждущий ссылку, для `validateMode` по-прежнему сломанная связь");
-  ok("проход validateMode: обратное направление осталось закрытым");
+  assert.equal(opens(raw), "", "тег, ждущий ссылку, не кладёт открытие TagWheel");
+  ok("проход validateMode: тег, ждущий ссылку, не кладёт открытие TagWheel");
 }
 
 {

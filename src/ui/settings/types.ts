@@ -388,6 +388,8 @@ export interface OrderState {
   subOnAlt: Record<string, boolean>;
   /** Родительские Values — навигатор: сужают детей и не пишутся (PRD 10.13.269). */
   subNavigator: Record<string, boolean>;
+  /** Навигатор ребёнка — в свойство родителя (PRD 10.13.272). */
+  yamlNavigator: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
   /** Custom block (PRD 10.13.260): свой Block у каретки, по разделу на блок. */

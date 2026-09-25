@@ -3188,6 +3188,13 @@ const SCHEMA = [
       visible: on("transform.inline2note.enabled") },
     { kind:"custom", id:"source-fields", render: renderSourceFields,
       visible: on("transform.inline2note.enabled") },
+    /* Его ответ В-224, постановка PRD 10.13.272: у дочернего Field своей
+       строки в списке нет, и без этого его Values уходят со строки. */
+    { kind:"toggle", id:"source-keep-sub", path:"transform.inline2note.sourceProcessing.keepSubFields", default:false,
+      name:"Keep sub-fields",
+      desc:"A Field you keep keeps its child Values on the line too",
+      tip:"A child Field has no row of its own in the list above: it follows its parent. Off, a kept Field stays on the line and its child Values go into the note. On, they stay on the line with it, and a copy still goes into the note, the same as the kept Field itself",
+      visible: on("transform.inline2note.enabled") },
     { kind:"toggle", id:"source-link", path:"transform.inline2note.sourceProcessing.replaceWithLink", default:true,
       name:"Insert wikilink in current line", desc:"Put a link to the new note on the line you pressed on",
       searchTerms:["Replace payload with note link", "Leave a link behind"],
@@ -3261,6 +3268,13 @@ const SCHEMA = [
       desc:"Write a link to the new note into every note this line points at",
       searchTerms:["Create wikilink to transformed note in reference notes","Backlinks into the notes you mention","Automatic MOC"],
       tip:"The link is written with the full path, so it points at the right note even when two notes share a name. A note that does not exist yet is created empty and gets the link. Nothing is written twice: a note that already links to the new one is left alone" },
+    /* Его ответ В-224, постановка PRD 10.13.272: навигатор на строку не
+       пишется, и без этого его заметка о новой не узнала бы. */
+    { kind:"toggle", id:"backlink-navigator", path:"transform.inline2note.backlink.navigator", default:false,
+      name:"Link to Navigator",
+      desc:"Also write the link into the navigator note of a child link",
+      tip:"A child link whose parent is a navigator stands on the line alone: the navigator is never written there. With this on, the navigator note gets the link too, and a child under two navigators links from both. A navigator note that does not exist yet is created empty. A Tag navigator is not a note, so nothing is written for it",
+      visible: on("transform.inline2note.backlink.enabled") },
     { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
       name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
       searchTerms:["Where the backlink goes"],
@@ -5998,6 +6012,20 @@ function propertyRow(host, f) {
     s.addEventListener("change", () => { f.valueRule = s.value; renderContent(); refreshPreviews(); });
   });
 
+  /* Навигатор ребёнка — в свойство родителя (его ответ В-224, PRD 10.13.272).
+     Ряд есть только у Field, чьи Values — навигатор (З8). */
+  if (f.childNav) row({
+    name:"YAML of navigator values", key:"yaml-navigator",
+    desc:"Write the navigator of a child Value into this Field's property too",
+    tip:"A navigator is never written to the line, so on its own it never reaches the note. On, <code>Inline to note</code> writes the navigator of the child Value into this Field's property, and the child goes into its own property as before. A child under two navigators writes both, as a list. Off, only the child is written",
+  }, ctl => {
+    const s = selectEl(ctl, [
+      { value:"off", label:"Off" },
+      { value:"on",  label:"On" }
+    ], f.yamlNav ? "on" : "off", "YAML of navigator values for " + f.name);
+    s.addEventListener("change", () => { f.yamlNav = s.value === "on"; renderContent(); refreshPreviews(); });
+  });
+
   row({
     name:"Preview", key:"yaml-written",
     desc:"How this Value will look like in YAML",
@@ -6076,6 +6104,13 @@ function placementRows(host, f) {
       ] },
       f.childMode || (f.childOn === false ? "hide" : "after-parent"),
       v => { f.childMode = v; f.childOn = v !== "hide"; });
+    /* Родитель — навигатор (PRD 10.13.269): в панели с цикла 92, в прототип
+       внесён 2026-09-25 вместе с `YAML of navigator values`. */
+    row({ name:"Parent is Navigator", key:"child-nav",
+      desc:"Parent Values only narrow the child list and are never written to the line",
+      tip:"Turn it on when the parent Values are groups rather than Values of their own. In tagWheel a parent Value then only narrows the child Field to its children, and nothing but the child lands on the line when you press <code>Enter</code>; pick no parent and you see every child. A parent Value with no children stays an ordinary Value. The child Field's commands step through every child Value in turn, and the parent Field's commands skip the parent Values that have children. A child on the line stands for its parent: a Field waiting for the parent opens, and a Smart Rule asking for the parent matches. Not available with <b>Hide</b>",
+      options:[{ value:"off", label:"Off" }, { value:"on", label:"On" }] },
+      f.childNav ? "on" : "off", v => { f.childNav = v === "on"; });
   }
 
   prerequisiteRows(host, f, row);
@@ -6087,16 +6122,11 @@ function placementRows(host, f) {
  * в самой строке. Выбрано значение — можно сузить и до него одного.
  *
  * В конфиг это ложится двумя ключами, которые рантайм понимает давно:
- * `dependsOn` и `enabledForParentValues`. Кого можно ждать, решает рантайм:
- * ссылка и элемент (список определений `rightMode`) ждут кого угодно, тег
- * (`leftMode`) — только тега. Граница списков открыта в одну сторону, потому
- * что `dependsOn` у левого Field значит для движка ещё и «дочерний тег».
+ * `dependsOn` и `enabledForParentValues`. Ждать можно любого Field и любого
+ * его Value, дочернего тоже (его замечание к тесту 3 цикла 93, 2026-09-25).
  */
 function prerequisiteRows(host, f, row) {
-  /* Тег ждёт только тега; ссылка и элемент — кого угодно: граница списков
-     определений открыта в одну сторону (решение заказчика 2026-08-27). */
-  const canWaitFor = x => (f.type === "tag" ? x.type === "tag" : true);
-  const others = FIELDS.filter(x => x.id !== f.id && canWaitFor(x));
+  const others = FIELDS.filter(x => x.id !== f.id);
   /* Некого ждать — и строки нет: контрол, который никуда не ведёт, не
      показывается (З8). */
   if (!others.length && !f.prereq) return;
@@ -6113,7 +6143,7 @@ function prerequisiteRows(host, f, row) {
 
   row({ name:"Choose prerequisite Field", key:"prereq-field",
     desc:"Which Field this one waits for",
-    tip:"A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. " +
+    tip:"This Field can wait for any other Field, of any type. " +
         "Two Tag Fields tied this way are also kept next to each other in the line" },
     f.prereq, v => { f.prereq = v; f.prereqValue = ""; },
     others.map(x => ({ value:x.id, label:x.strict || x.name })));
@@ -6126,7 +6156,7 @@ function prerequisiteRows(host, f, row) {
         "Name one, and it waits for that Value alone" },
     f.prereqValue || "",
     v => { f.prereqValue = v; },
-    [{ value:"", label:"Any Value" }].concat(values.map(x => ({ value:x.token, label:x.token }))));
+    [{ value:"", label:"Any Value" }].concat(values.map(x => ({ value:x.token, label:"\u00a0\u00a0\u00a0\u00a0".repeat(x.depth || 0) + x.token }))));
 }
 
 /* ============================================================ Cycle order */

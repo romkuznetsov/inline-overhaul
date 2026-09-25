@@ -73,8 +73,11 @@ function config(opts) {
     Object.assign(raw.pkm.fields.order.strictNames, { Stage: "Stage" });
     Object.assign(raw.pkm.fields.order.active, { Stage: "yes" });
     Object.assign(raw.pkm.fields.order.enabled, { Stage: true });
-    raw.pkm.fields.tags.fields.push({ id: "Stage", prefix: "#", dependsOn: "Type", placeholder: "Stage",
-      values: [{ id: "early", token: "early" }] });
+    const stage = { id: "Stage", prefix: "#", dependsOn: o.stageOn || "Type", placeholder: "Stage",
+      values: [{ id: "early", token: "early" }] };
+    /* Ждёт названное Value, дочернее тоже — его замечание к тесту 3 цикла 93. */
+    if (o.stageNeeds) stage.enabledForParentValues = [o.stageNeeds];
+    raw.pkm.fields.tags.fields.push(stage);
   }
   /* `Type` в custom block — `В-221`, его решение 2026-09-25. */
   if (o.custom) {
@@ -271,6 +274,38 @@ async function run() {
     ok("Prerequisite Field: ребёнок навигатора на строке выполняет ожидание родителя");
   }
 
+  /* ---- `Prerequisite Value`: ждать можно дочернее Value (тест 3 цикла 93) */
+  {
+    for (const navigator of [true, false]) {
+      const st = config({ stage: true, stageNeeds: "review", navigator });
+      const lead = navigator ? "" : "#doing ";
+      const hit = await drive(st, "- " + lead + "#review || text", [{ run: "stage-next" }]);
+      assert.equal(hit.line, "- " + lead + "#review #early || text", "дочернее Value выполнило ожидание (навигатор "
+        + navigator + "): " + hit.line + " " + JSON.stringify(hit.said));
+      /* Отрицательный контроль: другое дочернее Value того же родителя — ждёт. */
+      const miss = await drive(st, "- " + lead + "#draft || text", [{ run: "stage-next" }]);
+      assert.equal(miss.line, "- " + lead + "#draft || text", "чужое дочернее Value не выполняет: " + miss.line);
+      assert.ok(miss.said.some((m) => /waits for/.test(m)), "отказ вслух: " + JSON.stringify(miss.said));
+    }
+    const pane = await drive(config({ stage: true, stageNeeds: "review" }), "- #review || text", [OPEN, RIGHT, UP, ENTER]);
+    assert.ok(pane.opened[0], "панель открылась");
+    assert.equal(pane.line, "- #review #early || text", "панель показала Stage: " + pane.line);
+    const paneMiss = await drive(config({ stage: true, stageNeeds: "review" }), "- #draft || text", [OPEN, RIGHT, UP, ENTER]);
+    assert.ok(!/#early/.test(paneMiss.line), "на чужом дочернем Value панель Stage не показала: " + paneMiss.line);
+    ok("Prerequisite Value: дочернее Value на строке выполняет ожидание, соседнее — нет");
+  }
+
+  /* ---- `Prerequisite Field`: тег ждёт ссылку (тест 3 цикла 93) ---------- */
+  {
+    const st = config({ stage: true, stageOn: "Clients", navigator: false });
+    const hit = await drive(st, "- [[AK]] || text", [{ run: "stage-next" }]);
+    assert.equal(hit.line, "- [[AK]] #early || text", "тег дождался ссылки: " + hit.line + " " + JSON.stringify(hit.said));
+    const miss = await drive(st, "- text", [{ run: "stage-next" }]);
+    assert.equal(miss.line, "- text", "без ссылки тег ждёт: " + miss.line);
+    assert.ok(miss.said.some((m) => /waits for/.test(m)), "отказ вслух: " + JSON.stringify(miss.said));
+    ok("Prerequisite Field: тег ждёт ссылку и появляется вместе с ней");
+  }
+
   /* ---- `Smart Rules`: ребёнок считается за навигатора (`В-222`) --------- */
   {
     const transform = require(path.join(root, "src/features/transform_feature.js"));
@@ -285,6 +320,70 @@ async function run() {
     /* Отрицательный контроль: без навигатора ребёнок родителем не считается. */
     assert.equal(pick(config({ navigator: false }), { tags: ["#review"] }), "", "без навигатора не ловит");
     ok("Smart Rules: ребёнок на строке считается за своего навигатора");
+  }
+
+  /* ---- `Inline to note`: ребёнок навигатора и три контрола (PRD 10.13.272) */
+  {
+    const transform = require(path.join(root, "src/features/transform_feature.js"));
+    const ctxOf = (c, line) => transform.buildTransformContext(transform.parseInlineLine(line, c), c);
+    const ids = (c, line) => ctxOf(c, line).matches.map((m) => m.fieldId + "=" + m.rawToken);
+
+    /* Разбор: ребёнок без навигатора на строке — Value, и Field, ждущий
+       родителя, тоже (общий дом предусловия). */
+    assert.deepEqual(ids(cfg, "- #review || text"), ["Type_sub=#review"], "ребёнок навигатора узнан");
+    const staged = ids(config({ stage: true }), "- #review #early || text").sort();
+    assert.deepEqual(staged, ["Stage=#early", "Type_sub=#review"],
+      "Field, ждущий навигатора, узнан рядом с ребёнком: " + JSON.stringify(staged));
+    /* Отрицательный контроль: без `Show always` и навигатора ребёнок без родителя не Value. */
+    assert.deepEqual(ids(config({ always: false, navigator: false }), "- #review || text"), [],
+      "ребёнок без родителя, которому родитель нужен, не узнан");
+    ok("Inline to note: ребёнок навигатора и Field, который его ждёт, узнаны");
+
+    /* `Link to Navigator`. */
+    const i2n = (navigator) => ({ backlink: { enabled: true, navigator } });
+    const line = "- [[client1]] || text";
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(cfg, line), cfg, i2n(true)), ["client1", "AK"],
+      "On: ссылка уходит и в заметку навигатора");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(cfg, line), cfg, i2n(false)), ["client1"],
+      "Off: только в ребёнка, как прежде");
+    const twoRaw = config();
+    twoRaw.pkm.fields.links.fields[1].values[0].allowedParentValues = ["AK", "IEDT"];
+    const two = configNormalize.migrateConfig(twoRaw);
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(two, line), two, i2n(true)), ["client1", "AK", "IEDT"],
+      "у ребёнка два навигатора — оба (В-225)");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(cfg, "- #review || text"), cfg, i2n(true)), [],
+      "навигатор-тег — не заметка");
+    ok("Link to Navigator: On пишет и в навигатора, у двух — в оба; Off — как прежде");
+
+    /* `YAML of navigator values`. */
+    const withYaml = (on) => {
+      const raw = config();
+      raw.pkm.fields.order.propertiesByField = { Type: "type", Clients: "clients" };
+      raw.pkm.fields.order.yamlNavigator = { Type_sub: on, Clients_sub: on };
+      return configNormalize.migrateConfig(raw);
+    };
+    const yaml = (c, l) => transform.buildYamlMapFromContext(ctxOf(c, l), c, {});
+    assert.deepEqual(yaml(withYaml(true), "- #review || text"), { type: ["#doing", "#review"] },
+      "On: навигатор в свойстве родителя вместе с ребёнком");
+    assert.deepEqual(yaml(withYaml(false), "- #review || text"), { type: "#review" }, "Off: только ребёнок");
+    assert.deepEqual(yaml(withYaml(true), "- [[client1]] || text"), { clients: ["[[AK]]", "[[client1]]"] },
+      "On у ссылки: навигатор ссылкой");
+    ok("YAML of navigator values: On пишет навигатора в свойство родителя, Off — только ребёнка");
+
+    /* `Keep sub-fields`. */
+    const keepCfg = config({ navigator: false });
+    const sep = { separator1: "||", separator2: "||" };
+    const keep = (on) => {
+      const kept = transform.resolveSourceCleanupFieldIds(
+        { sourceProcessing: { cleanupFieldIds: ["Type"], keepSubFields: on } }, keepCfg);
+      return transform.applySourceCleanupByFieldIds("- #doing #review || text", ctxOf(keepCfg, "- #doing #review || text"), kept, sep);
+    };
+    assert.equal(keep(true), "- #doing #review || text", "On: дочернее Value отмеченного Field осталось");
+    assert.equal(keep(false), "- #doing || text", "Off: дочернее Value уходит, как прежде");
+    assert.equal(transform.normalizeInline2Note({ sourceProcessing: { keepSubFields: true } }).sourceProcessing.keepSubFields, true,
+      "ключ переживает нормализацию");
+    assert.equal(transform.normalizeInline2Note({}).sourceProcessing.keepSubFields, false, "умолчание Off");
+    ok("Keep sub-fields: On оставляет дочерние Values отмеченного Field, Off — нет");
   }
 
   /* ---- без навигатора родитель пишется, как прежде ---------------------- */

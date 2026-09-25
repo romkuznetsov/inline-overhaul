@@ -3285,10 +3285,10 @@ async function run() {
   assertTrue(/if \(!parentExists \|\| !runtimeEligible\.has\(fid\)\) \{[\s\S]*?f\.enabled = false;[\s\S]*?runtimeExcludedIds\.add\(fid\);/.test(pkmRulesHelpersSrc), "rules helpers disable and runtime-exclude children with invalid dependency placement");
   assertTrue(/if \(!parentExists\) \{[\s\S]*?f\.dependsOn = "";/.test(pkmRulesHelpersSrc), "rules helpers preserve model safely by clearing broken dependsOn links");
   /*
-   * Левый список ищет родителя только у себя, правый — в обоих: ссылка и
-   * элемент могут ждать тег, тег ждёт только тега (PRD 10.13.4, Н24).
+   * Оба списка ищут родителя в обоих: с 2026-09-25 тег ждёт и ссылку (его
+   * замечание к тесту 3 цикла 93; прежде — Н24, в одну сторону).
    */
-  assertTrue(/reconcileModeDependencies\(rules\.leftMode, leftFields\);[\s\S]*?reconcileModeDependencies\(rules\.rightMode, leftFields\.concat\(rightFields\)\);/.test(pkmRulesHelpersSrc), "rules helpers reconcile dependencies for both panels, right one across both lists");
+  assertTrue(/reconcileModeDependencies\(rules\.leftMode, leftFields\.concat\(rightFields\)\);[\s\S]*?reconcileModeDependencies\(rules\.rightMode, leftFields\.concat\(rightFields\)\);/.test(pkmRulesHelpersSrc), "rules helpers reconcile dependencies for both panels across both lists");
   /*
    * Второй проход, отвергавший ту же связь, — `validateMode` в
    * `tagwheel_core.js`: он не выключал Field, а бросал исключение, и TagWheel
@@ -3297,7 +3297,7 @@ async function run() {
    * сходиться, иначе один стирает связь, а второй на неё ругается.
    */
   assertTrue(/function validateMode\(mode, modeName, scopeFields\) \{/.test(tagwheelCoreSrc), "tagwheel_core validateMode takes an explicit dependency scope");
-  assertTrue(/validateMode\(rules\.leftMode, 'leftMode', leftScope\)[\s\S]*?validateMode\(rules\.rightMode, 'rightMode', leftScope\.concat\(rightScope\)\)/.test(tagwheelCoreSrc), "tagwheel_core validates dependencies for both lists, right one across both");
+  assertTrue(/validateMode\(rules\.leftMode, 'leftMode', leftScope\.concat\(rightScope\)\)[\s\S]*?validateMode\(rules\.rightMode, 'rightMode', leftScope\.concat\(rightScope\)\)/.test(tagwheelCoreSrc), "tagwheel_core validates dependencies for both lists across both");
   assertTrue(/if \(field\.dependsOn && !depIds\[field\.dependsOn\]\) \{/.test(tagwheelCoreSrc), "tagwheel_core still rejects a dependsOn that names no field at all");
   /*
    * Третий проход — `allowInPanel`: он брал Block родителя и молча прятал
