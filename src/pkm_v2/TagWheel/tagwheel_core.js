@@ -2191,7 +2191,8 @@ function buildManagedTokenSet(mode, rules, state) {
   }
   function addValueTokens(field, value) {
     var primary = buildOutputToken(field, value, rules)
-    pushToken(primary)
+    /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+    __sharedUtils.wikilinkLineForms(primary).forEach(pushToken)
     var tokenRaw = value && value.token ? String(value.token) : ''
     if (!tokenRaw) return
     var pref = typeof field.prefix === 'string' ? field.prefix : '#'
@@ -2562,7 +2563,8 @@ function buildOutputToken(field, value, rules) {
        кнопкой нажал (У-150). */
     var linkTarget = __sharedUtils.unwrapWikilinkToken(value.link || value.token || value.id || '')
     if (!linkTarget) return ''
-    return '[[' + linkTarget + ']]'
+    /* Вид ссылки в строке — общий дом: Value с папкой пишется с подписью (10.13.277). */
+    return __sharedUtils.wikilinkLineToken(linkTarget)
   }
   var token = tokenRaw
   if (!token) return ''
@@ -3033,7 +3035,9 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
           if (!vm || !vm.token) continue
           var fullToken = buildOutputToken(field, vm, rules)
           if (!fullToken) continue
-          tokenMap.push({ id: String(vm.id || ''), token: fullToken })
+          __sharedUtils.wikilinkLineForms(fullToken).forEach(function (form) {
+            tokenMap.push({ id: String(vm.id || ''), token: form })
+          })
         }
         if (tokenMap.length) {
           var hitField = statusLineRuntime.selectTokenByPanelOrder({
@@ -3058,10 +3062,10 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
       for (vi = 0; vi < values.length; vi++) {
         var v = values[vi]
         if (!v.token) continue
-        var full = buildOutputToken(field, v, rules)
-        var pos = Object.prototype.hasOwnProperty.call(lastIndexByToken, full)
-          ? Number(lastIndexByToken[full])
-          : -1
+        var pos = -1
+        __sharedUtils.wikilinkLineForms(buildOutputToken(field, v, rules)).forEach(function (full) {
+          if (Object.prototype.hasOwnProperty.call(lastIndexByToken, full)) pos = Math.max(pos, Number(lastIndexByToken[full]))
+        })
         if (pos < 0) continue
         if (pos >= bestPos) {
           bestPos = pos

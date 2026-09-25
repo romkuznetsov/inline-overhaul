@@ -1169,7 +1169,37 @@ function wikilinkVisualToken(value) {
     .replace(/\]\]$/, "")
     .replace(/^#/, "")
     .trim();
-  return bare ? `[[${bare}]]` : "";
+  return wikilinkLineToken(bare);
+}
+
+/**
+ * Ссылка на заметку в том виде, в каком плагин пишет её в строку.
+ *
+ * **Одно объявление на все сборщики строки** (его заказ 2026-09-26, тест 2
+ * цикла 96, его выбор «подпись Obsidian»): Value с папкой (`111/test-project`)
+ * пишется ссылкой с подписью — `[[111/test-project|test-project]]`: щелчок
+ * ведёт в папку, а видно имя без неё везде, где рисует сама Obsidian. Value
+ * без папки пишется как прежде, `[[test-project]]`, и значит то, что решает
+ * Obsidian. Подпись, написанная человеком в самом Value, не трогается.
+ */
+function wikilinkLineToken(target) {
+  const t = String(nz(target, "")).trim();
+  if (!t) return "";
+  if (t.includes("|") || !t.includes("/")) return `[[${t}]]`;
+  const name = t.replace(/^.*\//, "").trim();
+  return name ? `[[${t}|${name}]]` : `[[${t}]]`;
+}
+
+/**
+ * Все формы, в которых Value-ссылка встречается в строке: та, что пишет
+ * плагин, и голая `[[папка/имя]]` — написанная раньше или человеком руками.
+ * Узнавание спрашивает обе; пишется всегда первая.
+ */
+function wikilinkLineForms(token) {
+  const first = String(nz(token, "")).trim();
+  const target = wikilinkTargetOf(first);
+  const bare = target ? `[[${target}]]` : "";
+  return bare && bare !== first ? [first, bare] : (first ? [first] : []);
 }
 
 /**
@@ -1492,6 +1522,8 @@ module.exports = {
   startsWithTagToken,
   wikilinkTargetOf,
   wikilinkVisualToken,
+  wikilinkLineToken,
+  wikilinkLineForms,
   listIndentLevel,
   renumberOrderedWindow,
   unwrapWikilinkToken,

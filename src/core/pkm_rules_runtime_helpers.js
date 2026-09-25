@@ -1256,7 +1256,9 @@ function buildTagTokenKeyMap(rules, options) {
       const rawToken = String(v && v.token ? v.token : "");
       if (!rawToken) continue;
       const link = String(v && v.link ? v.link : rawToken).trim();
-      if (outputMode === "wikilink" && link) put(`[[${link}]]`);
+      /* Строка с подписью (`[[папка/имя|имя]]`, 10.13.277) и написанная раньше
+         без неё — одно Value. */
+      if (outputMode === "wikilink" && link) { put(__sharedUtils.wikilinkLineToken(link)); put(`[[${link}]]`); }
       if (outputMode !== "wikilink" || projectTagWhenWikilink) {
         const pref = typeof field.prefix === "string" ? field.prefix : "#";
         put(composeToken(pref, rawToken));

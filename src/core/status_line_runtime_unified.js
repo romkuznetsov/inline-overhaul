@@ -145,7 +145,8 @@ function hydrateSelectionFromCombinedTokens(options) {
       if (!v || typeof v !== "object" || Array.isArray(v)) continue;
       const out = String(buildOutputTokenForField(field, v, rules) || "").trim();
       if (!out) continue;
-      if (out === wantedToken) return v;
+      /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+      if (__sharedUtils.wikilinkLineForms(out).includes(wantedToken)) return v;
     }
     return null;
   }
@@ -358,7 +359,8 @@ function enforceDependentAdjacencyForStatusLine(options) {
     for (const v of vals) {
       if (!v || typeof v !== "object") continue;
       const built = buildOutputTokenForField(field, v, rules);
-      if (built) out.push(String(built).trim());
+      /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+      if (built) out.push(...__sharedUtils.wikilinkLineForms(String(built).trim()));
       if (typeof v.token === "string" && v.token) out.push(composeToken(pref, String(v.token || "")));
     }
     const selected = selectedTokenFromState(field, state, rules, core);

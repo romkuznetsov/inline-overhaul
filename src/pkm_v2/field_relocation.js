@@ -1,5 +1,8 @@
 "use strict";
 
+/* Общий дом без своих зависимостей: вид ссылки в строке (10.13.277). */
+const __sharedUtils = require("../core/shared_utils.js");
+
 /**
  * **Перестановка значений полей по Order — один дом на все дороги.**
  *
@@ -148,7 +151,8 @@ function createFieldRelocation(deps) {
     for (const v of vals) {
       const id = valueId(v);
       const token = buildOutputTokenForField(field, v, rules) || composeToken(prefix, String(v?.token || ""));
-      if (id && token) out.push({ id, token });
+      /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+      if (id && token) for (const form of __sharedUtils.wikilinkLineForms(token)) out.push({ id, token: form });
     }
     return out;
   }

@@ -1021,10 +1021,14 @@ function parseInlineLine(rawLine, cfg) {
   const wlRe = new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g");
   while ((m = wlRe.exec(line)) !== null) {
     const v = __sharedUtils.unwrapWikilinkToken(m[0]);
-    if (v) wikilinks.push(v);
+    /* Адрес заметки — без подписи: `[[111/имя|имя]]` адресует `111/имя`
+       (10.13.277). Подпись остаётся в `token` — её не теряет тот, кто
+       собирает строку обратно. */
+    const target = __sharedUtils.wikilinkTargetOf(m[0]) || v;
+    if (target) wikilinks.push(target);
     const span = { start: m.index, end: m.index + String(m[0] || "").length };
     wikilinkSpans.push(span);
-    wikilinkOccurrences.push({ token: v, ...span, panel: panelForSpan(span.start) });
+    wikilinkOccurrences.push({ token: v, target, raw: String(m[0] || ""), ...span, panel: panelForSpan(span.start) });
   }
   const tagRe = /(^|\s)(#[^\s#]+)/g;
   while ((m = tagRe.exec(line)) !== null) {
@@ -1329,9 +1333,9 @@ function buildTransformContext(parsed, cfg) {
         const occurrences = Array.isArray(p.wikilinkOccurrences) ? p.wikilinkOccurrences : [];
         for (let oi = 0; oi < occurrences.length; oi++) {
           const occurrence = occurrences[oi];
-          if (occurrence.token !== name || !isPanelMatch(occurrence)) continue;
+          if ((occurrence.target || occurrence.token) !== name || !isPanelMatch(occurrence)) continue;
           const yk = resolveYamlProperty(wlCandidates[wi] && wlCandidates[wi].yamlProperty);
-          pushMatch(fid, fType, String(f.prefix || "").trim(), yk, `[[${name}]]`, occurrence);
+          pushMatch(fid, fType, String(f.prefix || "").trim(), yk, occurrence.raw || `[[${name}]]`, occurrence);
         }
       }
       continue;
@@ -1375,7 +1379,8 @@ function buildTransformContext(parsed, cfg) {
     const field = withIdsById[String(row && row.fieldId || "").trim()];
     if (!field) continue;
     const raw = String(row.rawToken || "").trim();
-    const bare = String(__sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
+    /* Value — адрес ссылки, подпись к нему не относится (10.13.277). */
+    const bare = String(__sharedUtils.wikilinkTargetOf(raw) || __sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
     const prefix = String(field.prefix || "");
     const v = field.values.find((x) => isObj(x) && [raw, bare].some((w) => {
       const tok = String(x.token || "");
@@ -1633,7 +1638,7 @@ function withNavigatorRows(rows, cfg) {
     const yamlKey = parent ? String(propertiesByField[String(parent.id)] || "").trim() : "";
     if (parent && yamlKey) {
       const raw = String(row.rawToken || "").trim();
-      const bare = String(__sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
+      const bare = String(__sharedUtils.wikilinkTargetOf(raw) || __sharedUtils.unwrapWikilinkToken(raw) || raw).trim();
       const cprefix = String(child.prefix || "");
       const cv = (Array.isArray(child.values) ? child.values : [])
         .find((v) => isObj(v) && [raw, bare].some((w) => String(v.token || "") === w || cprefix + String(v.token || "") === w));
@@ -1646,7 +1651,7 @@ function withNavigatorRows(rows, cfg) {
           fieldId: String(parent.id),
           fieldType: isLink ? "wikilink" : String(row.fieldType || "tag"),
           yamlProperty: yamlKey,
-          rawToken: isLink ? `[[${tok}]]` : (tok.startsWith("#") ? tok : `${String(parent.prefix || "#")}${tok}`),
+          rawToken: isLink ? __sharedUtils.wikilinkLineToken(tok) : (tok.startsWith("#") ? tok : `${String(parent.prefix || "#")}${tok}`),
         });
       }
     }
@@ -2242,7 +2247,8 @@ function backlinkTargetsFromContext(context) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row || String(row.fieldType || "") !== "wikilink") continue;
-    const target = String(__sharedUtils.unwrapWikilinkToken(String(row.rawToken || "")) || "").trim();
+    /* Адрес, а не подпись: `[[111/имя|имя]]` ведёт в `111/имя` (10.13.277). */
+    const target = String(__sharedUtils.wikilinkTargetOf(String(row.rawToken || "")) || "").trim();
     if (!target || seen.has(target)) continue;
     seen.add(target);
     out.push(target);
@@ -2312,7 +2318,7 @@ function noteAlreadyLinksTo(body, targetPath) {
   const src = String(body == null ? "" : body);
   let m;
   while ((m = re.exec(src)) !== null) {
-    const found = String(__sharedUtils.unwrapWikilinkToken(m[0]) || "").trim().replace(/\.md$/i, "");
+    const found = String(__sharedUtils.wikilinkTargetOf(m[0]) || __sharedUtils.unwrapWikilinkToken(m[0]) || "").trim().replace(/\.md$/i, "");
     if (!found) continue;
     if (found === wanted) return true;
     /* Короткое имя — та же заметка ровно тогда, когда пути в нём нет: `[[ава]]`

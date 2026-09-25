@@ -834,7 +834,8 @@ function buildOutputTokenForFieldValue(field, value, rules) {
   if (outputMode === 'wikilink') {
     var target = normalizeWikilinkTarget(value.link || value.token || value.id || '')
     if (!target) return ''
-    return '[[' + target + ']]'
+    /* Вид ссылки в строке — общий дом (10.13.277). */
+    return __sharedUtils.wikilinkLineToken(target)
   }
   var token = tokenRaw
   if (!token) return ''
@@ -1086,7 +1087,7 @@ async function runTagWheel(input, quickAddSettings) {
       var outputModeFallback = resolveFieldOutputMode(field, rules)
       if (outputModeFallback === 'wikilink') {
         var linkTarget = normalizeComparableToken(rawSelected)
-        if (linkTarget) return '[[' + linkTarget + ']]'
+        if (linkTarget) return __sharedUtils.wikilinkLineToken(linkTarget)
       }
       if (/^\/.+/.test(rawSelected)) return '#' + rawSelected
       if (/^(#|\[\[|\d{4}-\d{2}-\d{2}|\d{2}:\d{2})/.test(rawSelected)) return rawSelected
@@ -1351,7 +1352,8 @@ async function runTagWheel(input, quickAddSettings) {
       if (typeof v.token !== 'string' || !v.token) continue
       var primary = buildOutputTokenForFieldValue(field, v, rules)
       var fallback = composeToken(pref, String(v.token))
-      if (primary) out.push(primary)
+      /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+      if (primary) out.push.apply(out, __sharedUtils.wikilinkLineForms(primary))
       if (fallback && fallback !== primary) out.push(fallback)
     }
     return out

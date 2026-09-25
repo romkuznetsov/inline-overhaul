@@ -318,7 +318,8 @@ function allFieldTokens(field, rules) {
     const v = vals[i];
     if (!isObj(v) || v.active === false) continue;
     const token = buildOutputTokenForField(field, v, rules);
-    if (token) out.push(token);
+    /* Ссылка с подписью и без неё — одно Value (10.13.277). */
+    if (token) out.push(...__sharedUtils.wikilinkLineForms(token));
   }
   return Array.from(new Set(out));
 }

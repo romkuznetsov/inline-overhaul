@@ -443,6 +443,47 @@ async function run() {
     ok("панель: дочерний Field стоит за родителем с предусловием, а не в хвосте Block");
   }
 
+  /* ---- Value ссылки с папкой (его заказ к тесту 2 цикла 96, 10.13.277) -- */
+  {
+    const su = require(path.join(root, "src/core/shared_utils.js"));
+    assert.equal(su.wikilinkLineToken("client1"), "[[client1]]", "без папки — как прежде");
+    assert.equal(su.wikilinkLineToken("grp/client1"), "[[grp/client1|client1]]", "с папкой — подпись без папки");
+    assert.equal(su.wikilinkLineToken("grp/client1|своё"), "[[grp/client1|своё]]", "подпись человека не трогается");
+    assert.deepEqual(su.wikilinkLineForms("[[grp/client1|client1]]"), ["[[grp/client1|client1]]", "[[grp/client1]]"]);
+
+    /* `Show always` выключен, как у него: иначе предусловие проходит само и
+       поиск Value по ссылке не спрашивается (У-287). */
+    const raw = config({ always: false });
+    const sub = raw.pkm.fields.links.fields.find((f) => f.id === "Clients_sub");
+    sub.values = [
+      { token: "grp/client1", active: true, allowedParentValues: ["AK"] },
+      { token: "grp/client2", active: true, allowedParentValues: ["AK"] },
+    ];
+    raw.pkm.fields.links.fields.find((f) => f.id === "Clients").values[0].subtags = ["grp/client1", "grp/client2"];
+    const c = configNormalize.migrateConfig(raw);
+    const nextId = defs(c).map((d) => d.id).find((id) => /clients-sub-next$/.test(id));
+    assert.ok(nextId, "есть команда дочернего Field ссылки");
+    const NEXT = { run: nextId };
+    const r1 = await drive(c, "- text", [NEXT]);
+    assert.equal(r1.line, "- [[grp/client1|client1]] || text", "команда пишет ссылку с подписью: " + r1.line);
+    const r2 = await drive(c, r1.line, [NEXT]);
+    assert.equal(r2.line, "- [[grp/client2|client2]] || text", "форма с подписью узнана, круг идёт дальше: " + r2.line);
+    const r3 = await drive(c, "- [[grp/client1]] || text", [NEXT]);
+    assert.equal(r3.line, "- [[grp/client2|client2]] || text", "голая форма узнана тем же Value: " + r3.line);
+    for (const line of ["- [[grp/client1|client1]] || text", "- [[grp/client1]] || text"]) {
+      const r = await drive(c, line, [OPEN]);
+      assert.ok(r.opened[0], "панель открылась");
+      assert.equal(r.opened[0].Clients_sub, "grp/client1", "панель узнала Value на " + line + ": " + JSON.stringify(r.opened[0]));
+    }
+    const transform = require(path.join(root, "src/features/transform_feature.js"));
+    const ctx = transform.buildTransformContext(transform.parseInlineLine("- [[grp/client1|client1]] || text", c), c);
+    assert.deepEqual(ctx.matches.map((m) => m.fieldId + "=" + m.rawToken), ["Clients_sub=[[grp/client1|client1]]"],
+      "Inline to note узнаёт ссылку с подписью");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctx, c, { backlink: { enabled: true, navigator: false } }),
+      ["grp/client1"], "ссылка на новую заметку уходит по адресу, а не по подписи");
+    ok("Value ссылки с папкой: пишется с подписью, обе формы узнаются командой, панелью и Inline to note");
+  }
+
   console.log("\n" + passed + " проверок пройдено");
 }
 

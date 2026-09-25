@@ -33,6 +33,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 10. ✨ **`Jump over neighbor trees` in `Move lines`.** With `Whole tree`, every press moves the tree past the whole neighbor tree, also with `Highlight moved lines`, and the neighbor keeps its own lines.
 11. 🐛 **A child Field stands next to its parent in tagWheel,** also when the parent waits for another Field.
 12. 🐛 **`Inline to note` links the note your link opens.** With several notes of the same name, the link goes to the one a click on it opens from your line.
+13. ✨ **Link Values can point into a folder.** A Value like `Projects/Alpha` is written as `[[Projects/Alpha|Alpha]]`: the line shows `Alpha`, and a click opens the note in `Projects`.
 
 ## 0.9.0
 
