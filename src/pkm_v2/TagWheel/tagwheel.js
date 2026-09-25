@@ -3111,8 +3111,6 @@ async function runTagWheel(input, quickAddSettings) {
     session.__todayIso = y + '-' + m + '-' + d
     core.hydrateStateFromParsedLine(rules, session, parsedLine)
     core.sanitizeState(rules, session)
-    /* Навигатор ставится по ребёнку на строке (PRD 10.13.269). */
-    core.deriveNavigatorSelections(rules, session)
     /*
      * Настройка «на каком Field открывать» кладётся в правила тем же
      * приёмом, каким туда кладётся порядок: движок читает правила, а не

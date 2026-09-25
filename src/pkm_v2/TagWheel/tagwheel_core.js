@@ -2148,24 +2148,6 @@ function forEachNavigatorPair(rules, fn) {
 }
 
 /**
- * Панель открыта на строке с ребёнком — навигатор ставится по нему (первый по
- * порядку Values родителя, нюанс 7). Навигатора на строке нет, иначе список
- * детей в tagWheel не сузился бы до его группы.
- */
-function deriveNavigatorSelections(rules, state) {
-  if (!state || !state.selected) return
-  forEachNavigatorPair(rules, function (parent, child) {
-    if (state.selected[parent.id]) return
-    var childId = state.selected[child.id] || ''
-    if (!childId) return
-    var cv = findValueById(Array.isArray(child.values) ? child.values : [], childId)
-    if (!cv) return
-    var pid = __rulesRuntimeHelpers.parentValueIdForChildValue(parent, cv)
-    if (pid) state.selected[parent.id] = pid
-  })
-}
-
-/**
  * Перед записью навигатор снимается с выбора: он только сужает детей, и на
  * строку его не пишут (его слово: «это виртуальное value»). Кроме того, что
  * уже стояло на строке: включённый навигатор не решает судьбу написанного
@@ -3329,7 +3311,6 @@ module.exports = {
   applyActiveFieldChoiceToRules: applyActiveFieldChoiceToRules,
   chooseActiveFieldId: chooseActiveFieldId,
   hydrateStateFromParsedLine: hydrateStateFromParsedLine,
-  deriveNavigatorSelections: deriveNavigatorSelections,
   dropNavigatorSelections: dropNavigatorSelections,
   sanitizeState: sanitizeState,
   buildPrefix: buildPrefix,

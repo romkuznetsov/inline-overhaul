@@ -1074,7 +1074,8 @@ async function main() {
    *      было на строке;
    *   2. панель: выбрать первый навигатор, шаг к ребёнку, первый ребёнок — на
    *      строке ребёнок **этого** навигатора и нет самого навигатора;
-   *   3. панель, открытая на строке с ребёнком, стоит на его навигаторе.
+   *   3. панель, открытая на строке с ребёнком, навигатор сама не ставит
+   *      (`В-223`, его слово 2026-09-25).
    *
    * Ноль пар — «мерить нечем» (У-88), и это печатается.
    */
@@ -1128,13 +1129,14 @@ async function main() {
           }
         }
       }
+      /* `В-223`: навигатор по ребёнку не ставится — на строке с ребёнком поле
+         навигатора пустое (его слово 2026-09-25). */
       if (firstKid && firstKid !== c.line) {
         const o = await bench.openSession(cfg, sideOf(parentKey), firstKid, firstKid.length);
-        const kidId = String(o.selected[np.child.id] || "");
-        const kid = (np.child.values || []).find((v) => v && (v.id === kidId || v.token === kidId));
-        const want = kid ? helpers.parentValueIdForChildValue(np.parent, kid) : "";
-        if (o.opened && kid && want && String(o.selected[np.parent.id] || "") !== want) {
-          problems.push("панель на " + JSON.stringify(firstKid) + " не встала на навигатор " + want);
+        const kidOn = String(o.selected[np.child.id] || "");
+        const hadParent = (np.parent.values || []).some((v) => v && had.indexOf(outOf(np.parent, v.token)) !== -1);
+        if (o.opened && kidOn && !hadParent && String(o.selected[np.parent.id] || "")) {
+          problems.push("панель на " + JSON.stringify(firstKid) + " сама поставила навигатор " + o.selected[np.parent.id]);
         }
       }
       if (!problems.length && !SHOW_ALL) continue;
