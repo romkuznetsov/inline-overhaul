@@ -834,6 +834,7 @@ function selectSmartRule(parsed, smartRules, cfg) {
     wikilinks: new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []),
     emojiMarkers: new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean)),
   };
+  addNavigatorsOfChildren(cfg, present);
   const rules = Array.isArray(smartRules) ? smartRules : [];
   let onLine = null;
   for (let i = 0; i < rules.length; i++) {
@@ -866,6 +867,37 @@ function selectSmartRule(parsed, smartRules, cfg) {
     if (matches) return rule;
   }
   return null;
+}
+
+/**
+ * **Ребёнок считается за своего навигатора** (`В-222`, его ответ 2026-09-25).
+ * Навигатор на строку не пишут, и условие «на строке AK» иначе не ловило бы
+ * ни одной строки; ребёнок, стоящий на строке, приносит своих родителей —
+ * и условие по значению, и условие «любое значение Field» родителя.
+ */
+function addNavigatorsOfChildren(cfg, present) {
+  const fields = getModeFields(cfg);
+  for (const child of fields) {
+    if (child.parentIsNavigator !== true || !child.dependsOn) continue;
+    const parent = fields.find((f) => String(f.id) === String(child.dependsOn));
+    if (!parent) continue;
+    const isLink = (f) => String(f.source || "").indexOf("wikilinks:") === 0;
+    const parentPrefix = String(parent.prefix || "#");
+    for (const v of Array.isArray(child.values) ? child.values : []) {
+      const tok = String(v && v.token || "").trim();
+      if (!tok) continue;
+      const onLine = isLink(child)
+        ? present.wikilinks.has(normalizeRuleWikilink(tok))
+        : present.tags.has(tok.startsWith("#") ? tok : `${String(child.prefix || "#")}${tok}`);
+      if (!onLine) continue;
+      for (const raw of Array.isArray(v.allowedParentValues) ? v.allowedParentValues : []) {
+        const ptok = String(raw || "").trim();
+        if (!ptok) continue;
+        if (isLink(parent)) present.wikilinks.add(normalizeRuleWikilink(ptok));
+        else present.tags.add(ptok.startsWith("#") ? ptok : `${parentPrefix}${ptok}`);
+      }
+    }
+  }
 }
 
 function selectSmartTemplate(parsed, smartRules, defaultTemplate, cfg) {

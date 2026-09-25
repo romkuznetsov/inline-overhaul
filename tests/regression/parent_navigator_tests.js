@@ -65,6 +65,22 @@ function config(opts) {
     ] },
   ] };
   raw.pkm.lineFormat = { separator1: "||", separator2: "||" };
+  /* `Stage` ждёт `Type` (`Prerequisite Field`) — `В-222`. */
+  if (o.stage) {
+    raw.pkm.fields.order.left.push("Stage");
+    Object.assign(raw.pkm.fields.order.types, { Stage: "tag" });
+    Object.assign(raw.pkm.fields.order.labels, { Stage: "Stage" });
+    Object.assign(raw.pkm.fields.order.strictNames, { Stage: "Stage" });
+    Object.assign(raw.pkm.fields.order.active, { Stage: "yes" });
+    Object.assign(raw.pkm.fields.order.enabled, { Stage: true });
+    raw.pkm.fields.tags.fields.push({ id: "Stage", prefix: "#", dependsOn: "Type", placeholder: "Stage",
+      values: [{ id: "early", token: "early" }] });
+  }
+  /* `Type` в custom block — `В-221`, его решение 2026-09-25. */
+  if (o.custom) {
+    raw.pkm.fields.order.left = ["Clients"];
+    raw.pkm.fields.order.custom = [{ id: "b1", name: "Custom block 1", keys: ["Type"] }];
+  }
   return configNormalize.migrateConfig(raw);
 }
 
@@ -220,6 +236,55 @@ async function run() {
     const plain = await drive(config({ always: false, navigator: false }), "- text", [{ run: "type-sub-next" }]);
     assert.equal(plain.line, "- text", "без навигатора `After parent` ждёт родителя");
     ok("`After parent` с навигатором: команда дочернего Field не ждёт родителя");
+  }
+
+  /* ---- custom block: навигатор не пишется и там (`В-221`) --------------- */
+  {
+    const OPEN_B1 = { run: "open-tagwheel-custom-b1" };
+    const r = await drive(config({ custom: true }), "- text", [OPEN_B1, UP, RIGHT, UP, ENTER]);
+    assert.ok(r.opened[0], "панель custom block открылась");
+    assert.equal(r.line, "- text #review", "навигатор тега в custom block на строку не попал: " + r.line);
+    /* Отрицательный контроль: без навигатора custom block пишет родителя. */
+    const plain = await drive(config({ custom: true, navigator: false }), "- text", [OPEN_B1, UP, RIGHT, UP, ENTER]);
+    assert.equal(plain.line, "- text #doing #review", "без навигатора custom block пишет оба: " + plain.line);
+    ok("custom block: выбранный навигатор не пишется, пишется только ребёнок");
+  }
+
+  /* ---- `Prerequisite Field`: ребёнок выполняет ожидание навигатора (`В-222`) */
+  {
+    const st = config({ stage: true });
+    const r = await drive(st, "- #review || text", [{ run: "stage-next" }]);
+    assert.equal(r.line, "- #review #early || text", "ребёнок на строке выполнил ожидание: "
+      + r.line + " " + JSON.stringify(r.said));
+    /* Отрицательные контроли: без ребёнка и без навигатора Field ждёт. */
+    const empty = await drive(st, "- text", [{ run: "stage-next" }]);
+    assert.equal(empty.line, "- text", "без ребёнка ждёт");
+    assert.ok(empty.said.some((m) => /waits for/.test(m)), "отказ вслух: " + JSON.stringify(empty.said));
+    const plain = await drive(config({ stage: true, navigator: false }), "- #review || text", [{ run: "stage-next" }]);
+    assert.equal(plain.line, "- #review || text", "без навигатора ребёнок родителя не заменяет: " + plain.line);
+    /* Панель: `Stage` доступен на строке с ребёнком (последний Field слева). */
+    const pane = await drive(st, "- #review || text", [OPEN, RIGHT, UP, ENTER]);
+    assert.ok(pane.opened[0], "панель открылась");
+    assert.equal(pane.line, "- #review #early || text", "панель показала Stage: " + pane.line);
+    const panePlain = await drive(config({ stage: true, navigator: false }), "- #review || text", [OPEN, RIGHT, UP, ENTER]);
+    assert.ok(!/#early/.test(panePlain.line), "без навигатора панель Stage не показала: " + panePlain.line);
+    ok("Prerequisite Field: ребёнок навигатора на строке выполняет ожидание родителя");
+  }
+
+  /* ---- `Smart Rules`: ребёнок считается за навигатора (`В-222`) --------- */
+  {
+    const transform = require(path.join(root, "src/features/transform_feature.js"));
+    const rule = (id, conditions) => ({ id, enabled: true, conditions: Object.assign({ tags: [], emojiFields: [], wikilinks: [], fields: [] }, conditions) });
+    const byValue = [rule("tag", { tags: ["#doing"] }), rule("link", { wikilinks: ["AK"] })];
+    const pick = (c, parsed, rules) => (transform.selectSmartRule(parsed, rules || byValue, c) || {}).id || "";
+    assert.equal(pick(cfg, { tags: ["#review"] }), "tag", "тег-ребёнок принёс навигатора #doing");
+    assert.equal(pick(cfg, { wikilinks: ["[[client2]]"] }), "link", "ссылка-ребёнок принесла навигатора AK");
+    assert.equal(pick(cfg, { wikilinks: ["[[client3]]"] }), "", "ребёнок чужого навигатора AK не приносит");
+    assert.equal(pick(cfg, { tags: ["#review"] }, [rule("field", { fields: ["Type"] })]), "field",
+      "условие «любое значение Field» родителя ловит ребёнка");
+    /* Отрицательный контроль: без навигатора ребёнок родителем не считается. */
+    assert.equal(pick(config({ navigator: false }), { tags: ["#review"] }), "", "без навигатора не ловит");
+    ok("Smart Rules: ребёнок на строке считается за своего навигатора");
   }
 
   /* ---- без навигатора родитель пишется, как прежде ---------------------- */

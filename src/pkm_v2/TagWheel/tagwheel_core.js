@@ -1141,7 +1141,14 @@ function isFieldEnabled(mode, state, field, rules) {
      его же спрашивают команды поля. Здесь стояла копия, и командам она была
      недоступна: на пустой строке панель поле прятала, а команда писала
      значение (обход строки 2026-09-12). */
-  return __rulesRuntimeHelpers.isFieldPrerequisiteMet(ask, state && state.selected)
+  return __rulesRuntimeHelpers.isFieldPrerequisiteMet(ask, state && state.selected, allRuleFields(rules))
+}
+
+/* Оба списка полей: навигатор ищется по всем (`В-222`). */
+function allRuleFields(rules) {
+  return [].concat(
+    rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [],
+    rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [])
 }
 
 function projectMatches(item, state) {
@@ -2133,9 +2140,7 @@ function findValueById(values, id) {
  * у тега оба в левом, у ссылки оба в правом.
  */
 function forEachNavigatorPair(rules, fn) {
-  var all = [].concat(
-    rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [],
-    rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [])
+  var all = allRuleFields(rules)
   var i
   var j
   for (i = 0; i < all.length; i++) {

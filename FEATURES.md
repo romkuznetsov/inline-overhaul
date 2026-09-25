@@ -28,7 +28,8 @@ project link, an estimate. You define them; the plugin ships no methodology.
   out of tagWheel until you press `Alt` on the parent, `Hide` keeps it out. A press of `Alt`
   also opens an `After parent` child before the parent has a Value. Tags and links both have
   child Fields. With `Parent is Navigator` the parent Values become groups: they narrow the
-  child list in tagWheel and are never written to the line.
+  child list in tagWheel and are never written to the line; a child on the line stands for its
+  parent in a prerequisite and in Smart Rules.
 - **Prerequisites.** A Field can stay out of the line until another Field has a Value —
   any Value, or one you name.
 - **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,

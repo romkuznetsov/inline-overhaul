@@ -106,12 +106,13 @@ function isSourceDrivenField(fieldOrSource) {
  * Отвечает `true`, когда предусловия нет вовсе: Field без `dependsOn` работает
  * всегда.
  */
-function isFieldPrerequisiteMet(field, selected) {
+function isFieldPrerequisiteMet(field, selected, fields) {
   if (!field || typeof field !== "object") return true;
   const parentKey = String(field.dependsOn || "").trim();
   if (!parentKey) return true;
   const bag = selected && typeof selected === "object" ? selected : {};
-  const parentValue = String(bag[parentKey] || "").trim();
+  const parentValue = String(bag[parentKey] || "").trim()
+    || navigatorFromChild(parentKey, field, bag, fields);
   /*
    * **Дочернее поле, которому родитель не нужен** (его слово 2026-09-19,
    * контрол `Child Field` = `Show always`). Предусловие спрашивают обе дороги
@@ -129,6 +130,25 @@ function isFieldPrerequisiteMet(field, selected) {
   const never = Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues : null;
   if (never && never.length && never.indexOf(parentValue) !== -1) return false;
   return true;
+}
+
+/**
+ * Навигатор, которого на строке нет, а ребёнок его есть (`В-222`, его ответ
+ * 2026-09-25: «показывать»). Навигатор на строку не пишут, и Field, ждущий
+ * родителя-навигатора, иначе ждал бы вечно; ребёнок на строке выполняет это
+ * ожидание своим родителем. Сам дочерний Field себя не выводит.
+ * Без списка полей ответа нет — пустая строка.
+ */
+function navigatorFromChild(parentKey, field, bag, fields) {
+  const all = Array.isArray(fields) ? fields : [];
+  const parent = all.find((f) => f && String(f.id || "").trim() === parentKey);
+  const child = parent ? navigatorChildOf(parent, all) : null;
+  if (!child || child === field || String(child.id || "") === String(field.id || "")) return "";
+  const cid = String(bag[child.id] || "").trim();
+  if (!cid) return "";
+  const cv = (Array.isArray(child.values) ? child.values : [])
+    .find((v) => v && (String(v.id || "") === cid || String(v.token || "") === cid));
+  return cv ? parentValueIdForChildValue(parent, cv) : "";
 }
 
 /**

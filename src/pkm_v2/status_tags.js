@@ -1253,7 +1253,8 @@ module.exports = {
       const askPrereq = actionFieldAny && actionFieldAny.parentIsNavigator === true
         ? Object.assign({}, actionFieldAny, { freeOfParent: true })
         : actionFieldAny;
-      if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(askPrereq, state.selected)) {
+      if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(askPrereq, state.selected,
+        (rules.leftMode && rules.leftMode.fields || []).concat(rules.rightMode && rules.rightMode.fields || []))) {
         notice(noticeKey("prerequisite-unmet"),
           "{0} waits for {1}: set it on this line first",
           String(actionFieldAny.placeholder || actionFieldAny.id || ""),

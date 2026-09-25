@@ -23,7 +23,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 1. 🎨 **Shorter choices in the panel's drop-down lists.** Every choice now says only what it picks — `The line only` is `Line only`, `Center of the screen` is `Center`, `Show when press Alt` is `On Alt`; your settings stay as they were.
 2. ✨ **Child Fields for links.** A link Field gets its `Child Field` like a tag: its child Values show up in tagWheel under the parent and have their own `next` and `previous` commands.
-3. ✨ **`Parent is Navigator`.** Under `Child Field`: the parent Values become groups that only narrow the child list in tagWheel and are never written to the line, for tags and links alike.
+3. ✨ **`Parent is Navigator`.** Under `Child Field`: the parent Values become groups that only narrow the child list in tagWheel and are never written to the line, for tags, links and custom blocks alike. A child on the line stands for its parent: a Field waiting for the parent opens, and a Smart Rule asking for the parent matches.
 4. 🐛 **Adding a Value no longer jumps to the first Field.** The Fields editor keeps the Field you picked while you add Values, rename or add Fields.
 
 ## 0.9.0

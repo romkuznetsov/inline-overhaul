@@ -1973,7 +1973,16 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function applySelection(state, core) {
-    if (state && state.custom) { applyCustomSelection(state); return }
+    if (state && state.custom) {
+      /* Навигатор не пишется и в custom block (`В-221`). Вставка идёт у
+         каретки, поэтому «стоял на строке» — только слово, которое она
+         заменяет (правило 107). */
+      var sp = state.custom.span
+      ;(core || state.core).dropNavigatorSelections(state.rules, state.session,
+        sp ? String(state.originalLine || '').slice(sp.from, sp.to) : '')
+      applyCustomSelection(state)
+      return
+    }
     /* Навигатор на строку не пишется (PRD 10.13.269). */
     (core || state.core).dropNavigatorSelections(state.rules, state.session, state.originalLine)
     var applyStartedAt = Date.now()

@@ -107,7 +107,7 @@ export const BLOCK_TEXTS = {
     CHILD_PARENT_OF: "Parent Value for {0}",
     CHILD_NAV_NAME: "Parent is Navigator",
     CHILD_NAV_DESC: "Parent Values only narrow the child list and are never written to the line",
-    CHILD_NAV_TIP: "Turn it on when the parent Values are groups rather than Values of their own. In tagWheel a parent Value then only narrows the child Field to its children, and nothing but the child lands on the line when you press <code>Enter</code>; pick no parent and you see every child. A parent Value with no children stays an ordinary Value. The child Field's commands step through every child Value in turn, and the parent Field's commands skip the parent Values that have children. Not available with <b>Hide</b>",
+    CHILD_NAV_TIP: "Turn it on when the parent Values are groups rather than Values of their own. In tagWheel a parent Value then only narrows the child Field to its children, and nothing but the child lands on the line when you press <code>Enter</code>; pick no parent and you see every child. A parent Value with no children stays an ordinary Value. The child Field's commands step through every child Value in turn, and the parent Field's commands skip the parent Values that have children. A child on the line stands for its parent: a Field waiting for the parent opens, and a Smart Rule asking for the parent matches. Not available with <b>Hide</b>",
     CHILD_NAV_ON: "On",
     CHILD_NAV_OFF: "Off",
     CHILD_NAV_OF: "Parent is Navigator for {0}",
