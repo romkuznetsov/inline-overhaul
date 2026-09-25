@@ -1954,6 +1954,10 @@ function floatingButtonLineNumber(view, plugin) {
    * закрытия сессии.
    */
   if (tagwheelPanelSegmentInLine(text)) return -1;
+  /* **Обработанной строке кнопка не нужна** (его слово 2026-09-25: «чтобы
+     пользователь случайно не нажал повторно»). Метку узнаёт то же объявление,
+     что и подсветку обработанной строки. Команда и хоткей остаются. */
+  if (lineHasProcessedToken(text, marks.token)) return -1;
   return line.number;
 }
 

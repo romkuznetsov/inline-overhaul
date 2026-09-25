@@ -306,6 +306,19 @@ async function run() {
     ok("Prerequisite Field: тег ждёт ссылку и появляется вместе с ней");
   }
 
+  /* ---- `В-229`: сменилось дочернее Value — ждавший Field снимается ------ */
+  {
+    const waits = config({ stage: true, stageNeeds: "review", navigator: false });
+    const cmd = await drive(waits, "- #doing #review #early || text", [{ run: "type-sub-next" }]);
+    assert.equal(cmd.line, "- #doing #draft || text", "команда сняла ждавший Field: " + cmd.line);
+    const nav = await drive(config({ stage: true }), "- #review #early || text", [{ run: "type-sub-next" }]);
+    assert.equal(nav.line, "- #draft || text", "ребёнок навигатора — как смена родителя: " + nav.line);
+    /* Отрицательный контроль: Field ждёт родителя, а не дочернее Value, — остаётся. */
+    const plain = await drive(config({ stage: true, navigator: false }), "- #doing #review #early || text", [{ run: "type-sub-next" }]);
+    assert.equal(plain.line, "- #doing #draft #early || text", "ждущий родителя не снят: " + plain.line);
+    ok("В-229: смена дочернего Value снимает Field, который его ждал");
+  }
+
   /* ---- `Smart Rules`: ребёнок считается за навигатора (`В-222`) --------- */
   {
     const transform = require(path.join(root, "src/features/transform_feature.js"));
@@ -338,6 +351,25 @@ async function run() {
     assert.deepEqual(ids(config({ always: false, navigator: false }), "- #review || text"), [],
       "ребёнок без родителя, которому родитель нужен, не узнан");
     ok("Inline to note: ребёнок навигатора и Field, который его ждёт, узнаны");
+
+    /* Его замечание к тестам 3 и 4 цикла 94: у навигатора без `Show always`
+       ребёнок-ссылка не был Value, и ни ссылки, ни YAML. */
+    const bare = config({ always: false });
+    assert.deepEqual(ids(bare, "- [[client1]] || text"), ["Clients_sub=[[client1]]"],
+      "ребёнок навигатора без Show always узнан");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(bare, "- [[client1]] || text"), bare,
+      { backlink: { enabled: true, navigator: true } }), ["client1", "AK"], "и ссылка уходит в обе заметки");
+    ok("Inline to note: ребёнок навигатора без Show always — Value");
+
+    /* Его замечание к тесту 2 цикла 94: родитель ждёт — ждёт и ребёнок. */
+    const gatedRaw = config({ stage: true, stageOn: "Clients" });
+    const gType = gatedRaw.pkm.fields.tags.fields.find((f) => f.id === "Type");
+    gType.dependsOn = "Clients";
+    const gated = configNormalize.migrateConfig(gatedRaw);
+    assert.deepEqual(ids(gated, "- #review || text"), [], "родитель ждёт ссылку — ребёнок без неё не Value");
+    assert.deepEqual(ids(gated, "- [[AK]] #review || text").sort(), ["Clients=[[AK]]", "Type_sub=#review"],
+      "ссылка стоит — ребёнок Value");
+    ok("дочерний Field ждёт того же, чего ждёт родитель");
 
     /* `Link to Navigator`. */
     const i2n = (navigator) => ({ backlink: { enabled: true, navigator } });

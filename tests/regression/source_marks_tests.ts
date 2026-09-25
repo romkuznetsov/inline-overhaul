@@ -92,4 +92,18 @@ function cfg(over: Any): Any {
   ok("кнопка и команда ходят одним путём");
 }
 
+{
+  /* Его слово 2026-09-25: на обработанной строке кнопки нет — «чтобы
+     пользователь случайно не нажал повторно». */
+  const plugin: Any = { getConfig: () => cfg({ floatingButton: true }) };
+  const at = (text: string): number => I.floatingButtonLineNumber({ state: {
+    selection: { main: { head: 0 } },
+    doc: { lineAt: () => ({ number: 1, text }) },
+  } }, plugin);
+  assert.equal(at("- text"), 1, "на обычной строке кнопка есть");
+  assert.equal(at("- [[text]] #processed"), -1, "на строке с меткой кнопки нет");
+  assert.equal(at("- text #processed-later"), 1, "часть длинного тега меткой не считается");
+  ok("на обработанной строке плавающей кнопки нет");
+}
+
 console.log("\n" + passed + " проверок пройдено");

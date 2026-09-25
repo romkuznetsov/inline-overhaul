@@ -106,13 +106,29 @@ function isSourceDrivenField(fieldOrSource) {
  * Отвечает `true`, когда предусловия нет вовсе: Field без `dependsOn` работает
  * всегда.
  */
-function isFieldPrerequisiteMet(field, selected, fields) {
+function isFieldPrerequisiteMet(field, selected, fields, seen) {
   if (!field || typeof field !== "object") return true;
   const parentKey = String(field.dependsOn || "").trim();
   if (!parentKey) return true;
   const bag = selected && typeof selected === "object" ? selected : {};
-  const parentValue = String(bag[parentKey] || "").trim()
-    || navigatorFromChild(parentKey, field, bag, fields);
+  const onLine = String(bag[parentKey] || "").trim();
+  const parentValue = onLine || navigatorFromChild(parentKey, field, bag, fields);
+  /*
+   * **Дочерний Field без родителя на строке ждёт и того, чего ждёт родитель**
+   * (его замечание к тесту 2 цикла 94: «пропадает родительский field, но
+   * остаётся дочерний. Дочернего также не должно быть»). Родитель на строке —
+   * его значение уже принято; нет его — ребёнок стоит вместо него. Дочерний —
+   * это ключ `<родитель>_sub`; Field, который родителя просто ждёт, сюда не
+   * входит. `seen` — от круга в настройках.
+   */
+  if (!onLine && String(field.id || "") === parentKey + "_sub") {
+    const done = seen || new Set();
+    const parent = (Array.isArray(fields) ? fields : []).find((f) => f && String(f.id || "").trim() === parentKey);
+    if (parent && !done.has(parentKey)) {
+      done.add(parentKey);
+      if (!isFieldPrerequisiteMet(parent, bag, fields, done)) return false;
+    }
+  }
   /*
    * **Дочернее поле, которому родитель не нужен** (его слово 2026-09-19,
    * контрол `Child Field` = `Show always`). Предусловие спрашивают обе дороги
@@ -165,14 +181,16 @@ function childValuesOnLine(parentKey, field, bag, fields) {
  * Навигатор, которого на строке нет, а ребёнок его есть (`В-222`, его ответ
  * 2026-09-25: «показывать»). Навигатор на строку не пишут, и Field, ждущий
  * родителя-навигатора, иначе ждал бы вечно; ребёнок на строке выполняет это
- * ожидание своим родителем. Сам дочерний Field себя не выводит.
+ * ожидание своим родителем. **Сам дочерний Field — тоже** (его замечание к
+ * тестам 3 и 4 цикла 94): навигатора на строке не бывает никогда, и строка
+ * `… :: [[123]]` без этого не отдавала `Inline to note` ни одного Value.
  * Без списка полей ответа нет — пустая строка.
  */
 function navigatorFromChild(parentKey, field, bag, fields) {
   const all = Array.isArray(fields) ? fields : [];
   const parent = all.find((f) => f && String(f.id || "").trim() === parentKey);
   const child = parent ? navigatorChildOf(parent, all) : null;
-  if (!child || child === field || String(child.id || "") === String(field.id || "")) return "";
+  if (!child) return "";
   const cid = String(bag[child.id] || "").trim();
   if (!cid) return "";
   const cv = (Array.isArray(child.values) ? child.values : [])

@@ -130,6 +130,7 @@ export interface PluginInternals {
   getSourceMarksFromConfig: (cfg: Any) => Any;
   lineHasProcessedToken: (text: string, token: string) => boolean;
   FloatingTransformButtonWidget: Any;
+  floatingButtonLineNumber: (view: Any, plugin: Any) => number;
   normalizeHexColorInput: (v: unknown) => string;
   /* Каретка: цвет, толщина и мерцание. Выключенная половина группы не
      объявляет ничего, и тогда своё берёт тема (10.13.33). */

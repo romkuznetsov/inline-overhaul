@@ -25,6 +25,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 2. ✨ **Child Fields for links.** A link Field gets its `Child Field` like a tag: its child Values show up in tagWheel under the parent and have their own `next` and `previous` commands.
 3. ✨ **`Parent is Navigator`.** Under `Child Field`: the parent Values become groups that only narrow the child list in tagWheel and are never written to the line, for tags, links and custom blocks alike. A child on the line stands for its parent: a Field waiting for the parent opens, and a Smart Rule asking for the parent matches.
 4. 🐛 **Adding a Value no longer jumps to the first Field.** The Fields editor keeps the Field you picked while you add Values, rename or add Fields.
+5. ✨ **`Prerequisite` takes any Field and child Values.** A tag Field can wait for a Field of any type, and `Prerequisite Value` lists child Values indented under their parent.
+6. ✨ **Three navigator options in `Inline to note`.** `Link to Navigator` also links the new note from the navigator's note, `YAML of navigator values` writes the navigator into the parent property, and `Keep sub-fields` keeps child Values of the Fields you keep.
+7. 🐛 **A navigator child alone on the line reaches the note.** Without `Show always`, `Inline to note` now takes it as a Value: its links and YAML property are written.
+8. ✨ **A child Field waits for what its parent waits for,** and changing a child Value clears the Field that was waiting for it.
+9. 🎨 **No floating button on a processed line,** so the line is not sent to a note twice by accident.
 
 ## 0.9.0
 

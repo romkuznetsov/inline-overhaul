@@ -1417,6 +1417,15 @@ module.exports = {
         }
         state.selected[parentField.id] = parentId;
         state.selected[targetField.id] = nextSubId;
+        /* Сменилось дочернее Value — снимается Field, который его ждал
+           (`В-229`); правило у дома снятия, как у ветки ниже. */
+        if (nextSubId !== currentSubId) {
+          clearedDependentFieldIds = getStatusLineRuntimeUnified().clearDependentSelections({
+            rules,
+            state,
+            parentFieldId: targetField.id,
+          });
+        }
         customParentRelocation = {
           field: parentField,
           panel: parentPanel,

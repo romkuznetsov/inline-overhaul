@@ -488,6 +488,31 @@ function clearDependentSelections(options) {
   }
 
   clearChildren(parentFieldId);
+
+  /*
+   * **Сменилось дочернее Value — снимается Field, который его ждал** (его
+   * ответ `В-229` «снимать»). Ждущий стоит у родителя (`dependsOn` = родитель)
+   * и называет дочернее Value в `enabledForParentValues`. Ребёнок навигатора
+   * стоит на строке вместо родителя — его смена снимает всех, кто ждёт
+   * родителя, как смена самого родителя.
+   */
+  const m = /^(.+)_sub$/.exec(parentFieldId);
+  const child = m ? all.find((f) => f && String(f.id || "") === parentFieldId) : null;
+  if (child && String(child.dependsOn || "").trim() === m[1]) {
+    const kids = new Set();
+    for (const v of (Array.isArray(child.values) ? child.values : [])) {
+      if (v && v.id) kids.add(String(v.id));
+      if (v && v.token) kids.add(String(v.token));
+    }
+    for (const f of all) {
+      if (!f || f === child || !f.id || String(f.dependsOn || "").trim() !== m[1]) continue;
+      const only = Array.isArray(f.enabledForParentValues) ? f.enabledForParentValues : [];
+      if (child.parentIsNavigator !== true && !only.some((k) => kids.has(String(k)))) continue;
+      state.selected[f.id] = "";
+      if (cleared.indexOf(f.id) === -1) cleared.push(f.id);
+      clearChildren(f.id);
+    }
+  }
   return cleared;
 }
 
