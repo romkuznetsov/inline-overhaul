@@ -2277,13 +2277,19 @@ function backlinkTargetsWithNavigators(context, cfg, i2n) {
  * псевдоним папки. Ответ «нет такой заметки» — это ответ, а не отказ: тогда
  * путь строится из самого значения, потому что её надо завести (его ответ
  * В-135: «создать пустой и дописать»).
+ *
+ * Спрашивается **от заметки, где стоит строка** — `sourcePath`, как спрашивает
+ * щелчок по ссылке (`openLinkText` в `app.js` 1.13.7). У одноимённых заметок в
+ * разных папках ответ от этого зависит: платформа берёт сперва ту, что в папке
+ * источника. С пустым путём ссылка уходила не в ту заметку, которую открывает
+ * щелчок (его `💬` к тесту 2 цикла 95).
  */
-function resolveBacklinkNotePath(app, target) {
+function resolveBacklinkNotePath(app, target, sourcePath) {
   const linkpath = String(target || "").trim();
   if (!linkpath) return "";
   const cache = app && app.metadataCache;
   if (cache && typeof cache.getFirstLinkpathDest === "function") {
-    const dest = cache.getFirstLinkpathDest(linkpath, "");
+    const dest = cache.getFirstLinkpathDest(linkpath, String(sourcePath || ""));
     const path = String(dest && dest.path || "").trim();
     if (path) return path;
   }
@@ -2341,7 +2347,7 @@ function backlinkLineFor(targetPath) {
  * сказать вслух. Поэтому у каждой цели свой заход, и неудача одной не отменяет
  * остальных.
  */
-async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n, pluginCfg) {
+async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n, pluginCfg, sourcePath) {
   const cfg = isObj(i2n && i2n.backlink) ? i2n.backlink : {};
   if (cfg.enabled !== true) return { written: [], skipped: [], failed: [] };
   const line = backlinkLineFor(targetPath);
@@ -2354,7 +2360,7 @@ async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2
   if (!vault) throw new Error("vault unavailable for backlink write");
   const selfPath = String(targetPath || "").trim();
   for (const target of backlinkTargetsWithNavigators(context, pluginCfg, i2n)) {
-    const path = resolveBacklinkNotePath(app, target);
+    const path = resolveBacklinkNotePath(app, target, sourcePath);
     /* Ссылка на самоё себя не пишется: строка может ссылаться на заметку с тем
        же именем, которое ей же и достаётся. */
     if (!path || path === selfPath) { skipped.push(target); continue; }
@@ -3699,6 +3705,11 @@ async function runInline2Note(plugin, runtimeOptions) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : {};
   const separators = resolveIoSeparators(cfg);
   const i2n = normalizeInline2Note(cfg && cfg.transform ? cfg.transform.inline2note : null);
+  /* Заметка со строкой — до того, как активной станет новая: от неё ссылки
+     строки разрешаются так же, как их разрешает щелчок. */
+  const activeFile = plugin && plugin.app && plugin.app.workspace && typeof plugin.app.workspace.getActiveFile === "function"
+    ? plugin.app.workspace.getActiveFile() : null;
+  const sourcePath = activeFile && typeof activeFile.path === "string" ? activeFile.path : "";
   if (!i2n.enabled) {
     plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
     return;
@@ -3813,7 +3824,7 @@ async function runInline2Note(plugin, runtimeOptions) {
    * знает. Отказ здесь громкий, но не роняющий: он говорит, в какую заметку не
    * получилось записать, и остальные получают своё.
    */
-  await writeBacklinksIntoReferencedNotes(plugin, transformContext, actualTarget.path, i2n, cfg);
+  await writeBacklinksIntoReferencedNotes(plugin, transformContext, actualTarget.path, i2n, cfg, sourcePath);
   if (i2n.openTarget) {
     try {
       const opened = plugin.app.vault.getAbstractFileByPath(actualTarget.path);

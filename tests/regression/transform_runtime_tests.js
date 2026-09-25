@@ -165,20 +165,29 @@ function makePlugin(config, editor, vaultOptions) {
   return {
     app: {
       vault,
-      workspace: { getActiveFile() { return { parent: { path: "" } }; } },
+      workspace: { getActiveFile() {
+        const at = String(opts.activePath || "");
+        return at ? { path: at, parent: { path: at.includes("/") ? at.replace(/\/[^/]*$/, "") : "" } } : { parent: { path: "" } };
+      } },
       /*
        * Подделка резолвера ссылок. Правило у неё **списано у платформы**, а не
        * выведено из смысла слова (У-170): Obsidian ищет сперва точный путь, и
-       * только потом файл с таким именем в любой папке. Ответ `null` — это
-       * ответ: заметки с таким именем в vault нет.
+       * только потом файл с таким именем — **сперва в папке источника**
+       * (`u.concat(h)` в `getLinkpathDest`, `app.js` 1.13.7). Ответ `null` —
+       * это ответ: заметки с таким именем в vault нет.
        */
       metadataCache: {
-        getFirstLinkpathDest(linkpath) {
+        getFirstLinkpathDest(linkpath, sourcePath) {
           const wanted = String(linkpath || "").trim().replace(/\.md$/i, "");
           if (!wanted) return null;
           const notes = [...files.keys()].filter((key) => typeof files.get(key) === "string");
           for (const key of notes) {
             if (key.replace(/\.md$/i, "") === wanted) return { path: key };
+          }
+          const src = String(sourcePath || "");
+          const folder = src.includes("/") ? src.replace(/\/[^/]*$/, "") + "/" : "";
+          for (const key of notes) {
+            if (folder && key.startsWith(folder) && key.replace(/\.md$/i, "").replace(/^.*\//, "") === wanted) return { path: key };
           }
           for (const key of notes) {
             if (key.replace(/\.md$/i, "").replace(/^.*\//, "") === wanted) return { path: key };
@@ -1139,7 +1148,22 @@ async function testBacklinkNoteAtVaultRoot() {
     "заметка-цель в корне vault заведена заметкой, а не папкой");
 }
 
+/* Его `💬` к тесту 2 цикла 95: одноимённые заметки в разных папках — ссылка
+   уходит в ту, которую открывает щелчок из заметки со строкой. */
+async function testBacklinkGoesWhereTheClickGoes() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(backlinkConfig(), editor, {
+    activePath: "222/Исходная.md",
+    initialFiles: { "333/test1.md": "# 333\n", "222/test1.md": "# 222\n" },
+  });
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(String(plugin.files.get("222/test1.md")).includes("[[") && String(plugin.files.get("222/test1.md")).includes("Отчёт]]"),
+    "ссылка в заметке из папки строки: " + JSON.stringify(plugin.files.get("222/test1.md")));
+  assertEq(plugin.files.get("333/test1.md"), "# 333\n", "одноимённая из чужой папки не тронута");
+}
+
 async function runBacklinkSuite() {
+  await testBacklinkGoesWhereTheClickGoes();
   await testNoteAtVaultRootIsCreated();
   await testBacklinkNoteAtVaultRoot();
   await testBacklinkWrittenIntoEveryReferencedNote();
