@@ -122,7 +122,70 @@ async function openAt(win, file, lineText) {
   }, { file, lineText });
 }
 
+/** Команда плагина по его идентификатору; ответ платформы «выполнена ли». */
+function runCommand(win, id) {
+  return win.evaluate((id) => window.app.commands.executeCommandById("inline-overhaul:" + id), id);
+}
+
 const SCENARIOS = {
+  /* Тест 1 цикла 96: порядок полей в полосе tagWheel Left — `sub` сразу за `test`. */
+  async "tagwheel-order"(win) {
+    const LINE = "- строка для проверки порядка :: [[123]]";
+    const n = await openAt(win, "testing.md", LINE);
+    if (n < 0) throw new Error("в testing.md нет строки: " + LINE);
+    await win.evaluate(({ n, len }) => window.app.workspace.activeEditor.editor.setCursor({ line: n, ch: len }), { n, len: LINE.length });
+    if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+    await win.waitForTimeout(800);
+    const seen = await win.evaluate((n) => {
+      const ed = window.app.workspace.activeEditor.editor;
+      const row = [...window.app.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll(".cm-line")]
+        .filter((l) => l.textContent.includes("строка для проверки порядка")).pop(); /* В, а не Б: текст у них один */
+      const tw = [...document.querySelectorAll("[class*=tagwheel], [class*=io-strip], [class*=io-panel]")].slice(0, 5)
+        .map((e) => e.className + " :: " + e.textContent.slice(0, 80));
+      return { doc: ed.getLine(n), screen: row ? row.textContent : null, open: !!(window.__tagWheelState && window.__tagWheelState.active),
+        rowHtml: row ? row.outerHTML.slice(0, 1500) : null, tw };
+    }, n);
+    await win.keyboard.press("Escape");
+    await win.waitForTimeout(500);
+    const after = await win.evaluate((n) => window.app.workspace.activeEditor.editor.getLine(n), n);
+    console.log("панель открылась:", seen.open);
+    if (process.env.IO_DEBUG) console.log(JSON.stringify({ doc: seen.doc, rowHtml: seen.rowHtml, tw: seen.tw }, null, 1));
+    console.log("на экране:", seen.screen);
+    console.log("после Esc:", after);
+    const s = String(seen.screen || "");
+    const at = (w) => s.indexOf(w);
+    const ok = seen.open && at("test") !== -1 && at("sub") > at("test") && at("People") > at("sub") && after === LINE;
+    console.log(ok ? "ok: test, sub, People; строка после Esc прежняя" : "РАСХОДИТСЯ с разделом А теста 1");
+    return ok;
+  },
+
+  /* Тест 3 цикла 96: каждое нажатие Move up / Move down перескакивает соседнее дерево. */
+  async "move-trees"(win) {
+    const B = ["- Call the bank", "    - ask about the card", "    - check the rate",
+      "- Pay the rent", "    - transfer", "    - receipt",
+      "- Write the report", "    - intro", "    - numbers"];
+    const A = B.slice(6).concat(B.slice(0, 6));
+    const start = await openAt(win, "testing.md", "- Write the report") - 6;
+    const block = () => win.evaluate((s) => window.app.workspace.activeEditor.editor.getValue().split("\n").slice(s, s + 9), start);
+    if (JSON.stringify(await block()) !== JSON.stringify(B)) throw new Error("раздел В теста 3 не равен Б: " + JSON.stringify(await block()));
+    const cfg = await win.evaluate(() => {
+      const m = window.app.plugins.plugins["inline-overhaul"].getConfig().navigation.moveLine;
+      return { mode: m.noSelectionMode, jump: m.jumpNeighborTrees, highlight: m.highlightMovedLines };
+    });
+    await win.evaluate((s) => window.app.workspace.activeEditor.editor.setCursor({ line: s + 6, ch: 4 }), start);
+    const steps = [];
+    for (const id of ["move-line-up", "move-line-up", "move-line-down", "move-line-down"]) {
+      await runCommand(win, id);
+      await win.waitForTimeout(400);
+      steps.push({ id, block: await block(), sel: await win.evaluate(() => window.app.workspace.activeEditor.editor.somethingSelected()) });
+    }
+    console.log("настройки:", JSON.stringify(cfg));
+    for (const st of steps) console.log(st.id, "выделено:", st.sel, "первая строка:", st.block[0], "| четвёртая:", st.block[3]);
+    const ok = JSON.stringify(steps[1].block) === JSON.stringify(A) && JSON.stringify(steps[3].block) === JSON.stringify(B);
+    console.log(ok ? "ok: два нажатия вверх дают раздел А, два вниз возвращают Б" : "РАСХОДИТСЯ с разделом А теста 3:\n" + steps[1].block.join("\n"));
+    return ok;
+  },
+
   /* Тест 2 цикла 96: куда ведёт щелчок по [[123]] и куда пишет ссылку Inline to note. */
   async "link-click"(win) {
     const LINE = "- строка для проверки Link to Navigator :: [[123]]";
@@ -130,7 +193,7 @@ const SCENARIOS = {
     if (n < 0) throw new Error("в testing.md нет строки: " + LINE);
     await win.waitForTimeout(800);
     const box = await win.evaluate(() => {
-      const row = [...document.querySelectorAll(".workspace-leaf.mod-active .cm-line")]
+      const row = [...window.app.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll(".cm-line")]
         .filter((l) => l.textContent.includes("Link to Navigator") && l.textContent.includes("123")).pop();
       const link = row && [...row.querySelectorAll("*")].filter((x) => !x.children.length && x.textContent.trim() === "123").pop();
       if (!link) return null;
