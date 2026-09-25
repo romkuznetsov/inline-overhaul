@@ -35,7 +35,7 @@ const EXE = path.join(process.env.LOCALAPPDATA || "", "Programs", "Obsidian", "O
 const PROFILE_SRC = path.join(process.env.APPDATA || "", "obsidian");
 const PORT = 9333;
 
-function prepare() {
+function prepare(name) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "io-obsidian-bench-"));
   const profile = path.join(work, "profile");
   const vault = path.join(work, "vault");
@@ -47,6 +47,8 @@ function prepare() {
   if (process.env.IO_MAIN) {
     fs.copyFileSync(path.resolve(process.env.IO_MAIN), path.join(vault, ".obsidian", "plugins", "inline-overhaul", "main.js"));
   }
+  /* Сценарию бывает нужна своя копия настроек или заметка — только в копии. */
+  if (PREPARE[name]) PREPARE[name](vault);
   const asar = fs.readdirSync(PROFILE_SRC).filter((n) => /^obsidian-.*\.asar$/.test(n)).sort().pop();
   if (!asar) throw new Error("нет obsidian-<версия>.asar в " + PROFILE_SRC);
   fs.copyFileSync(path.join(PROFILE_SRC, asar), path.join(profile, asar));
@@ -55,8 +57,8 @@ function prepare() {
   return { work, profile, vault };
 }
 
-async function launch() {
-  const env = prepare();
+async function launch(name) {
+  const env = prepare(name);
   const proc = spawn(EXE, ["--user-data-dir=" + env.profile, "--remote-debugging-port=" + PORT], { stdio: "ignore" });
   let browser = null;
   for (let i = 0; i < 40 && !browser; i++) {
@@ -127,7 +129,65 @@ function runCommand(win, id) {
   return win.evaluate((id) => window.app.commands.executeCommandById("inline-overhaul:" + id), id);
 }
 
+/** Подготовка копии vault до запуска: имя — то же, что у сценария. */
+const PREPARE = {
+  /* Его заказ к тесту 2 цикла 96: Value ссылки с папкой. У детей `Project` —
+     `222/123` и `333/123`, заметка `bench-folder.md` с пустой строкой. */
+  "link-folder-value"(vault) {
+    const dataPath = path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json");
+    const cfg = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    const links = cfg.pkm.fields.links.fields;
+    const parent = links.find((f) => f.id === "Project");
+    const child = links.find((f) => f.id === "Project_sub");
+    if (!parent || !child) throw new Error("в его настройках нет Project и Project_sub");
+    const parentTok = String(parent.values[0].token);
+    child.values = ["222/123", "333/123"].map((token) => Object.assign({}, child.values[0], { token, allowedParentValues: [parentTok] }));
+    parent.values[0].subtags = ["222/123", "333/123"];
+    fs.writeFileSync(dataPath, JSON.stringify(cfg));
+    fs.writeFileSync(path.join(vault, "bench-folder.md"), "- текст\n");
+  },
+};
+
 const SCENARIOS = {
+  /* Его заказ к тесту 2 цикла 96 (10.13.277): Value `222/123` пишется ссылкой с
+     подписью, на экране видно `123`, щелчок открывает `222/123.md`. */
+  async "link-folder-value"(win) {
+    await openAt(win, "bench-folder.md", "- текст");
+    const press = async () => {
+      await win.evaluate(() => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: 0, ch: ed.getLine(0).length }); });
+      await runCommand(win, "project-sub-next");
+      await win.waitForTimeout(500);
+      /* Каретку уводим со строки: Live Preview показывает запись ссылки, пока каретка на ней. */
+      return win.evaluate(() => { const ed = window.app.workspace.activeEditor.editor; ed.replaceRange("\n", { line: 0, ch: ed.getLine(0).length }); ed.setCursor({ line: 1, ch: 0 }); return ed.getLine(0); });
+    };
+    const first = await press();
+    await win.waitForTimeout(600);
+    const view = await win.evaluate(() => {
+      const row = window.app.workspace.activeEditor.editor.cm.contentDOM.querySelector(".cm-line");
+      const link = row && [...row.querySelectorAll("*")].filter((x) => !x.children.length && x.textContent.trim() === "123").pop();
+      if (!link) return { screen: row ? row.textContent : null };
+      const r = link.getBoundingClientRect();
+      return { screen: row.textContent, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    let opened = null;
+    if (view.x) {
+      await win.mouse.click(view.x, view.y);
+      await win.waitForTimeout(1200);
+      opened = await win.evaluate(() => window.app.workspace.getActiveFile().path);
+      await openAt(win, "bench-folder.md", "__нет__");
+    }
+    await win.evaluate(() => { const ed = window.app.workspace.activeEditor.editor; ed.replaceRange("", { line: 0, ch: ed.getLine(0).length }, { line: 1, ch: 0 }); });
+    const second = await press();
+    console.log("первое нажатие, строка:", first);
+    console.log("на экране:", view.screen);
+    console.log("щелчок открыл:", opened);
+    console.log("второе нажатие, строка:", second);
+    const ok = /\[\[222\/123\|123\]\]/.test(first) && !/222/.test(String(view.screen)) && opened === "222/123.md"
+      && /\[\[333\/123\|123\]\]/.test(second) && !/222/.test(second);
+    console.log(ok ? "ok: пишется с подписью, видно 123, щелчок ведёт в 222, круг идёт дальше" : "РАСХОДИТСЯ с заказом");
+    return ok;
+  },
+
   /* Тест 1 цикла 96: порядок полей в полосе tagWheel Left — `sub` сразу за `test`. */
   async "tagwheel-order"(win) {
     const LINE = "- строка для проверки порядка :: [[123]]";
@@ -233,7 +293,7 @@ async function main() {
     console.log("сценарии: " + Object.keys(SCENARIOS).join(", "));
     process.exit(2);
   }
-  const { win, env, close } = await launch().catch((e) => {
+  const { win, env, close } = await launch(name).catch((e) => {
     for (const d of fs.readdirSync(os.tmpdir()).filter((x) => x.startsWith("io-obsidian-bench-"))) {
       try { fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true }); } catch (_) { /* уборка: папку держит выходящий процесс */ }
     }
