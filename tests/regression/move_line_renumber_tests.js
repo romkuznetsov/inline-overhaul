@@ -52,14 +52,14 @@ function ok(what) { passed++; console.log("  ok " + what); }
  * принимает — держит строки, курсор и то, каким вызовом пришла правка.
  */
 function fakeEditor(text, cursor) {
-  const state = { lines: String(text).split("\n"), cursor: Object.assign({}, cursor) };
+  const state = { lines: String(text).split("\n"), cursor: Object.assign({}, cursor), sel: null };
   const writes = [];
   const editor = {
     writes,
     lastLine: () => state.lines.length - 1,
     getLine: (n) => state.lines[n],
     getCursor: () => Object.assign({}, state.cursor),
-    setCursor: (p) => { state.cursor = Object.assign({}, p); },
+    setCursor: (p) => { state.cursor = Object.assign({}, p); state.sel = null; },
     setValue: (v) => {
       writes.push({ kind: "setValue" });
       state.lines = String(v).split("\n");
@@ -75,9 +75,14 @@ function fakeEditor(text, cursor) {
     },
     getScrollInfo: () => ({ top: 0, left: 0 }),
     scrollTo: () => {},
-    setSelection: () => {},
+    /* Выделение запоминается: `highlightMovedLines` ставит его, и следующее
+       нажатие читает его входом (его `💬` к тесту 7 цикла 95). */
+    setSelection: (anchor, head) => {
+      state.sel = { anchor: Object.assign({}, anchor), head: Object.assign({}, head || anchor) };
+      state.cursor = Object.assign({}, state.sel.head);
+    },
     getSelection: () => "",
-    listSelections: () => [],
+    listSelections: () => (state.sel ? [state.sel] : []),
     setLine: (n, t) => { state.lines[n] = t; },
     posToOffset: (p) => p.ch,
     offsetToPos: (ch) => ({ line: 0, ch }),
@@ -276,6 +281,35 @@ const LIST = [
   const NESTED = "- a\n    - b\n        - b1\n    - c";
   assert.equal(move(NESTED, 3, "up", on).text, "- a\n    - c\n    - b\n        - b1", "вложенный сосед перескакивается целиком");
   ok("Jump over neighbor trees: сосед перескакивается целиком, Off и Line only — как прежде");
+}
+
+/* Его `💬` к тесту 7 цикла 95: при `Highlight moved lines` второе нажатие шло
+   по строке — своё выделение читалось выделением человека. */
+{
+  const THREE = [
+    "- A", "    - a1", "    - a2",
+    "- B", "    - b1", "    - b2",
+    "- C", "    - c1", "    - c2",
+  ].join("\n");
+  const on = { noSelectionMode: "with-children", jumpNeighborTrees: true, highlightMovedLines: true };
+  const presses = (text, line, dirs, over) => {
+    const ed = fakeEditor(text, { line, ch: 0 });
+    for (const d of dirs) nav.moveLine(ed, d, Object.assign({}, CFG, over));
+    return ed.getValue();
+  };
+  assert.equal(presses(THREE, 6, ["up", "up"], on),
+    "- C\n    - c1\n    - c2\n- A\n    - a1\n    - a2\n- B\n    - b1\n    - b2",
+    "два нажатия вверх — над обоими соседями целиком");
+  assert.equal(presses(THREE, 0, ["down", "down"], on),
+    "- B\n    - b1\n    - b2\n- C\n    - c1\n    - c2\n- A\n    - a1\n    - a2",
+    "два нажатия вниз — под обоими соседями целиком");
+  assert.equal(presses(THREE, 6, ["up", "down"], on), THREE, "вверх и вниз — вернулось как было");
+  /* Отрицательный контроль: выделение человека (одна строка) перескока не получает. */
+  const ed = fakeEditor(THREE, { line: 6, ch: 0 });
+  ed.setSelection({ line: 6, ch: 0 }, { line: 6, ch: 3 });
+  nav.moveLine(ed, "up", Object.assign({}, CFG, on));
+  assert.equal(ed.getValue().split("\n")[5], "- C", "выделенная строка идёт на строку вверх");
+  ok("Jump over neighbor trees при Highlight moved lines: каждое нажатие перескакивает соседа");
 }
 
 console.log("\n" + passed + " проверок пройдено");

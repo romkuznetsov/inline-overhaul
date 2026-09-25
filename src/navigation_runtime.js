@@ -212,8 +212,13 @@ function moveLine(editor, direction, rawCfg) {
   const body = getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total);
   if (!body) return;
   const { bStart, bEnd } = body;
-  /* С выделением тело — выделение, и перескок к нему не относится (10.13.275). */
-  const targetCfg = hasSel ? Object.assign({}, cfg, { jumpNeighborTrees: false }) : cfg;
+  /* С выделением тело — выделение, и перескок к нему не относится (10.13.275).
+     Кроме выделения, которое поставили мы сами: `highlightMovedLines` выделяет
+     перенесённое дерево целиком, и следующее нажатие обязано перескакивать так
+     же, как первое (его `💬` к тесту 7 цикла 95, У-238). */
+  const ownTree = hasSel && cfg.highlightMovedLines && selections.length === 1
+    && isWholeTreeSelection(editor, selections[0], total);
+  const targetCfg = hasSel && !ownTree ? Object.assign({}, cfg, { jumpNeighborTrees: false }) : cfg;
   const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, targetCfg, total, yamlEnd);
   if (insertAfter === null) return;
   applyMove(editor, bStart, bEnd, insertAfter, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
@@ -247,6 +252,18 @@ function treeEndOf(editor, line, total) {
     end = l;
   }
   return end;
+}
+
+/* Выделение ровно такое, какое ставит `applyMove` дереву: от начала строки до
+   конца последней строки её дерева. */
+function isWholeTreeSelection(editor, sel, total) {
+  const a = sel.anchor;
+  const h = sel.head;
+  const from = a.line < h.line || (a.line === h.line && a.ch <= h.ch) ? a : h;
+  const to = from === a ? h : a;
+  if (from.ch !== 0) return false;
+  if (to.line !== treeEndOf(editor, from.line, total)) return false;
+  return to.ch === nz(editor.getLine(to.line), "").length;
 }
 
 function findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd) {

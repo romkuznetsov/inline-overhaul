@@ -426,6 +426,23 @@ async function run() {
     ok("без навигатора родитель и ребёнок пишутся оба");
   }
 
+  /* ---- панель: дочерний Field рядом с родителем, у которого предусловие -- */
+  {
+    /* Его `💬` к тесту 1 цикла 95: «справа от people находится sub. Дочерние
+       sub должны находится рядом с родителем». `Type` ждёт `Clients` и стоит
+       в Block раньше него — `sub` обязан встать сразу за `Type`. */
+    const raw = config();
+    raw.pkm.fields.tags.fields.find((f) => f.id === "Type").dependsOn = "Clients";
+    const c = configNormalize.migrateConfig(raw);
+    const r = await drive(c, "- [[AK]] || text", [OPEN]);
+    assert.ok(r.opened[0], "панель открылась");
+    /* `Clients` показывает своё Value `[[AK]]`, за ним его собственный `sub`. */
+    const at = (label) => r.line.indexOf(label);
+    assert.ok(at("Type") !== -1 && at("`sub`") !== -1 && at("[[AK]]") !== -1, "все три поля в полосе: " + r.line);
+    assert.ok(at("Type") < at("`sub`") && at("`sub`") < at("[[AK]]"), "sub сразу за Type, до Clients: " + r.line);
+    ok("панель: дочерний Field стоит за родителем с предусловием, а не в хвосте Block");
+  }
+
   console.log("\n" + passed + " проверок пройдено");
 }
 

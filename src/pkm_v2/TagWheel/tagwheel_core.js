@@ -496,6 +496,9 @@ function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
          показывается своим именем. Тот же разбор, что у `ownOrderKeyPlaced`. */
       var depIsChild = !!dep.dependsOn && !ownOrderKeyPlaced(dep)
       pushFieldGroup(dep, !!dep.dependsOn, depIsChild ? (dep.placeholder || 'sub') : dep.placeholder)
+      /* Field с предусловием — тоже родитель: его дочерний Field стоит рядом,
+         а не в хвосте Block (его `💬` к тесту 1 цикла 95). */
+      pushChildrenForParent(dep.id)
     }
   }
 
