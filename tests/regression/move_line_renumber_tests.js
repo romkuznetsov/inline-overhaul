@@ -245,4 +245,37 @@ const LIST = [
   ok("перенос записан правкой окна изменившихся строк, а не заменой документа");
 }
 
+/* ---- `Jump over neighbor trees` (его заказ 2026-09-25, PRD 10.13.275) ---- */
+{
+  const TREES = [
+    "- Call the bank",
+    "    - ask about the card",
+    "    - check the rate",
+    "- Write the report",
+    "    - intro",
+    "    - numbers",
+  ].join("\n");
+  const JUMPED = [
+    "- Write the report",
+    "    - intro",
+    "    - numbers",
+    "- Call the bank",
+    "    - ask about the card",
+    "    - check the rate",
+  ].join("\n");
+  const on = { noSelectionMode: "with-children", jumpNeighborTrees: true };
+  assert.equal(move(TREES, 3, "up", on).text, JUMPED, "Move up: одно нажатие — над всем соседом");
+  assert.equal(move(TREES, 0, "down", on).text, JUMPED, "Move down: одно нажатие — под всем соседом");
+  /* Отрицательный контроль: Off — как сегодня, дерево входит в подпункты соседа. */
+  const off = move(TREES, 3, "up", { noSelectionMode: "with-children" }).text;
+  assert.equal(off.split("\n")[2], "- Write the report", "Off: на строку вверх, внутрь соседа");
+  /* При `Line only` ключ не действует (его ответ 2026-09-25). */
+  const lineOnly = move(TREES, 3, "up", { jumpNeighborTrees: true }).text;
+  assert.equal(lineOnly.split("\n")[2], "- Write the report", "Line only: строка ходит по одной");
+  /* Выход из родителя — как прежде: первый подпункт идёт над родителем. */
+  const NESTED = "- a\n    - b\n        - b1\n    - c";
+  assert.equal(move(NESTED, 3, "up", on).text, "- a\n    - c\n    - b\n        - b1", "вложенный сосед перескакивается целиком");
+  ok("Jump over neighbor trees: сосед перескакивается целиком, Off и Line only — как прежде");
+}
+
 console.log("\n" + passed + " проверок пройдено");

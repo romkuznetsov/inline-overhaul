@@ -30,6 +30,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 7. 🐛 **A navigator child alone on the line reaches the note.** Without `Show always`, `Inline to note` now takes it as a Value: its links and YAML property are written.
 8. ✨ **A child Field waits for what its parent waits for,** and changing a child Value clears the Field that was waiting for it.
 9. 🎨 **No floating button on a processed line,** so the line is not sent to a note twice by accident.
+10. ✨ **`Jump over neighbor trees` in `Move lines`.** With `Whole tree`, one press moves the tree past the whole neighbor tree, and the neighbor keeps its own lines.
 
 ## 0.9.0
 

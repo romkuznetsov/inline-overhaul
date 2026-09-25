@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (79)
+### Пути, которых не было в описи v1.0 (80)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -948,6 +948,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Global hotkeys |
 | `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Global hotkeys |
 | `editor.smartPaste.enabled` | Smart paste (`smart-paste-enabled`) | Global hotkeys |
+| `navigation.moveLine.jumpNeighborTrees` | Jump over neighbor trees (`move-lines-jump-trees`) | Move lines (up/down) |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Move lines (up/down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Move lines (up/down) |
 | `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move lines (left/right) |

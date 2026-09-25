@@ -154,6 +154,7 @@ Moving lines, text and the cursor without reaching for the mouse.
 |---|---|---|
 | `Move lines` | on | Lets the keys pick up a line and move it |
 | `Moving behavior` | `line-only` | Whether the tree under the line travels with it |
+| `Jump over neighbor trees` | off | With `Whole tree`, moves the tree past the whole neighbor tree instead of into its lines |
 | `Moving headings` | `move-as-line` | Whether a whole section moves, or just the heading line |
 | `Cross heading boundaries` | on | Lets a line travel past a heading into the part of the note below |
 | `Highlight after moving` | off | Keeps the lines highlighted once they land |

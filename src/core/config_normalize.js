@@ -181,6 +181,7 @@ const DEFAULT_CONFIG = {
       crossSectionAllowed: true,
       highlightMovedLines: false,
       keepInView: true,
+      jumpNeighborTrees: false,
       viewPosition: "center",
     },
     moveSelection: {
@@ -920,6 +921,8 @@ function normalizeConfigV2(cfg) {
   /* Прокрутка при перемещении строки (10.13.36). До этого её не было вовсе:
      свой код до платформы не доезжал, и прыжок решала она. */
   bool("navigation.moveLine.keepInView");
+  /* Дерево перескакивает соседнее дерево целиком (10.13.275). */
+  bool("navigation.moveLine.jumpNeighborTrees");
   oneOf("navigation.moveLine.viewPosition", ["center", "top", "bottom"]);
   bool("navigation.moveSelection.inlineEnabled");
   bool("navigation.moveSelection.prefixCyclerEnabled");

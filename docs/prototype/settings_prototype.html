@@ -2128,6 +2128,12 @@ const SCHEMA = [
       searchTerms:["No-selection mode"], disabled: not("navigation.moveLine.enabled"),
       options:[ {value:"line-only",label:"Line only"}, {value:"with-children",label:"Whole tree"} ],
       tip:"Say a line has three lines indented under it. <b>Line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>Whole tree</b> keeps the four together and moves them as one block" },
+    /* Дерево перескакивает соседнее дерево целиком — его заказ 2026-09-25
+       (PRD 10.13.275); только при `Whole tree` — его ответ. */
+    { kind:"toggle", id:"move-lines-jump-trees", path:"navigation.moveLine.jumpNeighborTrees", default:false,
+      name:"Jump over neighbor trees", desc:"Move the tree past the whole tree next to it instead of into its lines",
+      visible: eq("navigation.moveLine.noSelectionMode","with-children"), disabled: not("navigation.moveLine.enabled"),
+      tip:"Off, the tree moves one line per press, so it can pass into the lines indented under its neighbor and take them along. On, one press puts it above or below the whole neighbor at its own level, and the neighbor keeps its own lines" },
     { kind:"dropdown", id:"move-lines-heading", path:"navigation.moveLine.headerMode", default:"move-as-line",
       name:"Moving headings", desc:"If you are moving a heading, this decides whether the whole section moves or just the heading line",
       searchTerms:["Header mode"], disabled: not("navigation.moveLine.enabled"),

@@ -134,6 +134,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      `_unmigrated` (МГ3). */
   keepV2("navigation.moveLine.keepInView"),
   keepV2("navigation.moveLine.viewPosition"),
+  /* 10.13.275, пары в версии 1 нет — `keepV2`. */
+  keepV2("navigation.moveLine.jumpNeighborTrees"),
   keep("navigation.moveSelection.enabled"),
   keep("navigation.moveSelection.inlineEnabled"),
   keep("navigation.moveSelection.prefixCyclerEnabled"),

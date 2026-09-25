@@ -59,6 +59,8 @@ function pickMoveLineCfg(cfg) {
     /* Прокрутка при перемещении строки (10.13.36). */
     keepInView: typeof c.keepInView === "boolean" ? c.keepInView : true,
     viewPosition: normalizeViewPosition(c.viewPosition),
+    /* Дерево перескакивает соседнее дерево целиком — только при `Whole tree` (10.13.275). */
+    jumpNeighborTrees: c.jumpNeighborTrees === true && c.noSelectionMode === "with-children",
   };
 }
 
@@ -210,7 +212,9 @@ function moveLine(editor, direction, rawCfg) {
   const body = getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total);
   if (!body) return;
   const { bStart, bEnd } = body;
-  const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd);
+  /* С выделением тело — выделение, и перескок к нему не относится (10.13.275). */
+  const targetCfg = hasSel ? Object.assign({}, cfg, { jumpNeighborTrees: false }) : cfg;
+  const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, targetCfg, total, yamlEnd);
   if (insertAfter === null) return;
   applyMove(editor, bStart, bEnd, insertAfter, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
 }
@@ -224,18 +228,25 @@ function getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total) {
     return { bStart: curLine, bEnd: sectionEnd(editor, curLine, level, total) };
   }
   if (cfg.noSelectionMode === "with-children") {
-    const myIndent = indentOf(lineText);
-    let end = curLine;
-    for (let l = curLine + 1; l < total; l++) {
-      const lt = nz(editor.getLine(l), "");
-      if (lt.trim() === "") continue;
-      if (isHeader(lt)) break;
-      if (indentOf(lt) <= myIndent) break;
-      end = l;
-    }
-    return { bStart: curLine, bEnd: end };
+    return { bStart: curLine, bEnd: treeEndOf(editor, curLine, total) };
   }
   return { bStart: curLine, bEnd: curLine };
+}
+
+/* Последняя строка дерева: строки с большим отступом, пустые пропускаются,
+   заголовок обрывает. Одно правило на тело `Whole tree` и на соседа, которого
+   перескакивает `Jump over neighbor trees` (10.13.275). */
+function treeEndOf(editor, line, total) {
+  const myIndent = indentOf(nz(editor.getLine(line), ""));
+  let end = line;
+  for (let l = line + 1; l < total; l++) {
+    const lt = nz(editor.getLine(l), "");
+    if (lt.trim() === "") continue;
+    if (isHeader(lt)) break;
+    if (indentOf(lt) <= myIndent) break;
+    end = l;
+  }
+  return end;
 }
 
 function findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd) {
@@ -278,6 +289,20 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
     if (!cfg.crossSectionAllowed) return null;
     return prevNonBlank(editor, prev - 1, yamlEnd);
   }
+  /*
+   * **Сосед того же уровня перескакивается целиком** (`Jump over neighbor
+   * trees`, его заказ 2026-09-25, PRD 10.13.275): над деревом стоят подпункты
+   * соседа — идём вверх до строки с отступом не больше своего, и если это
+   * сосед, встаём перед ним. Родитель или заголовок — как прежде.
+   */
+  if (cfg.jumpNeighborTrees && !isHeader(myText) && indentOf(prevText) > indentOf(myText)) {
+    let l = prev;
+    while (l !== null && !isHeader(nz(editor.getLine(l), "")) && indentOf(nz(editor.getLine(l), "")) > indentOf(myText)) {
+      l = prevNonBlank(editor, l - 1, yamlEnd);
+    }
+    const head = l === null ? "" : nz(editor.getLine(l), "");
+    if (l !== null && !isHeader(head) && indentOf(head) === indentOf(myText)) return l - 1;
+  }
   const myIndent = indentOf(myText);
   const prevIndent = indentOf(prevText);
   if (prevIndent < myIndent) {
@@ -317,6 +342,10 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   if (isHeader(nextText)) {
     if (!cfg.crossSectionAllowed) return null;
     return next;
+  }
+  /* Сосед того же уровня — встаём после всего его дерева (10.13.275). */
+  if (cfg.jumpNeighborTrees && !isHeader(myText) && indentOf(nextText) === indentOf(myText)) {
+    return treeEndOf(editor, next, total);
   }
   const myIndent = indentOf(myText);
   const nextIndent = indentOf(nextText);

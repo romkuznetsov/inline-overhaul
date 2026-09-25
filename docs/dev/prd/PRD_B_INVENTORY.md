@@ -14,7 +14,7 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 14 | 8 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 17 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 34 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
@@ -332,6 +332,11 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
   - варианты: `line-only` Line only · `with-children` Whole tree
   - выключена если: `navigation.moveLine.enabled`
   - старые названия для поиска: «No-selection mode»
+- **Jump over neighbor trees** — `move-lines-jump-trees`, `toggle`, path `navigation.moveLine.jumpNeighborTrees`, default `false`
+  - desc: Move the tree past the whole tree next to it instead of into its lines
+  - tip: Off, the tree moves one line per press, so it can pass into the lines indented under its neighbor and take them along. On, one press puts it above or below the whole neighbor at its own level, and the neighbor keeps its own lines
+  - видна если: `navigation.moveLine.noSelectionMode`
+  - выключена если: `navigation.moveLine.enabled`
 - **Moving headings** — `move-lines-heading`, `dropdown`, path `navigation.moveLine.headerMode`, default `move-as-line`
   - desc: If you are moving a heading, this decides whether the whole section moves or just the heading line
   - tip: With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings
@@ -1217,6 +1222,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `navigation.moveLine.enabled` | toggle | `true` |
 | `navigation.moveLine.headerMode` | dropdown | `move-as-line` |
 | `navigation.moveLine.highlightMovedLines` | toggle | `false` |
+| `navigation.moveLine.jumpNeighborTrees` | toggle | `false` |
 | `navigation.moveLine.keepInView` | toggle | `true` |
 | `navigation.moveLine.noSelectionMode` | dropdown | `line-only` |
 | `navigation.moveLine.viewPosition` | dropdown | `center` |
