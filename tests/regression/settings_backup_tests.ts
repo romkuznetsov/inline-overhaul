@@ -1521,4 +1521,22 @@ function sampleConfig(): Record<string, unknown> {
   ok("окно говорит и тогда, когда хоткеев в копии нет вовсе");
 }
 
+{
+  /*
+   * Ревизия Д-2: метка настроек — HTML-комментарий, копия из режима чтения её
+   * теряет. Запасной ход брал последний блок заметки — блок хоткеев — и
+   * восстанавливал карту хоткеев вместо настроек.
+   */
+  const cfg = { schemaVersion: 2, pkm: { lineFormat: { separator1: "||", separator2: "||" } } };
+  const map = { "inline-overhaul:x": [{ modifiers: ["Alt"], key: "F" }] };
+  const note = backup.buildBackupNote({ config: cfg, hotkeys: map });
+  assert.ok(note.includes(backup.SETTINGS_MARK), "контроль: метка в заметке есть");
+  const stripped = note.split("\n").filter((l: string) => l.trim() !== backup.SETTINGS_MARK && l.trim() !== backup.HOTKEYS_MARK).join("\n");
+  const back = backup.parseBackupNote(stripped);
+  assert.ok(back.pkm && back.pkm.lineFormat, "Д-2: без меток восстановились не настройки: " + JSON.stringify(back).slice(0, 120));
+  assert.throws(() => backup.parseBackupNote("```json\n{\"inline-overhaul:x\": []}\n```"), /does not hold plugin settings/,
+    "Д-2: JSON без единой ветки настроек принят за настройки");
+  ok("копия без меток восстанавливает настройки, а не хоткеи; чужой JSON отказывает");
+}
+
 console.log("\n" + passed + " проверок пройдено");

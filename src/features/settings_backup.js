@@ -768,6 +768,9 @@ function parseBackupNote(text) {
     throw new Error(inner === null ? NO_SETTINGS : BROKEN);
   }
   if (!isObj(parsed)) throw new Error(NO_SETTINGS);
+  /* Ни одной ветки настроек — это не настройки (хоткеи, чужой JSON): отказ,
+     а не пустое восстановление поверх выбранных вкладок (ревизия Д-2). */
+  if (!Object.keys(parsed).some((k) => PART_BRANCHES[k] || k === "schemaVersion" || k === "configVersion")) throw new Error(NO_SETTINGS);
   return parsed;
 }
 
@@ -808,7 +811,15 @@ function fencedJson(text) {
     }
   }
 
-  for (let i = lines.length - 1; i >= 0; i--) {
+  /*
+   * **Запасной ход ищет только выше раздела хоткеев** (ревизия Д-2). Метка —
+   * HTML-комментарий, и копия заметки из режима чтения её теряет; последним
+   * блоком тогда оказывался блок хоткеев, и восстановление клало карту
+   * хоткеев на место настроек, затирая выбранные вкладки.
+   */
+  const hotkeysAt = lines.findIndex((line) => String(line).trim() === HOTKEYS_MARK || /^#\s+Hotkeys\s*$/.test(String(line)));
+  const limit = hotkeysAt >= 0 ? hotkeysAt : lines.length;
+  for (let i = limit - 1; i >= 0; i--) {
     const body = bodyFrom(i);
     if (body !== null) return body;
   }
