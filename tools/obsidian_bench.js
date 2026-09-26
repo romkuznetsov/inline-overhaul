@@ -101,6 +101,13 @@ async function launch(name) {
     const trust = pick();
     if (trust) { trust.click(); await new Promise((r) => setTimeout(r, 1500)); }
     if (!p.plugins["inline-overhaul"]) { await p.setEnable(true); await p.enablePlugin("inline-overhaul"); }
+    /* Окно «что изменилось» нашего же плагина — закрыть его кнопкой: у копии его
+       vault версия в памяти плагина бывает старше сборки. */
+    await new Promise((r) => setTimeout(r, 800));
+    for (const m of [...document.querySelectorAll(".modal-container")]) {
+      if (/what changed/i.test(m.textContent)) { const b = m.querySelector("button.mod-cta"); if (b) b.click(); }
+    }
+    await new Promise((r) => setTimeout(r, 300));
     return {
       vault: window.app.vault.adapter.basePath,
       plugin: !!p.plugins["inline-overhaul"],
