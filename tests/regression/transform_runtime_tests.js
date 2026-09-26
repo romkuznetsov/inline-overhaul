@@ -530,6 +530,29 @@ async function testLeaveNamedKeepsRestAndSwapsName() {
  * умолчание и выбор заказчика): при разных строку ещё можно разобрать буквами,
  * при одинаковых — нельзя ничем, кроме этого знания.
  */
+/**
+ * **Чекбокс человека остаётся после Transform** (`В-239`, BUGHUNT T3). Свой
+ * чекбокс — Prefix Value строки (`checkboxByFieldValue`: у `#todo` это `[ ]`) —
+ * уходит вместе со своим Value; `[x]` человека — нет, иначе сделанная задача
+ * выпадала из поиска задач. Отрицательный контроль — свой `[ ]`.
+ */
+async function testHumanCheckboxSurvivesTransform() {
+  const runWith = async (line) => {
+    const editor = makeEditor(line);
+    const plugin = makePlugin(makeConfig({
+      outputFolder: "333",
+      noteName: { mode: "auto", delimiters: "[]", wordCount: 4, preferHeaderTitle: true },
+      sourceProcessing: { cleanupFieldIds: [], token: "#processed", panel: "right", replaceWithLink: true, text: "words", keepWords: 2 },
+    }, makeFieldsConfig()), editor);
+    await transform.runInline2Note(plugin, { lineFinalize });
+    return editor.text();
+  };
+  const human = await runWith("- [x] #todo :: сделано давно");
+  assertTrue(human.startsWith("- [x] "), "чекбокс человека снят Transform: " + human);
+  const own = await runWith("- [ ] #todo :: ещё не сделано");
+  assertTrue(!own.startsWith("- [ ] "), "отрицательный контроль: свой Prefix `[ ]` остался без своего Value: " + own);
+}
+
 async function testCleanedLeftSegmentKeepsTextAndTailApart() {
   const line = "- [ ] #todo #work #new [[test1]] :: ывыв ывы :: \u{1F4C5}2026-09-07 18:56";
   const runWith = async (text) => {
@@ -901,12 +924,16 @@ function runCustomHeaderPlacementSuite() {
       "вторая запись ложится в конец той же секции: " + again);
   }
 
-  /* 11. Остальные два положения при дописывании работают как работали. */
+  /* 11. `At the beginning` при дописывании — в начало тела (BUGHUNT T14).
+     Прежде здесь стояло «дописывание всегда шло в конец»: выбор человека
+     действовал только на новых заметках, и пин держал это. */
   {
     const before = "## Log\n- first entry\n";
     const asBefore = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "beginning" } }, "\n");
-    assertEq(asBefore, "## Log\n- first entry\n\n- new entry\n",
-      "дописывание всегда шло в конец, и `At the beginning` этого не менял");
+    assertEq(asBefore, "- new entry\n\n## Log\n- first entry\n",
+      "`At the beginning` при дописывании кладёт в начало тела");
+    const asEnd = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "end" } }, "\n");
+    assertEq(asEnd, "## Log\n- first entry\n\n- new entry\n", "отрицательный контроль: `At the end` — в конец");
   }
 
   /* 12. Нормализация знает новое значение и обе новые строки. */
@@ -1193,6 +1220,7 @@ async function run() {
   await testTitleWordsSurviveLeave();
   await testLeaveNamedKeepsRestAndSwapsName();
   await testCleanedLeftSegmentKeepsTextAndTailApart();
+  await testHumanCheckboxSurvivesTransform();
   await testProcessedTokenLeftPanelAfterCleanedLeftSegment();
   testProcessedTokenLeftPanelKeepsLineStart();
   await testCursorStandsAtEndOfTextAfterTransform();

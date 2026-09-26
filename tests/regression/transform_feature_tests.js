@@ -1044,4 +1044,22 @@ runElementValueWrittenByPluginIsFoundSuite();
   console.log("  ok R6: имя файла без скобок и знаков ссылки, повтор дописывает в ту же заметку");
 })();
 
+/* BUGHUNT T15 (В-245), T14, T22. */
+(function runTemplateAppendYamlSuite() {
+  const at = new Date(2026, 8, 26, 14, 5);
+  assertEq(transform.fillTemplateVariables("# {{title}} {{date}} {{time}} {{date:DD.MM.YYYY}}", "Имя", at),
+    "# Имя 2026-09-26 14:05 26.09.2026", "T15: переменные шаблона не подставлены");
+  assertEq(transform.fillTemplateVariables("без переменных", "Имя", at), "без переменных", "отрицательный контроль шаблона");
+  const i2nStart = { placement: { position: "beginning", headerMode: "none" } };
+  assertEq(transform.appendBlockIntoNote("---\na: 1\n---\nстарое\n", "- новое", i2nStart, "\n"),
+    "---\na: 1\n---\n- новое\n\nстарое\n", "T14: At the beginning дописал не в начало тела");
+  assertEq(transform.appendBlockIntoNote("старое\n", "- новое", { placement: { position: "end" } }, "\n"),
+    "старое\n\n- новое\n", "отрицательный контроль: At the end — в конец");
+  assertEq(transform.composeAppendBlock("- новое", i2nStart), "- новое", "T14: Line above the text = None, а дата стоит");
+  assertEq(transform.normalizeYamlValueForFormat("[[Archive/Old|Old]]", "clean", { fieldType: "wikilink" }), "Archive/Old",
+    "T22: Clean у ссылки с подписью");
+  assertEq(transform.normalizeYamlValueForFormat("[[Solo]]", "clean", { fieldType: "wikilink" }), "Solo", "Clean у простой ссылки");
+  console.log("  ok T15, T14, T22: переменные шаблона, место и строка дописывания, Clean ссылки с подписью");
+})();
+
 console.log("Transform feature regression tests: OK");

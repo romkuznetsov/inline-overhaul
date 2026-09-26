@@ -1441,8 +1441,9 @@ function normalizeYamlValueForFormat(rawToken, yamlFormat, row) {
   if (/^[\u{1F300}-\u{1FAFF}]\d{2}:\d{2}$/u.test(token)) return String(token.slice(2)).trim();
   if (/^[\u{1F300}-\u{1FAFF}]\d{4}-\d{2}-\d{2}$/u.test(token)) return String(token.slice(2)).trim();
   if (/^[\u{1F300}-\u{1FAFF}]\d+$/u.test(token)) return String(token.slice(2)).trim();
-  const wl = token.match(/^\[\[([^\]]+)\]\]$/);
-  if (wl) return String(wl[1] || "").trim();
+  /* Ссылка отдаёт адрес, а не подпись: `[[Archive/Old|Old]]` — `Archive/Old`
+     (BUGHUNT T22, вид 10.13.277). */
+  if (__sharedUtils.isWikilinkToken(token)) return __sharedUtils.wikilinkTargetOf(token);
   return token;
 }
 
@@ -2495,7 +2496,8 @@ function splitSourcePayload(line, separators, shape) {
     if (firstIdx >= 0) {
       if (shape && shape.payloadFirst) {
         const head = String(body.slice(0, firstIdx) || "");
-        const prefix = String((head.match(/^[-*+]\s+(?:\[.\]\s+)?/u) || [""])[0] || "");
+        /* Начало строки — общего дома: номер, цитата и заголовок тоже (BUGHUNT T2). */
+        const prefix = String(__sharedUtils.lineStartOf(head).prefix || "");
         return {
           kind: "payload-right", src, indent, s1, s2, prefix,
           payload: String(head.slice(prefix.length) || "").trim(),
@@ -2509,9 +2511,16 @@ function splitSourcePayload(line, separators, shape) {
       };
     }
   }
-  const bullet = src.match(/^([\s]*[-*]\s+)(.+)$/);
-  if (bullet) {
-    return { kind: "bullet", src, s1, s2, prefix: bullet[1], payload: String(bullet[2] || "").trim() };
+  /*
+   * **Начало строки остаётся строке, текст — тексту** (BUGHUNT T2, T3; `В-239`
+   * «сохранять чекбокс человека»). Свой образец знал `- ` и `* `: чекбокс
+   * уходил в текст и пропадал вместе с ним, а строка с номером, цитатой или без
+   * знака текст оставляла и дописывала ссылку после него. Начало спрашивается
+   * у `lineStartOf`, как у всех.
+   */
+  const start = __sharedUtils.lineStartOf(src);
+  if (String(start.body || "").trim()) {
+    return { kind: "bullet", src, s1, s2, prefix: String(start.prefix || ""), payload: String(start.body || "").trim() };
   }
   /* Ни Separator, ни маркера списка: читать нечего, дописывать — в конец. */
   return { kind: "none", src, s1, s2, payload: "" };
@@ -2923,9 +2932,26 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
       return sourceFields.find((field) => String(field && field.id || "") === String(fieldId || "")) || null;
     },
   }) || "").trim();
+  /*
+   * **Чекбокс человека остаётся** (`В-239`, BUGHUNT T3). Свой чекбокс — тот,
+   * что стоит Prefix у одного из Value этой строки (`checkboxByFieldValue`);
+   * он уходит вместе со своим Value. Любой другой поставил человек: задача
+   * после Transform остаётся задачей и не выпадает из поиска задач.
+   */
+  const byFieldValue = isObj(prefixRules && prefixRules.checkboxByFieldValue) ? prefixRules.checkboxByFieldValue : {};
+  const own = new Set();
+  for (let i = 0; i < matches.length; i++) {
+    const map = byFieldValue[String(matches[i] && matches[i].fieldId || "").trim()];
+    if (!isObj(map)) continue;
+    /* Ключ Value в карте бывает и с решёткой, и без неё. */
+    const raw = String(matches[i].rawToken || "").trim();
+    for (const key of [raw, raw.replace(/^#/, "")]) if (map[key] != null) own.add(String(map[key]).trim());
+  }
+  const humanBox = parsedLine.checkboxToken && !own.has(parsedLine.checkboxToken) ? parsedLine.checkboxToken : "";
+  const withBox = humanBox && !/\[[^\]]\]$/.test(resolved) ? `${resolved} ${humanBox}` : resolved;
   const indent = String((String(line || "").match(/^[\t ]*/) || [""])[0] || "");
   const body = String(line || "").slice(indent.length).replace(/^[-*+]\s+(?:\[[^\]]\]\s+)?/, "").trimStart();
-  return `${indent}${resolved}${body ? " " + body : ""}`.trimEnd();
+  return `${indent}${withBox}${body ? " " + body : ""}`.trimEnd();
 }
 
 function composeFieldValueToken(field, valueToken) {
@@ -3434,6 +3460,22 @@ function replaceEditorSourceBlock(ed, info, nextRootLine, sublines, separators, 
   putCursor();
 }
 
+/**
+ * **Переменные шаблона** (`В-245`, его ответ «подставлять»; BUGHUNT T15):
+ * `{{title}}`, `{{date}}`, `{{time}}` и `{{date:ФОРМАТ}}`/`{{time:ФОРМАТ}}` —
+ * как у встроенного плагина Templates Obsidian. Форматы по умолчанию — его
+ * же: `YYYY-MM-DD` и `HH:mm`. Прежде шаблон копировался буквально.
+ */
+function fillTemplateVariables(text, title, now) {
+  /* Дату пишет тот же форматировщик, что пишет значения дат в строку. */
+  const d = now instanceof Date ? now : new Date();
+  const at = { format: (fmt) => __sharedUtils.formatDateByMask(d, fmt) };
+  return String(text || "")
+    .replace(/{{\s*title\s*}}/gi, () => String(title || ""))
+    .replace(/{{\s*date(?::([^}]*))?\s*}}/gi, (_m, fmt) => at.format(String(fmt || "").trim() || "YYYY-MM-DD"))
+    .replace(/{{\s*time(?::([^}]*))?\s*}}/gi, (_m, fmt) => at.format(String(fmt || "").trim() || "HH:mm"));
+}
+
 async function readTemplateContent(plugin, templatePath) {
   const path = String(templatePath || "").trim();
   if (!path) return "";
@@ -3575,9 +3617,13 @@ function blockWithOwnHeader(block, spec, nl) {
   return header ? `${header}${nl}${body}` : body;
 }
 
+/*
+ * Строка над дописанным текстом — та, что выбрана в `Line above the text`
+ * (BUGHUNT T14). Прежде здесь всегда стояла дата: выбор человека действовал
+ * только на новых заметках.
+ */
 function composeAppendBlock(inlineText, i2n) {
-  const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
-  const header = formatHeaderByMode({ placement: { ...placement, headerMode: "datetime" } });
+  const header = formatHeaderByMode(i2n);
   return [header, normalizeInlineBlockForBody(inlineText, "\n")].filter(Boolean).join("\n");
 }
 
@@ -3645,6 +3691,14 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   if (!text) return before;
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const pos = String(placement.position || "end").trim().toLowerCase();
+  /* `At the beginning` — за frontmatter, в начало тела (BUGHUNT T14): прежде
+     дописывание шло в конец при любом выборе. */
+  if (pos === "beginning") {
+    const fm = parseFrontmatter(before);
+    const top = before.slice(0, before.length - fm.body.length);
+    const rest = fm.body.replace(/^(?:\r?\n)+/, "").replace(/\r?\n/g, nl);
+    return rest.trim() ? `${top}${text}${nl}${nl}${rest}` : `${top}${text}${nl}`;
+  }
   if (pos !== "custom-header") return `${before.trimEnd()}${nl}${nl}${text}${nl}`;
 
   const parsed = parseFrontmatter(before);
@@ -3825,7 +3879,7 @@ async function runInline2Note(plugin, runtimeOptions) {
     || String(i2n.defaultTemplate || "").trim();
   const templateContent = target.mode === "add_to_note" && target.exists
     ? ""
-    : await readTemplateContent(plugin, templatePath);
+    : fillTemplateVariables(await readTemplateContent(plugin, templatePath), title);
   const { yamlLines, body, newline } = parseFrontmatter(templateContent);
   const mergedYaml = renderYamlBlockWithOrder(yamlLines, yamlMap, cfg);
   /*
@@ -3933,6 +3987,8 @@ module.exports = {
   /* Имя файла из названия (BUGHUNT R6) и повтор в ту же заметку (`В-240`) — ради проверки. */
   slugSafeTitle,
   sameNoteAgain,
+  fillTemplateVariables,
+  normalizeYamlValueForFormat,
   /* Откуда название и какой кусок строки им стал: один ответ на оба вида
      имени, и спрашивают его движок, предпросмотр и проверки (У-32). */
   resolveAutoTitleInfo,
