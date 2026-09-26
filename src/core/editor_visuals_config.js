@@ -2344,7 +2344,9 @@ function tagwheelPanelSpans(text, colors, placeholders) {
    * отрезок: внутри токена чужого оформления нет.
    */
   if (!showPrefix) {
-    const tokenRe = /`([^`]+)`|(#\S+)/g;
+    /* Тег кончается на разметке панели: `**[#low]**` отдавал `#low]**`, и замена
+       заходила на скобку — платформа её отвергала, решётка оставалась (ревизия Д-7). */
+    const tokenRe = /`([^`]+)`|(#[^\s\]*`]+)/g;
     let m;
     while ((m = tokenRe.exec(segment)) !== null) {
       const raw = String(m[1] || m[2] || "");

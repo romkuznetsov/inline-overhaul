@@ -1377,4 +1377,16 @@ const filled = (el: Any): boolean =>
   ok("S13: чем печатается значение вместо себя — один ответ на заметку и на скроллер");
 }
 
+{
+  /* Ревизия Д-7: тег в активной ячейке `**[#low]**` кончается до скобки —
+     иначе замена заходила на разметку, и платформа её отвергала. */
+  const line = "- ==**[#low]** `Priority`== || x";
+  const spans = I.tagwheelPanelSpans(line, { showPrefix: false, fillColor: "#111111" } as never, new Set()) as Array<{ kind: string; start: number; end: number; text?: string }>;
+  const rep = spans.find((x) => x.kind === "replace");
+  assert.ok(rep, "подмена решётки не поставлена");
+  assert.equal(line.slice(rep!.start, rep!.end), "#low", "Д-7: подмена тега захватила разметку панели");
+  assert.equal(rep!.text, "low", "решётка спрятана");
+  ok("Д-7: подмена решётки в активной ячейке кончается на теге");
+}
+
 console.log("\n" + passed + " проверок пройдено");

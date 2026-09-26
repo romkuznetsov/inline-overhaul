@@ -154,7 +154,16 @@ const traceEvent = __devLog.traceQuietly;
  * спрятала бы ровно то, ради чего её читают.
  */
 function buildDecorationSet(ranges, where) {
-  const list = Array.isArray(ranges) ? ranges : [];
+  /*
+   * **Порядок набора — начало, затем сторона** (ревизия Д-7, Д-8): так его
+   * требует `RangeSetBuilder`. Звавшие сортировали по началу и концу, без
+   * стороны, и пометка с заменой на одном начале приходили не в том порядке —
+   * замена отвергалась, решётка оставалась видна. Сортировка устойчива: прочий
+   * порядок звавшего сохраняется.
+   */
+  const side = (r) => Number(r && r.deco && r.deco.startSide) || 0;
+  const list = (Array.isArray(ranges) ? ranges : []).slice()
+    .sort((a, b) => (Number(a && a.from) - Number(b && b.from)) || (side(a) - side(b)));
   const builder = new cmState.RangeSetBuilder();
   let refused = 0;
   let firstMessage = "";
