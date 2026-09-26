@@ -33,6 +33,7 @@
 
 const __sharedUtils = require("../core/shared_utils.js");
 const __macroShared = require("../core/pkm_macro_shared.js");
+const __rulesShape = require("../core/pkm_rules_shape.js");
 
 /**
  * Знак списка для новой строки.
@@ -146,14 +147,14 @@ function handleSmartEnterKeymap(plugin) {
 
     const lineText = String(editor.getLine(line) || "");
     /*
-     * Разделители берутся из настроек человека, а не из литерала: у него они
-     * разные (`||` и `::`), и «второй разделитель» без них не найти.
+     * Правила — те же, что получают движки (`buildRulesForEngines`): не
+     * только разделители человека, но и его Fields. Без Fields одиночный
+     * разделитель нельзя признать вторым — `- текст || 📅…` читалась слотом
+     * текста за датой, и `Text only` отдавал клавишу платформе (BUGHUNT K4).
      */
-    const rules = { io: {
-      separator1: String(cfg.pkm && cfg.pkm.lineFormat ? cfg.pkm.lineFormat.separator1 || "" : ""),
-      separator2: String(cfg.pkm && cfg.pkm.lineFormat ? cfg.pkm.lineFormat.separator2 || "" : ""),
-    } };
-    if (!rules.io.separator1 || !rules.io.separator2) return false;
+    const lf = cfg.pkm && cfg.pkm.lineFormat ? cfg.pkm.lineFormat : {};
+    if (!lf.separator1 || !lf.separator2) return false;
+    const rules = __rulesShape.buildRulesForEngines(cfg);
 
     const plan = planSmartEnter({
       enabled: true,

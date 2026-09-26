@@ -969,7 +969,7 @@ function parseLine(rawLine, rules) {
     var src = String(raw || '').trim()
     var out = { tags: [], dates: [], text: [], values: [] }
     if (!src) return out
-    var parts = src.split(/\s+/)
+    var parts = __sharedUtils.lineWords(src)
     /*
      * **Ссылка — значение поля только тогда, когда она значением названа**
      * (его слово В-141, 2026-09-17). Дом признака один — общие помощники, — и
@@ -1046,7 +1046,7 @@ function parseLine(rawLine, rules) {
 function extractTagLikeTokens(text) {
   var s = String(text || '').trim()
   if (!s) return []
-  var parts = s.split(/\s+/)
+  var parts = __sharedUtils.lineWords(s)
   var out = []
   var i
   for (i = 0; i < parts.length; i++) {
@@ -2162,7 +2162,7 @@ function forEachNavigatorPair(rules, fn) {
  */
 function dropNavigatorSelections(rules, state, originalLine) {
   if (!state || !state.selected) return
-  var words = String(originalLine || '').split(/\s+/)
+  var words = __sharedUtils.lineWords(originalLine)
   forEachNavigatorPair(rules, function (parent, child) {
     var pid = state.selected[parent.id] || ''
     if (!pid) return
@@ -3266,7 +3266,7 @@ function getUnmanagedRightTokens(parsedLine, rules) {
     throw new Error('pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap')
   }
   var map = helpers.buildTagTokenKeyMap(rules, helpers.getDefaultTagTokenKeyMapOptions()) || {}
-  var parts = raw.split(/\s+/)
+  var parts = __sharedUtils.lineWords(raw)
   var out = []
   var i
   for (i = 0; i < parts.length; i++) {

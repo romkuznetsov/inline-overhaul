@@ -30,25 +30,21 @@
  * а этот ещё и решает, что человек увидит.
  */
 
+const __sharedUtils = require("./shared_utils.js");
+
 /**
  * Строка словами: кусок без пробелов вместе с пробелами перед ним.
  *
  * По словам, а не по знакам, нарочно: знаковое сравнение сводит `||` полосы и
  * `|` соседнего значения в один общий кусок и рвёт вставку пополам. Склейка
  * слов обратно даёт ту же строку знак в знак — это и делает план проверяемым.
+ *
+ * **Ссылка `[[…]]` — одно слово и с пробелом внутри** (BUGHUNT F4): иначе
+ * план оставлял на месте `[[Project`, прятал ` B]]` посреди ссылки, и Obsidian
+ * рисовал `Project B]]`. Граница слова — общего модуля (`lineWords`).
  */
 function splitWords(text) {
-  const out = [];
-  const src = String(text == null ? "" : text);
-  let i = 0;
-  while (i < src.length) {
-    let j = i;
-    while (j < src.length && /\s/.test(src[j])) j += 1;
-    while (j < src.length && !/\s/.test(src[j])) j += 1;
-    out.push(src.slice(i, j));
-    i = j;
-  }
-  return out;
+  return __sharedUtils.lineWordsWithSpace(text);
 }
 
 /**

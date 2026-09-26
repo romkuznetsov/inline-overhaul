@@ -186,6 +186,13 @@ function getCursorForPanel(finalLine, rules, panelName, options) {
   return idx > 0 && line.charAt(idx - 1) === " " ? (idx - 1) : idx;
 }
 
+/** Хвост за разделителем — одни значения Field, то есть правый Block. */
+function isRightPayloadTail(tail, rules) {
+  const isFieldValueToken = __lineFinalize.makeFieldValueTokenTest(rules);
+  const tokens = __sharedUtils.lineWords(tail);
+  return tokens.length > 0 && tokens.every(isFieldValueToken);
+}
+
 function getTextSlotBounds(lineInput, rules) {
   const line = String(lineInput || "");
   const sep = resolveSeparatorsOrThrow(rules);
@@ -223,6 +230,23 @@ function getTextSlotBounds(lineInput, rules) {
     if (i2 !== -1) {
       end = i2;
       while (end > start && line.charAt(end - 1) === " ") end -= 1;
+    } else if (isRightPayloadTail(line.slice(start), rules)) {
+      /*
+       * **Разделитель один, и за ним правый Block — значит это второй
+       * разделитель** (BUGHUNT K4, K5). Так же отвечает разбор строки
+       * (`splitSegments`, `В-211`): `- позвонить || 📅2026-09-30` — текст
+       * слева. Прежде слотом текста объявлялась дата, и Smart Enter
+       * `Text only` в тексте человека отдавал клавишу платформе — она рвала
+       * запись пополам. Значения Field слева — зона значений, слот пуст.
+       */
+      const from = __sharedUtils.lineStartOf(line).at;
+      let to = i1;
+      while (to > from && line.charAt(to - 1) === " ") to -= 1;
+      const head = line.slice(from, to);
+      const isFieldValueToken = __lineFinalize.makeFieldValueTokenTest(rules);
+      const words = __sharedUtils.lineWords(head);
+      if (words.length && words.every(isFieldValueToken)) return { start: to, end: to };
+      return { start: from, end: to };
     }
   } else {
     const i2 = line.indexOf(sep2, start);
@@ -260,10 +284,7 @@ function getCursorAtTextEnd(finalLine, rules) {
          * Видно это только при **совпадающих** разделителях: при разных зону
          * текста закрывает второй разделитель, и сюда не доходит (У-147).
          */
-        const isFieldValueToken = __lineFinalize.makeFieldValueTokenTest(rules);
-        const tokens = tail.split(/\s+/).filter(Boolean);
-        const isRightPayload = tokens.length > 0 && tokens.every(isFieldValueToken);
-        if (isRightPayload) {
+        if (isRightPayloadTail(tail, rules)) {
           let leftEnd = i1;
           while (leftEnd > 0 && line[leftEnd - 1] === " ") leftEnd -= 1;
           /*

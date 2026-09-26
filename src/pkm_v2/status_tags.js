@@ -393,9 +393,9 @@ function applyCombinedSubtagsFromState(line, rules, orderCfg, state, fields) {
   }
   for (const pair of pairs) {
     const seg = linePipeline.splitSegments(out, rules);
-    const collapsedLeft = runtime.applyCombinedToTokenList(String(seg.left || "").trim().split(/\s+/).filter(Boolean), [pair]).join(" ");
-    const collapsedText = runtime.applyCombinedToTokenList(String(seg.text || "").trim().split(/\s+/).filter(Boolean), [pair]).join(" ");
-    const collapsedDates = runtime.applyCombinedToTokenList(String(seg.dates || "").trim().split(/\s+/).filter(Boolean), [pair]).join(" ");
+    const collapsedLeft = runtime.applyCombinedToTokenList(__sharedUtils.lineWords(seg.left), [pair]).join(" ");
+    const collapsedText = runtime.applyCombinedToTokenList(__sharedUtils.lineWords(seg.text), [pair]).join(" ");
+    const collapsedDates = runtime.applyCombinedToTokenList(__sharedUtils.lineWords(seg.dates), [pair]).join(" ");
     seg.left = collapsedLeft;
     seg.text = collapsedText;
     seg.dates = collapsedDates;
@@ -2040,7 +2040,7 @@ module.exports = {
         const priorityOrderKey = String(resolveOrderKeyForField(rules, importanceField) || importanceOrderKey || actionFieldKey || "").trim();
         const priorityPanel = panelForTagKey(orderCfg, priorityOrderKey);
         const parts = linePipeline.splitLeftPrefix(stripPriorityTokens(finalLine));
-        const bodyTokens = String(parts.body || "").trim().split(/\s+/).filter(Boolean);
+        const bodyTokens = __sharedUtils.lineWords(parts.body);
         let leadingTagCount = 0;
         while (leadingTagCount < bodyTokens.length) {
           const tok = String(bodyTokens[leadingTagCount] || "");

@@ -202,7 +202,7 @@ function hasFieldTokens(body, shape) {
   /* Форма тега — общий дом; текст образца совпадает с прежним до знака
      (10.13.141). */
   if (new RegExp("(^|\\s)" + __sharedUtils.TAG_TOKEN_SRC).test(src)) return true;
-  const tokens = src.split(/\s+/).filter(Boolean);
+  const tokens = __sharedUtils.lineWords(src);
   const isLink = shape && typeof shape.isLink === "function" ? shape.isLink : null;
   for (const t of tokens) {
     /*
@@ -279,7 +279,7 @@ function isPlainTextSegmentToken(token) {
 function hasRightPayloadInvariantShape(dates, markers) {
   var payload = String(dates || "").trim();
   if (!payload) return false;
-  var parts = payload.split(/\s+/).filter(Boolean);
+  var parts = __sharedUtils.lineWords(payload);
   if (!parts.length) return false;
   if (startsWithAnyMarker(parts[0], markers)) return true;
   return parts.every(function(tok) {
@@ -293,12 +293,12 @@ function collapseDuplicateTextForRightPayload(seg, markers) {
   var dates = String(seg && seg.dates ? seg.dates : "").trim();
   if (!left || !text || !dates) return text;
   if (!hasRightPayloadInvariantShape(dates, markers)) return text;
-  var textTokens = text.split(/\s+/).filter(Boolean);
+  var textTokens = __sharedUtils.lineWords(text);
   if (!textTokens.length) return text;
   if (!textTokens.every(isPlainTextSegmentToken)) return text;
   var leftBody = stripListPrefixForBody(left);
   if (!leftBody) return text;
-  var leftTokens = leftBody.split(/\s+/).filter(Boolean);
+  var leftTokens = __sharedUtils.lineWords(leftBody);
   if (leftTokens.length < textTokens.length) return text;
   var leftTail = leftTokens.slice(leftTokens.length - textTokens.length).join(" ");
   if (leftTail !== text) return text;
@@ -368,7 +368,7 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
    * остаётся текстом.
    */
   const rest = stripLeadingValues(parts.body, shape.markers);
-  const words = rest.split(/\s+/).filter(Boolean);
+  const words = __sharedUtils.lineWords(rest);
   const text = words.filter(function(t) { return !shape.values.has(t); });
   if (!text.length) return null;
   const head = parts.body.slice(0, parts.body.length - rest.length).trim();
@@ -406,7 +406,7 @@ function splitSegments(rawLine, rules) {
       let textOnly = parts[1] || "";
       let rightOnly = "";
       if (textOnly) {
-        const tokens = textOnly.split(/\s+/).filter(Boolean);
+        const tokens = __sharedUtils.lineWords(textOnly);
         const isRightPayload = (tokens.length > 0
           && tokens.every(function(t) {
             return isLikelyRightPayloadToken(t, markers, shape);
@@ -511,7 +511,7 @@ function splitSegments(rawLine, rules) {
   let dates = i2 === -1 ? "" : after1.slice(i2 + sep2.length).trim();
 
   if (i2 === -1 && text) {
-    const parts = text.split(/\s+/).filter(Boolean);
+    const parts = __sharedUtils.lineWords(text);
     const isRightPayload = (parts.length > 0
       && parts.every(function(t) {
         return isLikelyRightPayloadToken(t, markers, shape);
@@ -880,9 +880,7 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
    */
   const managed = collectManagedTokens(rules);
   if (managed.size) {
-    left = left
-      .split(/\s+/)
-      .filter(Boolean)
+    left = __sharedUtils.lineWords(left)
       .filter(function(t) { return !managed.has(t); })
       .join(" ");
   }
@@ -1191,7 +1189,7 @@ function cleanOriginalTextForLeftDate(options) {
   var out = extractOriginalTextFromRawLine(rawLine, rules);
   if (!out) return "";
 
-  var rightTokens = String(segRaw && segRaw.dates ? segRaw.dates : "").split(/\s+/).filter(Boolean);
+  var rightTokens = __sharedUtils.lineWords(segRaw && segRaw.dates ? segRaw.dates : "");
   out = removeExactTokens(out, rightTokens);
   var markers = collectDateLikeMarkersFromRules({
     rules: rules,

@@ -1057,6 +1057,25 @@ const WIKILINK_TARGET_RE = /^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/;
 const TAG_TOKEN_RE = new RegExp("^" + TAG_TOKEN_SRC + "$");
 const TAG_TOKEN_LEAD_RE = new RegExp("^" + TAG_TOKEN_SRC);
 
+/**
+ * **Слова строки: пробел делит слова, кроме пробела внутри ссылки `[[…]]`**
+ * (BUGHUNT 2026-09-26, корень R1). Значение ссылки бывает с пробелом —
+ * стартовые `Project A` и `Project B` такие с первой минуты, — и `split(/\s+/)`
+ * рвал его на `[[Project` и `A]]`: ни половина ссылкой не была, правый Block не
+ * узнавался, а его разделитель стирался как лишний. Одно объявление на весь
+ * разбор строки; незакрытая `[[` ссылкой не считается и делится как раньше.
+ */
+const WORD_WITH_LINKS_RE = /(?:\[\[[^\]\n]*\]\]|\S)+/g;
+function lineWords(text) {
+  return String(nz(text, "")).match(WORD_WITH_LINKS_RE) || [];
+}
+
+/** Те же слова вместе с пробелами перед каждым: склейка даёт строку знак в знак. */
+const WORD_WITH_SPACE_RE = new RegExp("\\s*" + WORD_WITH_LINKS_RE.source + "|\\s+", "g");
+function lineWordsWithSpace(text) {
+  return String(nz(text, "")).match(WORD_WITH_SPACE_RE) || [];
+}
+
 /** Весь токен целиком — ссылка вида `[[имя]]`. */
 function isWikilinkToken(text) {
   return WIKILINK_TOKEN_RE.test(String(nz(text, "")).trim());
@@ -1524,6 +1543,8 @@ module.exports = {
   wikilinkVisualToken,
   wikilinkLineToken,
   wikilinkLineForms,
+  lineWords,
+  lineWordsWithSpace,
   listIndentLevel,
   renumberOrderedWindow,
   unwrapWikilinkToken,

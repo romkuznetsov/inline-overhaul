@@ -794,11 +794,8 @@ function tokenizeSegmentBody(body, markers) {
       const m = rx.exec(src.slice(i));
       if (m && m[0]) { taken = m[0]; break; }
     }
-    if (!taken) {
-      let j = i;
-      while (j < src.length && !/\s/.test(src[j])) j += 1;
-      taken = src.slice(i, j);
-    }
+    /* Слово без метки — по общему правилу слов: ссылка с пробелом одна (R1). */
+    if (!taken) taken = __sharedUtils.lineWords(src.slice(i))[0] || "";
     if (taken) out.push(taken);
     i += taken.length;
   }

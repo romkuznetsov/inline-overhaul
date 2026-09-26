@@ -1030,7 +1030,7 @@ function relocateOffEntriesToRightPanel(options) {
         set[t] = true;
       }
       if (!Object.keys(set).length) return src;
-      return src.split(/\s+/).filter((t) => !set[t]).join(" ").trim();
+      return __sharedUtils.lineWords(src).filter((t) => !set[t]).join(" ").trim();
     };
 
   const appendToken = typeof opts.appendToken === "function"
@@ -1592,7 +1592,7 @@ function normalizeStructuredSlots(options) {
    * мерой, и она записана строкой очереди; оба сегодняшних ответа закреплены
    * проверками, чтобы сведение было осознанным, а не тихим.
    */
-  const textTokensAll = text ? text.split(/\s+/).filter(Boolean) : [];
+  const textTokensAll = __sharedUtils.lineWords(text);
   const textIsAllFieldValues = textTokensAll.length > 0 && textTokensAll.every(isControlToken);
   if (text && !leftBody && !dates && !textIsAllFieldValues) {
     return `${headingPrefix} ${text}`.replace(/\s{2,}/g, " ").trimEnd();
@@ -1600,7 +1600,7 @@ function normalizeStructuredSlots(options) {
 
   if (text) return line;
 
-  const tokens = leftBody ? leftBody.split(/\s+/).filter(Boolean) : [];
+  const tokens = __sharedUtils.lineWords(leftBody);
   if (!tokens.length) return line;
 
   let splitAt = tokens.length;
@@ -1722,7 +1722,7 @@ function normalizeLeftTextSpill(options) {
   const leftParts = splitLeftDecorators(seg.left);
   const body = String(leftParts.body || "").trim();
   if (!body) return line;
-  const tokens = body.split(/\s+/).filter(Boolean);
+  const tokens = __sharedUtils.lineWords(body);
   if (tokens.length < 2) return line;
 
   const isControlToken = makeFieldValueTokenTest(rules);
@@ -1815,7 +1815,7 @@ function stripListDecoratorsForPlainText(raw) {
 function extractTrailingMarkerPayloadFromText(rawText, rules) {
   const src = String(rawText || "").trim();
   if (!src) return { text: "", payload: "" };
-  const parts = src.split(/\s+/).filter(Boolean);
+  const parts = __sharedUtils.lineWords(src);
   if (!parts.length) return { text: "", payload: "" };
   let start = -1;
   let i;
@@ -1915,8 +1915,8 @@ function enforceRightPayloadSeparatorInvariant(options) {
   if (!dates && text) {
     const leftParts = splitLeftPrefix(left);
     const leftBody = String(leftParts.body || "").trim();
-    const leftTokens = leftBody ? leftBody.split(/\s+/).filter(Boolean) : [];
-    const textTokens = text.split(/\s+/).filter(Boolean);
+    const leftTokens = __sharedUtils.lineWords(leftBody);
+    const textTokens = __sharedUtils.lineWords(text);
     let markerIdx = -1;
     let i;
     for (i = leftTokens.length - 1; i >= 0; i--) {

@@ -345,9 +345,9 @@ function enforceDependentAdjacencyForStatusLine(options) {
 
   const seg = splitSegments(src, rules);
   const leftParts = splitLeftPrefix(seg.left);
-  let leftTokens = String(leftParts.body || "").trim().split(/\s+/).filter(Boolean);
-  let textTokens = String(seg.text || "").trim().split(/\s+/).filter(Boolean);
-  let dateTokens = String(seg.dates || "").trim().split(/\s+/).filter(Boolean);
+  let leftTokens = __sharedUtils.lineWords(leftParts.body);
+  let textTokens = __sharedUtils.lineWords(seg.text);
+  let dateTokens = __sharedUtils.lineWords(seg.dates);
 
   function tokenCandidatesForField(field) {
     if (!field) return [];

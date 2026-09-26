@@ -19,6 +19,7 @@ const assert = require("assert");
 const engine = require("../../src/features/smart_enter_engine.js");
 const macroShared = require("../../src/core/pkm_macro_shared.js");
 const sharedUtils = require("../../src/core/shared_utils.js");
+const configNormalize = require("../../src/core/config_normalize.js");
 const { planSmartEnter, nextMarkerFor, handleSmartEnterKeymap } = engine;
 
 let passed = 0;
@@ -322,8 +323,10 @@ function apply(line, result) {
     },
   });
 
+  /* Конфиг — через `migrateConfig`, как у плагина (правило 2): обработчик
+     строит из него правила движков, и сырой кусок конфига до них не доходит. */
   const plugin = (cfg, editor) => ({
-    getConfig: () => cfg,
+    getConfig: () => configNormalize.migrateConfig(Object.assign({ schemaVersion: 2 }, cfg)),
     getActiveEditor: () => editor,
   });
 
@@ -404,7 +407,7 @@ function apply(line, result) {
   /* Разделителей в настройках нет — движок обязан молчать, а не гадать. */
   const noSeps = { editor: { smartEnter: { enabled: true, newLinePrefix: "same" } }, pkm: { lineFormat: {} } };
   const ed6 = makeEditor([line], { line: 0, ch });
-  assert.strictEqual(handleSmartEnterKeymap(plugin(noSeps, ed6)), false,
+  assert.strictEqual(handleSmartEnterKeymap({ getConfig: () => noSeps, getActiveEditor: () => ed6 }), false,
     "без разделителей в настройках клавиша не наша");
 
   assert.strictEqual(handleSmartEnterKeymap({}), false, "без конфига обработчик упал");

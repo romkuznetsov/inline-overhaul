@@ -40,8 +40,15 @@ function prepare(name) {
   const profile = path.join(work, "profile");
   const vault = path.join(work, "vault");
   fs.mkdirSync(profile, { recursive: true });
-  /* Раскладка окон — его, стенду она не нужна и открывает лишнее. */
-  fs.cpSync(SRC_VAULT, vault, { recursive: true, filter: (p) => !/[\\/]\.obsidian[\\/]workspace(-mobile)?\.json$/.test(p) });
+  if (name === "clean") {
+    /* Чистый vault (BUGHUNT 2026-09-26): пустая папка, сборка из `dist` тем же
+       установщиком, что у человека, и ни одного `data.json` — стартовый набор. */
+    require("child_process").execFileSync(process.execPath,
+      [path.join(ROOT, "tools", "build", "install_test_vault.js"), "--no-build", vault], { cwd: ROOT, stdio: "ignore" });
+  } else {
+    /* Раскладка окон — его, стенду она не нужна и открывает лишнее. */
+    fs.cpSync(SRC_VAULT, vault, { recursive: true, filter: (p) => !/[\\/]\.obsidian[\\/]workspace(-mobile)?\.json$/.test(p) });
+  }
   /* `IO_MAIN=<файл>` — другая сборка плагина в копии vault (контроль стенда
      подменённой сборкой); его `test-vault` не трогается. */
   if (process.env.IO_MAIN) {
@@ -148,7 +155,162 @@ const PREPARE = {
   },
 };
 
+/**
+ * Один случай пакета чистого vault (`tools/obsidian_cases.js`): заметки →
+ * каретка → шаги → сверка. Всё внутри страницы, одним заходом: между шагом и
+ * сверкой нет ожидания снаружи (У-211). Настройки и файлы возвращаются к
+ * исходным после каждого случая, чтобы случаи не зависели друг от друга.
+ */
+async function runCase(win, c) {
+  return win.evaluate(async (c) => {
+    const a = window.app;
+    const plugin = a.plugins.plugins["inline-overhaul"];
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const today = window.moment().format("YYYY-MM-DD");
+    const fill = (s) => String(s).split("{{today}}").join(today);
+    if (!window.__ioBenchCfg) window.__ioBenchCfg = JSON.parse(JSON.stringify(plugin.getConfig()));
+    const log = [];
+    const ed = () => a.workspace.activeEditor && a.workspace.activeEditor.editor;
+    const open = async (file) => {
+      await a.workspace.getLeaf(false).openFile(a.vault.getAbstractFileByPath(file), { state: { mode: "source", source: false } });
+      await sleep(400);
+    };
+    try {
+      for (const [p, text] of Object.entries(c.files || {})) {
+        const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+        if (dir && !a.vault.getAbstractFileByPath(dir)) await a.vault.createFolder(dir);
+        const f = a.vault.getAbstractFileByPath(p);
+        if (f) await a.vault.modify(f, fill(text)); else await a.vault.create(p, fill(text));
+      }
+      if (c.cfg) { plugin.setConfigPatch(c.cfg, "bench"); plugin.registerPkmCommands(); plugin.registerBinderCommands(); await sleep(200); }
+      if (c.at) {
+        await open(c.at.file);
+        const e = ed();
+        const line = typeof c.at.line === "number" ? c.at.line : e.getValue().split("\n").indexOf(c.at.line);
+        const text = e.getLine(line);
+        const ch = typeof c.at.ch === "number" ? c.at.ch : (c.at.after ? text.indexOf(c.at.after) + c.at.after.length : text.length);
+        e.setCursor({ line, ch });
+        if (c.at.sel) e.setSelection({ line, ch: text.indexOf(c.at.sel) }, { line, ch: text.indexOf(c.at.sel) + c.at.sel.length });
+        e.focus();
+      }
+      for (const s of c.steps || []) {
+        if (typeof s === "string") {
+          const ok = a.commands.executeCommandById("inline-overhaul:" + s);
+          if (!ok) log.push("команда не выполнилась: " + s);
+        } else if (s.open) await open(s.open);
+        else if (s.cursor) { ed().setCursor(s.cursor); }
+        else if (s.cfg) { plugin.setConfigPatch(s.cfg, "bench"); plugin.registerPkmCommands(); plugin.registerBinderCommands(); }
+        else if (s.js) { await (0, eval)("(async (a, plugin, ed) => {" + s.js + "})")(a, plugin, ed()); }
+        await sleep(s.wait || 350);
+      }
+      return { log };
+    } catch (e) { return { log: log.concat(["бросок: " + (e && e.stack || e)]) }; }
+  }, c);
+}
+
+/** Сверка и уборка случая: ожидаемое — текст заметки в редакторе или на диске. */
+async function checkCase(win, c) {
+  return win.evaluate(async (c) => {
+    const a = window.app;
+    const plugin = a.plugins.plugins["inline-overhaul"];
+    const today = window.moment().format("YYYY-MM-DD");
+    const fill = (s) => String(s).split("{{today}}").join(today);
+    const got = {};
+    const bad = [];
+    for (const [p, want] of Object.entries(c.expect || {})) {
+      const leaf = a.workspace.getLeavesOfType("markdown").find((l) => l.view.file && l.view.file.path === p);
+      const f = a.vault.getAbstractFileByPath(p);
+      const text = leaf ? leaf.view.editor.getValue() : (f ? await a.vault.read(f) : null);
+      got[p] = text;
+      const w = want === null ? null : fill(want);
+      if (text !== w) bad.push(p);
+    }
+    for (const [p, want] of Object.entries(c.expectDisk || {})) {
+      const text = await a.vault.adapter.exists(p) ? await a.vault.adapter.read(p) : null;
+      got["disk:" + p] = text;
+      if (text !== (want === null ? null : fill(want))) bad.push("disk:" + p);
+    }
+    if (c.check) {
+      let r = null;
+      try { r = await (0, eval)("(async (a, plugin) => {" + c.check + "})")(a, plugin); } catch (e) { r = "бросок: " + e.message; }
+      got.check = r;
+      if (r !== true) bad.push("check");
+    }
+    return { got, bad, open: !!(window.__tagWheelState && window.__tagWheelState.active) };
+  }, c);
+}
+
+/** Уборка случая: Esc открытой панели снаружи, исходные настройки. */
+async function resetCase(win, open) {
+  if (open) { await win.keyboard.press("Escape"); await win.waitForTimeout(300); }
+  await win.evaluate(() => {
+    const plugin = window.app.plugins.plugins["inline-overhaul"];
+    plugin.store.update(() => JSON.parse(JSON.stringify(window.__ioBenchCfg)), "bench-reset", { undoable: false });
+    plugin.registerPkmCommands(); plugin.registerBinderCommands();
+  });
+}
+
+async function runCases(win, filter) {
+  delete require.cache[require.resolve("./obsidian_cases.js")];
+  const all = require("./obsidian_cases.js");
+  const want = filter ? filter.split(",") : null;
+  const cases = all.filter((c) => !want || want.some((w) => c.id === w || c.id.startsWith(w + ".") ));
+  let pass = 0;
+  for (const c of cases) {
+    /* Шаги с клавишами делятся на куски: команды — в странице, нажатия — снаружи. */
+    const chunks = [];
+    let cur = [];
+    for (const s of c.steps || []) {
+      if (typeof s === "object" && (s.key || s.type || s.click)) { chunks.push(cur); chunks.push(s); cur = []; } else cur.push(s);
+    }
+    chunks.push(cur);
+    let log = [];
+    let first = true;
+    for (const ch of chunks) {
+      if (Array.isArray(ch)) {
+        const r = await runCase(win, Object.assign({}, c, first ? {} : { files: null, cfg: null, at: null }, { steps: ch }));
+        log = log.concat(r.log);
+        first = false;
+      } else {
+        if (first) { await runCase(win, Object.assign({}, c, { steps: [] })); first = false; }
+        if (ch.key) for (let i = 0; i < (ch.times || 1); i++) await win.keyboard.press(ch.key);
+        if (ch.type) await win.keyboard.type(ch.type);
+        if (ch.click) {
+          const box = await win.evaluate((t) => {
+            const row = [...window.app.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll(".cm-line")].filter((l) => l.textContent.includes(t)).pop();
+            if (!row) return null;
+            const r = row.getBoundingClientRect();
+            return { x: r.x + r.width - 4, y: r.y + r.height / 2 };
+          }, ch.click);
+          if (box) await win.mouse.click(box.x, box.y); else log.push("нет строки для щелчка: " + ch.click);
+        }
+        await win.waitForTimeout(ch.wait || 350);
+      }
+    }
+    await win.waitForTimeout(c.settle || 300);
+    const res = await checkCase(win, c);
+    await resetCase(win, res.open);
+    const ok = res.bad.length === 0 && !log.some((l) => l.startsWith("бросок"));
+    if (ok) pass++;
+    console.log((ok ? "ok   " : "FAIL ") + c.id + " — " + c.title);
+    if (!ok || process.env.IO_VERBOSE) {
+      for (const k of Object.keys(res.got)) {
+        const w = k === "check" ? true : (k.startsWith("disk:") ? c.expectDisk[k.slice(5)] : c.expect[k]);
+        console.log("     " + k + "\n       ждём: " + JSON.stringify(w) + "\n       есть: " + JSON.stringify(res.got[k]));
+      }
+      for (const l of log) console.log("     " + l);
+    }
+  }
+  console.log(pass + " из " + cases.length + " случаев сходятся");
+  return pass === cases.length;
+}
+
 const SCENARIOS = {
+  /* Пакет чистого vault: `node tools/obsidian_bench.js clean [id,id…]`. */
+  async clean(win) {
+    return runCases(win, process.argv[3] || "");
+  },
+
   /* Его заказ к тесту 2 цикла 96 (10.13.277): Value `222/123` пишется ссылкой с
      подписью, на экране видно `123`, щелчок открывает `222/123.md`. */
   async "link-folder-value"(win) {
