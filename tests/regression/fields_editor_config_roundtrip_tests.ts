@@ -620,6 +620,25 @@ function configWithDefaultLabels(): Any {
   ok("Prerequisite: тег ждёт любого Field, дочерние Values в списке под родителем");
 }
 
+{
+  /*
+   * Ревизия Д-4: удалённый Field со свойством заметки не возвращается. Замена
+   * Order при удалении не ставила надгробий ни свойству, ни картам дочерних
+   * настроек — слияние оставляло ключ, и нормализация возвращала Field в Order.
+   */
+  const p = makePanel(baseConfig(), "status");
+  assert.equal(p.model().setProperty("status", "state").ok, true, "свойство не записалось");
+  assert.equal(p.cfg().pkm.fields.order.propertiesByField.status, "state", "контроль: свойство в конфиге");
+  p.model().deleteField("status");
+  const cfg = p.cfg();
+  const order = cfg.pkm.fields.order;
+  assert.ok(!(order.left as string[]).includes("status") && !(order.right as string[]).includes("status"),
+    "Д-4: удалённый Field вернулся в Order");
+  assert.ok(!Object.prototype.hasOwnProperty.call(order.propertiesByField || {}, "status"), "Д-4: свойство удалённого Field осталось");
+  assert.ok(!Object.prototype.hasOwnProperty.call(order.types || {}, "status"), "Д-4: тип удалённого Field остался");
+  ok("удалённый Field со свойством заметки не возвращается");
+}
+
 console.log("\n" + passed + " проверок пройдено");
 
 

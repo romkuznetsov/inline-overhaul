@@ -519,6 +519,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
   };
 
+  /** Карты Order по ключу Field: одно перечисление на удаление и надгробия (ревизия У-4). */
+  const ORDER_MAPS = [
+    "lead", "labels", "strictNames", "types", "active", "freeRoam", "enabled",
+    "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "propertiesByField",
+  ] as const;
+
   /**
    * Запись Order. Перенесена дословно, вместе с надгробиями: ключ, исчезнувший
    * из карты, обязан уйти в конфиг как `null`, иначе слияние патчей его
@@ -535,46 +541,18 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const p = patchObj as Partial<OrderState>;
     const next = replace
       ? normalizePkmOrder(patchObj)
+      /*
+       * Карты сливаются с прежними, а не заменяют их: патч из одного ключа
+       * иначе выбрасывал бы все остальные (свойство заметки — дефект
+       * 2026-08-28). Список карт — `ORDER_MAPS` (ревизия У-4).
+       */
       : normalizePkmOrder({
         ...current,
         ...patchObj,
-        lead: { ...current.lead, ...(p && p.lead ? p.lead : {}) },
-        active: { ...current.active, ...(p && p.active ? p.active : {}) },
-        freeRoam: { ...current.freeRoam, ...(p && p.freeRoam ? p.freeRoam : {}) },
-        enabled: { ...current.enabled, ...(p && p.enabled ? p.enabled : {}) },
-        subWithoutParent: {
-          ...current.subWithoutParent,
-          ...(p && p.subWithoutParent ? p.subWithoutParent : {}),
-        },
-        subAddsParent: {
-          ...current.subAddsParent,
-          ...(p && p.subAddsParent ? p.subAddsParent : {}),
-        },
-        subOnAlt: {
-          ...current.subOnAlt,
-          ...(p && p.subOnAlt ? p.subOnAlt : {}),
-        },
-        subNavigator: {
-          ...current.subNavigator,
-          ...(p && p.subNavigator ? p.subNavigator : {}),
-        },
-        yamlNavigator: {
-          ...current.yamlNavigator,
-          ...(p && p.yamlNavigator ? p.yamlNavigator : {}),
-        },
-        types: { ...current.types, ...(p && p.types ? p.types : {}) },
-        labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
-        strictNames: { ...current.strictNames, ...(p && p.strictNames ? p.strictNames : {}) },
-        /*
-         * Свойство заметки сливается так же, как соседние карты, а не заменяет
-         * карту целиком. Без этой строки патч из одного ключа выбрасывал
-         * свойства ВСЕХ остальных Fields — их не было в `next`, и до конфига
-         * они не доезжали (дефект найден 2026-08-28 по замечанию заказчика).
-         */
-        propertiesByField: {
-          ...current.propertiesByField,
-          ...(p && p.propertiesByField ? p.propertiesByField : {}),
-        },
+        ...Object.fromEntries(ORDER_MAPS.map((m) => [m, {
+          ...((current as unknown as Record<string, Record<string, unknown>>)[m] || {}),
+          ...((p as unknown as Record<string, Record<string, unknown> | undefined>)[m] || {}),
+        }])),
       });
     const withTombstones = <T>(
       nextMap: Record<string, T> | undefined,
@@ -603,16 +581,17 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
       return;
     }
-    const orderPatch = {
-      ...next,
-      lead: withTombstones(next.lead, current.lead),
-      labels: withTombstones(next.labels, current.labels),
-      strictNames: withTombstones(next.strictNames, current.strictNames),
-      types: withTombstones(next.types, current.types),
-      active: withTombstones(next.active, current.active),
-      freeRoam: withTombstones(next.freeRoam, current.freeRoam),
-      enabled: withTombstones(next.enabled, current.enabled),
-    };
+    /*
+     * **Надгробие — каждой карте Order** (ревизия Д-4, У-4). Замена ставила его
+     * семи картам из тринадцати: свойство заметки и карты дочерних настроек
+     * удалённого Field оставались в конфиге после слияния, и нормализация
+     * возвращала Field в Order — с типом `tag` и без определения. Список карт
+     * один — `ORDER_MAPS`.
+     */
+    const orderPatch: Record<string, unknown> = { ...next };
+    const nextMaps = next as unknown as Record<string, Record<string, unknown> | undefined>;
+    const curMaps = current as unknown as Record<string, Record<string, unknown> | undefined>;
+    for (const name of ORDER_MAPS) orderPatch[name] = withTombstones(nextMaps[name], curMaps[name]);
     plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
   };
 
@@ -737,25 +716,33 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     values: [""],
   });
 
+  /**
+   * **Какое имя Field законно — одно объявление на заведение и переименование**
+   * (ревизия Д-5). Переименование знало знаки и занятость, но не знало
+   * суффикса `_sub`: Field можно было назвать `cat_sub` рядом с Field `cat`,
+   * хотя завести такое имя окно не давало. `selfKey` — свой ключ: своё имя
+   * занятым не считается.
+   */
+  const nameError = (name: string, selfKey: string): string => {
+    if (!STRICT_NAME_RE.test(name)) return SAY.ERR_NAME_CHARS;
+    if (SUB_SUFFIX_RE.test(name)) return SAY.ERR_NAME_SUB;
+    for (const kk of getOrderKeys()) {
+      if (kk === selfKey) continue;
+      const vv = String((orderState.strictNames && orderState.strictNames[kk]) || kk).trim();
+      if (kk === name || vv === name) return SAY.ERR_NAME_TAKEN;
+    }
+    return "";
+  };
+
   const addField = (rawKey: string, rawKind: string, rawMarker?: string): WriteResult => {
     const key = String(rawKey || "").replace(/\s+/g, " ").trim();
-    if (!STRICT_NAME_RE.test(key)) {
-      return { ok: false, error: SAY.ERR_NAME_CHARS };
-    }
+    const bad = nameError(key, "");
+    if (bad) return { ok: false, error: bad };
     const all = getOrderKeys();
-    if (SUB_SUFFIX_RE.test(key)) {
-      return { ok: false, error: SAY.ERR_NAME_SUB };
-    }
-    if (all.includes(key)) {
-      return { ok: false, error: SAY.ERR_NAME_TAKEN };
-    }
     const strictValues = new Set(
       all.map(kk => String((orderState.strictNames && orderState.strictNames[kk]) || kk).trim())
         .filter(Boolean),
     );
-    if (strictValues.has(key)) {
-      return { ok: false, error: SAY.ERR_NAME_TAKEN };
-    }
     const kindRaw = String(rawKind || "tag").trim().toLowerCase();
     const kind: FieldKind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
     const subKey = kind === "tag" ? inferSubKey(key) : "";
@@ -900,19 +887,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       subOnAlt: { ...(liveOrder.subOnAlt || {}) },
       subNavigator: { ...(liveOrder.subNavigator || {}) },
       yamlNavigator: { ...(liveOrder.yamlNavigator || {}) },
+      propertiesByField: { ...(liveOrder.propertiesByField || {}) },
     };
+    const maps = nextOrder as unknown as Record<string, Record<string, unknown>>;
     for (const t of targets) {
-      delete nextOrder.labels[t];
-      delete nextOrder.strictNames[t];
-      delete nextOrder.types[t];
-      delete nextOrder.active[t];
-      delete nextOrder.freeRoam[t];
-      delete nextOrder.enabled[t];
-      delete nextOrder.subWithoutParent[t];
-      delete nextOrder.subAddsParent[t];
-      delete nextOrder.subOnAlt[t];
-      delete nextOrder.subNavigator[t];
-      delete nextOrder.yamlNavigator[t];
+      for (const name of ORDER_MAPS) if (name !== "lead" && maps[name]) delete maps[name][t];
     }
     const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
     const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
@@ -994,22 +973,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * идёт переименование в заметке — и идёт именно после, как было: сначала
    * конфиг, потом заметка, иначе при отказе заметки конфиг остаётся старым.
    */
-  const setStrictName = async (k: string, rawNext: string): Promise<WriteResult> => {
+  const setStrictName = (k: string, rawNext: string): WriteResult => {
     const oldName = String((orderState.strictNames && orderState.strictNames[k]) || k);
     const next = String(rawNext || "").replace(/\s+/g, " ").trim();
     if (next === oldName) return { ok: true, changed: false };
-    if (!STRICT_NAME_RE.test(next)) {
-      return { ok: false, error: SAY.ERR_NAME_CHARS };
-    }
-    const taken = new Set<string>();
-    for (const kk of getOrderKeys()) {
-      const vv = String((orderState.strictNames && orderState.strictNames[kk]) || kk).trim();
-      if (kk === k) continue;
-      if (vv) taken.add(vv);
-    }
-    if (taken.has(next)) {
-      return { ok: false, error: SAY.ERR_NAME_TAKEN };
-    }
+    const bad = nameError(next, k);
+    if (bad) return { ok: false, error: bad };
     orderState.strictNames = { ...(orderState.strictNames || {}), [k]: next };
 
     /*

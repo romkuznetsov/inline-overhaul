@@ -3214,6 +3214,17 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   ok("Value с написанием чужого Field не заводится, прежние правки не заперты");
 }
 {
+  /* Ревизия Д-5: переименование отвечает тем же правилом имени, что заведение. */
+  const v = makeView();
+  const add = v.model.addField("status_sub", "tag");
+  const ren = v.model.setStrictName("due", "status_sub");
+  assert.equal(add.ok, false, "контроль: завести имя с `_sub` окно не даёт");
+  assert.equal(ren.ok, false, "Д-5: переименование в `status_sub` прошло");
+  assert.equal(ren.error, add.error, "Д-5: текст отказа у переименования другой");
+  assert.equal(v.model.setStrictName("due", "Deadline").ok, true, "отрицательный контроль: законное имя");
+  ok("переименование и заведение Field отказывают одним правилом имени");
+}
+{
   /* BUGHUNT S4: знак Element из окна добавления доходит до конфига. */
   const v = makeView();
   assert.equal(v.model.addField("Start", "element", "🛫").ok, true, "Element не завёлся");
