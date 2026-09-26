@@ -370,7 +370,7 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
 
 _Intro:_ Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected — the two lists below spell it out
 
-_Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do
+_Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the Prefix list in this group. On an indented line <code>Move right</code> indents; at the left edge it changes the marker while <code>Cycle in both directions</code> is on, and a task keeps its checkbox. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do
 
 - **`left-right-order`** — свой блок, рендерер `renderLeftRightOrder`
 - **`move-text-sub`** — свой блок, рендерер `?`
@@ -462,7 +462,7 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - старые названия для поиска: «Jump mode»
 - **Where in the section** — `heading-jumps-edge`, `dropdown`, path `navigation.jumpToHeader.edgeMode`, default `start-end`
   - desc: Land at the start of the part you jump to, or at its end
-  - tip: <b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting
+  - tip: <b>Start and end</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting
   - варианты: `start-end` Start and end · `start` Start only · `end` End only
   - видна если: `navigation.jumpToHeader.jumpMode`
   - выключена если: `navigation.jumpToHeader.enabled`
@@ -481,7 +481,7 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - старые названия для поиска: «Center the target», «Center the screen on target», «Scroll on jump»
 - **Where the target lands** — `heading-jumps-view-position`, `dropdown`, path `navigation.jumpToHeader.viewPosition`, default `center`
   - desc: The place on screen the line you jump to is scrolled to
-  - tip: The same place every time, and the same three choices <code>Moving behavior</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
+  - tip: The same place every time, and the same three choices as the matching row of <code>Move lines</code>. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
   - варианты: `center` Center · `top` Top · `bottom` Bottom
   - видна если: `navigation.jumpToHeader.centerCursor`
   - выключена если: `navigation.jumpToHeader.enabled`

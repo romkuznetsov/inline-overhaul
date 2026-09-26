@@ -67,7 +67,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
 {
   id: "left-right", tab: "navigation", order: 200, heading: "Move lines (left/right)",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
-  tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do",
+  tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the Prefix list in this group. On an indented line <code>Move right</code> indents; at the left edge it changes the marker while <code>Cycle in both directions</code> is on, and a task keeps its checkbox. The two lists at the top of this group show the order the checks run in, and you switch each job below off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
     { kind:"custom", id:"left-right-order", render: dispatchTables },
     { kind:"custom", id:"move-text-sub", render: subheader("Move text",
@@ -160,7 +160,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       tip:"<b>Headings</b> is for finding your way around a long note. <b>Lines</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be" },
     { kind:"dropdown", id:"heading-jumps-edge", path:"navigation.jumpToHeader.edgeMode", default:"start-end",
       name:"Where in the section", desc:"Land at the start of the part you jump to, or at its end",
-      tip:"<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
+      tip:"<b>Start and end</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
       searchTerms:["Edge behavior"],
       visible: eq("navigation.jumpToHeader.jumpMode","edge"), disabled: not("navigation.jumpToHeader.enabled"),
       options:[ {value:"start-end",label:"Start and end"},
@@ -185,7 +185,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"center",label:"Center"},
                 {value:"top",label:"Top"},
                 {value:"bottom",label:"Bottom"} ],
-      tip:"The same place every time, and the same three choices <code>Moving behavior</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
+      tip:"The same place every time, and the same three choices as the matching row of <code>Move lines</code>. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 }
 ];
