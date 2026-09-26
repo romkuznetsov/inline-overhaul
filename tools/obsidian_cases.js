@@ -64,9 +64,13 @@ module.exports = [
 
   /* R5 — начало строки человека */
   one("N1.a", "Move right не стирает чекбокс", "- [ ] b", ["move-right"], "\t- [ ] b", { files: { "t.md": "- a\n- [ ] b\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "- a\n\t- [ ] b\n" } }),
-  one("N1.b", "Move left не стирает [x]", "- [x] сделано", ["move-left"], "- [x] сделано", { cfg: { navigation: { moveInLine: { cyclePrefixes: true } } } }),
-  one("F15.a", "Clear line не снимает чекбокс, когда текст остался", "- [ ] #todo || купить", ["status-previous"], "- [ ] купить"),
-  one("F15.b", "Clear line не снимает номер, когда текст остался", "1. #todo || пункт", ["status-previous"], "1. пункт"),
+  one("N1.b", "Move left не стирает [x]: шаг по знакам списка", "- [x] сделано", ["move-left"], "1. [x] сделано"),
+  one("F15.a", "Clear line не снимает чекбокс, когда текст остался", "- [ ] #todo || купить", ["status-previous"], "- [ ] купить",
+    { cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } }),
+  one("F15.b", "Clear line не снимает номер, когда текст остался", "1. #todo || пункт", ["status-previous"], "1. пункт",
+    { cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } }),
+  one("F15.c", "Clear line чистит опустевшую строку", "- [ ] #todo", ["status-previous"], "",
+    { cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } }),
 
   /* R4 — код и таблица */
   one("F8.a", "Status next не пишет внутрь блока кода", "```", ["status-next"], "```\n- код\n```",
@@ -92,7 +96,9 @@ module.exports = [
     { files: { "t.md": "- a\n- b\n- c\n- d\n" }, expect: { "t.md": "- a b\n- c d\n" } }),
 
   /* N2, N11, N3 */
-  one("N2", "Move right отступает табом", "- b", ["move-right"], "", { files: { "t.md": "- a\n- b\n\t- b1\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "- a\n\t- b\n\t\t- b1\n" } }),
+  one("N2", "Move right отступает табом", "- b", ["move-right"], "", { files: { "t.md": "- a\n- b\n\t- b1\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "- a\n\t- b\n\t- b1\n" } }),
+  one("N11", "Move right не делает из абзаца блок кода (цикл выключен)", "para", ["move-right"], "para",
+    { cfg: { navigation: { moveSelection: { prefixCyclerEnabled: false } } } }),
   one("N3", "Смена префикса не уводит каретку", "- alpha beta gamma", ["move-left", { js: "" }], "", { at: { file: "t.md", line: 0, ch: 8 },
     expect: {}, check: "const e = a.workspace.activeEditor.editor; return e.getCursor().ch === e.getLine(0).indexOf('beta') || JSON.stringify([e.getLine(0), e.getCursor()]);" }),
 

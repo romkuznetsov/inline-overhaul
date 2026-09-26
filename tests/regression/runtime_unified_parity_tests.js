@@ -158,7 +158,10 @@ function run() {
     isBulletLikeEmptyResult: function() { return false; },
     buildBulletOnlyLine: function() { return "- "; },
   });
-  assertEq(stripPrefixPostOwnCheckboxWithSeparatorTail.finalLine, "1", "cycle-end helper strips list+checkbox prefix for clear-prefix text-bearing terminal line");
+  /* Прежде здесь ждали `1`: строка с текстом теряла знак списка и чекбокс
+     (BUGHUNT F15 = S14). `Clear line` чистит только опустевшую строку;
+     Prefix своего Value снимает разрешение Prefix, а не эта доводка. */
+  assertEq(stripPrefixPostOwnCheckboxWithSeparatorTail.finalLine, "- [b] 1", "clear-prefix keeps the line start while text remains");
 
   const keepPrefixWhenTagged = unified.applyCycleEndPostProcessing({
     finalLine: "- [a] #area-alpha 111",

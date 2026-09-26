@@ -1912,16 +1912,8 @@ module.exports = {
       preserveOff: offFlags.preserveOffImmutability || /^\s*#{1,6}\s+/.test(String(rawLine || "")),
       preserveMinimalHeading: freeRoamMode === "minimal",
     });
-    if (String(cycleEndBehavior || "") === "clear-prefix") {
-      const parsedAfterUnified = core.parseLine(finalLine, rules);
-      const tagsAfterUnified = Array.isArray(parsedAfterUnified && parsedAfterUnified.tags) ? parsedAfterUnified.tags : [];
-      const datesAfterUnified = String(parsedAfterUnified && parsedAfterUnified.dates ? parsedAfterUnified.dates : "").trim();
-      const textAfterUnified = String(parsedAfterUnified && parsedAfterUnified.text ? parsedAfterUnified.text : "").trim();
-      if (!tagsAfterUnified.length && !datesAfterUnified && textAfterUnified) {
-        const indentKeep = (String(finalLine || "").match(/^(\s*)/) || ["", ""])[1];
-        finalLine = indentKeep + textAfterUnified;
-      }
-    }
+    /* Вторая ветка «текст остался — снять начало строки» снята вместе с
+       первой в доводке (BUGHUNT F15): `Clear line` чистит только опустевшую строку. */
 
     if (
       priorityLikeAction

@@ -70,8 +70,10 @@ function press(line, direction, over) {
 (function testPlainLineUnchangedByTheToggle() {
   assertEq(press("text", "right", { rightCycles: true }), "# text",
     "обычная строка циклирует при включённом тумблере");
-  assertEq(press("text", "right", { rightCycles: false }), "    text",
-    "и сдвигается при выключенном");
+  /* Прежде здесь ждали `    text` — отступ абзаца, то есть блок кода
+     (BUGHUNT N11): пин держал дефект. Отступ получает только пункт списка. */
+  assertEq(press("text", "right", { rightCycles: false }), "text",
+    "при выключенном абзац не становится блоком кода");
 })();
 
 (function testEndOfCycleStillIndents() {
@@ -102,6 +104,38 @@ function press(line, direction, over) {
 (function testCyclerOffMeansNoCycleAtAll() {
   assertEq(press("- text", "right", { rightCycles: true, prefixCyclerEnabled: false }), "    - text",
     "выключенный цикл Prefix сильнее тумблера направления");
+})();
+
+/*
+ * BUGHUNT 2026-09-26, корень R5. Задача: шаг идёт только по знакам списка, и
+ * чекбокс человека остаётся (`В-239`); свой Prefix человека (`> `, `+ `)
+ * узнаётся, и цикл не дописывает второй; каретка остаётся в тексте.
+ */
+(function testTaskKeepsItsCheckbox() {
+  assertEq(press("- [ ] b", "right", { rightCycles: true }), "1. [ ] b",
+    "N1: Move right на задаче снял чекбокс");
+  assertEq(press("- [x] сделано", "left", { rightCycles: true }), "1. [x] сделано",
+    "N1: Move left на сделанной задаче снял отметку или ушёл в заголовок");
+  assertEq(press("- text", "left", { rightCycles: true }), "## text",
+    "отрицательный контроль: без чекбокса шаг идёт по всему циклу");
+})();
+
+(function testOwnPrefixIsRecognised() {
+  const own = { rightCycles: true, onCycleEnd: "wrap", cycleOrder: ["", "- ", "> "] };
+  let line = "para";
+  const seen = [];
+  for (let i = 0; i < 4; i++) { line = press(line, "right", own); seen.push(line); }
+  assertEq(seen.join(" | "), "- para | > para | para | - para", "N10: свой Prefix не узнан, маркеры копятся");
+  assertEq(press("+ x", "right", { rightCycles: true }), "1. x", "N4: `+ ` не узнан как знак списка");
+})();
+
+(function testCaretStaysInText() {
+  const ed = fakeEditor("- alpha beta gamma");
+  ed.setCursor({ line: 0, ch: 8 });
+  nav.moveSelection(ed, "left", { inlineEnabled: true, prefixCyclerEnabled: true, indentFallbackEnabled: true,
+    onCycleEnd: "indent", cycleOrder: ["", "#", "##", "- ", "1. "] });
+  assertEq(ed.getValue(), "## alpha beta gamma", "N3: смена Prefix не та");
+  assertEq(ed.getCursor().ch, 9, "N3: каретка ушла с места в тексте");
 })();
 
 console.log("Navigation prefix cycle tests: OK");

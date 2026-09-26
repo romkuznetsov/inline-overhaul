@@ -53,6 +53,20 @@ async function main(): Promise<void> {
   await cmd("project-next", "- x || [[Project A]]", "- x || [[Project B]]", undefined, "F1.c круг идёт дальше");
   await cmd("priority-next", "- позвонить в банк || 📅2026-09-30 [[Project B]]", "- #low || позвонить в банк || 📅2026-09-30 [[Project B]]", 5, "F3.a текст на месте");
   await cmd("status-next", "- позвонить в банк || 📅2026-09-30 [[Project B]]", "- #todo || позвонить в банк || 📅2026-09-30 [[Project B]]", 5, "F3.b ссылка не удваивается");
+  /* F15 = S14: `Clear line` чистит только опустевшую строку — задача и номер
+     с текстом остаются собой. Отрицательный контроль — строка без текста. */
+  const clear = JSON.parse(JSON.stringify(cfg));
+  clear.pkm.behavior.cycleEndBehavior = "clear-prefix";
+  const clearCfg = normalize.migrateConfig(clear);
+  const viaClear = async (line: string, want: string, title: string): Promise<void> => {
+    const got = await bench.runCommandById(clearCfg, "status-previous", line, line.length);
+    assert.equal(got.line, want, title);
+    passed++;
+    console.log("  ok " + title);
+  };
+  await viaClear("- [ ] #todo || купить", "- [ ] купить", "F15 чекбокс остаётся, когда текст есть");
+  await viaClear("1. #todo || пункт", "1. пункт", "F15 номер остаётся, когда текст есть");
+  await viaClear("- [ ] #todo", "", "F15 опустевшая строка чистится");
   /* K4, K5: одиночный разделитель, за которым правый Block, — второй; слот
      текста слева (так же отвечает разбор строки). Smart Enter `Text only`
      спрашивает именно его. */

@@ -11,6 +11,8 @@
  * проверки, — выполнялись копии (У-140). Шов снят ревизией, заход 3.
  */
 const __sharedUtils = require("./core/shared_utils.js");
+/* Шаг отступа редактора — фасет `indentUnit` (BUGHUNT N2). Пакет даёт Obsidian. */
+const cmLanguage = require("@codemirror/language");
 
 /*
  * Правила PKM для навигации собираются из настроек, а не из служебного файла
@@ -746,6 +748,7 @@ function moveTextBounds(editor, line, rules) {
 function moveSelection(editor, direction, rawCfg, lineFormat) {
   const rules = pickMoveSelectionCfg(rawCfg, lineFormat);
   rules.indentWidth = getEditorTabSize(editor);
+  rules.indentUnit = getEditorIndentUnit(editor);
   const sel = editor && typeof editor.getSelection === "function" ? nz(editor.getSelection(), "") : "";
   const from = editor.getCursor("from");
   const to = editor.getCursor("to");
@@ -806,7 +809,23 @@ function getEditorTabSize(editor) {
   return 4;
 }
 
-function getIndentStr(rules) { return " ".repeat(rules.indentWidth || 4); }
+/*
+ * **Шаг отступа — тот, что поставила Obsidian** (BUGHUNT N2). Она кладёт его в
+ * редактор фасетом `indentUnit`: табуляция при `useTab` (умолчание), иначе
+ * четыре пробела (`getDynamicExtensions` в `app.js` 1.13.7). Здесь стояли
+ * пробелы всегда, и на вложенной строке они вставали перед табом:
+ * `    \t- a2`. Редактора без фасета (подделка) — прежний ответ.
+ */
+function getEditorIndentUnit(editor) {
+  try {
+    const unit = editor && editor.cm && editor.cm.state ? editor.cm.state.facet(cmLanguage.indentUnit) : "";
+    if (typeof unit === "string" && /^(?:\t| +)$/.test(unit)) return unit;
+  } catch (_) {
+    /* Проба: у подделки редактора состояния CodeMirror нет — ответ «нет». */
+  }
+  return "";
+}
+function getIndentStr(rules) { return rules.indentUnit || " ".repeat(rules.indentWidth || 4); }
 /*
  * Каким шагом поедет выделенное: посимвольно, словами или никак.
  *
@@ -1088,7 +1107,8 @@ function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + phrase.length));
 }
 function getIndent(line) { const m = line.match(/^(\s*)/); return m ? m[1].length : 0; }
-function isBullet(line) { const trimmed = line.replace(/^\s*/, ""); return /^[-*]\s/.test(trimmed) || /^[-*]\s\[[ x]\]\s/.test(trimmed); }
+/* Пункт списка — по общему объявлению начала строки (знак, номер, задача). */
+function isBullet(line) { return __sharedUtils.hasListPrefix(line); }
 function indentLine(editor, direction, rules) {
   const cur = editor.getCursor();
   const lineNo = cur.line;
@@ -1129,7 +1149,7 @@ function indentLine(editor, direction, rules) {
   if (currentIndent > 0 || (isBullet(line) && !rightMayCycle)) {
     if (rules.indentFallbackEnabled) {
       editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
-      editor.setCursor({ line: lineNo, ch: cur.ch + indentWidth });
+      editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
     }
     return;
   }
@@ -1143,9 +1163,13 @@ function indentLine(editor, direction, rules) {
     }
   }
 
-  if (rules.indentFallbackEnabled) {
+  /*
+   * Отступ — только пункту списка (BUGHUNT N11): четыре пробела или таб перед
+   * абзацем Obsidian читает блоком кода, и абзац переставал быть текстом.
+   */
+  if (rules.indentFallbackEnabled && isBullet(line)) {
     editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
-    editor.setCursor({ line: lineNo, ch: cur.ch + indentWidth });
+    editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
   }
 }
 function removeOneIndent(editor, lineNo, currentIndent, rules) { const line = editor.getLine(lineNo); const indentWidth = rules.indentWidth || 4; const INDENT = getIndentStr(rules); const delta = Math.min(currentIndent, indentWidth); if (line.startsWith(INDENT)) editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: indentWidth }); else if (line.startsWith("\t")) editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: 1 }); else editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: delta }); }
@@ -1191,27 +1215,87 @@ function indentMultipleLines(editor, direction, rules) {
   else for (const c of changes) editor.replaceRange(c.insert, editor.offsetToPos(c.from), editor.offsetToPos(c.to));
   editor.setSelection({ line: startLine, ch: 0 }, { line: endLine, ch: editor.getLine(endLine).length });
 }
+/**
+ * **Какой Prefix цикла стоит у строки сейчас** (BUGHUNT R5: N1, N4, N10).
+ *
+ * Спрашивается у самого цикла: среди его Prefix берётся самый длинный, с
+ * которого начинается строка за отступом, — так узнаётся и свой Prefix
+ * человека (`> `, `+ `). Номер узнаётся любой (`12. `, `3) `), знак списка,
+ * которого в цикле нет (`* ` при `- `), считается тем знаком, что есть.
+ * Прежде узнавались только `#`, `N. ` и `- `/`* `: цитата и `+ ` читались
+ * текстом, и цикл дописывал второй Prefix перед первым.
+ *
+ * Чекбокс за знаком списка принадлежит человеку (`В-239`, «сохранять
+ * чекбокс человека», правило 24 — скобки с одним знаком): он возвращается
+ * отдельно и в Prefix не входит.
+ */
+function currentCyclePrefix(line, arr) {
+  const indent = (line.match(/^[ \t]*/) || [""])[0];
+  const rest = line.slice(indent.length);
+  let key = "";
+  let taken = "";
+  for (const e of arr) {
+    if (!e) continue;
+    let hit = "";
+    if (/^\d+\.\s$/.test(e)) { const m = rest.match(/^\d+[.)][ \t]/); hit = m ? m[0] : ""; }
+    else if (/^#+$/.test(e)) hit = rest.startsWith(e + " ") ? e + " " : "";
+    else if (rest.startsWith(e)) hit = e;
+    if (hit.length > taken.length) { key = e; taken = hit; }
+  }
+  if (!taken) {
+    const ls = __sharedUtils.lineStartOf(rest);
+    const bullet = arr.find((e) => /^[-*+] $/.test(e));
+    if (ls.marker && !ls.ordered && bullet && !ls.heading) { key = bullet; taken = ls.marker; }
+  }
+  let after = rest.slice(taken.length);
+  let checkbox = "";
+  if (/^(?:[-*+]|\d+[.)])[ \t]$/.test(taken)) {
+    const m = after.match(new RegExp("^" + __sharedUtils.CHECKBOX_ONE_CHAR_SRC + "[ \t]"));
+    if (m) { checkbox = m[0]; after = after.slice(checkbox.length); }
+  }
+  return { indent, key, taken, checkbox, content: after };
+}
+function isListCyclePrefix(prefix) { return /^(?:[-*+]|\d+\.) $/.test(String(prefix || "")); }
 function cycleLineTypeRaw(line, direction, rules, options) {
-  const info = detectLineType(line);
   const arr = direction === "left" ? rules.rightToLeft : rules.leftToRight;
-  const currentPrefix = getPrefixFromInfo(info);
-  let searchPrefix = info.type === "header" ? currentPrefix.trim() : currentPrefix;
-  if (info.type === "numbered") searchPrefix = "1. ";
-  let idx = arr.indexOf(searchPrefix); if (idx === -1) idx = arr.indexOf(""); if (idx === -1) return null;
-  const nextIdx = (idx + 1) % arr.length;
-  const wrapped = idx === arr.length - 1;
-  if (direction === "right" && rules.onCycleEnd === "indent" && wrapped) return null;
-  let newPrefix = arr[nextIdx];
+  const info = currentCyclePrefix(line, arr);
+  let idx = arr.indexOf(info.key); if (idx === -1) idx = arr.indexOf(""); if (idx === -1) return null;
+  /*
+   * Один шаг — один Prefix; у задачи шаг идёт только по знакам списка:
+   * заголовок и простая строка задачей быть не могут, и отметка «сделано»
+   * пропадала одним нажатием (BUGHUNT N1, `В-239`).
+   */
+  let newPrefix = null;
+  for (let step = 1; step <= arr.length; step++) {
+    const at = idx + step;
+    if (direction === "right" && rules.onCycleEnd === "indent" && at >= arr.length) return null;
+    const cand = arr[at % arr.length];
+    if (info.checkbox && !isListCyclePrefix(cand)) continue;
+    newPrefix = cand;
+    break;
+  }
+  if (newPrefix === null) return null;
   if (/^#+$/.test(newPrefix)) newPrefix += " ";
   if (/^\d+\.\s$/.test(newPrefix)) {
     if (options && options.editor && options.lineNo != null) newPrefix = getNextNumber(options.editor, options.lineNo) + ". ";
     else newPrefix = "1. ";
   }
-  return info.indent + newPrefix + info.content;
+  return info.indent + newPrefix + info.checkbox + info.content;
 }
-function cycleLineType(editor, lineNo, direction, rules) { const line = editor.getLine(lineNo); const result = cycleLineTypeRaw(line, direction, rules, { editor, lineNo }); if (result === null) return null; return { newLine: result, newCh: result.length }; }
-function detectLineType(line) { const indent = (line.match(/^(\s*)/) || ["", ""])[1]; const trimmed = line.slice(indent.length); let m; if (/^#{1,5}\s/.test(trimmed)) { m = trimmed.match(/^(#{1,5})\s(.*)$/); return { type: "header", level: m[1].length, prefix: m[1] + " ", content: m[2], indent }; } if (/^\d+\.\s/.test(trimmed)) { m = trimmed.match(/^(\d+)\.\s(.*)$/); return { type: "numbered", number: parseInt(m[1], 10), prefix: m[1] + ". ", content: m[2], indent }; } if (/^[-*]\s\[[ x]\]\s/.test(trimmed)) { m = trimmed.match(/^([-*])\s(\[[ x]\])\s(.*)$/); return { type: "checkbox", prefix: m[1] + " " + m[2] + " ", content: m[3], indent }; } if (/^[-*]\s/.test(trimmed)) { m = trimmed.match(/^([-*])\s(.*)$/); return { type: "bullet", prefix: m[1] + " ", content: m[2], indent }; } return { type: "plain", prefix: "", content: trimmed, indent }; }
-function getPrefixFromInfo(info) { if (info.type === "header") return info.prefix.trim(); if (info.type === "numbered") return info.number + ". "; if (info.type === "bullet" || info.type === "checkbox") return info.prefix; return ""; }
+/*
+ * Каретка остаётся на своём месте в тексте (BUGHUNT N3): смена Prefix
+ * сдвигает её на разницу длин, а не уводит в конец строки.
+ */
+function cycleLineType(editor, lineNo, direction, rules) {
+  const line = editor.getLine(lineNo);
+  const result = cycleLineTypeRaw(line, direction, rules, { editor, lineNo });
+  if (result === null) return null;
+  const tail = line.length - editor.getCursor().ch;
+  const arr = direction === "left" ? rules.rightToLeft : rules.leftToRight;
+  const info = currentCyclePrefix(result, arr);
+  const textStart = info.indent.length + info.taken.length + info.checkbox.length;
+  return { newLine: result, newCh: Math.max(textStart, result.length - tail) };
+}
 function getNextNumber(editor, currentLineNo) { for (let i = currentLineNo - 1; i >= 0; i--) { const line = editor.getLine(i); const m = line.match(/^(\d+)\.\s/); if (m) return parseInt(m[1], 10) + 1; if (line.replace(/^\s*/, "").length > 0) break; } return 1; }
 /* Правило одно на весь плагин и живёт в `shared_utils.js` (У-32, З-3). */
 function isWordChar(ch) { return __sharedUtils.isWordChar(ch); }

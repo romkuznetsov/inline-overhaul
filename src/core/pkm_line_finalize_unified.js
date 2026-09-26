@@ -2107,25 +2107,14 @@ function applyCycleEndPostProcessing(options) {
     parsedAfter = parseLine(finalLine, rules);
   }
 
-  if (cycleEndBehavior === "clear-prefix") {
-    const tagsAfter = Array.isArray(parsedAfter && parsedAfter.tags) ? parsedAfter.tags : [];
-    const textAfter = String(parsedAfter && parsedAfter.text ? parsedAfter.text : "").trim();
-    const datesAfter = String(parsedAfter && parsedAfter.dates ? parsedAfter.dates : "").trim();
-    if (!tagsAfter.length && !datesAfter && textAfter) {
-      const indentKeep = (String(finalLine || "").match(/^(\s*)/) || ["", ""])[1];
-      finalLine = indentKeep + textAfter;
-      parsedAfter = parseLine(finalLine, rules);
-    }
-    if (!tagsAfter.length && !datesAfter && /^\s*[-*+]\s+\[[^\]]\]\s+\S/.test(String(finalLine || ""))) {
-      const indentKeep = (String(finalLine || "").match(/^(\s*)/) || ["", ""])[1];
-      const textOnly = String(finalLine || "")
-        .replace(/^\s*[-*+]\s+\[[^\]]\]\s+/, "")
-        .trim();
-      finalLine = indentKeep + textOnly;
-      parsedAfter = parseLine(finalLine, rules);
-    }
-  }
-
+  /*
+   * **`Clear line` чистит строку, которая опустела** (BUGHUNT F15 = S14).
+   * Здесь стояли две ветки «значений не осталось, а текст есть — снять знак
+   * списка и чекбокс»: задача `- [ ] купить` и пункт `1. пункт` теряли своё
+   * начало, хотя строка не опустела. Начало строки — человека (`В-239`); знак,
+   * который поставил сам плагин, снимает ветка `stripPrefixWhenSourceHasNoPrefix`
+   * ниже.
+   */
   if (cycleEndBehavior === "clear-prefix" && shouldClearToEmptyLine(finalLine, parsedAfter)) {
     finalLine = "";
     parsedAfter = parseLine(finalLine, rules);
@@ -2139,7 +2128,9 @@ function applyCycleEndPostProcessing(options) {
     && !String(parsedAfter && parsedAfter.dates ? parsedAfter.dates : "").trim()
     && stripPrefixKeepIndent
   ) {
-    finalLine = stripPrefixKeepIndent(finalLine, false);
+    /* У строки-источника знака списка не было — значит и чекбокс за ним
+       поставил плагин: снимается весь его знак (BUGHUNT F15). */
+    finalLine = stripPrefixKeepIndent(finalLine, true);
     parsedAfter = parseLine(finalLine, rules);
   }
 
