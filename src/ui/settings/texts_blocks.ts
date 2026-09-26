@@ -303,7 +303,8 @@ export const BLOCK_TEXTS = {
     DELETE_BODY: "Deleting {0} removes its Values, their colors and its note property",
     DELETE_CONFIRM: "Delete",
     DELETE_BLOCK_TITLE: "Delete block",
-    DELETE_BLOCK_BODY: "Delete {0} and its {1} Fields: {2}? Their Values, colors and note properties go with them",
+    /* Число в скобках: «its 1 Fields» не годилось по-английски (BUGHUNT S11). */
+    DELETE_BLOCK_BODY: "Delete {0} and its Fields ({1}): {2}? Their Values, colors and note properties go with them",
     RENAME_BLOCK_TITLE: "Rename block",
     RENAME_BLOCK_HINT: "The name of its tagWheel command follows it; a hotkey stays where it was",
     RENAME_BLOCK_ARIA: "New name for the block {0}",
