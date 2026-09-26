@@ -99,7 +99,11 @@ const HEAD_LIVE = "### 💥В.";
 /** Тесты заметки: заголовок второго уровня и всё до следующего такого же. */
 function testsOf(text) {
   const src = String(text || "");
-  const cut = src.indexOf(SERVICE_WORD);
+  /* Служебный блок — заголовок или коллаут со словом, а не слово где угодно:
+     «Служебное» в тексте теста обрезало заметку, и тесты ниже пропадали молча
+     (ревизия Д-10). */
+  const m = src.match(new RegExp("^(?:#{1,6} |> \\[![^\\]]+\\][+-]? ).*" + SERVICE_WORD, "m"));
+  const cut = m ? m.index : -1;
   const body = cut === -1 ? src : src.slice(0, cut);
   const lines = body.split("\n");
   const out = [];
@@ -251,6 +255,11 @@ function selfCheck() {
   ].join("\n");
   const tests = testsOf(bad);
   if (tests.length !== 1) throw new Error("контроль: плохой тест не разобрался");
+  /* Д-10: слово «Служебное» в тексте теста заметку не обрезает, а коллаут — обрезает. */
+  const wordInside = "## 1. А\nслово Служебное в тексте\n## 2. Б\n";
+  if (testsOf(wordInside).length !== 2) throw new Error("контроль: слово в тексте теста обрезало заметку");
+  const calloutCut = "## 1. А\n> [!note]- Служебное · промпт\n## 2. Б\n";
+  if (testsOf(calloutCut).length !== 1) throw new Error("контроль: служебный коллаут заметку не обрезал");
   const troubles = troublesOf(tests[0]);
   const want = [
     "первой строкой", "второй строкой", "«Описание задачи»", "«Журнал»",
