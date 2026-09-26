@@ -56,7 +56,7 @@ function prepare(name) {
   }
   /* Сценарию бывает нужна своя копия настроек или заметка — только в копии. */
   if (PREPARE[name]) PREPARE[name](vault);
-  const asar = fs.readdirSync(PROFILE_SRC).filter((n) => /^obsidian-.*\.asar$/.test(n)).sort().pop();
+  const asar = fs.readdirSync(PROFILE_SRC).filter((n) => /^obsidian-.*\.asar$/.test(n)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) /* версии числом: 1.9 старше 1.13 (ревизия Г-7) */.pop();
   if (!asar) throw new Error("нет obsidian-<версия>.asar в " + PROFILE_SRC);
   fs.copyFileSync(path.join(PROFILE_SRC, asar), path.join(profile, asar));
   fs.writeFileSync(path.join(profile, "obsidian.json"),

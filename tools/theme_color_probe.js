@@ -54,7 +54,7 @@ function requirePlaywright() {
 function appCss() {
   const dir = path.join(process.env.APPDATA || "", "obsidian");
   const names = fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter(n => /^obsidian-.*\.asar$/.test(n)).sort()
+    ? fs.readdirSync(dir).filter(n => /^obsidian-.*\.asar$/.test(n)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) /* версии числом: 1.9 старше 1.13 (ревизия Г-7) */
     : [];
   if (!names.length) {
     console.error("не нашёл obsidian-<версия>.asar рядом с настройками Obsidian");
