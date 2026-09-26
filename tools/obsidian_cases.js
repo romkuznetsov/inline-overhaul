@@ -49,7 +49,12 @@ module.exports = [
   /* R7 — сессия tagWheel и заметка */
   { id: "F5", title: "Смена заметки при открытой панели не пишет в чужую", files: { "A.md": "- текст заметки А\n", "B.md": "- важный текст Б\n- вторая Б\n" },
     at: { file: "A.md", line: 0 }, steps: ["open-tagwheel-left", { open: "B.md" }, { cursor: { line: 1, ch: 3 } }, { key: "ArrowUp" }, { key: "Enter" }],
-    settle: 3000, expectDisk: { "A.md": "- текст заметки А\n", "B.md": "- важный текст Б\n- вторая Б\n" } },
+    /* Сессия закрылась уходом с А, поэтому Enter в Б — обычный Enter Obsidian. */
+    settle: 3000, expectDisk: { "A.md": "- текст заметки А\n", "B.md": "- в\n- ажный текст Б\n- вторая Б\n" } },
+  { id: "F5.b", title: "Закрытие вкладки при открытой панели возвращает строку на диске", files: { "C.md": "- x\n" },
+    at: { file: "C.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowUp" }, { js: "a.workspace.activeLeaf.detach();" }],
+    settle: 3000, expectDisk: { "C.md": "- x\n" },
+    check: "return !window.__tagWheelState || !window.__tagWheelState.active || 'панель активна без редактора';" },
   { id: "F7.a", title: "Печать при открытой панели закрывает её как Enter и ставит знак", files: { "t.md": "- x\n" },
     at: { file: "t.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowUp" }, { type: "abc" }],
     check: "const l = a.workspace.activeEditor.editor.getLine(0); return (!window.__tagWheelState || !window.__tagWheelState.active) && !/==|\\*\\*/.test(l) && /abc/.test(l) || l;" },

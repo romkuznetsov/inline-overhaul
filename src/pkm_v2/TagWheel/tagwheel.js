@@ -524,10 +524,30 @@ function altOwnerOf(state, id) {
   return id
 }
 
+/**
+ * Клавиша печатает — знак, `Backspace` или `Delete` без модификатора
+ * команды. Сочетания с `Ctrl`/`Cmd`/`Alt` принадлежат хоткеям человека.
+ */
+function isTypingKey(e) {
+  if (!e || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return false
+  var k = String(e.key || '')
+  return k.length === 1 || k === 'Backspace' || k === 'Delete'
+}
+
+/** Событие пришло из редактора своей сессии, а не из поля ввода или окна. */
+function insideSessionEditor(state, target) {
+  var cm = state && state.editor ? state.editor.cm : null
+  var root = cm && cm.dom ? cm.dom : null
+  return !!(root && target && typeof root.contains === 'function' && root.contains(target))
+}
+
 function cleanupTagWheelState(state) {
   if (!state) return
   if (state.keyHandler) window.removeEventListener('keydown', state.keyHandler, true)
   if (state.keyUpHandler) window.removeEventListener('keyup', state.keyUpHandler, true)
+  if (state.mouseHandler) window.removeEventListener('mousedown', state.mouseHandler, true)
+  /* Крючок выгрузки заметки снимается, только если он всё ещё наш (R7). */
+  if (state.view && state.unloadHook && state.view.onUnloadFile === state.unloadHook) delete state.view.onUnloadFile
   try {
     if (state.scrollerOverlay && typeof state.scrollerOverlay.destroy === 'function') {
       state.scrollerOverlay.destroy()
@@ -2832,6 +2852,16 @@ async function runTagWheel(input, quickAddSettings) {
              Windows делает с одиночным `Alt`, — фокус на меню окна. */
           if (!e.repeat) state.altTap = true
           handled = true
+        } else if (isTypingKey(e) && insideSessionEditor(state, e.target)) {
+          /*
+           * **Печать закрывает панель как Enter** (`В-237`, его ответ
+           * 2026-09-26, BUGHUNT F7). Прежде набранное вставало в строку с
+           * полосой, а `Esc` выбрасывал его вместе с выбором. Выбор
+           * записывается, а клавиша уходит редактору дальше — знак встаёт
+           * туда, где каретка.
+           */
+          applySelection(state, state.core)
+          return
         }
       } catch (err) {
         try {
@@ -2881,6 +2911,56 @@ async function runTagWheel(input, quickAddSettings) {
       try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
     }
     /*
+     * **Щелчок в заметке закрывает панель как Enter** (`В-237`, BUGHUNT F7):
+     * выбор записан, а нажатие уходит редактору дальше — каретка встаёт туда,
+     * куда щёлкнули. Щелчок вне заметки (боковая панель, окно) сессию не
+     * трогает.
+     */
+    state.mouseHandler = function(e) {
+      if (!state.active || !insideSessionEditor(state, e && e.target)) return
+      try { applySelection(state, state.core) } catch (err) { state.cancel(); reportTagWheelError(err) }
+    }
+    /*
+     * **Сессия привязана к своей заметке** (BUGHUNT R7: F5, F6). Obsidian
+     * сохраняет заметку, уходя с неё — открыв другую в той же вкладке или
+     * закрыв вкладку: `loadFile` зовёт `onUnloadFile`, а он `save` (`app.js`
+     * 1.13.7, `TextFileView`). Сохранялась строка с полосой, а следующий
+     * Enter писал выбор в строку чужой заметки. Крючок стоит на самом виде,
+     * до сохранения, и закрывает сессию как `Esc`: строка возвращается к
+     * исходной, и на диск уходит она.
+     */
+    var sessionView = state.app && state.app.workspace ? state.app.workspace.activeEditor : null
+    if (sessionView && sessionView.editor === state.editor && typeof sessionView.onUnloadFile === 'function') {
+      var ownUnload = sessionView.onUnloadFile
+      state.view = sessionView
+      state.unloadHook = function(file) {
+        var wasActive = state.active
+        var panelText = null
+        try { panelText = wasActive ? String(state.editor.getLine(state.lineNumber)) : null } catch (_) { panelText = null /* проба: строки может уже не быть */ }
+        if (wasActive) state.cancel()
+        var res = ownUnload.call(this, file)
+        if (!wasActive || panelText === null || !file) return res
+        /*
+         * Второй шаг — на диске. Сохранение, начатое перерисовкой полосы, к
+         * этому мгновению бывает ещё в пути, и `save(true)` при нём молчит
+         * (`if (this.saving) return` в `app.js` 1.13.7): на диск уезжала
+         * полоса. Строка, равная полосе, возвращается к исходной; всё прочее
+         * в заметке не трогается.
+         */
+        return Promise.resolve(res).then(function() {
+          var vault = state.app && state.app.vault
+          if (!vault || typeof vault.process !== 'function') return
+          return vault.process(file, function(data) {
+            var lines = String(data).split('\n')
+            if (lines[state.lineNumber] !== panelText) return data
+            lines[state.lineNumber] = state.originalLine
+            return lines.join('\n')
+          })
+        }).catch(reportTagWheelError)
+      }
+      sessionView.onUnloadFile = state.unloadHook
+    }
+    /*
      * Отпущенный `Alt` (`З-36`) переключает дочернее поле, если это было
      * одиночное нажатие. Живёт и снимается вместе с перехватом `keydown` —
      * `cleanupTagWheelState`, в том числе при выгрузке плагина.
@@ -2901,6 +2981,7 @@ async function runTagWheel(input, quickAddSettings) {
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)
     window.addEventListener('keyup', state.keyUpHandler, true)
+    window.addEventListener('mousedown', state.mouseHandler, true)
 
     drawPanelLine(state, panelView(state))
   }

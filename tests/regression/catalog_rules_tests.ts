@@ -129,13 +129,15 @@ const RULES: readonly Rule[] = [
   {
     what: "слушатель на window мимо registerDomEvent",
     rx: /window\.addEventListener\s*\(/g,
-    ceiling: 2,
+    ceiling: 3,
     control: 'window.addEventListener("resize", onResize);',
     why: "Б3: перехват клавиш панели TagWheel под З3 — `keydown` и, с 2026-09-23, "
       + "`keyup` для `Alt` (`З-36`, исключение № 148). Оба снимает одна уборка, "
       + "`cleanupTagWheelState`, в том числе при выгрузке (тридцать третье "
       + "исключение). Разобрано и оставлено нарочно; `blur` ради `Alt+Tab` "
-      + "не заведён — его заменяет `altKey` следующего нажатия",
+      + "не заведён — его заменяет `altKey` следующего нажатия. Третий — `mousedown` "
+      + "(2026-09-26, `В-237`, исключение № 159): щелчок в заметке закрывает панель "
+      + "как Enter; снимает его та же уборка",
   },
   {
     what: "печать в консоль журналом разработчика",

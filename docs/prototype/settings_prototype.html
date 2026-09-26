@@ -2391,7 +2391,7 @@ const SCHEMA = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide"},
                 {value:"keep",label:"Show"} ],
-      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Show</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text" },
+      tip:"tagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Show</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. While the picker is open it is written into the line itself, so a save in that moment keeps it in the file; Enter, Escape, typing, a click or leaving the note puts the line back, and what you picked lands on it when the picker closes. A custom block hides or keeps the Values of Left and Right Block the same way; the Values it has already written always stay in sight, as part of your text" },
     /*
      * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
      * коробке соседних значений отношения не имеет: пока субхедеры были
