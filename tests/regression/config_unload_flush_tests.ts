@@ -106,6 +106,46 @@ async function run(): Promise<void> {
     ok("правка, сделанная перед выгрузкой, дописана");
   }
 
+  /* ---- ревизия Д-3: правка посреди записи не выдаётся за чужую ---------- */
+  {
+    const saved: Any[] = [];
+    /* Запись висит, пока её не отпустят: так правка попадает внутрь записи. */
+    const pending: Array<() => void> = [];
+    const release = (): void => { while (pending.length) (pending.shift() as () => void)(); };
+    const plugin = {
+      loadData: async (): Promise<Any> => ({ configVersion: 2 }),
+      saveData: async (cfg: Any): Promise<void> => {
+        saved.push(JSON.parse(JSON.stringify(cfg)));
+        await new Promise<void>((r) => { pending.push(r); });
+      },
+    };
+    const store = new ConfigStore(plugin, {
+      defaults: { configVersion: 2, general: { language: "en" } },
+      cloneJson: su.cloneJson, isObj: su.isObj, deepMerge: su.deepMerge,
+      migrateConfig: (c: Any): Any => su.cloneJson(c),
+      Notice: function (): void { /* сообщений нет */ },
+      saveDebounceMs: 10,
+    });
+    const initDone = store.init();
+    await sleep(1);
+    release();
+    await initDone;
+    store.patch({ general: { language: "ru" } }, "первая");
+    await sleep(40);                         // запись «ru» началась и висит
+    store.patch({ general: { language: "de" } }, "посреди записи");
+    release();
+    await sleep(5);
+    /* На диске сейчас «ru»: так и должен думать плагин, а не «de». */
+    assertEq(store.diskChangedUnderUs(saved[saved.length - 1]), false,
+      "Д-3: свой же файл посреди записи объявлен изменённым снаружи");
+    assertEq(store.getSnapshot().general.language, "de", "правка посреди записи в памяти");
+    await sleep(40);
+    release();
+    await sleep(5);
+    assertEq(langOf(saved), "de", "правка посреди записи дописана следом");
+    ok("Д-3: правка посреди записи не теряется и не зовёт «изменено на диске»");
+  }
+
   /* ---- дописывать нечего: лишней записи не появляется ------------------- */
   {
     const saved: Any[] = [];

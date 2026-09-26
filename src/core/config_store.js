@@ -70,13 +70,27 @@ class ConfigStore {
   async init() {
     const raw = await this.plugin.loadData();
     this.config = this.migrateConfig(raw);
-    await this.plugin.saveData(this.config);
-    this.rememberWritten();
+    await this.writeSnapshot();
   }
 
   /** Запомнить, что теперь лежит в файле нашими руками. */
   rememberWritten() {
     this.lastWritten = this.getSnapshot();
+    this.hasWritten = true;
+  }
+
+  /**
+   * **Записать снимок и запомнить именно его** (ревизия Д-3). Запись на диск
+   * асинхронна: правка, пришедшая посреди `await saveData`, меняла
+   * `this.config`, и `rememberWritten` после записи объявлял записанным то,
+   * чего на диске нет. Следующий взгляд на диск видел «файл изменили снаружи»,
+   * принимал прежний файл и терял правку человека. Снимок берётся до записи,
+   * и запоминается он же.
+   */
+  async writeSnapshot() {
+    const snap = this.getSnapshot();
+    await this.plugin.saveData(snap);
+    this.lastWritten = snap;
     this.hasWritten = true;
   }
 
@@ -288,8 +302,7 @@ class ConfigStore {
          * файла время старее нашей записи (копия переносит время источника).
          */
         if (this.beforeWrite && (await this.beforeWrite()) === false) return;
-        await this.plugin.saveData(this.config);
-        this.rememberWritten();
+        await this.writeSnapshot();
       } catch (e) {
         console.error("[inline-overhaul] Save failed", e);
         new this.Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
@@ -319,8 +332,7 @@ class ConfigStore {
     if (!this.saveTimer) return false;
     clearTimeout(this.saveTimer);
     this.saveTimer = null;
-    await this.plugin.saveData(this.config);
-    this.rememberWritten();
+    await this.writeSnapshot();
     return true;
   }
 
