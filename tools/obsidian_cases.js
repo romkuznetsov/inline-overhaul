@@ -79,6 +79,13 @@ module.exports = [
   one("N8", "Move down не заезжает в блок кода", "- a", ["move-line-down"], "",
     { files: { "t.md": "- a\n```js\nlet x=1;\n```\n- b\n" }, expect: { "t.md": "```js\nlet x=1;\n```\n- a\n- b\n" } }),
 
+  one("N8.up", "Move up не заезжает в блок кода снизу", "- b", ["move-line-up"], "",
+    { files: { "t.md": "- a\n```js\nlet x=1;\n```\n- b\n" }, at: { file: "t.md", line: 4 }, expect: { "t.md": "- a\n- b\n```js\nlet x=1;\n```\n" } }),
+  one("T20", "Transform не превращает ограду кода в заметку", "```js", ["transform-inline-to-note"], "",
+    { files: { "t.md": "```js\nlet x=1;\n```\n" }, expect: { "t.md": "```js\nlet x=1;\n```\n" }, settle: 1200,
+      cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true } } },
+      check: "return !a.vault.getFiles().some((f) => f.name.startsWith('```')) || a.vault.getFiles().map((f) => f.path).join(', ');" }),
+
   /* F17, F9, F10, F11 */
   one("F17.a", "`||` в тексте человека не стирается", "- if (x || y) return", ["status-next"], "- #todo || if (x || y) return"),
   one("F9", "Дата с пробелом узнаётся", "- [ ] задача 📅 2026-09-30", ["due-next"], "- [ ] задача || 📅 2026-10-01"),

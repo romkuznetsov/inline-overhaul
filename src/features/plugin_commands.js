@@ -389,6 +389,12 @@ async function runInlineToNote(plugin) {
     plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
     return;
   }
+  /* Ограда кода, код и таблица в заметку не превращаются (BUGHUNT T20). */
+  const ed = plugin.getActiveEditor();
+  if (ed && onCodeOrTableLine(ed)) {
+    plugin.notice(__say(__noticeKey("transform", "code-line"), "Transform does not work inside a code block or a table"));
+    return;
+  }
   try {
     await Promise.resolve(getTransformFeature().runInline2Note(plugin, { Modal, lineFinalize: __transformLineFinalize }));
   } catch (e) {
@@ -485,6 +491,12 @@ async function runNavigationGuard(plugin, moduleKey, action, jumpKind) {
   }
 }
 
+/** Строка каретки — код или таблица (общее объявление, BUGHUNT R4). */
+function onCodeOrTableLine(ed) {
+  if (!ed || typeof ed.getCursor !== "function" || typeof ed.getLine !== "function") return false;
+  return __sharedUtils.isCodeOrTableLine((n) => ed.getLine(n), ed.getCursor().line);
+}
+
 async function runPkmGuard(plugin, action) {
   const cfg = plugin.getConfig();
   if (!cfg.features.pkm.enabled) {
@@ -494,6 +506,11 @@ async function runPkmGuard(plugin, action) {
   const ed = plugin.getActiveEditor();
   if (!ed) {
     new Notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first"));
+    return;
+  }
+  /* Блок кода и таблица — не строка текста: значения туда не пишутся (BUGHUNT F8). */
+  if (onCodeOrTableLine(ed)) {
+    new Notice(__say(__noticeKey("pkm", "code-line"), "Tags & PKM does not work inside a code block or a table"));
     return;
   }
   try {

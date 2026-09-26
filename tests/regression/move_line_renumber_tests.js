@@ -312,4 +312,18 @@ const LIST = [
   ok("Jump over neighbor trees при Highlight moved lines: каждое нажатие перескакивает соседа");
 }
 
+{
+  /*
+   * BUGHUNT N8: блок кода перескакивается целиком — строка не заезжает внутрь,
+   * откуда перенос её уже не вынесет. Отрицательный контроль — обычный сосед.
+   */
+  const CODE = ["- a", "```js", "let x=1;", "```", "- b"].join("\n");
+  assert.equal(move(CODE, 0, "down").text, ["```js", "let x=1;", "```", "- a", "- b"].join("\n"), "Move down заехал в блок кода");
+  assert.equal(move(CODE, 4, "up").text, ["- a", "- b", "```js", "let x=1;", "```"].join("\n"), "Move up заехал в блок кода");
+  assert.equal(move(["- a", "```js", "let x=1;"].join("\n"), 0, "down").text, ["- a", "```js", "let x=1;"].join("\n"),
+    "незакрытый блок: переносить некуда");
+  assert.equal(move(["- a", "- b"].join("\n"), 0, "down").text, ["- b", "- a"].join("\n"), "отрицательный контроль: сосед без кода");
+  ok("Move up/down перескакивает блок кода целиком");
+}
+
 console.log("\n" + passed + " проверок пройдено");

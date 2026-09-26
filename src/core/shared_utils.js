@@ -1076,6 +1076,32 @@ function lineWordsWithSpace(text) {
   return String(nz(text, "")).match(WORD_WITH_SPACE_RE) || [];
 }
 
+/**
+ * **Код и таблица — одно объявление на весь плагин** (BUGHUNT 2026-09-26,
+ * корень R4). Команды полей писали значения внутрь блока кода и в строку
+ * таблицы, Transform делал из ограды ```js заметку, а перенос строки заезжал
+ * в блок кода. Ограда — три и больше `\`` или `~` в начале строки (отступ
+ * допускается), как у Obsidian; внутри блока — нечётное число оград выше.
+ * Строка таблицы — начинается с `|`.
+ */
+const FENCE_LINE_RE = /^[ \t]*(?:`{3,}|~{3,})/;
+function isFenceLine(text) {
+  return FENCE_LINE_RE.test(String(nz(text, "")));
+}
+/** Строка `lineNo` лежит внутри блока кода (сама ограда — нет). */
+/* ponytail: обход всех строк выше на каждый вопрос; дерево разбора Obsidian (`syntaxTree`), если заметка в десятки тысяч строк станет медленной. */
+function isInsideFence(getLine, lineNo) {
+  let depth = 0;
+  for (let l = 0; l < lineNo; l++) if (isFenceLine(getLine(l))) depth++;
+  return depth % 2 === 1;
+}
+/** Строку нельзя трогать как строку текста: ограда, код или таблица. */
+function isCodeOrTableLine(getLine, lineNo) {
+  const text = String(nz(getLine(lineNo), ""));
+  if (/^[ \t]*\|/.test(text) || isFenceLine(text)) return true;
+  return isInsideFence(getLine, lineNo);
+}
+
 /** Весь токен целиком — ссылка вида `[[имя]]`. */
 function isWikilinkToken(text) {
   return WIKILINK_TOKEN_RE.test(String(nz(text, "")).trim());
@@ -1544,6 +1570,9 @@ module.exports = {
   wikilinkLineToken,
   wikilinkLineForms,
   lineWords,
+  isFenceLine,
+  isInsideFence,
+  isCodeOrTableLine,
   lineWordsWithSpace,
   listIndentLevel,
   renumberOrderedWindow,

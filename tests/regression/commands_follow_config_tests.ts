@@ -22,7 +22,7 @@
  */
 
 import assert from "node:assert/strict";
-import { setupGlobals } from "../harness/obsidian_stub.ts";
+import { notices, setupGlobals } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 
 setupGlobals();
@@ -115,6 +115,30 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   write(I.migrateConfig(dropped));
   assert.ok(!commands.has("quote") && removed.includes("quote"), "Д-1: удалённая строка Binder осталась командой");
   ok("запись в хранилище переименовывает и снимает команды Field и Binder, текст Binder — нынешний");
+}
+
+/* 4. BUGHUNT R4 (F8, T20): двери PKM и Transform не пускают на код и таблицу. */
+{
+  const cfg = config([]);
+  cfg.transform.inline2note.enabled = true;
+  const lines = ["- текст", "```js", "let x=1;", "```", "| 1 | 2 |"];
+  const said: string[] = [];
+  const at = (line: number): Any => ({
+    getConfig: () => cfg,
+    notice: (m: string) => { said.push(m); },
+    getActiveEditor: () => ({ getCursor: () => ({ line, ch: 0 }), getLine: (n: number) => lines[n] }),
+    devLogEvent: () => {},
+  });
+  const ran: number[] = [];
+  const before = notices.length;
+  for (const line of [0, 1, 2, 3, 4]) await I.runPkmGuard(at(line), async () => { ran.push(line); });
+  said.push(...notices.slice(before));
+  assert.deepEqual(ran, [0], "F8: команда PKM прошла на строку кода или таблицы: " + ran.join(","));
+  assert.ok(said.some((m) => /code block or a table/.test(m)), "F8: отказ молчит");
+  said.length = 0;
+  await I.runInlineToNote(at(1));
+  assert.ok(said.some((m) => /code block or a table/.test(m)), "T20: Transform не отказал на ограде кода: " + said.join(" | "));
+  ok("PKM и Transform не трогают строку кода и таблицы, отрицательный контроль — строка текста");
 }
 
 console.log(passed + " проверок пройдено");

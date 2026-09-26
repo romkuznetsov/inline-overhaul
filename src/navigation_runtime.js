@@ -303,6 +303,8 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
   }
   const prev = prevNonBlank(editor, bStart - 1, yamlEnd);
   if (prev === null) return null;
+  const overCode = codeBlockEdgeUp(editor, prev);
+  if (overCode !== undefined) return overCode;
   const prevText = nz(editor.getLine(prev), "");
   if (isHeader(prevText)) {
     if (!cfg.crossSectionAllowed) return null;
@@ -357,6 +359,8 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   }
   const next = nextNonBlank(editor, bEnd + 1, total);
   if (next === null) return null;
+  const overCode = codeBlockEdgeDown(editor, next, total);
+  if (overCode !== undefined) return overCode;
   const nextText = nz(editor.getLine(next), "");
   if (isHeader(nextText)) {
     if (!cfg.crossSectionAllowed) return null;
@@ -674,7 +678,24 @@ function nextNonBlank(editor, fromLine, total) { for (let l = fromLine; l < tota
 function prevNonBlankWithExactIndent(editor, fromLine, exactIndent, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeader(t)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
 function nextNonBlankWithExactIndent(editor, fromLine, exactIndent, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeader(t)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
 function findYamlEnd(editor) { if (String(nz(editor.getLine(0), "")).trim() !== "---") return -1; const max = editor.lastLine(); for (let l = 1; l <= max; l++) { const t = String(nz(editor.getLine(l), "")).trim(); if (t === "---" || t === "...") return l; } return -1; }
-function isInsideCodeBlock(editor, lineNo) { let depth = 0; for (let l = 0; l < lineNo; l++) if (/^(`{3,}|~{3,})/.test(String(nz(editor.getLine(l), "")).trimStart())) depth++; return depth % 2 === 1; }
+/* Ограда и «внутри блока» — общего дома (BUGHUNT R4). */
+function isInsideCodeBlock(editor, lineNo) { return __sharedUtils.isInsideFence((l) => editor.getLine(l), lineNo); }
+/*
+ * **Блок кода перескакивается целиком** (BUGHUNT N8): строка, сосед которой —
+ * ограда, встаёт по другую сторону всего блока, а не внутрь него. Внутри
+ * блока перенос не работает вовсе (`moveLine`), и заехавшая туда строка
+ * оставалась в коде навсегда. Незакрытый блок — переносить некуда.
+ */
+function codeBlockEdgeDown(editor, fenceLine, total) {
+  if (!__sharedUtils.isFenceLine(editor.getLine(fenceLine)) || isInsideCodeBlock(editor, fenceLine)) return undefined;
+  for (let l = fenceLine + 1; l < total; l++) if (__sharedUtils.isFenceLine(editor.getLine(l))) return l;
+  return null;
+}
+function codeBlockEdgeUp(editor, fenceLine) {
+  if (!__sharedUtils.isFenceLine(editor.getLine(fenceLine)) || !isInsideCodeBlock(editor, fenceLine)) return undefined;
+  for (let l = fenceLine - 1; l >= 0; l--) if (__sharedUtils.isFenceLine(editor.getLine(l))) return l - 1;
+  return null;
+}
 function prevHeaderOfLevel(editor, fromLine, maxLevel, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
 function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
 

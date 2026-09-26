@@ -3717,7 +3717,9 @@ async function runInline2Note(plugin, runtimeOptions) {
     ? plugin.app.workspace.getActiveFile() : null;
   const sourcePath = activeFile && typeof activeFile.path === "string" ? activeFile.path : "";
   if (!i2n.enabled) {
-    plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
+    /* Модуль включён, выключен сам `Inline to note` — сказать, где его включить
+       (BUGHUNT S17: сообщение называло выключенным модуль, а его тумблер горел). */
+    plugin.notice(__say(__noticeKey("transform", "inline-off"), "Inline to note is switched off: turn it on in the Transform tab of the settings"));
     return;
   }
   const ed = plugin.getActiveEditor();

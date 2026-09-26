@@ -1958,6 +1958,10 @@ function floatingButtonLineNumber(view, plugin) {
      пользователь случайно не нажал повторно»). Метку узнаёт то же объявление,
      что и подсветку обработанной строки. Команда и хоткей остаются. */
   if (lineHasProcessedToken(text, marks.token)) return -1;
+  /* Ограда кода, код и таблица в заметку не превращаются — и кнопки там нет
+     (BUGHUNT T20; объявление общее с командой). */
+  const doc = view.state.doc;
+  if (__sharedUtils.isCodeOrTableLine((n) => doc.line(n + 1).text, line.number - 1)) return -1;
   return line.number;
 }
 

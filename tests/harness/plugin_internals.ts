@@ -43,6 +43,8 @@ export interface PluginInternals {
   buildOwnCommandList: (plugin: Any) => Any[];
   /** Обёртка команд навигации и шов подсветки прыжка (Н5). */
   runNavigationGuard: (plugin: Any, moduleKey: string, action: Any, jumpKind?: string) => Promise<Any>;
+  runPkmGuard: (plugin: Any, action: Any) => Promise<Any>;
+  runInlineToNote: (plugin: Any) => Promise<Any>;
   /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
   runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
   registerPkm: (plugin: Any) => void;
@@ -263,6 +265,9 @@ export function loadPluginInternals(): PluginInternals {
        прыжка живёт именно там (Н5). Модуль требует `obsidian`, и взять его
        напрямую из проверки нельзя. */
     runNavigationGuard: commands.runNavigationGuard,
+    /* Двери команд PKM и Transform: код и таблица (BUGHUNT R4). */
+    runPkmGuard: commands.runPkmGuard,
+    runInlineToNote: commands.runInlineToNote,
     /* Дверь всех команд PKM. Через неё проходит и открытие панели, и каждая
        команда поля, поэтому правило «пока панель открыта, строкой распоряжается
        она» стоит именно здесь. Стенд `tools/line_bench.js` её не проходит: он

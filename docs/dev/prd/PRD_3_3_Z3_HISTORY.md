@@ -2405,3 +2405,17 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 `starter_line_tests.ts` (F15) краснеют на прежнем коде; `clean N1,N2,N3,N11,F15`
 в настоящем Obsidian — сборка `0.10.0` краснеет на каждом. Откат — коммит корня
 (PRD 10.13.278).
+
+**Исключение сто шестьдесят первое, разрешение — его заказ 2026-09-26, день**
+(перечень `BUGHUNT_2026-09-26.md`, корень R4, N8): `navigation_runtime.js`.
+Работа назначена им самим — В-162.
+
+**Что сделано.** `findInsertAfterUp`/`findInsertAfterDown` спрашивают
+`codeBlockEdgeUp`/`codeBlockEdgeDown`: сосед-ограда — цель по другую сторону
+блока, незакрытый блок — переноса нет. `isInsideCodeBlock` зовёт
+`isInsideFence` общего дома.
+
+**Мера.** `move_line_renumber_tests.js` — вниз, вверх, незакрытый блок и
+отрицательный контроль; мутация «не перескакивать» краснеет;
+`node tools/move_scroll_bench.js` — экран на месте. Откат — коммит корня
+(PRD 10.13.278).

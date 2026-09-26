@@ -98,11 +98,19 @@ function cfg(over: Any): Any {
   const plugin: Any = { getConfig: () => cfg({ floatingButton: true }) };
   const at = (text: string): number => I.floatingButtonLineNumber({ state: {
     selection: { main: { head: 0 } },
-    doc: { lineAt: () => ({ number: 1, text }) },
+    doc: { lineAt: () => ({ number: 1, text }), line: () => ({ text }) },
+  } }, plugin);
+  /* Документ из нескольких строк — у CodeMirror `doc.line(n)` (У-172); каретка на строке `at`. */
+  const atLine = (lines: string[], n: number): number => I.floatingButtonLineNumber({ state: {
+    selection: { main: { head: 0 } },
+    doc: { lineAt: () => ({ number: n + 1, text: lines[n] }), line: (k: number) => ({ text: lines[k - 1] }) },
   } }, plugin);
   assert.equal(at("- text"), 1, "на обычной строке кнопка есть");
   assert.equal(at("- [[text]] #processed"), -1, "на строке с меткой кнопки нет");
   assert.equal(at("- text #processed-later"), 1, "часть длинного тега меткой не считается");
+  /* BUGHUNT T20: ограда кода, код и таблица в заметку не превращаются — кнопки нет. */
+  const code = ["```js", "let x=1;", "```", "| 1 | 2 |", "- text"];
+  assert.deepEqual([0, 1, 2, 3, 4].map((n) => atLine(code, n)), [-1, -1, -1, -1, 5], "кнопка на коде или таблице");
   ok("на обработанной строке плавающей кнопки нет");
 }
 
