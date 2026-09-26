@@ -203,6 +203,17 @@ function apply(lineText, ch, result) {
   }
 
   {
+    /* Ревизия Г-2: несколько кареток — вставка платформы, событие не гасится. */
+    const ed = makeEditor(["2. ", "3. "], { line: 0, ch: 3 });
+    ed.listSelections = () => [{ head: { line: 0, ch: 3 } }, { head: { line: 1, ch: 3 } }];
+    const e = evt("1. text");
+    assert.strictEqual(handleSmartPaste(plugin(on), e, ed), false, "при двух каретках вставка взята");
+    assert.strictEqual(e.prevented, false, "при двух каретках событие погашено");
+    ed.listSelections = () => [{ head: { line: 0, ch: 3 } }];
+    assert.strictEqual(handleSmartPaste(plugin(on), evt("1. text"), ed), true, "отрицательный контроль: одна каретка");
+  }
+
+  {
     /* Буфера без текста — проба платформы, а не отказ. */
     const ed = makeEditor(["2. "], { line: 0, ch: 3 });
     assert.strictEqual(handleSmartPaste(plugin(on), evt(""), ed), false, "пустой буфер взят");
@@ -241,6 +252,15 @@ function apply(lineText, ch, result) {
   assert.deepStrictEqual(ed.used, ["replaceSelection"],
     "запись пошла не обычной правкой: " + ed.used.join(", "));
   ok("вставка пишется обычной правкой, и фильтр нумерации Obsidian её видит");
+}
+
+{
+  /* Ревизия Д-6: вставка посреди строки и в блоке кода не нумеруется. */
+  assert.strictEqual(plan("5. foo", "see item ", 9), null, "первая строка посреди строки получила новый номер");
+  assert.strictEqual(plan("5. foo", "", 0, { inCode: true }), null, "вставка в блоке кода пронумерована");
+  assert.deepStrictEqual(plan("5. foo\n6. bar", "", 0), { insert: "1. foo\n2. bar" },
+    "отрицательный контроль: список с начала строки считается с единицы");
+  ok("посреди строки и в блоке кода номера вставки не трогаются");
 }
 
 console.log("\n" + passed + " проверок пройдено");

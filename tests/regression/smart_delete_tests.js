@@ -226,9 +226,19 @@ const ON = { enabled: true, dropPrefix: true, joinWithSpace: true };
   ed3.selected = true;
   assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed3)), false, "при выделении клавиша не наша");
 
-  const ed4 = makeEditor(["- задача", "\t- ещё"], { line: 0, ch: 8 });
-  ed4.selections = [{}, {}];
-  assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed4)), false, "при двух курсорах клавиша не наша");
+  /* BUGHUNT K15: две каретки — каждая своим шагом, снизу вверх. Прежде здесь
+     ждали отказа («при двух курсорах клавиша не наша»): пин держал дефект. */
+  const ed4 = makeEditor(["- a", "- b", "- c", "- d"], { line: 0, ch: 3 });
+  ed4.selections = [{ anchor: { line: 0, ch: 3 }, head: { line: 0, ch: 3 } }, { anchor: { line: 2, ch: 3 }, head: { line: 2, ch: 3 } }];
+  ed4.setSelections = (list) => { ed4.selections = list; };
+  assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed4)), true, "при двух каретках клавиша ушла платформе");
+  assert.deepStrictEqual(ed4.lines, ["- a b", "- c d"], "две каретки склеили не то: " + ed4.lines.join(" | "));
+  assert.deepStrictEqual(ed4.selections.map((x) => x.head), [{ line: 0, ch: 3 }, { line: 1, ch: 3 }],
+    "каретки встали не на места стыков");
+  const ed4b = makeEditor(["- a", "- b", "- c"], { line: 0, ch: 3 });
+  ed4b.selections = [{ head: { line: 0, ch: 3 } }, { head: { line: 1, ch: 1 } }];
+  assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed4b)), false,
+    "отрицательный контроль: у второй каретки плана нет — клавиша вся уходит платформе");
 
   const ed5 = makeEditor(["последняя"], { line: 0, ch: 9 });
   assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed5)), false, "на последней строке склеивать нечего");

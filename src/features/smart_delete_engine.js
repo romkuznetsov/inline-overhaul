@@ -164,36 +164,47 @@ function handleSmartKeymap(plugin, back) {
 
   try {
     if (typeof editor.somethingSelected === "function" && editor.somethingSelected()) return false;
-    if (typeof editor.listSelections === "function") {
-      const sels = editor.listSelections();
-      if (Array.isArray(sels) && sels.length > 1) return false;
+    /*
+     * **Несколько кареток — каждая своим шагом** (BUGHUNT K15). Прежде клавиша
+     * при второй каретке молча уходила платформе, и строки склеивались родным
+     * `Del` (`- a- b`). Теперь план считается у каждой каретки на одной строке,
+     * правки идут снизу вверх — нижняя не сдвигает верхних, — а каретки
+     * встают туда, куда их поставил план, с поправкой на склеенные выше строки.
+     * Хоть у одной каретки план не сложился — клавиша вся уходит платформе:
+     * половина кареток по-нашему, половина по-родному была бы хуже обоих.
+     */
+    const sels = typeof editor.listSelections === "function" && Array.isArray(editor.listSelections())
+      ? editor.listSelections() : [{ head: editor.getCursor() }];
+    const heads = sels.map((x) => (x && (x.head || x.anchor)) || editor.getCursor())
+      .map((h) => ({ line: Number(h.line), ch: Number(h.ch) || 0 }));
+    if (!heads.length || heads.some((h) => !Number.isFinite(h.line))) return false;
+    if (new Set(heads.map((h) => h.line)).size !== heads.length) return false;
+
+    const plans = [];
+    for (const h of heads) {
+      const line = h.line;
+      if (back ? line <= 0 : line >= editor.lastLine()) return false;
+      const common = {
+        enabled: true,
+        lineText: String(editor.getLine(line) || ""),
+        ch: h.ch,
+        dropPrefix: sd.dropPrefix !== false,
+        joinWithSpace: sd.joinWithSpace !== false,
+      };
+      const plan = back
+        ? planSmartBackspace({ ...common, prevLineText: String(editor.getLine(line - 1) || "") })
+        : planSmartDelete({ ...common, nextLineText: String(editor.getLine(line + 1) || "") });
+      if (!plan) return false;
+      /* Диапазон всегда идёт от верхней строки к нижней, чем бы его ни считали. */
+      plans.push({ top: back ? line - 1 : line, plan });
     }
-
-    const cursor = editor.getCursor();
-    const line = Number(cursor && cursor.line);
-    if (!Number.isFinite(line)) return false;
-    if (back ? line <= 0 : line >= editor.lastLine()) return false;
-
-    const common = {
-      enabled: true,
-      lineText: String(editor.getLine(line) || ""),
-      ch: Number(cursor.ch) || 0,
-      dropPrefix: sd.dropPrefix !== false,
-      joinWithSpace: sd.joinWithSpace !== false,
-    };
-    const plan = back
-      ? planSmartBackspace({ ...common, prevLineText: String(editor.getLine(line - 1) || "") })
-      : planSmartDelete({ ...common, nextLineText: String(editor.getLine(line + 1) || "") });
-    if (!plan) return false;
-
-    /* Диапазон всегда идёт от верхней строки к нижней, чем бы его ни считали. */
-    const top = back ? line - 1 : line;
-    editor.replaceRange(
-      plan.insert,
-      { line: top, ch: plan.fromCh },
-      { line: top + 1, ch: plan.toCh }
-    );
-    editor.setCursor({ line: top, ch: plan.cursorCh });
+    plans.sort((x, y) => y.top - x.top);
+    for (const { top, plan } of plans) {
+      editor.replaceRange(plan.insert, { line: top, ch: plan.fromCh }, { line: top + 1, ch: plan.toCh });
+    }
+    const carets = plans.slice().reverse().map(({ top, plan }, i) => ({ line: top - i, ch: plan.cursorCh }));
+    if (carets.length === 1) editor.setCursor(carets[0]);
+    else editor.setSelections(carets.map((c) => ({ anchor: c, head: c })));
     return true;
   } catch (e) {
     console.error("[inline-overhaul][smart-delete]", e);

@@ -55,6 +55,8 @@ function planSmartPaste(opts) {
 
   const pasted = String(o.pasted == null ? "" : o.pasted);
   if (!pasted) return null;
+  /* В блоке кода номера — текст программы, а не список (ревизия Д-6). */
+  if (o.inCode === true) return null;
 
   const lineText = String(o.lineText == null ? "" : o.lineText);
   const ch = Math.max(0, Math.min(Number(o.ch) || 0, lineText.length));
@@ -87,7 +89,15 @@ function planSmartPaste(opts) {
    * плагин считает номера после переноса строк. Уровень у каждого пункта
    * свой, и подсписок внутри вставки тоже начинается с единицы.
    */
-  lines = __sharedUtils.renumberOrderedWindow(lines, 0, lines.length - 1);
+  /*
+   * **Первая строка вставки посреди строки — не пункт списка** (ревизия Д-6):
+   * `see item ` + `5. foo` давало `see item 1. foo`. Номер у неё не
+   * пересчитывается, окно счёта начинается со второй строки.
+   */
+  const midLine = !joined && lineText.slice(__sharedUtils.lineStartOf(lineText).at, ch).trim() !== "";
+  lines = midLine
+    ? (lines.length > 1 ? __sharedUtils.renumberOrderedWindow(lines, 1, lines.length - 1) : lines)
+    : __sharedUtils.renumberOrderedWindow(lines, 0, lines.length - 1);
 
   let insert = lines.join("\n");
 
@@ -123,6 +133,10 @@ function handleSmartPaste(plugin, evt, editor) {
   if (!sp || sp.enabled !== true) return false;
   if (!evt || evt.defaultPrevented) return false;
   if (!editor || typeof editor.replaceSelection !== "function") return false;
+  /* Несколько кареток — вставка платформы: она раздаёт строки буфера по
+     кареткам, а `replaceSelection` клал бы весь буфер в каждую (ревизия Г-2,
+     та же охрана, что у Smart Enter). */
+  if (typeof editor.listSelections === "function" && editor.listSelections().length > 1) return false;
 
   try {
     const data = evt.clipboardData;
@@ -145,6 +159,7 @@ function handleSmartPaste(plugin, evt, editor) {
       pasted,
       lineText: String(editor.getLine(line) || ""),
       ch: Number(from.ch) || 0,
+      inCode: __sharedUtils.isInsideFence((n) => editor.getLine(n), line),
     });
     if (!plan) return false;
 
