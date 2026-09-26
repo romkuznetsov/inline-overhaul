@@ -57,7 +57,10 @@ function buildCombinedSelectionSet(options) {
     if (!parentToken || !subToken) continue;
 
     const parentPrefix = typeof parentField.prefix === "string" ? parentField.prefix : "#";
-    const combinedToken = parentPrefix + rawParentToken + "/" + rawSubToken.replace(/^#/, "");
+    /* Value, заведённое панелью, хранится с решёткой (`#test1`), стартовое —
+       без: вид собирает общий `composeToken`, а не склейка (BUGHUNT S13 —
+       `##test1/test1-1` при `Nested`). */
+    const combinedToken = composeToken(parentPrefix, rawParentToken) + "/" + rawSubToken.replace(/^#/, "");
     const dedupKey = `${parentId}::${subId}::${combinedToken}`;
     if (seen[dedupKey]) continue;
     seen[dedupKey] = true;

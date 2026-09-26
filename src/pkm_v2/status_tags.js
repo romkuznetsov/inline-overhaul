@@ -252,12 +252,13 @@ function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, 
   const tokenMap = [];
   for (const pv of parentVals) {
     const parentId = valueId(pv);
-    const pTok = pp + String(pv?.token || "");
+    /* Вид Value — у `composeToken`: заведённое панелью хранится с решёткой (BUGHUNT S13). */
+    const pTok = __sharedUtils.composeToken(pp, String(pv?.token || ""));
     if (!pTok) continue;
     const subs = getAllowedSubValues(subField, String(pv.token || ""));
     for (const sv of subs) {
       const subId = valueId(sv);
-      const combo = pTok + "/" + String(sv?.token || "");
+      const combo = pTok + "/" + String(sv?.token || "").replace(/^#/, "");
       if (!combo || combo.endsWith("/")) continue;
       const hitId = `${parentId}::${subId}`;
       tokenMap.push({ id: hitId, token: combo });

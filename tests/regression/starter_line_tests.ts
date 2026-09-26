@@ -78,6 +78,27 @@ async function main(): Promise<void> {
   assert.equal(slot("- #todo || позвонить"), JSON.stringify({ start: 11, end: 20 }), "K4 отрицательный контроль: за разделителем текст");
   passed += 4;
   console.log("  ok K4 слот текста при одном разделителе");
+  /* S13: Value, заведённое панелью, хранится с решёткой (`#todo`), стартовое —
+     без. При `Nested` вид собирался склейкой, и выходило `##todo/kitchen`. */
+  const nested = JSON.parse(JSON.stringify(cfg));
+  const tagFields = nested.pkm.fields.tags.fields;
+  const status = tagFields.find((f: Any) => f.id === "Status");
+  status.values = status.values.map((v: Any) => ({ ...v, token: "#" + String(v.token).replace(/^#/, "") }));
+  const sub = tagFields.find((f: Any) => f.id === "Status_sub");
+  sub.values = [{ token: "#kitchen", allowedParentValues: ["#todo"], active: true }];
+  sub.enabled = true;
+  nested.pkm.fields.order.enabled.Status_sub = true;
+  nested.pkm.fields.order.active.Status_sub = "yes";
+  nested.pkm.behavior.childTagFormat = "combined";
+  const nestedCfg = normalize.migrateConfig(nested);
+  const got = await bench.runCommandById(nestedCfg, "status-sub-next", "- #todo || x", 12);
+  assert.equal(got.line, "- #todo/kitchen || x", "S13: Nested с Value панели");
+  passed++;
+  /* Второе нажатие читает написанное (У-157): пара узнаётся, круг идёт дальше. */
+  const again = await bench.runCommandById(nestedCfg, "status-sub-next", got.line, got.line.length);
+  assert.equal(again.line, "- #todo || x", "S13: написанное Nested не узнаётся вторым нажатием");
+  passed++;
+  console.log("  ok S13 Nested: Value с решёткой не удваивает её");
   /* F4: план записи полосы режет строку словами, и ссылка с пробелом — одно
      слово; иначе ` B]]` прятался посреди ссылки и Obsidian рисовал хвост. */
   const plw = require("../../src/core/panel_line_write.js");

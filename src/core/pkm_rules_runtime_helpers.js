@@ -1304,7 +1304,8 @@ function buildTagTokenKeyMap(rules, options) {
       for (const sv of activeValues(subField)) {
         const sTok = String(sv && sv.token ? sv.token : "");
         if (!sTok) continue;
-        out[composeToken(pref, `${pTok}/${sTok}`)] = parentKey;
+        /* Дочернее Value с решёткой (заведено панелью) — без неё после `/` (BUGHUNT S13). */
+        out[composeToken(pref, `${pTok}/${sTok.replace(/^#/, "")}`)] = parentKey;
       }
     }
   }

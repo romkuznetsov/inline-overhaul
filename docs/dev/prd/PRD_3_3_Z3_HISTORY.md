@@ -2419,3 +2419,18 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 отрицательный контроль; мутация «не перескакивать» краснеет;
 `node tools/move_scroll_bench.js` — экран на месте. Откат — коммит корня
 (PRD 10.13.278).
+
+**Исключение сто шестьдесят второе, разрешение — его заказ 2026-09-26, день**
+(перечень `BUGHUNT_2026-09-26.md`, S13): `status_line_runtime_unified.js`,
+`status_tags.js`, `pkm_rules_runtime_helpers.js`. Работа назначена им самим —
+В-162.
+
+**Что сделано.** Вид пары родитель/дитя при `Nested` собирается общим
+`composeToken` (он не удваивает приставку у Value, хранящегося с решёткой), а
+дочернее Value после `/` пишется без решётки — в сборке строки, в карте
+`buildTagTokenKeyMap` и в разборе пары `hydrateCombinedPairFromLine`.
+
+**Мера.** `starter_line_tests.ts`: первое и второе нажатие `Status-sub next`
+на Value с решёткой; откат `status_line_runtime_unified.js` краснеет. На его
+настройках `line_matrix --all` — ноль различий. Откат — коммит S13
+(PRD 10.13.278).
