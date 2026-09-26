@@ -1021,4 +1021,27 @@ function runElementValueWrittenByPluginIsFoundSuite() {
 
 runElementValueWrittenByPluginIsFoundSuite();
 
+/* BUGHUNT R6: имя файла из названия со ссылками; повтор в ту же заметку (`В-240`). */
+(function runTitleLinksSuite() {
+  const slug = transform.slugSafeTitle;
+  assertEq(slug("встреча с [[Другое]] сегодня"), "встреча с Другое сегодня", "T6: скобки ссылки в имени файла");
+  assertEq(slug("[[111/имя|подпись]] и [[222/папка/x]]"), "подпись и x", "ссылка отдаёт подпись или имя без папки");
+  assertEq(slug("читать [статью](https://x.y) завтра"), "читать статью завтра", "T8: ссылка Markdown в имени");
+  assertEq(slug("задача про C# язык ^блок"), "задача про C язык блок", "T1, Г-3: # и ^ в имени");
+  assertEq(slug("обычное имя"), "обычное имя", "отрицательный контроль: простое имя не трогается");
+  const i2n = transform.normalizeInline2Note({ enabled: true });
+  assertEq(transform.explicitTitleOf("- читать [статью](https://x.y) завтра", i2n), "", "T8: ссылка Markdown принята за имя в скобках");
+  const info = transform.resolveAutoTitleInfo({ line: "- a [[Project A]] b", payloadText: "a [[Project A]] b" }, { noteName: { wordCount: 2 } });
+  assertEq(info.title, "a [[Project A]]", "ссылка с пробелом — одно слово названия");
+  const files = { "повтор.md": { path: "повтор.md" } };
+  const plugin = { app: { vault: { getAbstractFileByPath: (p) => files[p] || null }, metadataCache: { getFirstLinkpathDest: (t) => files[t + ".md"] || null } } };
+  const again = transform.sameNoteAgain(plugin, { payloadText: "[[повтор]]" }, "- [[повтор]] || #processed", "t.md");
+  assertEq(again && again.path, "повтор.md", "T24: превращённая строка не дописывает в свою заметку");
+  assertEq(again && again.mode, "add_to_note", "T24: повтор не дописывает");
+  plugin._i2nMade = new Map([["- после отмены", "повтор.md"]]);
+  assertEq((transform.sameNoteAgain(plugin, { payloadText: "после отмены" }, "- после отмены", "t.md") || {}).path, "повтор.md", "В-240: повтор после отмены заводит новую");
+  assertEq(transform.sameNoteAgain(plugin, { payloadText: "другая" }, "- другая", "t.md"), null, "отрицательный контроль: чужая строка");
+  console.log("  ok R6: имя файла без скобок и знаков ссылки, повтор дописывает в ту же заметку");
+})();
+
 console.log("Transform feature regression tests: OK");

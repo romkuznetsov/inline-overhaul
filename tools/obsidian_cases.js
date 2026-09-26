@@ -19,6 +19,14 @@ const one = (id, title, line, steps, want, extra) => {
     extra || {}, ...["files", "at", "expect", "expectDisk"].filter((k) => extra && extra[k]).map((k) => ({ [k]: re(extra[k]) })));
 };
 
+/* Transform со включённым `Inline to note`: шаги — число (нажатие) или "undo";
+   ждём файл `note` и строку (печатается), `more` — дополнительное условие. */
+const I2N = { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true } } };
+const tr = (id, title, line, presses, note, more) => one(id, title, line,
+  [].concat(...presses.map((x) => (x === "undo" ? [{ js: "ed.undo();", wait: 600 }, { js: "if (ed.getLine(0).includes('[[')) throw new Error('отмена не вернула строку: ' + ed.getLine(0));" }] : [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }]))),
+  "", { cfg: I2N, expect: {}, settle: 800,
+    check: "const line = a.workspace.activeEditor.editor.getLine(0); const ok = !!a.vault.getAbstractFileByPath(" + JSON.stringify(note) + ")" + (more ? " && (" + more + ")" : "") + "; return ok || JSON.stringify({ line, files: a.vault.getFiles().map((f) => f.path).filter((p) => !/^(t-|Демо|Проверка)/.test(p)) });" });
+
 module.exports = [
   one("smoke", "Status next на простой строке", "- x", ["status-next"], "- #todo || x"),
 
@@ -109,9 +117,13 @@ module.exports = [
   one("N3", "Смена префикса не уводит каретку", "- alpha beta gamma", ["move-left", { js: "" }], "", { at: { file: "t.md", line: 0, ch: 8 },
     expect: {}, check: "const e = a.workspace.activeEditor.editor; return e.getCursor().ch === e.getLine(0).indexOf('beta') || JSON.stringify([e.getLine(0), e.getCursor()]);" }),
 
-  /* T — Transform */
-  one("T24", "Повторный Transform не вкладывает скобки", "- #todo || повтор", ["transform-inline-to-note", "transform-inline-to-note"],
-    "", { expect: {}, settle: 1500, check: "const l = a.workspace.activeEditor.editor.getLine(0); return !/\\[\\[\\[\\[/.test(l) && !a.vault.getAbstractFileByPath('[[повтор]].md') || l;" }),
-  one("T6", "Transform: скобки ссылки не попадают в имя файла", "- #todo || встреча с [[Другое]] сегодня", ["transform-inline-to-note"],
-    "", { expect: {}, settle: 1500, check: "return !a.vault.getFiles().some((f) => f.name.includes('[[')) || a.vault.getFiles().map((f) => f.path).join(', ');" }),
+  /* T — Transform: `Inline to note` включён (в чистом vault он выключен). */
+  tr("T6", "Скобки ссылки не попадают в имя файла", "- #todo || встреча с [[Другое]] сегодня", [1],
+    "встреча с Другое сегодня.md"),
+  tr("T24", "Повторный Transform дописывает в ту же заметку, скобки не вкладываются", "- #todo || повтор", [1, 2],
+    "повтор.md", "!a.vault.getFiles().some((f) => /\\[\\[|-01/.test(f.name)) && !/\\[\\[\\[\\[/.test(line)"),
+  tr("T1", "# в имени заметки не делает ссылку заголовком", "- задача про C# язык", [1], "задача про C язык.md"),
+  tr("T8", "[текст](url) — текст в имени", "- читать [статью](https://x.y) завтра", [1], "читать статью завтра.md"),
+  tr("T13", "Повтор после отмены дописывает, а не заводит -01", "- после отмены", [1, "undo", 1],
+    "после отмены.md", "!a.vault.getFiles().some((f) => f.name.includes('после отмены') && f.name !== 'после отмены.md')"),
 ];

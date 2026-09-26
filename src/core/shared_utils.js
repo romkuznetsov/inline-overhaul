@@ -1102,6 +1102,9 @@ function isCodeOrTableLine(getLine, lineNo) {
   return isInsideFence(getLine, lineNo);
 }
 
+/* Ссылка Markdown `[текст](адрес)`: первая группа — текст (BUGHUNT T8). */
+const MARKDOWN_LINK_SRC = "\\[([^\\]\\n]*)\\]\\(([^)\\n]*)\\)";
+
 /** Весь токен целиком — ссылка вида `[[имя]]`. */
 function isWikilinkToken(text) {
   return WIKILINK_TOKEN_RE.test(String(nz(text, "")).trim());
@@ -1570,6 +1573,7 @@ module.exports = {
   wikilinkLineToken,
   wikilinkLineForms,
   lineWords,
+  MARKDOWN_LINK_SRC,
   isFenceLine,
   isInsideFence,
   isCodeOrTableLine,

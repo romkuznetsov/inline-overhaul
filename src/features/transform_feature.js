@@ -1905,7 +1905,9 @@ function explicitTitleOf(line, i2n) {
    */
   const lineWithoutWikilinks = String(__sharedUtils.lineStartOf(String(line || "")).body || "")
     /* Форма ссылки — общий дом; сверено, расхождений ноль (10.13.141). */
-    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ");
+    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
+    /* Ссылка Markdown `[текст](адрес)` — не имя в скобках (BUGHUNT T8). */
+    .replace(new RegExp(__sharedUtils.MARKDOWN_LINK_SRC, "g"), " ");
   let m;
   while ((m = re.exec(lineWithoutWikilinks)) !== null) {
     const explicit = String(m[1] || "").trim();
@@ -2037,7 +2039,9 @@ function resolveAutoTitleInfo(parsed, i2n) {
   }
   const base = payload && payload !== "-" ? payload : "";
   const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.wordCount) || 6)));
-  const words = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
+  /* Ссылка с пробелом — одно слово (`lineWords`, BUGHUNT R1): иначе её половина
+     попадала в имя заметки. */
+  const words = __sharedUtils.lineWords(base).slice(0, wordsN);
   if (words.length) return { title: words.join(" "), origin: "words" };
   return { title: "", origin: "" };
 }
@@ -2143,10 +2147,23 @@ function sanitizeResolvedTitle(raw) {
   return s;
 }
 
+/**
+ * Имя файла из названия.
+ *
+ * **Ссылка в названии — её текст, а не скобки** (BUGHUNT R6: T6, T8, T1;
+ * ревизия Г-3). Слова строки со ссылкой `встреча с [[Другое]] сегодня` давали
+ * файл `встреча с [[Другое]] сегодня.md` и битую ссылку на него: `[[` внутри
+ * `[[…]]` Obsidian не читает. Ссылка отдаёт подпись или имя без папки,
+ * ссылка Markdown `[текст](адрес)` — текст. `#` и `^` Obsidian читает в
+ * ссылке заголовком и блоком, `[` и `]` её рвут — в имени их нет, как и
+ * знаков, которых не пускает файловая система.
+ */
 function slugSafeTitle(raw) {
   return String(raw || "")
     .trim()
-    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target, alias) => alias || String(target).split("/").pop())
+    .replace(new RegExp(__sharedUtils.MARKDOWN_LINK_SRC, "g"), "$1")
+    .replace(/[\\/:*?"<>|#^[\]]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -2167,6 +2184,39 @@ function resolveRuleFolder(rule, i2n) {
     if (own) return own;
   }
   return normalizeFolderPath(i2n && i2n.outputFolder);
+}
+
+/**
+ * **Повторный Transform дописывает в ту же заметку** (`В-240`, его ответ
+ * «дописать в ту же»; BUGHUNT T24). Два случая, и оба — «эта заметка уже
+ * есть и она та самая»:
+ *
+ *   - строка уже превращена: её текст — одна ссылка, и заметка по ней есть.
+ *     Прежде название собиралось из `[[повтор]]` со скобками, и каждый повтор
+ *     заводил `[[повтор]].md`, `[[[[повтор]]]].md` и вкладывал скобки в строку;
+ *   - строку вернули отменой, а заметка осталась: та же строка в этой сессии
+ *     уже заводила её. Прежде повтор заводил `…-01.md`.
+ *
+ * Память второго случая живёт до перезапуска: после него строку и заметку
+ * связывает только ссылка, а её на отменённой строке уже нет.
+ */
+function sameNoteAgain(plugin, parsed, sourceLine, sourcePath) {
+  const app = plugin && plugin.app;
+  if (!app || !app.vault) return null;
+  const words = __sharedUtils.lineWords(parsed && parsed.payloadText);
+  let path = "";
+  if (words.length === 1 && __sharedUtils.isWikilinkToken(words[0])) {
+    const linked = __sharedUtils.wikilinkTargetOf(words[0]);
+    const cache = app.metadataCache;
+    const file = cache && typeof cache.getFirstLinkpathDest === "function"
+      ? cache.getFirstLinkpathDest(linked, sourcePath || "")
+      : app.vault.getAbstractFileByPath(linked + ".md");
+    path = file && file.path ? String(file.path) : "";
+  } else {
+    const made = plugin._i2nMade ? plugin._i2nMade.get(String(sourceLine)) : "";
+    if (made && app.vault.getAbstractFileByPath(made)) path = made;
+  }
+  return path ? { mode: "add_to_note", path, basePath: path, exists: true } : null;
 }
 
 async function pickTargetPath(plugin, title, i2n, rule) {
@@ -3767,7 +3817,7 @@ async function runInline2Note(plugin, runtimeOptions) {
   /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
      два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
   const smartRule = selectSmartRule(parsed, i2n.smartRules, cfg);
-  const target = await pickTargetPath(plugin, title, i2n, smartRule);
+  const target = sameNoteAgain(plugin, parsed, sourceLine, sourcePath) || await pickTargetPath(plugin, title, i2n, smartRule);
   /* Типы свойств из хранилища: список остаётся списком, даже если значение
      одно (B21, решение заказчика 2026-09-02). */
   const yamlMap = buildYamlMapFromContext(transformContext, cfg, readVaultPropertyTypes(plugin && plugin.app));
@@ -3791,6 +3841,11 @@ async function runInline2Note(plugin, runtimeOptions) {
   assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
   const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock, placementSource);
   const actualTarget = mutation.target;
+  /* Заметка, заведённая с этой строки: повтор после отмены допишет в неё (`В-240`). */
+  if (!target.exists) {
+    plugin._i2nMade = plugin._i2nMade || new Map();
+    plugin._i2nMade.set(sourceLine, actualTarget.path);
+  }
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
     const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
@@ -3875,6 +3930,9 @@ module.exports = {
   parseFrontmatter,
   renderYamlBlockWithOrder,
   resolveAutoTitle,
+  /* Имя файла из названия (BUGHUNT R6) и повтор в ту же заметку (`В-240`) — ради проверки. */
+  slugSafeTitle,
+  sameNoteAgain,
   /* Откуда название и какой кусок строки им стал: один ответ на оба вида
      имени, и спрашивают его движок, предпросмотр и проверки (У-32). */
   resolveAutoTitleInfo,
