@@ -209,6 +209,52 @@ function customBlockCommandId(blockId) {
   return CUSTOM_BLOCK_COMMAND_PREFIX + kebab(blockId);
 }
 
+/**
+ * **Из каких Field и с каким строгим именем растут команды PKM** — одно
+ * объявление на реестр команд и на разводку идентификаторов Binder.
+ *
+ * Порядок — Left, Right, остальные строгие имена, дочерние из `active`;
+ * строгое имя дочернего Field — имя родителя с `-sub` (У-7). Реестр
+ * (`buildPkmCommandDefs`) раздаёт идентификаторы в этом же порядке, и
+ * `pkmCommandIdSet` повторяет раздачу тем же `pkmFieldCommandId`: список
+ * ключей, выписанный дважды, разошёлся бы молча (У-32).
+ */
+function pkmCommandSeeds(order) {
+  const o = order && typeof order === "object" ? order : {};
+  const keys = [];
+  const push = (k) => {
+    const key = String(k || "").trim();
+    if (key && !keys.includes(key)) keys.push(key);
+  };
+  for (const k of o.left || []) push(k);
+  for (const k of o.right || []) push(k);
+  for (const k of Object.keys(o.strictNames || {})) push(k);
+  for (const k of Object.keys(o.active || {})) if (/_sub$/.test(String(k || "").trim())) push(k);
+  const strictOf = (key) => String(o.strictNames && o.strictNames[key] || "").trim() || key;
+  return keys.map((key) => ({
+    key,
+    strict: /_sub$/.test(key) ? strictOf(key.slice(0, -4)) + "-sub" : strictOf(key),
+  }));
+}
+
+/**
+ * Все идентификаторы, которые займут команды плагина, кроме строк Binder:
+ * ядро, пары команд Field, команды custom block (BUGHUNT K1). Строка Binder,
+ * названная `Priority next`, получала идентификатор `priority-next` и
+ * забирала команду поля вместе с его хоткеем.
+ */
+function pkmCommandIdSet(order, featureOrder) {
+  const used = reservedCommandIds(featureOrder);
+  for (const s of pkmCommandSeeds(order)) {
+    pkmFieldCommandId(s.strict, "increase", used);
+    pkmFieldCommandId(s.strict, "decrease", used);
+  }
+  for (const b of (order && Array.isArray(order.custom) ? order.custom : [])) {
+    if (b && b.id) used.add(customBlockCommandId(b.id));
+  }
+  return used;
+}
+
 /** Имя команды по новому идентификатору. Пусто — значит имя строится из данных. */
 function commandName(id) {
   const key = String(id == null ? "" : id).trim();
@@ -280,6 +326,8 @@ module.exports = {
   pkmFieldCommandId,
   CUSTOM_BLOCK_COMMAND_PREFIX,
   customBlockCommandId,
+  pkmCommandSeeds,
+  pkmCommandIdSet,
   binderCommandId,
   isLegacyCommandId,
   renameCommandId,

@@ -156,7 +156,6 @@ function render(
       merge(cfg, patch);
     },
     renameStrictNameInConfigNote: async () => {},
-    registerPkmCommands: () => {},
   };
   const model = createFieldsModel({
     plugin: plugin as never,

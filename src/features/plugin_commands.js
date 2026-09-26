@@ -325,24 +325,45 @@ function registerBinder(plugin) {
   const registry = getCommandRegistry();
   const cfgNow = plugin.getConfig();
   const defs = registry.buildBinderCommandDefs(cfgNow);
-  if (!Array.isArray(defs) || !defs.length) {
+  if (!Array.isArray(defs)) {
     console.warn("[inline-overhaul] command registry unavailable: binder commands skipped");
     return;
   }
 
   plugin._registeredBinderCommandIds = plugin._registeredBinderCommandIds || new Set();
+  plugin._registeredBinderCommandNames = plugin._registeredBinderCommandNames || new Map();
+  /*
+   * **Набор команд Binder идёт за настройками** — как у PKM (ревизия Д-1,
+   * BUGHUNT R3). Удалённая строка уносит команду, переименованная заводится
+   * заново с тем же идентификатором, а текст вставки спрашивается у
+   * **нынешнего** конфига: после восстановления копии команда вставляла
+   * прежний текст до перезапуска.
+   */
+  const live = new Set(defs.map((d) => String(d && d.id ? d.id : "").trim()).filter(Boolean));
+  for (const id of Array.from(plugin._registeredBinderCommandIds)) {
+    if (live.has(id)) continue;
+    if (typeof plugin.removeCommand === "function") plugin.removeCommand(id);
+    plugin._registeredBinderCommandIds.delete(id);
+    plugin._registeredBinderCommandNames.delete(id);
+  }
   for (const d of defs) {
     const id = String(d && d.id ? d.id : "").trim();
     if (!id) continue;
-    if (plugin._registeredBinderCommandIds.has(id)) continue;
+    const name = __commandIds.commandDisplayName(COMMAND_AREAS.binder, String(d && d.name ? d.name : id));
+    if (plugin._registeredBinderCommandIds.has(id)) {
+      if (plugin._registeredBinderCommandNames.get(id) === name) continue;
+      if (typeof plugin.removeCommand === "function") plugin.removeCommand(id);
+    }
     plugin.addCommand({
       id,
-      name: __commandIds.commandDisplayName(COMMAND_AREAS.binder, String(d && d.name ? d.name : id)),
+      name,
       callback: async () => {
-        await Promise.resolve(d.run(plugin));
+        const fresh = registry.buildBinderCommandDefs(plugin.getConfig()).find((x) => x && x.id === id);
+        if (fresh) await Promise.resolve(fresh.run(plugin));
       },
     });
     plugin._registeredBinderCommandIds.add(id);
+    plugin._registeredBinderCommandNames.set(id, name);
   }
 }
 

@@ -483,7 +483,9 @@ async function run() {
    * его зовёт. Запреты ниже держат то, что сборка файла не вернулась ни одним
    * из прежних имён (У-94: утверждение переезжает за предметом).
    */
-  assertTrue(/function registerStoreEvents\(plugin\) \{/.test(bootstrapSrc), "загрузка подписывается на хранилище сама");
+  /* Подписка на хранилище сверяет набор команд (BUGHUNT R3); поведение держит
+     `commands_follow_config_tests.ts`, здесь — что загрузка её ставит. */
+  assertTrue(/\n  followConfigWithCommands\(plugin\);/.test(bootstrapSrc), "загрузка подписывает набор команд на хранилище");
   assertFalse(/ensureGeneratedRulesNow|scheduleGeneratedRulesSync|buildTagWheelRulesMarkdownFromConfig/.test(bootstrapSrc + src),
     "сборка служебного файла правил вернулась в загрузку или в точку входа");
   assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");

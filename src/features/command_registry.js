@@ -268,33 +268,13 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   const order = typeof normalizePkmOrder === "function"
     ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null)
     : { left: [], right: [], strictNames: {}, types: {} };
-  const keys = [];
-  const pushKey = (k) => {
-    const key = String(k || "").trim();
-    if (!key) return;
-    if (/_sub$/.test(key)) {
-      if (!keys.includes(key)) keys.push(key);
-      return;
-    }
-    if (!keys.includes(key)) keys.push(key);
-  };
-  for (const k of (order.left || [])) pushKey(k);
-  for (const k of (order.right || [])) pushKey(k);
-  for (const k of Object.keys(order.strictNames || {})) pushKey(k);
-  const subKeys = Object.keys(order.active || {}).filter((k) => /_sub$/.test(String(k || "").trim()));
-  for (const k of subKeys) pushKey(k);
+  /* Ключи и строгие имена — у `command_ids`: тот же список нужен разводке
+     идентификаторов Binder (BUGHUNT K1). */
+  const seeds = __commandIds.pkmCommandSeeds(order);
 
   const strictNameForKey = (key) => {
     const v = String(order && order.strictNames ? order.strictNames[key] || "" : "").trim();
     return v || key;
-  };
-  const commandStrictForKey = (key) => {
-    const k = String(key || "").trim();
-    if (!/_sub$/.test(k)) return strictNameForKey(k);
-    const parent = k.slice(0, -4);
-    const parentStrict = strictNameForKey(parent);
-    const base = String(parentStrict || parent || k).trim();
-    return `${base}-sub`;
   };
   const typeForKey = (key) => {
     const raw = String(order && order.types ? order.types[key] || "" : "").trim().toLowerCase();
@@ -443,8 +423,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     });
   };
 
-  for (const key of keys) {
-    const strict = commandStrictForKey(key);
+  for (const { key, strict } of seeds) {
     const kind = typeForKey(key);
     if (!strict) continue;
     const incSpec = buildActionSpec(key, kind, "increase");

@@ -46,6 +46,8 @@ export interface PluginInternals {
   /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
   runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
   registerPkm: (plugin: Any) => void;
+  registerBinder: (plugin: Any) => void;
+  followConfigWithCommands: (plugin: Any) => void;
   /** Открытая сессия панели или `null` — один ответ на вопрос «панель жива?». */
   openTagWheelSession: () => Any;
   /** Закрыть открытую сессию панели; `true`, если было что закрывать. */
@@ -191,6 +193,7 @@ export function loadPluginInternals(): PluginInternals {
   if (cached) return cached;
   let entryLoaded = false;
   let commands: Any = null;
+  let bootstrap: Any = null;
   const requireInsideStub = (request: string): Any =>
     (Module.createRequire(mainPath) as (id: string) => Any)(request);
   const src = fs.readFileSync(mainPath, "utf8");
@@ -223,6 +226,7 @@ export function loadPluginInternals(): PluginInternals {
        внутренностей ниже берутся у модулей. */
     entryLoaded = typeof mod.exports === "function";
     commands = requireInsideStub("./features/plugin_commands.js");
+    bootstrap = requireInsideStub("./features/plugin_bootstrap.js");
   } finally {
     loader._load = origLoad;
   }
@@ -268,6 +272,10 @@ export function loadPluginInternals(): PluginInternals {
     /* Регистрация команд PKM: заводит, переименовывает и снимает команды
        custom block (PRD 10.13.260). */
     registerPkm: commands.registerPkm,
+    /* Регистрация Binder и подписка, которой набор команд идёт за конфигом
+       (BUGHUNT R3, ревизия Д-1). */
+    registerBinder: commands.registerBinder,
+    followConfigWithCommands: bootstrap.followConfigWithCommands,
     openTagWheelSession: commands.openTagWheelSession,
     closeTagWheelSession: commands.closeTagWheelSession,
   } as PluginInternals;

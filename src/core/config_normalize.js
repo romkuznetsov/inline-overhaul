@@ -105,13 +105,14 @@ function makeBinderCommandId(seedText, used) {
  * Оставить старую форму было нельзя — команда с префиксом плагина не отвечает
  * T7, а держать две формы одновременно значит держать две схемы.
  *
- * Набор занятых начинается с идентификаторов ядра: строка Binder, названная
- * `Move left`, не должна затенять команду навигации.
+ * Набор занятых начинается с идентификаторов ядра и команд Field: строка
+ * Binder, названная `Move left` или `Priority next`, не должна затенять чужую
+ * команду (BUGHUNT K1). `order` — Order этого же конфига.
  */
-function normalizeBinderRows(rawRows) {
+function normalizeBinderRows(rawRows, order) {
   const source = Array.isArray(rawRows) ? rawRows : [];
   const out = [];
-  const used = __commandIds.reservedCommandIds(FEATURE_ORDER);
+  const used = __commandIds.pkmCommandIdSet(__pkmOrderConfig.normalizePkmOrder(order || null), FEATURE_ORDER);
   let hasSmartBracket = false;
 
   for (const row of source) {
@@ -978,7 +979,7 @@ function normalizeConfigV2(cfg) {
   /* Smart paste (`З-31`, `З-32`). Умолчание выключено — как у трёх соседних
      разделов `Global hotkeys`: клавиша принадлежит Obsidian. */
   bool("editor.smartPaste.enabled");
-  writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
+  writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows"), readCfgPath(cfg, "pkm.fields.order")));
 
   /* --- вид тегов -------------------------------------------------------- */
   int("visual.tags.opacityLeft", 0, 100);

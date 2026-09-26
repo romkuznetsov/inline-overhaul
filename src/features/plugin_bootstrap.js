@@ -33,7 +33,6 @@ const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
 const __releaseNotes = require("./release_notes.js");
 const __settingsAutosave = require("./settings_autosave.js");
-const __storeEventsOrchestrator = require("./store_events_orchestrator.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
@@ -51,33 +50,28 @@ function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
 /**
- * Подписка на хранилище: панель перерисовывается, когда настройки поменялись.
+ * **Команды PKM и Binder идут за настройками** (BUGHUNT R3: K1, S6, S7;
+ * ревизия Д-1). Набор команд строится из конфига, а заводился один раз — при
+ * загрузке и на трёх действиях с custom block: переименованный Field жил в
+ * палитре прежним именем, удалённый — молчащей командой, строка Binder — до
+ * перезапуска. Теперь каждая запись в хранилище (панель, восстановление копии,
+ * внешняя правка `data.json`) сверяет набор; сверка заводит и снимает только
+ * то, что изменилось, и хоткей держится за идентификатор.
  *
- * **Жила в `generated_rules.js`**, потому что тем же событием пересобирался
- * служебный файл правил. Файла больше нет (PRD 10.13.52, П-8, шаг четвёртый),
- * и от подписки осталось одно дело — перерисовать вкладку. Шов переехал сюда, к
- * единственному, кто его зовёт; само решение «когда рисовать» по-прежнему живёт
- * в `store_events_orchestrator`: там оно про фокус в поле ввода, а не про нас.
+ * Здесь стояла подписка на перерисовку вкладки — мёртвая: читала
+ * `plugin._settingsTab`, а пишется `_settingTab`, и не сработала ни разу; панель
+ * будит себя сама (`SettingsPane.wakeFor`, ревизия У-1).
  */
-function registerStoreEvents(plugin) {
-  return __storeEventsOrchestrator.registerStoreEvents({
-    subscribeStore: (listener) => plugin.store.subscribe(listener),
-    setUnsubscribe: (fn) => {
-      plugin._unsubscribeStore = fn;
-    },
-    getUnsubscribe: () => plugin._unsubscribeStore,
-    renderSettingsTab: () => {
-      const tab = plugin._settingsTab;
-      if (!tab) return;
-      /*
-       * Декларативная панель пересобирает определения методом `update`;
-       * `display` у неё — объяснение для Obsidian старше 1.13.
-       */
-      if (typeof tab.update === "function") tab.update();
-      else if (typeof tab.display === "function") tab.display();
-    },
-    registerCleanup: (fn) => plugin.register(fn),
+function followConfigWithCommands(plugin) {
+  const unsubscribe = plugin.store.subscribe(() => {
+    try {
+      plugin.registerPkmCommands();
+      plugin.registerBinderCommands();
+    } catch (e) {
+      console.error("[inline-overhaul] commands refresh", e);
+    }
   });
+  plugin.register(unsubscribe);
 }
 
 /* Хранилище настроек: единственный путь записи, и через него же идёт каждый
@@ -215,7 +209,7 @@ async function load(plugin) {
   /* Заливка Left и Right Block (З-7): свой блок правил, своя подписка. */
   __editorStyles.ensureBlockFill(plugin);
   __editorMount.mountExtensions(plugin);
-  registerStoreEvents(plugin);
+  followConfigWithCommands(plugin);
 
   const devEnabled = !!(readCfgPath(plugin.getConfig && plugin.getConfig(), "advanced.devMode.enabled") === true);
   if (devEnabled) {
@@ -370,6 +364,8 @@ module.exports = {
   /* Шов автокопии наружу — ради проверки: у него один звавший, и тот в
      загрузке плагина, до которой из набора не достать (правило 124). */
   autosaveVaultSeam,
+  /* Подписка набора команд на конфиг — ради проверки: её звавший — загрузка. */
+  followConfigWithCommands,
   noticeCommandIdsChanged,
   createSettingTab,
   disposeSettingTab,
