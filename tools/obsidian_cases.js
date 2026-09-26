@@ -136,4 +136,25 @@ module.exports = [
     "сделано давно.md", "line.startsWith('- [x] ')"),
   tr("T13", "Повтор после отмены дописывает, а не заводит -01", "- после отмены", [1, "undo", 1],
     "после отмены.md", "!a.vault.getFiles().some((f) => f.name.includes('после отмены') && f.name !== 'после отмены.md')"),
+
+  /* Эталоны заметки тестов цикла 97 — на копии его vault, его настройки
+     (`node tools/obsidian_bench.js mine`). Ожидаемое здесь — то, что стоит в 🎯А. */
+  { mine: true, id: "M1", title: "Move right: чекбокс остаётся", files: { "m1.md": "- [ ] задача\n" },
+    at: { file: "m1.md", line: 0 }, steps: ["move-right"], expect: { "m1.md": "\t- [ ] задача\n" } },
+  { mine: true, id: "M2", title: "Move left: Prefix меняется, чекбокс остаётся", files: { "m2.md": "- [x] сделано\n" },
+    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "1. [x] сделано\n" } },
+  { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
+    at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
+  { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },
+    at: { file: "m4.md", line: 0 }, steps: [{ key: "Delete" }], expect: { "m4.md": "- #test1 [[Man1]] :: первая вторая\n- третья\n" } },
+  { mine: true, id: "M5", title: "Печать при открытой панели закрывает её", files: { "m5.md": "- строка для печати\n" },
+    at: { file: "m5.md", line: 0 }, steps: ["open-tagwheel-left", { type: "!" }],
+    expect: { "m5.md": "- строка для печати!\n" }, check: "return !window.__tagWheelState || !window.__tagWheelState.active || 'панель открыта';" },
+  { mine: true, id: "M6", title: "Уход в другую заметку при открытой панели не меняет строку", files: { "m6.md": "- строка для ухода\n" },
+    at: { file: "m6.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowDown" }, { open: "Man1.md" }, { open: "m6.md" }],
+    settle: 1500, expect: { "m6.md": "- строка для ухода\n" } },
+  { mine: true, id: "M7", title: "Value идёт за переименованной заметкой", files: { "m7.md": "- [[Man1]] :: звонок\n" },
+    at: { file: "m7.md", line: 0 },
+    steps: [{ js: "a.fileManager.renameFile(a.vault.getAbstractFileByPath('Child1.md'), 'Child2.md');", wait: 2500 }, { open: "m7.md" }, { cursor: { line: 0, ch: 20 } }, "people-sub-next"],
+    expect: { "m7.md": "- [[Man1]] [[Child2]] :: звонок\n" } },
 ];

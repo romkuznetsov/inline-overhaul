@@ -265,11 +265,12 @@ function inTime(promise, what) {
   return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
 }
 
-async function runCases(win, filter) {
+async function runCases(win, filter, mine) {
   delete require.cache[require.resolve("./obsidian_cases.js")];
   const all = require("./obsidian_cases.js");
   const want = filter ? filter.split(",") : null;
-  const cases = all.filter((c) => !want || want.some((w) => c.id === w || c.id.startsWith(w + ".") ));
+  /* Случаи `mine` написаны под его настройки и идут только на копии его vault. */
+  const cases = all.filter((c) => !!c.mine === !!mine && (!want || want.some((w) => c.id === w || c.id.startsWith(w + "."))));
   let pass = 0;
   for (const c of cases) {
     /* Шаги с клавишами делятся на куски: команды — в странице, нажатия — снаружи. */
@@ -412,6 +413,12 @@ const SCENARIOS = {
   /* Пакет чистого vault: `node tools/obsidian_bench.js clean [id,id…]`. */
   async clean(win) {
     return runCases(win, process.argv[3] || "");
+  },
+
+  /* Эталоны заметки тестов на копии его vault и его настройках:
+     `node tools/obsidian_bench.js mine [id,id…]`. */
+  async mine(win) {
+    return runCases(win, process.argv[3] || "", true);
   },
 
   /* Его заказ к тесту 2 цикла 96 (10.13.277): Value `222/123` пишется ссылкой с

@@ -185,7 +185,8 @@ function troublesOf(test) {
   if (expect && sample && sample.length && !sample.every((l) => NOTHING.test(l.trim()))) {
     const want = sample.filter((l) => l.trim() !== "");
     const got = expect.filter((l) => l.trim() !== "");
-    const prose = got.filter((l) => !LINE_START.test(l));
+    /* Тире на месте строки — «этой строки после действия нет» (склейка строк). */
+    const prose = got.filter((l) => !LINE_START.test(l) && !NOTHING.test(l.trim()));
     if (prose.length) {
       out.push("🎯А описан словами, а не строкой: " + JSON.stringify(prose[0].slice(0, 50)));
     } else if (got.length < want.length) {

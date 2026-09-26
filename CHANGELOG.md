@@ -19,6 +19,22 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🐛 **A link Value with a space stays one Value.** `[[Project A]]` is no longer split in two by Field commands, tagWheel, Smart Enter or `Inline to note`, and your text next to it stays in place.
+2. 🐛 **tagWheel no longer writes into another note.** Switching notes or closing the tab while the panel is open puts the line back as it was.
+3. 🐛 **Typing or clicking another line closes tagWheel** the way `Enter` does, and the key you typed lands in the line.
+4. 🐛 **Windows and messages of the settings open in the settings window,** not behind it: `Add Field`, `Rename Field`, `Delete Field`, backups and Smart Rules.
+5. 🐛 **New, renamed and deleted Fields and Binder rows update their commands at once,** in the palette and in `Hotkeys`, without restarting the plugin.
+6. 🐛 **Moving or changing a line keeps your checkbox and number.** `Move left`, `Move right` and Field commands keep `- [ ]`, `- [x]` and `1.`; `Clear line` empties only a line with nothing left on it.
+7. 🐛 **Code blocks and tables are left alone.** Field commands, `Inline to note` and the floating button skip lines inside a code block or a table.
+8. 🐛 **`Move up` and `Move down` stop once on a blank line** instead of jumping over it, and never move a line into or out of a code block.
+9. ✨ **`Delete` and `Backspace` merge the Fields of two lines.** The second line's Values go to their Blocks and the texts join; the same Field on both lines keeps the first line's Value.
+10. ✨ **A link Value follows its note when you rename the note.**
+11. ✨ **`Add Field` asks for the emoji of a new Element,** and `Enter` confirms a new Field or Value.
+12. 🐛 **`Inline to note` keeps a link in your text as text in the note name,** fills template variables, keeps a checkbox you typed and does not create notes for link Values.
+13. 🐛 **Settings survive a broken or interrupted save.** A second broken settings file is kept as a dated copy instead of overwriting the first.
+
 ## 0.10.0
 
 _2026-09-26 · [all changes since 0.9.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.9.0...0.10.0)_
