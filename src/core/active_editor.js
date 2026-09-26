@@ -52,26 +52,6 @@ function editorOfView(view) {
   return null;
 }
 
-/*
- * Проба: у платформы спрашивается конструктор вида заметки через реестр
- * плагинов. API приватное, его может не быть, и тогда ответ «нет» — работа
- * идёт дальше по второму пути.
- */
-/**
- * @param {any} app
- * @returns {any} конструктор вида заметки или `null`, если реестра нет
- */
-function markdownViewCtorFrom(app) {
-  try {
-    const plugins = app && app.plugins && app.plugins.plugins ? app.plugins.plugins : null;
-    const md = plugins ? plugins.markdown : null;
-    return md && md.constructor ? md.constructor : null;
-  } catch (_) {
-    /* проба: реестра плагинов может не быть вовсе */
-    return null;
-  }
-}
-
 /**
  * Редактор заметки, в которой человек сейчас стоит.
  *
@@ -84,7 +64,10 @@ function activeEditorFrom(app, viewCtor) {
   const ws = workspaceOf(app);
   if (!ws) return null;
 
-  const ctor = viewCtor || markdownViewCtorFrom(app);
+  /* Конструктор вида — только от точки входа: проба через реестр плагинов
+     (`app.plugins.plugins.markdown`) была пуста всегда — такого плагина нет
+     (ревизия Г-6). */
+  const ctor = viewCtor || null;
   if (ctor && typeof ws.getActiveViewOfType === "function") {
     let byType = null;
     try {
@@ -108,5 +91,4 @@ function activeEditorFrom(app, viewCtor) {
 
 module.exports = {
   activeEditorFrom,
-  markdownViewCtorFrom,
 };
