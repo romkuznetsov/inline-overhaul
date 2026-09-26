@@ -117,6 +117,29 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   ok("запись в хранилище переименовывает и снимает команды Field и Binder, текст Binder — нынешний");
 }
 
+/* 3а. BUGHUNT S19, S20: запись не из панели пересобирает панель, своя — нет. */
+{
+  const cfg = config([]);
+  const listeners: Array<(p: Any) => void> = [];
+  let updates = 0;
+  const plugin: Any = {
+    getConfig: () => cfg,
+    addCommand: () => {},
+    removeCommand: () => {},
+    register: () => {},
+    store: { subscribe: (fn: (p: Any) => void) => { listeners.push(fn); return () => {}; } },
+    registerPkmCommands() {},
+    registerBinderCommands() {},
+    _settingTab: { update: () => { updates++; } },
+  };
+  I.followConfigWithCommands(plugin);
+  for (const reason of ["command:undo", "toggle:pkm", "external"]) listeners.forEach((fn) => fn({ reason }));
+  assert.equal(updates, 3, "отмена, тумблер командой или внешняя правка не пересобрали панель");
+  for (const reason of ["settings:pkm.behavior.cursorPolicy", "pkm:behavior:order:block-add:b1"]) listeners.forEach((fn) => fn({ reason }));
+  assert.equal(updates, 3, "отрицательный контроль: своя запись панели пересобрала её");
+  ok("панель пересобирается на записи не из неё, и только на них");
+}
+
 /* 4. BUGHUNT R4 (F8, T20): двери PKM и Transform не пускают на код и таблицу. */
 {
   const cfg = config([]);

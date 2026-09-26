@@ -61,6 +61,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "save-failed": "Could not save settings",
     "needs-obsidian": "inlineOverhaul settings need Obsidian 1.13 or newer",
     "nothing-to-undo": "Nothing to undo",
+    undone: "Last settings change undone",
     /*
      * `data.json` изменили снаружи — синхронизацией, вторым компьютером или
      * руками, — и плагин перечитал файл (Р-2, его слово «диск сильнее»). Сказать

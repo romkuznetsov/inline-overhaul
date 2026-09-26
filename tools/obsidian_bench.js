@@ -362,6 +362,38 @@ const SCENARIOS = {
     return ok;
   },
 
+  /*
+   * BUGHUNT S19: тумблер модуля командой при открытой панели — панель
+   * показывает новое положение, а не прежнее до перехода по вкладкам.
+   */
+  async "clean-toggle"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const pages = () => browser.contexts().flatMap((c) => c.pages());
+    let host = null;
+    for (const pg of pages()) {
+      if (await pg.evaluate(() => !!document.querySelector(".io-tabstrip, [class*=io-tab]")).catch(() => false)) host = pg;
+    }
+    if (!host) throw new Error("панель настроек не нашлась");
+    const state = () => host.evaluate(() => {
+      const rows = [...document.querySelectorAll(".setting-item")].filter((r) => /Tags & PKM/.test(r.querySelector(".setting-item-name") ? r.querySelector(".setting-item-name").textContent : ""));
+      const box = rows.map((r) => r.querySelector(".checkbox-container")).filter(Boolean)[0];
+      return box ? box.classList.contains("is-enabled") : null;
+    });
+    const before = await state();
+    await win.evaluate(() => window.app.commands.executeCommandById("inline-overhaul:toggle-feature-pkm"));
+    await win.waitForTimeout(800);
+    const after = await state();
+    const cfg = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().features.pkm.enabled);
+    console.log("тумблер до:", before, "после:", after, "в настройках:", cfg);
+    const ok = before !== null && after === cfg && after !== before;
+    console.log(ok ? "ok: панель показала новое положение" : "РАСХОДИТСЯ: панель показывает прежнее");
+    return ok;
+  },
+
   /* Пакет чистого vault: `node tools/obsidian_bench.js clean [id,id…]`. */
   async clean(win) {
     return runCases(win, process.argv[3] || "");

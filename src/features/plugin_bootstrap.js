@@ -63,12 +63,25 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
  * будит себя сама (`SettingsPane.wakeFor`, ревизия У-1).
  */
 function followConfigWithCommands(plugin) {
-  const unsubscribe = plugin.store.subscribe(() => {
+  const unsubscribe = plugin.store.subscribe((payload) => {
     try {
       plugin.registerPkmCommands();
       plugin.registerBinderCommands();
     } catch (e) {
       console.error("[inline-overhaul] commands refresh", e);
+    }
+    /*
+     * **Запись не из панели — панель пересобирает определения** (BUGHUNT S19,
+     * S20). Контролы платформы берут значение, когда их рисуют: отмена
+     * командой, тумблер модуля командой и правка файла снаружи меняли конфиг,
+     * а панель показывала прежнее до перехода по вкладкам. Свои записи панели
+     * сюда не относятся — её блоки просыпаются сами (`wakeFor`), и пересборка
+     * на каждой из них сбивала бы фокус поля ввода.
+     */
+    const reason = String(payload && payload.reason || "");
+    const tab = plugin._settingTab;
+    if (tab && typeof tab.update === "function" && (reason === "command:undo" || reason === "external" || /^toggle:/.test(reason))) {
+      try { tab.update(); } catch (e) { console.error("[inline-overhaul] settings refresh", e); }
     }
   });
   plugin.register(unsubscribe);

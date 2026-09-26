@@ -61,7 +61,8 @@ const FEATURE_ORDER = ["navigation", "pkm", "visual", "transform"];
 
 const FEATURE_META = {
   navigation: { label: "Navigation" },
-  pkm: { label: "Tag & PKM" },
+  /* Имя модуля — как у вкладки и в текстах панели (BUGHUNT S19). */
+  pkm: { label: "Tags & PKM" },
   visual: { label: "Visual" },
   transform: { label: "Transform" },
 };
@@ -74,7 +75,7 @@ const SETTINGS_TABS = [
   { id: "general", label: "General" },
   { id: "hotkeys", label: "Hotkeys" },
   { id: "navigation", label: "Navigation" },
-  { id: "pkm", label: "Tag & PKM" },
+  { id: "pkm", label: "Tags & PKM" },
   { id: "visual", label: "Visual" },
   { id: "transform", label: "Transform" },
   { id: "advanced", label: "Advanced" },
