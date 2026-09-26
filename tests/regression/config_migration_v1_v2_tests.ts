@@ -605,6 +605,17 @@ const DIR = ".obsidian/plugins/inline-overhaul";
   assert.equal(vault.files[DIR + "/" + BACKUP_V1_FILE], undefined,
     "копии v1 нет: копировать нечего, файл не разобрался");
   ok("МГ6: нечитаемый data.json сохранён рядом, не перезаписан, о нём сообщено");
+
+  /* Ревизия Д-9: вторая поломка ложится рядом и называется, прежняя копия цела. */
+  const second = "{ вторая поломка ";
+  vault.files[DIR + "/data.json"] = second;
+  const notices2: string[] = [];
+  const result2 = await loadConfig(vault, DIR, m => notices2.push(m), { log: () => {} });
+  assert.equal(vault.files[DIR + "/" + BROKEN_FILE], broken, "Д-9: копия первой поломки затёрта");
+  assert.notEqual(result2.brokenSavedAs, DIR + "/" + BROKEN_FILE, "Д-9: вторая поломка названа путём первой");
+  assert.equal(vault.files[String(result2.brokenSavedAs)], second, "Д-9: вторая поломка не сохранена");
+  assert.ok(notices2[0]!.includes(String(result2.brokenSavedAs)), "Д-9: сообщение ведёт не к нынешней копии");
+  ok("Д-9: вторая поломка сохранена рядом с первой, сообщение ведёт к ней");
 }
 
 {

@@ -1079,7 +1079,18 @@ export async function loadConfig(
        больше нет, и после миграции его в конфиге не будет. */
     rawForCleanup = raw;
   } catch (_err) {
-    const target = join(dir, BROKEN_FILE);
+    /*
+     * **Вторая поломка кладётся рядом, а не пропадает** (ревизия Д-9). Прежде
+     * занятое имя означало «не писать», и сообщение вело к копии прошлой
+     * поломки, а нынешний файл терялся. Занято — имя со временем поломки.
+     */
+    let target = join(dir, BROKEN_FILE);
+    if (await files.exists(target)) {
+      const d = new Date();
+      const two = (n: number): string => String(n).padStart(2, "0");
+      const stamp = `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}`;
+      target = join(dir, BROKEN_FILE.replace(/\.json$/, "." + stamp + ".json"));
+    }
     if (!(await files.exists(target))) await files.write(target, text);
     if (notify) {
       notify("inlineOverhaul could not read its settings file. A copy is kept at "
