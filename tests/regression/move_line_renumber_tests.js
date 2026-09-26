@@ -326,4 +326,20 @@ const LIST = [
   ok("Move up/down перескакивает блок кода целиком");
 }
 
+{
+  /* `В-241`: одно нажатие — один шаг. N6 — пустая строка одна остановка. */
+  const PARA = ["x", "y", "", "z", "w"].join("\n");
+  assert.equal(move(PARA, 1, "down").text, ["x", "", "y", "z", "w"].join("\n"), "N6: вниз строка перепрыгнула пустую вместе с соседом");
+  assert.equal(move(PARA, 3, "up").text, ["x", "y", "z", "", "w"].join("\n"), "N6: вверх строка перепрыгнула пустую вместе с соседом");
+  assert.equal(move(PARA, 0, "down").text, ["y", "x", "", "z", "w"].join("\n"), "отрицательный контроль: без пустой строки — обычный шаг");
+  /* N5 — подраздел при `Whole section` не выходит из родителя. */
+  const SEC = ["# H1", "text", "## H2", "b", "# Other", "c"].join("\n");
+  const sec = { headerMode: "move-with-section" };
+  assert.equal(move(SEC, 2, "up", sec).text, SEC, "N5: подраздел ушёл выше своего родителя");
+  assert.equal(move(SEC, 2, "down", sec).text, SEC, "N5: подраздел ушёл в чужой раздел");
+  const SIB = ["# H1", "## A", "a", "## B", "b"].join("\n");
+  assert.equal(move(SIB, 3, "up", sec).text, ["# H1", "## B", "b", "## A", "a"].join("\n"), "отрицательный контроль: соседние подразделы меняются местами");
+  ok("`В-241`: пустая строка — одна остановка, подраздел упирается в родителя");
+}
+
 console.log("\n" + passed + " проверок пройдено");

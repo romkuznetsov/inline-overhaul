@@ -297,9 +297,18 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
     if (prevH === null) return null;
     const prevHLevel = getHeaderLevel(nz(editor.getLine(prevH), ""));
     if (prevHLevel === myLevel) return prevH - 1;
-    const prevH2 = prevHeaderOfLevel(editor, prevH - 1, myLevel, yamlEnd);
-    if (prevH2 === null) return prevH - 1;
-    return prevH2 - 1;
+    /* Выше — родительский заголовок: подраздел из родителя не выходит, а
+       упирается (`В-241`, «одно нажатие — один шаг»; BUGHUNT N5). */
+    return null;
+  }
+  /*
+   * **Пустая строка — одна остановка** (`В-241`, BUGHUNT N6). Строка над
+   * пустой переходит только через неё, а не через неё и соседа сразу —
+   * иначе одно нажатие уносило строку в чужой абзац.
+   */
+  if (bStart - 1 >= 0 && String(nz(editor.getLine(bStart - 1), "")).trim() === ""
+    && !(yamlEnd !== -1 && bStart - 1 <= yamlEnd) && !isHeader(myText)) {
+    return bStart - 2;
   }
   const prev = prevNonBlank(editor, bStart - 1, yamlEnd);
   if (prev === null) return null;
@@ -353,9 +362,12 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
     if (nextH === null) return null;
     const nextHLevel = getHeaderLevel(nz(editor.getLine(nextH), ""));
     if (nextHLevel === myLevel) return sectionEnd(editor, nextH, myLevel, total);
-    const nextH2 = nextHeaderOfLevel(editor, nextH + 1, myLevel, total);
-    if (nextH2 === null) return sectionEnd(editor, nextH, nextHLevel, total);
-    return nextH2 - 1;
+    /* Ниже — заголовок выше уровнем: подраздел в чужой раздел не уходит (`В-241`, N5). */
+    return null;
+  }
+  /* Пустая строка — одна остановка (`В-241`, N6). */
+  if (bEnd + 1 < total && String(nz(editor.getLine(bEnd + 1), "")).trim() === "" && !isHeader(myText)) {
+    return bEnd + 1;
   }
   const next = nextNonBlank(editor, bEnd + 1, total);
   if (next === null) return null;
