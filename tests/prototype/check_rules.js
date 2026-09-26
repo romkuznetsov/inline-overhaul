@@ -5,16 +5,9 @@ const fs = require("fs");
 const path = require("path");
 
 const target = process.argv[2];
-const smoke = fs.readFileSync(path.join(__dirname, "smoke.js"), "utf8");
-
-// reuse the stub by running smoke.js with its exit suppressed
-const harness = smoke.replace("process.exit(failures ? 1 : 0);",
-  "module.exports = { ctxVm, vm, failures };");
-const tmp = path.join(__dirname, "_harness.js");
-fs.writeFileSync(tmp, harness, "utf8");
 process.argv[2] = target;
-const h = require(tmp);
-fs.unlinkSync(tmp);
+/* Подделка страницы — модулем, без копии файла (ревизия Д-11). */
+const h = require("./smoke.js");
 
 if (h.failures) { console.log("harness failed"); process.exit(1); }
 const run = e => h.vm.runInContext(e, h.ctxVm);

@@ -5,13 +5,10 @@ const fs = require("fs");
 const path = require("path");
 
 const target = process.argv[2];
-const smoke = fs.readFileSync(path.join(__dirname, "smoke.js"), "utf8");
-const tmp = path.join(__dirname, "_h4.js");
-fs.writeFileSync(tmp, smoke.replace("process.exit(failures ? 1 : 0);",
-  "module.exports = { ctxVm, vm };"), "utf8");
 process.argv[2] = target;
-const h = require(tmp);
-fs.unlinkSync(tmp);
+/* Подделка страницы — модулем, без копии файла (ревизия Д-11). */
+const h = require("./smoke.js");
+if (h.failures) { console.log("smoke harness failed: " + h.failures); process.exit(1); }
 const run = e => h.vm.runInContext(e, h.ctxVm);
 
 /* Only the tree inside the Bars preview, so the other previews on the tab

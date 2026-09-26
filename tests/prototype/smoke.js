@@ -168,7 +168,16 @@ if (!failures) {
     'for (const g of SCHEMA) for (const it of g.items) if (it.seeAlso) jumpTo(it.seeAlso.id);'));
 }
 
-console.log(failures
-  ? "\n" + failures + " runtime failure(s)"
-  : "\nsmoke test passed  (" + nodeCount + " nodes built)");
-process.exit(failures ? 1 : 0);
+/*
+ * Проверки прототипа берут подделку страницы отсюда `require`-ом (ревизия
+ * Д-11). Прежде каждая переписывала последнюю строку этого файла подменой
+ * текста и клала копию `_hN.js` рядом: смени здесь эту строку — и все пять
+ * молча зеленели, а упавшая оставляла копию в репозитории.
+ */
+module.exports = { ctxVm, vm, get failures() { return failures; } };
+if (require.main === module) {
+  console.log(failures
+    ? "\n" + failures + " runtime failure(s)"
+    : "\nsmoke test passed  (" + nodeCount + " nodes built)");
+  process.exit(failures ? 1 : 0);
+}
