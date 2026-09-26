@@ -1063,3 +1063,11 @@ runElementValueWrittenByPluginIsFoundSuite();
 })();
 
 console.log("Transform feature regression tests: OK");
+
+/* Ревизия Г-4: подпуть ссылки не становится именем заметки. */
+(function runBacklinkSubpathSuite() {
+  const app = { metadataCache: { getFirstLinkpathDest: () => null } };
+  assertEq(transform.resolveBacklinkNotePath(app, "Note#Раздел", ""), "Note.md", "Г-4: [[Note#Раздел]] завёл Note#Раздел.md");
+  assertEq(transform.resolveBacklinkNotePath(app, "Note", ""), "Note.md", "отрицательный контроль: простое имя");
+  console.log("  ok Г-4: подпуть ссылки отрезается");
+})();

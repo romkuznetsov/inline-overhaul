@@ -2342,7 +2342,9 @@ function backlinkTargetsWithNavigators(context, cfg, i2n) {
  * щелчок (его `💬` к тесту 2 цикла 95).
  */
 function resolveBacklinkNotePath(app, target, sourcePath) {
-  const linkpath = String(target || "").trim();
+  /* Подпуть ссылки (`#Раздел`, `#^блок`) — место внутри заметки, а не её имя:
+     `[[Note#Раздел]]` заводил `Note#Раздел.md` (ревизия Г-4). */
+  const linkpath = String(target || "").split("#")[0].trim();
   if (!linkpath) return "";
   const cache = app && app.metadataCache;
   if (cache && typeof cache.getFirstLinkpathDest === "function") {
