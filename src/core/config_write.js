@@ -47,14 +47,9 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
 function applyPatch(plugin, patchObj, reason) {
   const before = plugin.getConfig();
   const reasonKey = String(reason || "settings");
-  const stripPatchFieldId = String(
-    patchObj
-    && patchObj.pkm
-    && patchObj.visual
-    && patchObj.visual.tagBars
-    && patchObj.visual.tagBars.fieldId
-    || ""
-  ).trim();
+  /* Путь версии 2; прежнее условие ждало ветку `pkm` рядом (форма версии 1) и
+     отдавало пустоту всегда (ревизия Д-13). */
+  const stripPatchFieldId = String(readCfgPath(patchObj, "visual.tagBars.fieldId") || "").trim();
   plugin._lineTraceSeq = Math.max(0, Math.trunc(Number(plugin._lineTraceSeq || 0))) + 1;
   plugin._lineTraceTxId = `linecfg-${Date.now()}-${plugin._lineTraceSeq}`;
   const changed = plugin.store.patch(patchObj, reason || "settings") === true;
