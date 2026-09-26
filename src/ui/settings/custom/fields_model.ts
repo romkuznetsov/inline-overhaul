@@ -737,7 +737,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     values: [""],
   });
 
-  const addField = (rawKey: string, rawKind: string): WriteResult => {
+  const addField = (rawKey: string, rawKind: string, rawMarker?: string): WriteResult => {
     const key = String(rawKey || "").replace(/\s+/g, " ").trim();
     if (!STRICT_NAME_RE.test(key)) {
       return { ok: false, error: SAY.ERR_NAME_CHARS };
@@ -809,9 +809,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const behavior = behaviorOf(plugin.getConfig());
     const leftMode = modeFields(behavior, "leftMode");
     const rightMode = modeFields(behavior, "rightMode");
+    /* Знак Element — из окна добавления (BUGHUNT S4): Element без знака
+       выключал tagWheel целиком, а окно знака не спрашивало. */
+    const marker = String(rawMarker || "").trim();
     if (kind === "element") {
       if (!rightMode.find(f => idOf(f) === key)) {
-        rightMode.push(buildRightElementFieldDefinition(key));
+        rightMode.push({ ...buildRightElementFieldDefinition(key), marker });
       }
     } else {
       if (!leftMode.find(f => idOf(f) === key)) {
@@ -847,7 +850,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const curIncrement = asObject(cur["increment"]);
       byField[key] = {
         ...cur,
-        emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : "",
+        emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : marker,
         format: Object.prototype.hasOwnProperty.call(cur, "format") ? String(cur["format"] ?? "") : "",
         hotkey: {
           increase: String(curHotkey["increase"] || "").trim(),
@@ -2038,15 +2041,24 @@ export function createFieldsModel(deps: FieldsModelDeps) {
      */
     const bareOf = (raw: unknown): string =>
       String(raw == null ? "" : raw).trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "").trim().toLowerCase();
+    /*
+     * Сравнивается написание **в своём роде**: `#home` и `[[Home]]` в строке
+     * пишутся по-разному, и вопроса «чьё это» между ними нет (BUGHUNT S5).
+     * Прежде голое слово сравнивалось без рода, и Value-ссылку `Home` нельзя
+     * было завести рядом с тегом `#home`.
+     */
+    const isLinkField = (f: Loose): boolean => String(asObject(f)["source"] || "").trim().startsWith("wikilinks:");
+    const myRodPrefix = kind === "wikilink" ? "L:" : "T:";
     const takenElsewhere = (() => {
       const mine = new Set([parentFieldId, subFieldId].filter(Boolean));
       const out = new Set<string>();
       for (const f of leftMode.concat(rightMode)) {
         const fid = idOf(f);
         if (!fid || mine.has(fid)) continue;
+        const rod = isLinkField(f) ? "L:" : "T:";
         for (const v of asArray(asObject(f)["values"])) {
           const tok = bareOf(asObject(v)["token"]);
-          if (tok) out.add(tok);
+          if (tok) out.add(rod + tok);
         }
       }
       return out;
@@ -2062,7 +2074,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
     const newTakenToken = (nextTree: Loose[]): string => {
       const before = treeTokens(tree);
-      for (const tok of treeTokens(nextTree)) if (!before.has(tok) && takenElsewhere.has(tok)) return tok;
+      for (const tok of treeTokens(nextTree)) if (!before.has(tok) && takenElsewhere.has(myRodPrefix + tok)) return tok;
       return "";
     };
 
@@ -2395,7 +2407,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const addToken = (raw: string): WriteResult => {
       const token = normToken(raw, kind);
       if (!token) return { ok: false, changed: false };
-      if (takenElsewhere.has(bareOf(token))) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
+      if (takenElsewhere.has(myRodPrefix + bareOf(token))) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
       if (kind === "wikilink") {
         const behaviorNow = behaviorOf(plugin.getConfig());
         const leftNow = modeFields(behaviorNow, "leftMode");

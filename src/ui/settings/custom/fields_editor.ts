@@ -139,6 +139,20 @@ export function askNewFieldModal(
       ]) type.createEl("option", { text: say(opt.name), value: opt.value });
       type.value = "tag";
 
+      /* Знак Element спрашивается сразу (BUGHUNT S4): без него tagWheel не
+         открывается вовсе. Строка видна только у Element. */
+      const markerRow = el(box, "div", "io-item");
+      const markerInfo = nameOf(markerRow, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_TIP");
+      el(markerInfo, "div", "io-item__desc", say("NEW_FIELD_MARKER_LABEL"));
+      const marker = el(markerRow, "div", "io-item__control").createEl("input", {
+        cls: "io-text",
+        type: "text",
+        placeholder: say("NEW_FIELD_MARKER_HINT"),
+        attr: { "aria-label": say("NEW_FIELD_MARKER_ARIA") },
+      }) as El & { value: string };
+      const showMarker = (): void => { markerRow.hidden = type.value !== "element"; };
+      showMarker();
+
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button",
         { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
@@ -149,16 +163,29 @@ export function askNewFieldModal(
         attr: { type: "button" },
       }) as El & { disabled: boolean };
       add.disabled = true;
-      /* Кнопка молчит, пока имени нет: Field без имени завести нечем. */
-      name.addEventListener("input", (() => {
-        add.disabled = !String(name.value || "").trim();
-      }) as never);
-      add.addEventListener("click", (() => {
+      /* Кнопка молчит, пока имени нет (и знака у Element): завести нечем. */
+      const ready = (): boolean => !!String(name.value || "").trim()
+        && (type.value !== "element" || !!String(marker.value || "").trim());
+      const sync = (): void => { add.disabled = !ready(); showMarker(); };
+      name.addEventListener("input", sync as never);
+      marker.addEventListener("input", sync as never);
+      type.addEventListener("change", sync as never);
+      const confirm = (): void => {
+        if (!ready()) return;
         const value = String(name.value || "").trim();
-        if (!value) return;
-        finish({ name: value, kind: type.value as NewField["kind"] });
+        const kind = type.value as NewField["kind"];
+        finish(kind === "element" ? { name: value, kind, marker: String(marker.value || "").trim() } : { name: value, kind });
         this.close();
-      }) as never);
+      };
+      add.addEventListener("click", confirm as never);
+      /* Enter подтверждает, как кнопка (BUGHUNT S3). */
+      const enterAdds = ((e: { key?: string; preventDefault?: () => void }) => {
+        if (!e || e.key !== "Enter") return;
+        if (typeof e.preventDefault === "function") e.preventDefault();
+        confirm();
+      }) as never;
+      name.addEventListener("keydown", enterAdds);
+      marker.addEventListener("keydown", enterAdds);
     }
 
     override onClose(): void {

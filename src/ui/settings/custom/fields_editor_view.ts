@@ -307,6 +307,8 @@ export interface FieldsViewState {
 
 /** Ответ окна `Add Field`. */
 export interface NewField {
+  /** Знак Field типа Element (BUGHUNT S4): без него tagWheel не открывается. */
+  marker?: string;
   /** Системное имя: им Field назван в конфиге и в именах его команд. */
   name: string;
   kind: FieldKind;
@@ -796,7 +798,7 @@ function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
     if (!o.enabled) return;
     o.askNewField(answer => {
       if (!answer) return;
-      const res = o.model.addField(answer.name, answer.kind);
+      const res = o.model.addField(answer.name, answer.kind, answer.marker);
       if (!res.ok) {
         o.notice(res.error || say("NEW_FIELD_FAILED"));
         return;
@@ -1879,7 +1881,13 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   const addBtn = btn(foot, "io-btn io-btn--sm io-btn--cta",
     { text: say("ADD_VALUE"), label: say("ADD_VALUE_TO", row.strictName) });
   addBtn.disabled = !o.enabled;
-  addBtn.addEventListener("click", (() => {
+  /* Enter в поле нового Value — то же, что кнопка (BUGHUNT S3). */
+  add.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
+    if (!e || e.key !== "Enter") return;
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    addValue();
+  }) as never);
+  const addValue = (): void => {
     if (!o.enabled) return;
     const res = ve.addToken(add.value);
     if (res.error) {
@@ -1888,7 +1896,8 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     }
     if (!res.ok) return;
     o.redraw();
-  }) as never);
+  };
+  addBtn.addEventListener("click", addValue as never);
   /* \u0421\u0442\u0440\u043e\u043a\u0430 \u00abUse \u2192 to make a Value a child\u2026\u00bb \u0438\u0437 \u043f\u043e\u0434\u0432\u0430\u043b\u0430 \u0443\u0431\u0440\u0430\u043d\u0430: \u043e\u043d\u0430 \u0443\u0435\u0445\u0430\u043b\u0430 \u0432
      \u043f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0443 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 `Level`, \u0433\u0434\u0435 \u0435\u0451 \u0438\u0449\u0443\u0442 (\u0437\u0430\u043c\u0435\u0447\u0430\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-08-27). */
 

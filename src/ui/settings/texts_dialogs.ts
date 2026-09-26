@@ -116,7 +116,10 @@ export const DIALOG_TEXTS = {
 
   "reset-settings": {
     RESET_TITLE: "Delete all your settings",
-    RESET_BODY: "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first",
+    /* Сброс возвращает умолчания без стартового набора Fields — его решение
+       (`starter_config.ts`); текст обещал «как после установки», а после
+       установки Fields есть (BUGHUNT S21). */
+    RESET_BODY: "Everything you have set up in this plugin goes, on every tab, and the plugin goes back to its own defaults, with no Fields at all. What you have now is saved as a backup first",
     RESET_CONFIRM: "Delete my settings",
     RESET_NOTE: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin and the folder your backups are kept in",
     ROW_DELETING: "Deleting {0}",

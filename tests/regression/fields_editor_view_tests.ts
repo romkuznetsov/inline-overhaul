@@ -3098,7 +3098,8 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   };
   const say = sayIn("field-editor", {});
   askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: true, showIds: false });
-  assert.equal(walk(opened[0]!, "io-help").length, 2, "у имени и типа нового Field обязаны стоять «?»");
+  /* Третий «?» — у знака Element (BUGHUNT S4): строка стоит в окне всегда, видна у Element. */
+  assert.equal(walk(opened[0]!, "io-help").length, 3, "у имени, типа и знака нового Field обязаны стоять «?»");
   askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: false, showIds: false });
   assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
   const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
@@ -3211,6 +3212,32 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const tree = own.cloneTree();
   assert.equal(own.saveTree(tree, "same").ok, true, "положительный контроль: сохранение без нового написания отказало");
   ok("Value с написанием чужого Field не заводится, прежние правки не заперты");
+}
+{
+  /* BUGHUNT S4: знак Element из окна добавления доходит до конфига. */
+  const v = makeView();
+  assert.equal(v.model.addField("Start", "element", "🛫").ok, true, "Element не завёлся");
+  const cfgNow = v.writes.length ? v.writes : [];
+  const all = JSON.stringify(cfgNow.map((w) => w.patch));
+  assert.ok(/"emoji":"🛫"/.test(all), "знак Element не записан в byField: " + all.slice(0, 200));
+  assert.ok(/"marker":"🛫"/.test(all), "знак Element не записан в определение Field");
+  ok("знак нового Element записан сразу");
+}
+{
+  /* BUGHUNT S5: написание сравнивается в своём роде — Value-ссылка `todo`
+     рядом с тегом `#todo` заводится; повтор в том же роде — нет. */
+  const lv = makeLinkView();
+  const writes: Write[] = [];
+  const plugin = {
+    getConfig: () => lv.cfg,
+    setConfigPatch(patch: Any, reason: string) { writes.push({ reason: String(reason || ""), patch }); },
+  };
+  const model = createFieldsModel({ plugin: plugin as never, normalizePkmOrder, pkmOrderFields: [], cfg: lv.cfg, deepState: deepState as never });
+  const tagTok = String(lv.cfg.pkm.fields.tags.fields.find((f: Any) => Array.isArray(f.values) && f.values.some((x: Any) => x && x.token)).values.find((x: Any) => x && x.token).token).replace(/^#/, "");
+  const res = model.valuesEditor("project").addToken(tagTok);
+  assert.notEqual(String(res.error || ""), String(model.valuesEditor("project").addToken("ClientA").error || "x"), "контроль отказа");
+  assert.ok(!res.error, "S5: Value-ссылку `" + tagTok + "` не пустили из-за тега `#" + tagTok + "`: " + res.error);
+  ok("Value-ссылка с написанием тега заводится: роды не спорят");
 }
 
 console.log("");
