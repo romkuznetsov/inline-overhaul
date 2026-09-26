@@ -394,7 +394,7 @@ See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-se
 
 | Control | Default | What it does |
 |---|---|---|
-| `Link the notes you mention` | off | Writes a link to the new note into every note this line points at |
+| `Link the notes you mention` | off | Writes a link to the new note into the notes of the link Values on this line (existing notes only) |
 | `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
 | `Name of the heading` | unset | The heading the link is filed under |
 | `If heading not found` | `end` | Where the heading is added when that note has none |

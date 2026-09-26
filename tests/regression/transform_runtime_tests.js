@@ -1089,9 +1089,9 @@ async function testBacklinkCreatesMissingNote() {
   const editor = makeEditor("- #todo [[test1]] :: Отчёт");
   const plugin = makePlugin(backlinkConfig(), editor);
   await transform.runInline2Note(plugin, { lineFinalize });
-  assertTrue(plugin.files.has("test1.md"), "заметки-цели не было — создана (его ответ В-135)");
-  assertTrue(String(plugin.files.get("test1.md")).includes("- [[Notes/Отчёт]]"),
-    "и ссылка в неё дописана");
+  /* `В-244` (2026-09-26) сменил ответ В-135 для Value: заметку Value, которой
+     нет, плагин не заводит; заводит только навигатор. */
+  assertTrue(!plugin.files.has("test1.md"), "`В-244`: заметки Value не было — а она создана");
 }
 
 async function testBacklinkDoesNotDuplicate() {
@@ -1168,11 +1168,19 @@ async function testNoteAtVaultRootIsCreated() {
 }
 
 async function testBacklinkNoteAtVaultRoot() {
+  /* Заметка Value в корне есть — ссылка дописывается в неё, с первой строки. */
   const editor = makeEditor("- #todo [[test1]] :: Отчёт");
-  const plugin = makePlugin(backlinkConfig(), editor);
+  const plugin = makePlugin(backlinkConfig(), editor, { initialFiles: { "test1.md": "" } });
   await transform.runInline2Note(plugin, { lineFinalize });
   assertEq(typeof plugin.files.get("test1.md"), "string",
-    "заметка-цель в корне vault заведена заметкой, а не папкой");
+    "заметка-цель в корне vault — заметка, а не папка");
+  assertTrue(!/^\s*\n/.test(plugin.files.get("test1.md")),
+    "`В-244`: в пустой заметке блок начинается с пустых строк: " + JSON.stringify(plugin.files.get("test1.md")));
+  /* `В-244`: заметку Value, которой нет, плагин не заводит. */
+  const editor2 = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin2 = makePlugin(backlinkConfig(), editor2);
+  await transform.runInline2Note(plugin2, { lineFinalize });
+  assertTrue(!plugin2.files.has("test1.md"), "`В-244`: несуществующая заметка Value заведена");
 }
 
 /* Его `💬` к тесту 2 цикла 95: одноимённые заметки в разных папках — ссылка

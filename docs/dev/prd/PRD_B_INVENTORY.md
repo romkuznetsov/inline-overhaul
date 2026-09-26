@@ -805,8 +805,8 @@ _Intro:_ A line that points at other notes can leave a pointer back in each of t
 _Tip:_ A line often names the notes it belongs to — a project, a person, a place. Turn it into a note and those notes learn nothing about it. With this on, each of them gets a link to the new note, so the project note slowly becomes a list of everything filed under it without you keeping that list by hand. Only a link that is a Value of a Field counts: a link you typed inside your own sentence is your word, and nothing is written into it
 
 - **Link the notes you mention** — `backlink-enabled`, `toggle`, path `transform.inline2note.backlink.enabled`, default `false`
-  - desc: Write a link to the new note into every note this line points at
-  - tip: The link is written with the full path, so it points at the right note even when two notes share a name. A note that does not exist yet is created empty and gets the link. Nothing is written twice: a note that already links to the new one is left alone
+  - desc: Write a link to the new note into the notes of the link Values on this line
+  - tip: The link is written with the full path, so it points at the right note even when two notes share a name. Only notes that already exist get the link: a Value note that is not there yet is not created, while a navigator’s note is created, as the navigator expects. Nothing is written twice: a note that already links to the new one is left alone
   - старые названия для поиска: «Create wikilink to transformed note in reference notes», «Backlinks into the notes you mention», «Automatic MOC»
 - **Link to Navigator** — `backlink-navigator`, `toggle`, path `transform.inline2note.backlink.navigator`, default `false`
   - desc: Also write the link into the navigator note of a child link

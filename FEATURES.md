@@ -131,7 +131,7 @@ it to one that already exists. Off out of the box.
   as YAML properties, and a rule for the lines indented under it.
 - **Source line.** What stays behind: the whole line, a few words, a link to the new
   note, a `#processed` mark, the tree carried across.
-- **Links back.** Every note the line points at can receive a link to the new note.
+- **Links back.** The notes of the link Values on the line can receive a link to the new note; a Value note that does not exist yet is not created.
 - **Floating button** at the end of the line you are on, as an alternative to the key.
 
 *Where:* **Transform**, seven groups.

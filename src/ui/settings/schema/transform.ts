@@ -226,9 +226,9 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"toggle", id:"backlink-enabled", path:"transform.inline2note.backlink.enabled", default:false,
       name:"Link the notes you mention",
-      desc:"Write a link to the new note into every note this line points at",
+      desc:"Write a link to the new note into the notes of the link Values on this line",
       searchTerms:["Create wikilink to transformed note in reference notes","Backlinks into the notes you mention","Automatic MOC"],
-      tip:"The link is written with the full path, so it points at the right note even when two notes share a name. A note that does not exist yet is created empty and gets the link. Nothing is written twice: a note that already links to the new one is left alone" },
+      tip:"The link is written with the full path, so it points at the right note even when two notes share a name. Only notes that already exist get the link: a Value note that is not there yet is not created, while a navigator’s note is created, as the navigator expects. Nothing is written twice: a note that already links to the new one is left alone" },
     { kind:"toggle", id:"backlink-navigator", path:"transform.inline2note.backlink.navigator", default:false,
       name:"Link to Navigator",
       desc:"Also write the link into the navigator note of a child link",

@@ -2416,6 +2416,8 @@ async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2
   const vault = app && app.vault;
   if (!vault) throw new Error("vault unavailable for backlink write");
   const selfPath = String(targetPath || "").trim();
+  /* Цели-значения — Value полей; навигаторы добавляются к ним отдельно. */
+  const valueTargets = new Set(backlinkTargetsFromContext(context));
   for (const target of backlinkTargetsWithNavigators(context, pluginCfg, i2n)) {
     const path = resolveBacklinkNotePath(app, target, sourcePath);
     /* Ссылка на самоё себя не пишется: строка может ссылаться на заметку с тем
@@ -2423,6 +2425,13 @@ async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2
     if (!path || path === selfPath) { skipped.push(target); continue; }
     try {
       let af = vault.getAbstractFileByPath(path);
+      /*
+       * **Заметку Value, которой ещё нет, не заводим** (`В-244`, его слово
+       * 2026-09-26): ссылка дописывается в существующие заметки Value. У
+       * навигатора другая логика — значение есть, а заметки пока нет, и её
+       * плагин заводит (В-135), как прежде.
+       */
+      if (!af && valueTargets.has(target)) { skipped.push(target); continue; }
       if (!af) {
         const folderPath = folderOfNotePath(path);
         if (folderPath && !vault.getAbstractFileByPath(folderPath)) await vault.createFolder(folderPath);
@@ -3689,6 +3698,9 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   const before = String(previous == null ? "" : previous);
   const text = String(block || "").trim().replace(/\r?\n/g, nl);
   if (!text) return before;
+  /* Пустая заметка получает блок с первой строки, без двух пустых перед ним
+     (`В-244`: «две пустые строки в начале — дефект»). */
+  if (!before.trim()) return text + nl;
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const pos = String(placement.position || "end").trim().toLowerCase();
   /* `At the beginning` — за frontmatter, в начало тела (BUGHUNT T14): прежде
