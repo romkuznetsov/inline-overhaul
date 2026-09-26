@@ -250,6 +250,14 @@ async function resetCase(win, open) {
   });
 }
 
+/* Случай, зависший в странице, не держит весь прогон: 30 секунд — и дальше.
+   Зависший прогон 2026-09-26 простоял два часа и съел память машины. */
+function inTime(promise, what) {
+  let timer = null;
+  const guard = new Promise((_, no) => { timer = setTimeout(() => no(new Error("случай завис: " + what)), 30000); });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+}
+
 async function runCases(win, filter) {
   delete require.cache[require.resolve("./obsidian_cases.js")];
   const all = require("./obsidian_cases.js");
@@ -268,7 +276,7 @@ async function runCases(win, filter) {
     let first = true;
     for (const ch of chunks) {
       if (Array.isArray(ch)) {
-        const r = await runCase(win, Object.assign({}, c, first ? {} : { files: null, cfg: null, at: null }, { steps: ch }));
+        const r = await inTime(runCase(win, Object.assign({}, c, first ? {} : { files: null, cfg: null, at: null }, { steps: ch })), c.id).catch((e) => ({ log: ["бросок: " + e.message] }));
         log = log.concat(r.log);
         first = false;
       } else {
@@ -288,7 +296,7 @@ async function runCases(win, filter) {
       }
     }
     await win.waitForTimeout(c.settle || 300);
-    const res = await checkCase(win, c);
+    const res = await inTime(checkCase(win, c), c.id).catch((e) => ({ got: { check: e.message }, bad: ["check"], open: false }));
     await resetCase(win, res.open);
     const ok = res.bad.length === 0 && !log.some((l) => l.startsWith("бросок"));
     if (ok) pass++;
@@ -549,6 +557,9 @@ async function main() {
     }
     throw e;
   });
+  /* Сторож всего прогона: зависший стенд гасит свой Obsidian и выходит, а не держит память машины часами. */
+  const watchdog = setTimeout(() => { console.error("стенд завис: 20 минут"); close().finally(() => process.exit(3)); }, 20 * 60 * 1000);
+  watchdog.unref();
   let ok = false;
   try {
     ok = await SCENARIOS[name](win, browser);

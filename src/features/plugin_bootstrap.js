@@ -31,6 +31,7 @@ const __editorMount = require("../ui/editor/mount.js");
 const __editorStyles = require("../ui/editor/styles.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
+const __linkValueRename = require("./link_value_rename.js");
 const __releaseNotes = require("./release_notes.js");
 const __settingsAutosave = require("./settings_autosave.js");
 const __sharedUtils = require("../core/shared_utils.js");
@@ -223,6 +224,8 @@ async function load(plugin) {
   __editorStyles.ensureBlockFill(plugin);
   __editorMount.mountExtensions(plugin);
   followConfigWithCommands(plugin);
+  /* Value-ссылка идёт за переименованной заметкой (`В-238`). */
+  __linkValueRename.followNoteRenames(plugin);
 
   const devEnabled = !!(readCfgPath(plugin.getConfig && plugin.getConfig(), "advanced.devMode.enabled") === true);
   if (devEnabled) {

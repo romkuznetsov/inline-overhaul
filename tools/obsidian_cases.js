@@ -94,6 +94,12 @@ module.exports = [
       cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true } } },
       check: "return !a.vault.getFiles().some((f) => f.name.startsWith('```')) || a.vault.getFiles().map((f) => f.path).join(', ');" }),
 
+  { id: "F16", title: "Value-ссылка идёт за переименованной заметкой (В-238)", files: { "Project A.md": "заметка\n", "t-F16.md": "- x || [[Project A]]\n" },
+    at: { file: "t-F16.md", line: 0 },
+    /* Без await: переименование доводит Obsidian сам, стенд только ждёт. */
+    steps: [{ js: "a.vault.setConfig('alwaysUpdateLinks', true); a.fileManager.renameFile(a.vault.getAbstractFileByPath('Project A.md'), 'Project Alpha.md');", wait: 2500 }, "project-next"],
+    check: "const vals = plugin.getConfig().pkm.fields.links.fields.find((f) => f.id === 'Project').values.map((v) => v.token); const l = a.workspace.activeEditor.editor.getLine(0); return (vals.includes('Project Alpha') && !vals.includes('Project A') && (l.match(/\\[\\[/g) || []).length === 1) || JSON.stringify({ vals, l });" },
+
   /* F17, F9, F10, F11 */
   one("F17.a", "`||` в тексте человека не стирается", "- if (x || y) return", ["status-next"], "- #todo || if (x || y) return"),
   one("F9", "Дата с пробелом узнаётся", "- [ ] задача 📅 2026-09-30", ["due-next"], "- [ ] задача || 📅 2026-10-01"),
