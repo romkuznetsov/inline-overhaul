@@ -21,6 +21,51 @@
  */
 
 const __sharedUtils = require("../core/shared_utils.js");
+const __linePipeline = require("../core/line_pipeline.js");
+const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
+const __rulesShape = require("../core/pkm_rules_shape.js");
+
+/**
+ * **Склейка двух строк с полями сливает поля в блоки** (`В-242`, его ответ
+ * 2026-09-26 «слить поля в блоки»; BUGHUNT K2). Прежде `Del` в конце
+ * `- #todo || a` над `- #low || b` давал `- #todo || a #low || b` — две
+ * строки с полями в одной, и следующая команда поля портила её дальше.
+ * Теперь склеивается текст, а значения второй строки встают в блоки первой;
+ * одинаковое поле — побеждает первая строка.
+ *
+ * Разбор и сборка — те же, что у движков (`splitSegments`,
+ * `buildFromSegments`); чьё значение — отвечает карта токенов правил
+ * (`buildTagTokenKeyMap`) и метки элементов. `null` — у второй строки полей
+ * нет, склейка обычная.
+ */
+function mergeLinesWithFields(upper, lower, rules) {
+  if (!rules || !rules.io) return null;
+  const a = __linePipeline.splitSegments(upper, rules);
+  const b = __linePipeline.splitSegments(lower, rules);
+  const bLeft = String(__sharedUtils.lineStartOf(String(b.left || "")).body || "").trim();
+  const bDates = String(b.dates || "").trim();
+  if (!bLeft && !bDates) return null;
+  const keyMap = __rulesHelpers.buildTagTokenKeyMap(rules, __rulesHelpers.getDefaultTagTokenKeyMapOptions()) || {};
+  const markers = [].concat(rules.leftMode && rules.leftMode.fields || [], rules.rightMode && rules.rightMode.fields || [])
+    .filter((f) => f && f.marker).map((f) => ({ marker: String(f.marker), id: String(f.id || "") }));
+  const fieldOf = (t) => {
+    const hit = markers.find((m) => t.startsWith(m.marker));
+    if (hit) return hit.id;
+    return keyMap[t] || null;
+  };
+  const merge = (mine, theirs) => {
+    const own = __sharedUtils.lineWords(mine);
+    const taken = new Set(own.map(fieldOf).filter(Boolean));
+    const add = __sharedUtils.lineWords(theirs).filter((t) => { const f = fieldOf(t); return !f || !taken.has(f); });
+    return own.concat(add).join(" ");
+  };
+  const aStart = __sharedUtils.lineStartOf(String(a.left || ""));
+  const left = __linePipeline.joinLeftPrefix(String(aStart.prefix || "").trimEnd(), merge(String(aStart.body || ""), bLeft));
+  const text = [String(a.text || "").trim(), String(b.text || "").trim()].filter(Boolean).join(" ");
+  const dates = merge(String(a.dates || ""), bDates);
+  const line = __linePipeline.buildFromSegments({ indent: a.indent, left: left.trim(), text, dates }, rules);
+  return { line, textEnd: String(a.text || "").trim() };
+}
 
 /**
  * Сколько символов в начале строки занимает мусор: отступ и, если просили,
@@ -180,6 +225,9 @@ function handleSmartKeymap(plugin, back) {
     if (!heads.length || heads.some((h) => !Number.isFinite(h.line))) return false;
     if (new Set(heads.map((h) => h.line)).size !== heads.length) return false;
 
+    /* Правила движков — ради склейки строк с полями (`В-242`). */
+    let rules = null;
+    try { rules = __rulesShape.buildRulesForEngines(cfg); } catch (_) { rules = null; /* проба: полуготовый конфиг — склейка обычная */ }
     const plans = [];
     for (const h of heads) {
       const line = h.line;
@@ -196,7 +244,19 @@ function handleSmartKeymap(plugin, back) {
         : planSmartDelete({ ...common, nextLineText: String(editor.getLine(line + 1) || "") });
       if (!plan) return false;
       /* Диапазон всегда идёт от верхней строки к нижней, чем бы его ни считали. */
-      plans.push({ top: back ? line - 1 : line, plan });
+      const top = back ? line - 1 : line;
+      if (!plan.emptied && rules) {
+        const upper = String(editor.getLine(top) || "");
+        const lower = String(editor.getLine(top + 1) || "");
+        const merged = mergeLinesWithFields(upper, lower, rules);
+        if (merged) {
+          const slot = merged.line.indexOf(merged.textEnd);
+          const caret = merged.textEnd && slot >= 0 ? slot + merged.textEnd.length : merged.line.length;
+          plans.push({ top, plan: { fromCh: 0, toCh: lower.length, insert: merged.line, cursorCh: caret, whole: upper.length } });
+          continue;
+        }
+      }
+      plans.push({ top, plan });
     }
     plans.sort((x, y) => y.top - x.top);
     for (const { top, plan } of plans) {
@@ -221,6 +281,7 @@ function handleSmartBackspaceKeymap(plugin) {
 }
 
 module.exports = {
+  mergeLinesWithFields,
   junkLengthOf,
   planSmartDelete,
   planSmartBackspace,

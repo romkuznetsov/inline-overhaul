@@ -99,6 +99,16 @@ async function main(): Promise<void> {
   assert.equal(again.line, "- #todo || x", "S13: написанное Nested не узнаётся вторым нажатием");
   passed++;
   console.log("  ok S13 Nested: Value с решёткой не удваивает её");
+  /* K2 (`В-242`): склейка строк с полями сливает поля в блоки, одинаковое поле —
+     побеждает первая строка; без полей во второй — склейка обычная (null). */
+  const sd = require("../../src/features/smart_delete_engine.js");
+  const m = (a: string, b: string): string | null => { const r = sd.mergeLinesWithFields(a, b, rules); return r ? r.line : null; };
+  assert.equal(m("- #todo || a", "- #low || b"), "- #todo #low || a b", "K2: поля второй строки не встали в блоки");
+  assert.equal(m("- #todo || a", "- #done || b"), "- #todo || a b", "K2: одинаковое поле — не первая строка");
+  assert.equal(m("- a", "- #low || b || 📅2026-09-30"), "- #low || a b || 📅2026-09-30", "K2: правый Block второй строки потерян");
+  assert.equal(m("- #todo || a", "- b"), null, "отрицательный контроль: у второй строки полей нет");
+  passed += 4;
+  console.log("  ok K2 склейка строк с полями сливает поля в блоки");
   /* F4: план записи полосы режет строку словами, и ссылка с пробелом — одно
      слово; иначе ` B]]` прятался посреди ссылки и Obsidian рисовал хвост. */
   const plw = require("../../src/core/panel_line_write.js");

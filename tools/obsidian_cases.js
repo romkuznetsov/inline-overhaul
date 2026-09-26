@@ -112,7 +112,7 @@ module.exports = [
 
   /* K2 — Smart Delete сливает поля (В-242) */
   one("K2", "Smart Delete сливает поля второй строки в блоки первой", "- #todo || a", [{ key: "Delete" }], "- #todo #low || a b",
-    { files: { "t.md": "- #todo || a\n- #low || b\n" }, expect: { "t.md": "- #todo #low || a b\n" } }),
+    { files: { "t.md": "- #todo || a\n- #low || b\n" }, expect: { "t.md": "- #todo #low || a b\n" }, cfg: { editor: { smartDelete: { enabled: true } } } }),
   one("K15", "Smart Delete при нескольких курсорах", "- a", [{ js: "ed.setSelections([{anchor:{line:0,ch:3}},{anchor:{line:2,ch:3}}]);" }, { key: "Delete" }], "",
     { files: { "t.md": "- a\n- b\n- c\n- d\n" }, expect: { "t.md": "- a b\n- c d\n" }, cfg: { editor: { smartDelete: { enabled: true } } } }),
 
