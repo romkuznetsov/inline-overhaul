@@ -14,6 +14,7 @@
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, tipBelow, type El } from "./dom.ts";
+import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import {
@@ -168,7 +169,7 @@ export function askNewFieldModal(
     }
   }
 
-  new AddFieldModal(app).open();
+  inSettingsWindow(() => new AddFieldModal(app).open());
 }
 
 /**
@@ -213,7 +214,7 @@ function confirmDeleteModal(
     }
   }
 
-  new DeleteFieldModal(app).open();
+  inSettingsWindow(() => new DeleteFieldModal(app).open());
 }
 
 /**
@@ -300,7 +301,7 @@ function askRenameModal(
     }
   }
 
-  new RenameFieldModal(app).open();
+  inSettingsWindow(() => new RenameFieldModal(app).open());
 }
 
 /* ---- блок --------------------------------------------------------------- */

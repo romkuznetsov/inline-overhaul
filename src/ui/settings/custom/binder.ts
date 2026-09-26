@@ -21,6 +21,7 @@
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, type El } from "./dom.ts";
+import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createBinderModel, type BinderClash, type BinderDraft, type BinderRow } from "./binder_model.ts";
 import { renderAddForm, renderBinder as drawBinder } from "./binder_view.ts";
@@ -97,7 +98,7 @@ function askAddModal(
     }
   }
 
-  new AddBinderRowModal(app).open();
+  inSettingsWindow(() => new AddBinderRowModal(app).open());
 }
 
 export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {

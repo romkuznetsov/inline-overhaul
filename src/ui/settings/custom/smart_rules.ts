@@ -14,6 +14,7 @@
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, type El, type ElInput } from "./dom.ts";
+import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import { createRulesModel, type RuleKind } from "./smart_rules_model.ts";
@@ -121,7 +122,7 @@ function askConditionModal(
     }
   }
 
-  new ConditionModal(app).open();
+  inSettingsWindow(() => new ConditionModal(app).open());
 }
 
 /* ---- подсказчик папок (10.13.8) ---------------------------------------- */

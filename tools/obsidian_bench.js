@@ -40,7 +40,7 @@ function prepare(name) {
   const profile = path.join(work, "profile");
   const vault = path.join(work, "vault");
   fs.mkdirSync(profile, { recursive: true });
-  if (name === "clean") {
+  if (/^clean/.test(name)) {
     /* Чистый vault (BUGHUNT 2026-09-26): пустая папка, сборка из `dist` тем же
        установщиком, что у человека, и ни одного `data.json` — стартовый набор. */
     require("child_process").execFileSync(process.execPath,
@@ -114,7 +114,7 @@ async function launch(name) {
     throw new Error("открыт не тот vault: " + state.vault);
   }
   if (!state.plugin) { await close(); throw new Error("плагин inline-overhaul не загрузился"); }
-  return { win, env, close };
+  return { win, env, close, browser };
 }
 
 /** Открыть заметку, поставить каретку в начало и прокрутить к строке; вернуть номер строки. */
@@ -306,6 +306,62 @@ async function runCases(win, filter) {
 }
 
 const SCENARIOS = {
+  /*
+   * BUGHUNT R2 (S1): окна панели встают в окно настроек. Obsidian 1.13
+   * открывает настройки отдельным окном; «Add Field» ставил окно в главное,
+   * за настройками. Чистый vault, щелчок настоящей мышью по кнопке панели.
+   */
+  async "clean-settings"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const pages = () => browser.contexts().flatMap((c) => c.pages());
+    let host = null;
+    for (let i = 0; i < 20 && !host; i++) {
+      for (const pg of pages()) {
+        if (await pg.evaluate(() => !!document.querySelector(".io-tabstrip, [class*=io-tab]")).catch(() => false)) host = pg;
+      }
+      if (!host) await win.waitForTimeout(500);
+    }
+    if (!host) throw new Error("панель настроек не нашлась ни в одном окне");
+    const popout = host !== win;
+    const clickText = async (pg, text) => {
+      const box = await pg.evaluate((t) => {
+        const vis = (x) => x.getBoundingClientRect().width > 0;
+        const n = [...document.querySelectorAll("button, [role=tab]")].filter((x) => x.textContent.trim() === t && vis(x)).pop()
+          || [...document.querySelectorAll("div, span")].filter((x) => x.children.length === 0 && x.textContent.trim() === t && vis(x)).pop();
+        if (!n) return null;
+        n.scrollIntoView({ block: "center" });
+        const r = n.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      }, text);
+      if (!box) throw new Error("нет «" + text + "» в окне настроек");
+      /* `IO_DOMCLICK=1` — щелчок узлом, без фокуса окна: так его делал прогон BUGHUNT. */
+      if (process.env.IO_DOMCLICK) await pg.evaluate((t) => { const n = [...document.querySelectorAll("button, [role=tab]")].filter((x) => x.textContent.trim() === t).pop(); if (n) n.click(); }, text);
+      else await pg.mouse.click(box.x, box.y);
+      await pg.waitForTimeout(700);
+    };
+    await clickText(host, "Tags & PKM");
+    /* Главное окно — последнее, где был фокус: так бывает, когда человек
+       вернулся в заметку, а потом нажал кнопку в настройках, не дав окну
+       настроек события фокуса (клавиатура, щелчок узлом). Obsidian ставит
+       окна туда, где был последний фокус (`activeWindow`, `app.js` 1.13.7). */
+    await win.evaluate(() => { window.activeWindow = window; window.activeDocument = document; });
+    await clickText(host, "Add Field");
+    const where = [];
+    for (const pg of pages()) {
+      const has = await pg.evaluate(() => [...document.querySelectorAll(".modal-container")].some((m) => /Add a Field/i.test(m.textContent))).catch(() => false);
+      if (has) where.push(pg === host ? "окно настроек" : (pg === win ? "главное окно" : "другое окно"));
+    }
+    console.log("настройки открыты отдельным окном:", popout);
+    console.log("окно «Add a Field» открылось в:", where.join(", ") || "нигде");
+    const ok = where.length === 1 && where[0] === "окно настроек";
+    console.log(ok ? "ok: окно панели там, где панель" : "РАСХОДИТСЯ: окно панели не в окне настроек");
+    return ok;
+  },
+
   /* Пакет чистого vault: `node tools/obsidian_bench.js clean [id,id…]`. */
   async clean(win) {
     return runCases(win, process.argv[3] || "");
@@ -455,7 +511,7 @@ async function main() {
     console.log("сценарии: " + Object.keys(SCENARIOS).join(", "));
     process.exit(2);
   }
-  const { win, env, close } = await launch(name).catch((e) => {
+  const { win, env, close, browser } = await launch(name).catch((e) => {
     for (const d of fs.readdirSync(os.tmpdir()).filter((x) => x.startsWith("io-obsidian-bench-"))) {
       try { fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true }); } catch (_) { /* уборка: папку держит выходящий процесс */ }
     }
@@ -463,7 +519,7 @@ async function main() {
   });
   let ok = false;
   try {
-    ok = await SCENARIOS[name](win);
+    ok = await SCENARIOS[name](win, browser);
   } finally {
     await close();
     await new Promise((r) => setTimeout(r, 1500));

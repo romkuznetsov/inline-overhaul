@@ -20,6 +20,7 @@ import type { App, SettingDefinitionItem } from "obsidian";
 
 import { SCHEMA, TABS } from "./schema/index.ts";
 import { SettingsPane } from "./settings_tab.ts";
+import { inSettingsWindow, rememberSettingsRoot } from "./settings_window.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
 import {
   buildActions,
@@ -207,7 +208,7 @@ function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
       }
     }
 
-    new ConfirmModal(app).open();
+    inSettingsWindow(() => new ConfirmModal(app).open());
   });
 }
 
@@ -253,7 +254,7 @@ function announce(app: App, o: AnnounceRequest): Promise<void> {
       }
     }
 
-    new AnnounceModal(app).open();
+    inSettingsWindow(() => new AnnounceModal(app).open());
   });
 }
 
@@ -347,7 +348,7 @@ function askBackupOptions(app: App, o: BackupOptionsRequest, say: Say): Promise<
       }
     }
 
-    new OptionsModal(app).open();
+    inSettingsWindow(() => new OptionsModal(app).open());
   });
 }
 
@@ -395,7 +396,7 @@ function askPick(app: App, o: PickRequest, say: Say): Promise<string | null> {
       }
     }
 
-    new PickModal(app).open();
+    inSettingsWindow(() => new PickModal(app).open());
   });
 }
 
@@ -415,7 +416,13 @@ function vaultSeam(app: App): VaultSeam {
     open: async (path: string) => {
       const file = app.vault.getAbstractFileByPath(path);
       if (!file) throw new Error("Cannot open " + path);
-      await app.workspace.getLeaf(true).openFile(file as never);
+      const leaf = app.workspace.getLeaf(true);
+      await leaf.openFile(file as never);
+      /* Заметка открывается в главном окне; окно настроек поверх неё — значит
+         главное поднимается (BUGHUNT R2, «Guide → Read»). */
+      app.workspace.setActiveLeaf(leaf, { focus: true });
+      const win = (leaf.view.containerEl as unknown as { ownerDocument?: Document }).ownerDocument?.defaultView;
+      if (win && typeof win.focus === "function") win.focus();
     },
     read: async (path: string) => await app.vault.adapter.read(path),
     /*
@@ -764,6 +771,9 @@ export class InlineOverhaulSettings extends PluginSettingTab {
 
   constructor(app: App, plugin: HostPlugin, bridge?: HostBridge) {
     super(app, plugin as never);
+    /* Окно, в котором человек видит панель: туда встают её окна (BUGHUNT R2).
+       Узел вкладки заводит платформа, и он один на всю жизнь вкладки. */
+    rememberSettingsRoot(this.containerEl as never);
     const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function"
       ? bridge.normalizePkmOrder
       : null;
@@ -782,7 +792,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
        * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
        */
       actions: buildActions({
-        notify: (message: string) => { new Notice(message); },
+        notify: (message: string) => { inSettingsWindow(() => new Notice(message)); },
         confirm: (o: ConfirmRequest) => askConfirm(app, o, this.say),
         pick: (o: PickRequest) => askPick(app, o, this.say),
         vault: vaultSeam(app),
@@ -836,7 +846,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       fragments: {
         createFragment: () => document.createDocumentFragment() as never,
       },
-      notify: (message: string) => { new Notice(message); },
+      notify: (message: string) => { inSettingsWindow(() => new Notice(message)); },
       refresh: () => { this.refreshDomState(); },
       rebuild: () => { this.update(); },
       tabStrip: state => tabStripRow(state),
@@ -931,7 +941,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
        * что можно сделать.
        */
       for (const name of read.broken) {
-        new Notice(fill(this.say("TEXTS_BROKEN"), name));
+        inSettingsWindow(() => new Notice(fill(this.say("TEXTS_BROKEN"), name)));
       }
       /* Панель уже могла собраться на пустом каталоге — пересобрать её. */
       this.update();
