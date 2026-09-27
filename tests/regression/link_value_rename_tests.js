@@ -57,4 +57,32 @@ function cfg() {
   ok("отрицательные контроли: другая папка, не заметка, чужая заметка");
 }
 
+/*
+ * Цена переименования Value в панели (его пункт 2026-09-27 к тесту 7).
+ * Подделан только кэш ссылок Obsidian: две его таблицы и поиск заметки по
+ * адресу — ровно то, что зовёт помощник.
+ */
+{
+  const { linkValueRenameImpact } = require(path.join(__dirname, "..", "..", "src", "features", "link_value_rename.js"));
+  const files = { "People/Man1.md": { path: "People/Man1.md", parent: { path: "People" } }, "People/Man2.md": { path: "People/Man2.md", parent: { path: "People" } } };
+  const app = {
+    metadataCache: {
+      getFirstLinkpathDest: (t) => ({ Man1: files["People/Man1.md"], "People/Man1": files["People/Man1.md"] })[t] || null,
+      resolvedLinks: { "a.md": { "People/Man1.md": 2 }, "b.md": { "People/Man1.md": 1, "x.md": 4 }, "c.md": {} },
+      unresolvedLinks: { "a.md": { Ghost: 3 }, "d.md": { Ghost: 1 } },
+    },
+    vault: { getAbstractFileByPath: (p) => files[p] || null },
+  };
+  const hit = linkValueRenameImpact(app, "Man1", "[[Man3]]");
+  assert.equal(hit.kind, "note");
+  assert.equal(hit.newPath, "People/Man3.md", "новое имя без папки ушло из папки заметки");
+  assert.deepEqual([hit.links, hit.notes], [3, 2], "ссылки посчитаны не по заметке Value");
+  assert.equal(linkValueRenameImpact(app, "Man1", "Man2").kind, "clash", "занятое имя не узнано");
+  assert.equal(linkValueRenameImpact(app, "[[People/Man1|Man1]]", "Archive/Man1").newPath, "Archive/Man1.md", "путь с папкой переписан");
+  const ghost = linkValueRenameImpact(app, "Ghost", "Spirit");
+  assert.deepEqual([ghost.kind, ghost.links, ghost.notes], ["none", 4, 2], "неразрешённые ссылки не посчитаны");
+  assert.equal(linkValueRenameImpact(app, "Man1", "[[Man1]]"), null, "отрицательный контроль: правка написания — не переименование");
+  ok("цена переименования Value: заметка, занятое имя, папка, заметки нет, написание");
+}
+
 console.log("\n" + passed + " проверок пройдено");

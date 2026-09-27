@@ -321,6 +321,34 @@ async function runCases(win, filter, mine) {
   return pass === cases.length;
 }
 
+/** Страница, где нарисована панель настроек: в 1.13 это бывает отдельное окно. */
+async function settingsHost(win, browser) {
+  const pages = () => browser.contexts().flatMap((c) => c.pages());
+  for (let i = 0; i < 20; i++) {
+    for (const pg of pages()) {
+      if (await pg.evaluate(() => !!document.querySelector(".io-tabstrip, [class*=io-tab]")).catch(() => false)) return pg;
+    }
+    await win.waitForTimeout(500);
+  }
+  throw new Error("панель настроек не нашлась ни в одном окне");
+}
+
+/** Щелчок мышью по видимому узлу с этим текстом — последнему из совпавших. */
+async function clickIn(pg, text) {
+  const box = await pg.evaluate((t) => {
+    const vis = (x) => x.getBoundingClientRect().width > 0;
+    const n = [...document.querySelectorAll("button, [role=tab]")].filter((x) => x.textContent.trim() === t && vis(x)).pop()
+      || [...document.querySelectorAll("div, span")].filter((x) => x.children.length === 0 && x.textContent.trim() === t && vis(x)).pop();
+    if (!n) return null;
+    n.scrollIntoView({ block: "center" });
+    const r = n.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, text);
+  if (!box) throw new Error("нет «" + text + "» в окне");
+  await pg.mouse.click(box.x, box.y);
+  await pg.waitForTimeout(700);
+}
+
 const SCENARIOS = {
   /*
    * BUGHUNT R2 (S1): окна панели встают в окно настроек. Obsidian 1.13
@@ -375,6 +403,60 @@ const SCENARIOS = {
     console.log("окно «Add a Field» открылось в:", where.join(", ") || "нигде");
     const ok = where.length === 1 && where[0] === "окно настроек";
     console.log(ok ? "ok: окно панели там, где панель" : "РАСХОДИТСЯ: окно панели не в окне настроек");
+    return ok;
+  },
+
+  /*
+   * Его пункт 2026-09-27 к тесту 7: переименование Value-ссылки в панели
+   * называет цену и по «Rename note and links» переименовывает заметку —
+   * ссылки переписывает Obsidian. Копия его vault: Value `Man1` у `People`.
+   */
+  async "value-rename"(win, browser) {
+    await win.evaluate(async () => {
+      const a = window.app;
+      await a.vault.create("vr.md", "- [[Man1]] :: звонок\n");
+      a.setting.open();
+      a.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await host.evaluate(() => { const n = [...document.querySelectorAll(".io-fields__name")].find((x) => x.textContent.trim() === "People"); if (n) n.click(); });
+    await host.waitForTimeout(700);
+    const typed = await host.evaluate(() => {
+      const input = [...document.querySelectorAll("input")].find((x) => x.getAttribute("aria-label") === "Value [[Man1]] of People");
+      if (!input) return false;
+      input.value = "Man7";
+      input.dispatchEvent(new Event("change"));
+      return true;
+    });
+    if (!typed) {
+      const seen = await host.evaluate(() => [...document.querySelectorAll("input")].map((x) => x.getAttribute("aria-label")).filter((x) => /Value /.test(x || "")).slice(0, 12));
+      throw new Error("нет поля Value Man1 у People; есть: " + JSON.stringify(seen));
+    }
+    await host.waitForTimeout(700);
+    const said = await host.evaluate(() => {
+      const m = [...document.querySelectorAll(".modal-container")].find((x) => /Rename the note too/.test(x.textContent));
+      return m ? m.textContent : null;
+    });
+    console.log("окно:", said);
+    if (!said) { console.log("РАСХОДИТСЯ: окна цены нет"); return false; }
+    await clickIn(host, "Rename note and links");
+    await win.waitForTimeout(2500);
+    const got = await win.evaluate(async () => {
+      const a = window.app;
+      const cfg = a.plugins.plugins["inline-overhaul"].getConfig();
+      const people = cfg.pkm.fields.links.fields.find((f) => f.id === "People");
+      return {
+        note: !!a.vault.getAbstractFileByPath("Man7.md"),
+        old: !!a.vault.getAbstractFileByPath("Man1.md"),
+        line: await a.vault.read(a.vault.getAbstractFileByPath("vr.md")),
+        values: people.values.map((v) => (v && v.token) || v),
+      };
+    });
+    console.log(JSON.stringify(got));
+    const ok = got.note && !got.old && got.line === "- [[Man7]] :: звонок\n" && got.values.includes("Man7") && !got.values.includes("Man1");
+    console.log(ok ? "ok: заметка, ссылки и Value переименованы" : "РАСХОДИТСЯ");
     return ok;
   },
 

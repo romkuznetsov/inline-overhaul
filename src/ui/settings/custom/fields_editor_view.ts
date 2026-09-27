@@ -352,6 +352,13 @@ export interface FieldsViewOpts {
    * в заметках останется старый тег, а хоткей отвяжется (1.4.1.2.2).
    */
   askRename?: (name: string, done: (next: string | null) => void) => void;
+  /**
+   * Переименование Value-ссылки называет цену (его пункт 2026-09-27 к тесту 7):
+   * у Value есть заметка — окно предлагает переименовать и её, и Obsidian
+   * перепишет ссылки на неё во всех заметках. `apply` пишет новое Value,
+   * `revert` возвращает поле. Нет шва (заглушка гейта) — Value пишется сразу.
+   */
+  askLinkValueRename?: (oldToken: string, nextToken: string, apply: () => void, revert: () => void) => void;
   /** Окно имени custom block: то же окно, но без цены — хоткей держится за `id`. */
   askRenameBlock?: (name: string, done: (next: string | null) => void) => void;
   /**
@@ -1660,9 +1667,16 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     token.disabled = !o.enabled;
     token.addEventListener("change", (() => {
       if (!o.enabled) return;
-      ve.saveTree(ve.editRow(ve.tree, at, { token: token.value }),
-        "pkm:behavior:order:deep:rename:" + row.key);
-      o.redraw();
+      const apply = (): void => {
+        ve.saveTree(ve.editRow(ve.tree, at, { token: token.value }),
+          "pkm:behavior:order:deep:rename:" + row.key);
+        o.redraw();
+      };
+      if (isLink && o.askLinkValueRename) {
+        o.askLinkValueRename(v.token, String(token.value || ""), apply, () => { token.value = v.token; });
+        return;
+      }
+      apply();
     }) as never);
 
     /*

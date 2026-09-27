@@ -128,4 +128,52 @@ function followNoteRenames(plugin) {
   }));
 }
 
-module.exports = { planLinkValueRename, followNoteRenames };
+/** Адрес Value: `[[Archive/Old|Old]]`, `[[Old]]` и `Old` дают `Archive/Old` и `Old`. */
+function valueTarget(token) {
+  const t = String(token || "").trim();
+  return __sharedUtils.wikilinkTargetOf(t) || t;
+}
+
+/**
+ * **Цена переименования Value-ссылки в панели** — его пункт 2026-09-27 к тесту 7
+ * цикла 97: «хочу, чтобы при переименовании link value было предупреждение, что
+ * переименуются ссылки на все ранее проставленные старые value во всех
+ * заметках».
+ *
+ * Ответ — одно из трёх, и считает его платформа, а не свой разбор ссылок:
+ * - `note` — у Value есть заметка (`getFirstLinkpathDest`, как её открывает
+ *   щелчок); её можно переименовать в `newPath`, и Obsidian перепишет `links`
+ *   ссылок в `notes` заметках (`resolvedLinks`);
+ * - `clash` — заметка есть, но новое имя занято другой заметкой;
+ * - `none` — заметки нет: ссылки в заметках неразрешённые
+ *   (`unresolvedLinks`), переписать их Obsidian не может.
+ * `null` — адрес не сменился (правка написания: `Old` → `[[Old]]`).
+ */
+function linkValueRenameImpact(app, oldToken, newToken) {
+  const oldTarget = valueTarget(oldToken);
+  const newTarget = valueTarget(newToken);
+  if (!oldTarget || !newTarget || oldTarget === newTarget) return null;
+  const cache = app && app.metadataCache;
+  const file = cache && typeof cache.getFirstLinkpathDest === "function" ? cache.getFirstLinkpathDest(oldTarget, "") : null;
+  const count = (table, key) => {
+    let links = 0;
+    let notes = 0;
+    for (const src of Object.keys(table || {})) {
+      const n = Number((table[src] || {})[key] || 0);
+      if (n > 0) { links += n; notes += 1; }
+    }
+    return { links, notes };
+  };
+  if (!file) {
+    const c = count(cache && cache.unresolvedLinks, oldTarget);
+    return { kind: "none", oldTarget, newTarget, links: c.links, notes: c.notes };
+  }
+  /* Новое имя без папки остаётся в папке заметки; с папкой — путь как написан. */
+  const folder = file.parent && file.parent.path && file.parent.path !== "/" ? file.parent.path + "/" : "";
+  const newPath = (newTarget.includes("/") ? newTarget : folder + newTarget) + ".md";
+  const c = count(cache.resolvedLinks, file.path);
+  const taken = app.vault && typeof app.vault.getAbstractFileByPath === "function" && app.vault.getAbstractFileByPath(newPath);
+  return { kind: taken ? "clash" : "note", oldTarget, newTarget, file, newPath, links: c.links, notes: c.notes };
+}
+
+module.exports = { planLinkValueRename, followNoteRenames, linkValueRenameImpact };
