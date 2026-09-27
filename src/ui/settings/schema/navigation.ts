@@ -111,9 +111,12 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["On cycle end"], visible: on("navigation.moveSelection.prefixCyclerEnabled"),
       options:[ {value:"indent",label:"Indent"}, {value:"wrap",label:"Start over"} ] },
     { kind:"toggle", id:"indent-fallback", path:"navigation.moveSelection.indentFallbackEnabled", default:true,
-      name:"Change the indent", desc:"When neither of the two jobs above applies, move the line right or left instead",
+      name:"Change the indent", desc:"<code>Move right</code> indents a list item one step, <code>Move left</code> takes one step off",
       searchTerms:["Indent fallback"],
-      tip:"On, the keys always do something. Off, they sit quiet unless there is text to move or a marker to change \u2014 pick that if you indent with Tab and would rather these keys never touched it" }
+      /* \u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043d\u0435 \u0441\u0441\u044b\u043b\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u00ab\u0434\u0432\u0430 \u0434\u0435\u043b\u0430 \u0432\u044b\u0448\u0435\u00bb: \u043f\u0440\u0438 \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u043e\u043c `Cycle line
+         Prefixes` \u0441\u0442\u0440\u043e\u043a \u0432\u044b\u0448\u0435 \u043d\u0435 \u0432\u0438\u0434\u043d\u043e \u2014 \u0435\u0433\u043e \u0437\u0430\u043c\u0435\u0447\u0430\u043d\u0438\u0435 \u043a \u0442\u0435\u0441\u0442\u0443 1 \u0446\u0438\u043a\u043b\u0430 98
+         (2026-09-28): \u00ab\u0442\u0435\u043a\u0443\u0449\u0435\u0435 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 indent-fallback \u0441\u0435\u0439\u0447\u0430\u0441 \u043d\u0435 \u043b\u043e\u0433\u0438\u0447\u043d\u043e\u0435\u00bb. */
+      tip:"This is what the two keys do to a line when nothing is highlighted, and with <code>Cycle line Prefixes</code> off it is all they do. With it on, <code>Move left</code> takes the indent off first and only then changes the Prefix, and <code>Move right</code> changes the Prefix of a line at the left edge before it indents. Plain text is never indented: four spaces in front of it would turn it into a code block. Off, the keys never touch the indent \u2014 pick that if you indent with <code>Tab</code>" }
   ]
 },
 {

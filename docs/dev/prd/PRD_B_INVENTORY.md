@@ -412,8 +412,8 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - видна если: `navigation.moveSelection.prefixCyclerEnabled`
   - старые названия для поиска: «On cycle end»
 - **Change the indent** — `indent-fallback`, `toggle`, path `navigation.moveSelection.indentFallbackEnabled`, default `true`
-  - desc: When neither of the two jobs above applies, move the line right or left instead
-  - tip: On, the keys always do something. Off, they sit quiet unless there is text to move or a marker to change — pick that if you indent with Tab and would rather these keys never touched it
+  - desc: <code>Move right</code> indents a list item one step, <code>Move left</code> takes one step off
+  - tip: This is what the two keys do to a line when nothing is highlighted, and with <code>Cycle line Prefixes</code> off it is all they do. With it on, <code>Move left</code> takes the indent off first and only then changes the Prefix, and <code>Move right</code> changes the Prefix of a line at the left edge before it indents. Plain text is never indented: four spaces in front of it would turn it into a code block. Off, the keys never touch the indent — pick that if you indent with <code>Tab</code>
   - старые названия для поиска: «Indent fallback»
 
 #### Jump inside a line (left/right) — `in-line` (вкладка `navigation`)
