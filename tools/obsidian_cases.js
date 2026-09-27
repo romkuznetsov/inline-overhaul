@@ -145,6 +145,10 @@ module.exports = [
      у него за `- ` в списке стоит «без знака». */
   { mine: true, id: "M2", title: "Move left: задача на верхнем уровне идёт по списку Prefix", files: { "m2.md": "- [x] сделано\n" },
     at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "сделано\n" } },
+  /* Его замечание 2026-09-27: строка Emoji окна Add Field видна у всех типов.
+     Спрашивается каскад настоящего Obsidian: `app.css` + наш лист. */
+  { mine: true, id: "M9", title: "Add Field: строка Emoji видна только у Element", files: {},
+    check: "const s =document.body.createDiv({ cls: 'io-item' }); s.hidden = true; const d = getComputedStyle(s).display; s.remove(); return d === 'none' || 'скрытая строка io-item: display ' + d;" },
   /* Его замечание 2026-09-27: `\t\t- [ ] задача` + Move left давало `[ ] задача`. */
   { mine: true, id: "M8", title: "Move left: вложенная задача теряет один шаг отступа", files: { "m8.md": "- к строке ниже\n\t- исходная строка\n\t\t- [ ] задача\n" },
     at: { file: "m8.md", line: 2 }, steps: ["move-left", "move-left"], expect: { "m8.md": "- к строке ниже\n\t- исходная строка\n- [ ] задача\n" } },
