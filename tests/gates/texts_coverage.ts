@@ -153,6 +153,11 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
     why: "механизм перевода руководства: два адреса, имя английского и подсказка в шапке английского образца — переводу не подлежит ни один",
   },
   {
+    file: "src/ui/settings/custom/new_field_dialog.ts",
+    left: 1,
+    why: "маска формата вида «Date and time» (`YYYY-MM-DD HH:mm`): значение, которое окно `Add a Field` пишет в конфиг, а не текст — его же разбирает `formatDateByMask` (его заказ 2026-09-27)",
+  },
+  {
     file: "src/ui/settings/actions.ts",
     left: 1,
     why: "имя английского языка в запасном пути кнопки `Read`, когда шва руководства нет (10.13.51)",

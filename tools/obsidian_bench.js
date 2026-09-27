@@ -407,6 +407,87 @@ const SCENARIOS = {
   },
 
   /*
+   * Окно `Add a Field` — его заказ 2026-09-27. Снимки трёх типов кладутся в
+   * `IO_SHOTS` (папка), затем Tag и Element проходят до `Add Field`, и конфиг
+   * спрашивается: Block, Values с цветом, знак и вид значения.
+   */
+  async "new-field"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    const shots = process.env.IO_SHOTS || "";
+    const shot = async (name) => {
+      if (!shots) return;
+      const m = await host.$(".modal:has(.io-nf)");
+      if (m) await m.screenshot({ path: path.join(shots, name + ".png") });
+    };
+    const openForm = async () => {
+      await clickIn(host, "Add Field");
+      await host.waitForSelector(".io-nf", { timeout: 5000 });
+    };
+    const type = async (aria, text) => {
+      const sel = "input[aria-label=\"" + aria + "\"]";
+      await host.fill(sel, text);
+      await host.waitForTimeout(150);
+    };
+    const card = async (n) => { await host.click(".io-nf__type:nth-child(" + n + ")"); await host.waitForTimeout(200); };
+    /* Tag. */
+    await openForm();
+    await type("Name of the new Field", "mood");
+    await type("New Value", "calm");
+    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    await type("New Value", "busy");
+    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    await host.evaluate(() => { const d = document.querySelector(".io-nf__dot"); d.value = "#44aa66"; d.dispatchEvent(new Event("input")); });
+    await host.waitForTimeout(200);
+    await shot("tag");
+    await host.click(".io-nf .io-btn--cta");
+    await host.waitForTimeout(800);
+    /* Link — только снимок. */
+    await openForm();
+    await card(2);
+    await type("Name of the new Field", "client");
+    await type("New Value", "Man7");
+    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    await type("New Value", "Acme");
+    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    await shot("link");
+    await host.keyboard.press("Escape");
+    await host.waitForTimeout(400);
+    /* Element. */
+    await openForm();
+    await card(3);
+    await type("Name of the new Field", "when");
+    await type("Emoji of the new Field", "⏰");
+    await clickIn(host, "Date and time");
+    await shot("element");
+    await host.click(".io-nf .io-btn--cta");
+    await host.waitForTimeout(800);
+    const got = await win.evaluate(() => {
+      const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig();
+      const f = cfg.pkm.fields.tags.fields.find((x) => x.id === "mood");
+      return {
+        left: cfg.pkm.fields.order.left.includes("mood"),
+        values: f ? f.values.map((v) => (v && v.token) || v) : null,
+        color: cfg.visual.tags.byTag.mood,
+        when: cfg.pkm.fields.elements.byField.when,
+        commands: Object.keys(window.app.commands.commands).filter((k) => /inline-overhaul:(mood|when)-/.test(k)),
+      };
+    });
+    console.log(JSON.stringify(got));
+    const ok = got.left && got.values && got.values.join() === "#calm,#busy"
+      && JSON.stringify(got.color || {}).includes("#44aa66")
+      && got.when && got.when.emoji === "⏰" && got.when.format === "YYYY-MM-DD HH:mm" && got.when.increment.mode === "command"
+      && got.commands.length >= 4;
+    console.log(ok ? "ok: окно заводит Field с главным сразу" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
    * Его пункт 2026-09-27 к тесту 7: переименование Value-ссылки в панели
    * называет цену и по «Rename note and links» переименовывает заметку —
    * ссылки переписывает Obsidian. Копия его vault: Value `Man1` у `People`.

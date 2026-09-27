@@ -3620,3 +3620,163 @@
   font-size: 0.85em;
   padding: calc(1.5px * var(--io-bubble-y)) calc(6px * var(--io-bubble-x));
 }
+
+/* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
+   Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
+   здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
+   white-space: nowrap }` у них снимается явно — как у `.io-dlg__pick`. */
+.modal:has(> .modal-content.io-nf) { width: min(940px, 94vw); }
+.io-nf__body { display: flex; flex-direction: column; }
+.io-nf .io-nf__types {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+@media (max-width: 520px) { .io-nf__types { grid-template-columns: 1fr; } }
+.io-nf .io-nf__type {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  height: auto;
+  min-height: 0;
+  padding: 10px 12px;
+  white-space: normal;
+  text-align: left;
+  font-weight: normal;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.io-nf .io-nf__type:hover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
+.io-nf .io-nf__type--on,
+.io-nf .io-nf__type--on:hover {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+.io-nf__sample {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-accent);
+  line-height: 1.5;
+}
+.io-nf .io-nf__typename { font-weight: var(--font-semibold); color: var(--text-normal); }
+.io-nf .io-nf__typedesc { font-size: var(--font-ui-smaller); color: var(--text-muted); line-height: var(--line-height-tight); }
+
+/* Переключатель в ряд: одна кнопка нажата. */
+.io-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-m);
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+}
+.io-nf .io-seg__btn {
+  height: auto;
+  padding: 3px 10px;
+  font-size: var(--font-ui-small);
+  font-weight: normal;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.io-nf .io-seg__btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.io-nf .io-seg__btn--on,
+.io-nf .io-seg__btn--on:hover {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+.io-nf__sub { margin-top: 12px; }
+.io-nf .io-item--stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.io-nf .io-item--stack > .io-item__control { justify-content: flex-start; }
+
+/* Values фишками: цвет точкой, крестик справа. */
+.io-nf__chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; align-items: center; }
+.io-nf__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-small);
+}
+.io-nf__chiptext { font-family: var(--font-monospace); color: var(--text-normal); }
+.io-nf__dot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.io-nf__dot::-webkit-color-swatch-wrapper { padding: 0; }
+.io-nf__dot::-webkit-color-swatch { border: 1px solid var(--background-modifier-border); border-radius: 50%; }
+.io-nf__note { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.io-nf__note--has { color: var(--color-green, var(--text-success)); }
+.io-nf .io-nf__x {
+  height: 18px;
+  width: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  font-size: 10px;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.io-nf .io-nf__x:hover { color: var(--text-error); background: var(--background-modifier-hover); }
+.io-nf__chipshint { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.io-nf__addrow { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.io-nf__addrow > .io-text { flex: 1 1 auto; min-width: 0; }
+
+/* Две колонки: форма слева, предпросмотр справа и прижат к верху, пока окно
+   прокручивается (прокручивает сам `.modal`). На узком окне — одна колонка. */
+.io-nf__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 20px;
+  align-items: start;
+}
+.io-nf__side { position: sticky; top: 0; }
+.io-nf__preview { margin-top: 10px; }
+@media (max-width: 780px) {
+  .io-nf__layout { grid-template-columns: minmax(0, 1fr); }
+  .io-nf__side { position: static; }
+}
+.io-nf__pline .io-link { font-size: inherit; }
+.io-nf__pbody { display: flex; flex-direction: column; gap: 4px; }
+.io-nf__prow { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.io-nf__prow + .io-nf__prow { margin-top: 6px; }
+.io-nf__plabel {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+.io-nf__pstage { flex: 1 1 auto; min-width: 0; }
+.io-nf__pempty { color: var(--text-faint); font-style: italic; }
+.io-nf__pelem { color: var(--text-normal); }
+.io-nf__problem {
+  margin-right: auto;
+  align-self: center;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-error);
+}

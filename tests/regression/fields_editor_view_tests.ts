@@ -3097,15 +3097,66 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
     return out;
   };
   const say = sayIn("field-editor", {});
-  askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: true, showIds: false });
-  /* Третий «?» — у знака Element (BUGHUNT S4): строка стоит в окне всегда, видна у Element. */
-  assert.equal(walk(opened[0]!, "io-help").length, 3, "у имени, типа и знака нового Field обязаны стоять «?»");
-  askNewFieldModal(FakeModal as never, {}, () => {}, say, { showTips: false, showIds: false });
+  /* Настройки для предпросмотра: разделители его, остальное — числа по умолчанию. */
+  const ctx = { get: (p: string) => (/separator/.test(p) ? "::" : 100), set: async () => {}, run: async () => {}, watch: () => () => {} } as never;
+  const opts = (showTips: boolean) => ({ showTips, showIds: false, ctx, blocks: [{ id: "b1", name: "Inbox" }], checkName: (n: string) => (n === "status" ? "taken" : "") });
+  let answer: Any = "не звали";
+  askNewFieldModal(FakeModal as never, {}, a => { answer = a; }, say, opts(true));
+  const form = opened[0]!;
+  /* Tag по умолчанию: «?» у имени и Block. */
+  assert.equal(walk(form, "io-help").length, 2, "у имени и Block нового Field обязаны стоять «?»");
+  askNewFieldModal(FakeModal as never, {}, () => {}, say, opts(false));
   assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
+
+  const cards = walk(form, "io-nf__type");
+  assert.equal(cards.length, 3, "типов не три");
+  assert.ok(cards[0]!.classList.contains("io-nf__type--on"), "Tag не выбран по умолчанию");
+  const input = (aria: string): StubNode => {
+    const n = walk(form, "io-text").find(x => x.getAttribute("aria-label") === aria);
+    assert.ok(n, "нет поля " + aria);
+    return n as StubNode;
+  };
+  const addBtn = walk(form, "io-btn--cta")[0] as StubNode;
+  assert.equal(addBtn.disabled, true, "без имени `Add Field` нажимается");
+  const name = input("Name of the new Field");
+  name.value = "status";
+  name.dispatch("input");
+  assert.equal(addBtn.disabled, true, "занятое имя пропущено");
+  assert.equal(String(walk(form, "io-nf__problem")[0]!.textContent), "taken", "ошибка имени не показана сразу");
+  name.value = "mood";
+  name.dispatch("input");
+  assert.equal(addBtn.disabled, false, "законное имя не открыло `Add Field`");
+  const value = input("New Value");
+  value.value = "calm";
+  value.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+  assert.equal(walk(form, "io-nf__chip").length, 1, "Enter не добавил Value");
+  /* Предпросмотр: Value в левом Block, дальше разделитель и текст. */
+  const line = walk(form, "io-nf__pline")[0] as StubNode;
+  const text = (n: StubNode): string => n.children.map(c => String(c.textContent || "") + text(c)).join("");
+  assert.ok(/#calm/.test(text(line)) && /::/.test(text(line)), "строка предпросмотра без Value и разделителя: " + text(line));
+  assert.ok(walk(line, "io-line__side--left").length === 1, "Tag встал не в левый Block");
+  const active = walk(form, "io-wheelcell--active")[0] as StubNode;
+  assert.equal(String(active.textContent), "[#calm]", "ячейка tagWheel не показывает Value");
+  /* Block — кнопкой; свой блок в ряду. */
+  const blockBtns = walk(form, "io-seg__btn");
+  assert.deepEqual(blockBtns.map(b => String(b.textContent)), ["Left", "Right", "Inbox"]);
+  addBtn.click();
+  assert.deepEqual(answer, { name: "mood", kind: "tag", setup: { side: "left", values: [{ token: "calm" }] } }, "ответ окна не тот");
+
+  /* Element: знак обязателен, вид значения задаёт формат. */
+  askNewFieldModal(FakeModal as never, {}, () => {}, say, opts(true));
+  const f2 = opened[2]!;
+  walk(f2, "io-nf__type")[2]!.click();
+  const name2 = walk(f2, "io-text").find(x => x.getAttribute("aria-label") === "Name of the new Field") as StubNode;
+  name2.value = "when";
+  name2.dispatch("input");
+  assert.equal((walk(f2, "io-btn--cta")[0] as StubNode).disabled, true, "Element без знака нажимается");
+  const kinds = walk(f2, "io-seg__btn").map(b => String(b.textContent));
+  assert.ok(kinds.includes("Date and time") && kinds.includes("List"), "видов значения нет: " + kinds.join(", "));
   const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
-  assert.ok(own.NEW_FIELD_NAME_TIP && own.NEW_FIELD_TYPE_TIP, "у подсказок окна нет текста в каталоге");
+  assert.ok(own.NEW_FIELD_NAME_TIP && own.NF_BLOCK_TIP && own.NEW_FIELD_MARKER_TIP, "у подсказок окна нет текста в каталоге");
   passed++;
-  console.log("  ok у полей окна `Add a Field` есть «?», и тумблер `Show tips` их гасит");
+  console.log("  ok окно `Add a Field`: тип карточками, Block, Values с Enter, предпросмотр и ответ");
 }
 
 /* ---- custom block (PRD 10.13.260) --------------------------------------- */

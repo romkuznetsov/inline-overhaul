@@ -16,7 +16,7 @@
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
 import { el, btn, cssVar, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
-import type { CustomBlock, FieldSide, FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
+import type { CustomBlock, FieldSide, FieldsModel, FieldRow, NewFieldSetup, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
@@ -312,6 +312,8 @@ export interface NewField {
   /** Системное имя: им Field назван в конфиге и в именах его команд. */
   name: string;
   kind: FieldKind;
+  /** Главное сразу — Block, Values, вид Element (его заказ 2026-09-27). */
+  setup?: NewFieldSetup;
 }
 
 export interface FieldsViewOpts {
@@ -809,6 +811,12 @@ function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
       if (!res.ok) {
         o.notice(res.error || say("NEW_FIELD_FAILED"));
         return;
+      }
+      /* Главное из окна — той же моделью, что и правая колонка. Field уже
+         заведён: отказ Value называется, но Field не снимается. */
+      if (res.key && answer.setup) {
+        const set = o.model.configureNewField(res.key, answer.setup);
+        if (!set.ok && set.error) o.notice(set.error);
       }
       /* Новый Field выбирается сразу: за добавлением идёт настройка. */
       if (res.key) o.state.selected = res.key;

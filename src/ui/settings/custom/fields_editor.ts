@@ -13,7 +13,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, rich, tipBelow, type El } from "./dom.ts";
+import { el, rich, type El } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
@@ -40,6 +40,11 @@ import deepStateModule from "../../../core/order_deep_editor_state.js";
 import linkRenameModule from "../../../features/link_value_rename.js";
 import { sayIn } from "../texts_blocks.ts";
 import { escapeScope } from "./char_picker.ts";
+import { renderNewFieldForm } from "./new_field_dialog.ts";
+
+/** То немногое от vault Obsidian, что спрашивает окно `Add a Field`. */
+interface VaultFile { path: string; parent?: { path: string } | null; children?: unknown[] }
+interface VaultLike { getAllLoadedFiles?: () => VaultFile[] }
 
 const deepState = deepStateModule as unknown as DeepState;
 
@@ -84,16 +89,23 @@ interface ModalCtor {
 }
 
 /**
- * Окно «Add a Field»: имя и тип (решение заказчика 2026-08-27, PRD 10.2 Ф5).
- * Тип выбирается один раз — он решает, что Field пишет в строку, — и после
- * создания не меняется, поэтому спросить его надо здесь.
+ * Окно «Add a Field» — главное сразу и живой предпросмотр (его заказ
+ * 2026-09-27). Форма — `new_field_dialog.ts`; здесь окно платформы и то, что
+ * форма спрашивает у vault: заметки, папки, есть ли заметка у Value.
  */
 export function askNewFieldModal(
   Modal: ModalCtor,
   app: unknown,
   done: (answer: NewField | null) => void,
   say: Say,
-  tips: { showTips: boolean; showIds: boolean },
+  o: {
+    showTips: boolean;
+    showIds: boolean;
+    ctx: SettingsCtx;
+    blocks: ReadonlyArray<{ id: string; name: string }>;
+    checkName: (name: string) => string;
+    holdKeys?: (onEscape: () => void) => () => void;
+  },
 ): void {
   let answered = false;
   const finish = (answer: NewField | null): void => {
@@ -101,112 +113,31 @@ export function askNewFieldModal(
     answered = true;
     done(answer);
   };
+  const vault = (app as { vault?: VaultLike }).vault;
+  const cache = (app as { metadataCache?: { getFirstLinkpathDest?: (t: string, from: string) => unknown } }).metadataCache;
+  const files = (): VaultFile[] => (vault && typeof vault.getAllLoadedFiles === "function" ? vault.getAllLoadedFiles() : []);
 
   class AddFieldModal extends Modal {
-    dropTips: () => void = () => {};
+    drop: () => void = () => {};
 
     override onOpen(): void {
-      const box = this.contentEl;
-      box.empty();
-      box.addClass("io-dlg");
-      el(box, "h4", "io-dlg__title", say("NEW_FIELD_TITLE"));
-
-      /*
-       * «?» у полей окна — его ответ 2026-09-23 «да, тоже» на вопрос, нужны
-       * ли они и здесь, как в окне Binder: «единая логика tip во всем
-       * плагине». Та же форма, что у строки своего блока.
-       */
-      const tipClosers: Array<() => void> = [];
-      const nameOf = (row: El, name: string, tip: string): El => {
-        const info = el(row, "div", "io-item__info");
-        const head = el(info, "div", "io-item__namerow");
-        el(head, "div", "io-item__name", say(name));
-        tipClosers.push(tipBelow({
-          head, host: row, text: say(tip), label: say(name),
-          id: "io-field-new-" + tip.toLowerCase().replace(/_/g, "-"),
-          showTips: tips.showTips, showIds: tips.showIds,
-        }));
-        return info;
-      };
-      this.dropTips = () => { for (const close of tipClosers) close(); };
-
-      const nameRow = el(box, "div", "io-item");
-      const nameInfo = nameOf(nameRow, "NEW_FIELD_NAME", "NEW_FIELD_NAME_TIP");
-      el(nameInfo, "div", "io-item__desc", say("NEW_FIELD_NAME_LABEL"));
-      const name = el(nameRow, "div", "io-item__control").createEl("input", {
-        cls: "io-text",
-        type: "text",
-        placeholder: say("NEW_FIELD_NAME_HINT"),
-        attr: { "aria-label": say("NEW_FIELD_NAME_ARIA") },
-      }) as El & { value: string };
-
-      const typeRow = el(box, "div", "io-item");
-      const typeInfo = nameOf(typeRow, "NEW_FIELD_TYPE", "NEW_FIELD_TYPE_TIP");
-      el(typeInfo, "div", "io-item__desc", say("NEW_FIELD_TYPE_LABEL"));
-      const type = el(typeRow, "div", "io-item__control").createEl("select", {
-        cls: "io-select",
-        attr: { "aria-label": say("NEW_FIELD_TYPE_ARIA") },
-      }) as El & { value: string };
-      for (const opt of [
-        { value: "tag", name: "NEW_FIELD_TYPE_TAG" },
-        { value: "wikilink", name: "NEW_FIELD_TYPE_LINK" },
-        { value: "element", name: "NEW_FIELD_TYPE_ELEMENT" },
-      ]) type.createEl("option", { text: say(opt.name), value: opt.value });
-      type.value = "tag";
-
-      /* Знак Element спрашивается сразу (BUGHUNT S4): без него tagWheel не
-         открывается вовсе. Строка видна только у Element. */
-      const markerRow = el(box, "div", "io-item");
-      const markerInfo = nameOf(markerRow, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_TIP");
-      el(markerInfo, "div", "io-item__desc", say("NEW_FIELD_MARKER_LABEL"));
-      const marker = el(markerRow, "div", "io-item__control").createEl("input", {
-        cls: "io-text",
-        type: "text",
-        placeholder: say("NEW_FIELD_MARKER_HINT"),
-        attr: { "aria-label": say("NEW_FIELD_MARKER_ARIA") },
-      }) as El & { value: string };
-      const showMarker = (): void => { markerRow.hidden = type.value !== "element"; };
-      showMarker();
-
-      const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button",
-        { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
-      cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
-      const add = foot.createEl("button", {
-        cls: "io-btn io-btn--cta",
-        text: say("NEW_FIELD_ADD"),
-        attr: { type: "button" },
-      }) as El & { disabled: boolean };
-      add.disabled = true;
-      /* Кнопка молчит, пока имени нет (и знака у Element): завести нечем. */
-      const ready = (): boolean => !!String(name.value || "").trim()
-        && (type.value !== "element" || !!String(marker.value || "").trim());
-      const sync = (): void => { add.disabled = !ready(); showMarker(); };
-      name.addEventListener("input", sync as never);
-      marker.addEventListener("input", sync as never);
-      type.addEventListener("change", sync as never);
-      const confirm = (): void => {
-        if (!ready()) return;
-        const value = String(name.value || "").trim();
-        const kind = type.value as NewField["kind"];
-        finish(kind === "element" ? { name: value, kind, marker: String(marker.value || "").trim() } : { name: value, kind });
-        this.close();
-      };
-      add.addEventListener("click", confirm as never);
-      /* Enter подтверждает, как кнопка (BUGHUNT S3). */
-      const enterAdds = ((e: { key?: string; preventDefault?: () => void }) => {
-        if (!e || e.key !== "Enter") return;
-        if (typeof e.preventDefault === "function") e.preventDefault();
-        confirm();
-      }) as never;
-      name.addEventListener("keydown", enterAdds);
-      marker.addEventListener("keydown", enterAdds);
+      this.drop = renderNewFieldForm(this.contentEl, {
+        say, ctx: o.ctx, showTips: o.showTips, showIds: o.showIds, blocks: o.blocks, checkName: o.checkName,
+        ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
+        notes: () => files().filter(f => /\.md$/i.test(f.path)).map(f => f.path),
+        folders: () => files().filter(f => Array.isArray(f.children) && f.path && f.path !== "/").map(f => f.path),
+        noteExists: t => !!(cache && typeof cache.getFirstLinkpathDest === "function" && cache.getFirstLinkpathDest(t, "")),
+        folderNotes: folder => files()
+          .filter(f => /\.md$/i.test(f.path) && f.parent && f.parent.path === folder)
+          .map(f => f.path.replace(/\.md$/i, "")),
+        done: answer => { finish(answer); this.close(); },
+      });
     }
 
     override onClose(): void {
       /* Закрытие мимо кнопок — это отказ, а не пустой ответ. */
       finish(null);
-      this.dropTips();
+      this.drop();
       this.contentEl.empty();
     }
   }
@@ -507,6 +438,13 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         askNewField: done => askNewFieldModal(Modal, app, done, say, {
           showTips: Boolean(ctx.get("general.help.showTips")),
           showIds: Boolean(ctx.get("advanced.showSettingIds")),
+          ctx,
+          blocks: model.listBlocks().map(b => ({ id: b.id, name: b.name })),
+          checkName: n => model.fieldNameError(n),
+          ...(() => {
+            const holdKeys = escapeScope(p.Scope, app, app && (app as { scope?: unknown }).scope);
+            return holdKeys ? { holdKeys } : {};
+          })(),
         }),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
         askLinkValueRename: (oldToken, nextToken, apply, revert) =>

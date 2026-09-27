@@ -118,30 +118,29 @@ check('кнопка Add Field открывает окно', clickText('Add Field
 check('окно объявлено диалогом',
   run('(() => { const s = ' + scrim + '[0]; return s ? String(s.children[0].getAttribute("aria-label")) : "окна нет"; })()'),
   'Add a Field');
-check('окно спрашивает имя и тип',
-  run('(() => { const out = []; const go = n => { if (String(n.className) === "io-item__name") out.push(n._text);'
-    + ' n.children.forEach(go); }; go(' + scrim + '[0]); return out.join(","); })()'),
-  'Name,Type');
-check('пока имя пустое, Add выключена',
-  run('(() => { let b = null; const go = n => { if (String(n._text) === "Add") b = n; n.children.forEach(go); };'
-    + ' go(' + scrim + '[0]); return b ? b.disabled : "кнопки Add нет"; })()'),
-  'true');
+/* Окно с главным сразу (его заказ 2026-09-27): тип карточками, у тега — имя и Block. */
+const inScrim = (cls) => 'const found = []; const go = n => { if (String(n.className).split(" ").includes(' + JSON.stringify(cls) + ')) found.push(n); n.children.forEach(go); }; go(' + scrim + '[0]);';
+check('тип — три карточки, Tag выбран',
+  run('(() => { ' + inScrim("io-nf__type") + ' return found.length + ":" + found.filter(n => String(n.className).includes("io-nf__type--on")).map(n => n.children[1]._text).join(); })()'),
+  '3:Tag');
+check('окно спрашивает имя и Block',
+  run('(() => { ' + inScrim("io-item__name") + ' return found.map(n => n._text).join(","); })()'),
+  'Name,Block');
+const addInScrim = '(() => { let b = null; const go = n => { if (String(n._text) === "Add Field") b = n; n.children.forEach(go); }; go(' + scrim + '[0]); return b; })()';
+check('пока имя пустое, Add Field выключена', run('(() => { const b = ' + addInScrim + '; return b ? b.disabled : "кнопки нет"; })()'), 'true');
 
-/* Имя вводится, тип берётся link — тот, которого без окна не создать. */
-run('(() => { let input = null, sel = null;'
-  + ' const go = n => { if (n.tagName === "INPUT" && !input) input = n;'
-  + '   if (n.tagName === "SELECT" && !sel) sel = n; n.children.forEach(go); };'
+/* Имя вводится, тип берётся Link — тот, которого без окна не создать. */
+run('(() => { ' + inScrim("io-nf__type") + ' found[1].dispatch("pointerdown", { target: found[1] }); return true; })()');
+run('(() => { let input = null;'
+  + ' const go = n => { if (n.tagName === "INPUT" && !input) input = n; n.children.forEach(go); };'
   + ' go(' + scrim + '[0]);'
   + ' input.value = "Client"; input.dispatch("input", { target: input });'
-  + ' sel.value = "link"; sel.dispatch("change", { target: sel });'
   + ' return true; })()');
 
-check('Add создаёт Field выбранного типа и сразу его выбирает',
-  String(clickText('Add')) === 'true'
-    ? run('(() => { const f = field(selectedFieldId); return f ? f.name + ":" + f.type : "ничего не выбрано"; })()')
-    : 'кнопка Add не нашлась',
+check('Add Field создаёт Field выбранного типа и сразу его выбирает',
+  run('(() => { const b = ' + addInScrim + '; if (!b) return "кнопки нет"; b.dispatch("click", { preventDefault() {}, target: b }); const f = field(selectedFieldId); return f ? f.name + ":" + f.type : "ничего не выбрано"; })()'),
   'Client:link');
 check('окно закрылось', run(scrim + '.length'), '0');
 
-console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию; окно Add Field спрашивает имя и тип");
+console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию; окно Add Field спрашивает тип карточками, имя и Block");
 process.exit(failures ? 1 : 0);

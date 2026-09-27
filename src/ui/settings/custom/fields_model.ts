@@ -142,6 +142,13 @@ export interface WriteResult {
  */
 export type FieldSide = "left" | "right" | `custom:${string}`;
 
+/** Что окно `Add a Field` задаёт сразу (его заказ 2026-09-27). */
+export interface NewFieldSetup {
+  side?: FieldSide;
+  values?: Array<{ token: string; fill?: string }>;
+  element?: { preset: "date" | "datetime" | "time" | "counter" | "list"; format: string; customRaw?: string };
+}
+
 /** Custom block так, как его читает вёрстка: `id`, имя и его Field. */
 export interface CustomBlock {
   id: string;
@@ -837,7 +844,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const curIncrement = asObject(cur["increment"]);
       byField[key] = {
         ...cur,
-        emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : marker,
+        /* Знак из окна сильнее пустого: `migrateConfig` успевает завести новому
+           Field строку с `emoji: ""`, и прежнее «уже есть — оставить» теряло
+           введённый знак (найдено 2026-09-28 проверкой `new_field_setup_tests`). */
+        emoji: marker || (Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : ""),
         format: Object.prototype.hasOwnProperty.call(cur, "format") ? String(cur["format"] ?? "") : "",
         hotkey: {
           increase: String(curHotkey["increase"] || "").trim(),
@@ -2474,6 +2484,43 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
   };
 
+  /**
+   * **Донастройка только что заведённого Field из окна `Add a Field`** — его
+   * заказ 2026-09-27: «при создании field для каждого вида type давать сразу
+   * настроить ключевые настройки». Своих записей здесь нет: каждое действие —
+   * тот же путь, которым пишет правая колонка редактора (Block — `moveKey`,
+   * Values — `addToken`, цвет — `setValueVisual`, Element — `elementEditor`),
+   * и снимок каждый раз свежий: записи идут одна за другой.
+   * Ответ — первая ошибка Value, если была; Field при этом уже заведён.
+   */
+  const configureNewField = (key: string, setup: NewFieldSetup): WriteResult => {
+    const k = String(key || "").trim();
+    if (!k) return { ok: false };
+    if (setup.side && setup.side !== "right") moveKey(setup.side, k);
+    const kind = getFieldKind(k);
+    let error = "";
+    if (kind !== "element") {
+      for (const v of setup.values || []) {
+        const res = valuesEditor(k).addToken(v.token);
+        if (res.error && !error) error = res.error;
+        if (!res.ok || kind !== "tag" || !v.fill) continue;
+        const want = normToken(v.token, "tag");
+        const stored = valuesEditor(k).tree.map(t => t.token).find(t => normToken(t, "tag") === want);
+        if (stored) setValueVisual(k, stored, { fillColor: v.fill }, "pkm:visuals:tag:fill:" + k);
+      }
+    } else if (setup.element) {
+      const e = setup.element;
+      elementEditor(k).setFormat(e.format);
+      if (e.preset === "list") elementEditor(k).setCustomRaw(e.customRaw || "");
+      else if (e.preset === "datetime" || e.preset === "time") elementEditor(k).setCommand("now");
+      else elementEditor(k).setIncrementBy(1);
+    }
+    return error ? { ok: false, error } : { ok: true };
+  };
+
+  /** Законно ли имя нового Field: то же правило, что у `addField` (ревизия Д-5). */
+  const fieldNameError = (name: string): string => nameError(String(name || "").replace(/\s+/g, " ").trim(), "");
+
   ensureAllKeys();
 
   return {
@@ -2501,6 +2548,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     renameBlock,
     deleteBlock,
     addField,
+    configureNewField,
+    fieldNameError,
     deleteField,
     setStrictName,
     setLabel,
