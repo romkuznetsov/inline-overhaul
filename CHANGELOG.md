@@ -34,6 +34,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 11. ✨ **`Add Field` asks for the emoji of a new Element,** and `Enter` confirms a new Field or Value.
 12. 🐛 **`Inline to note` keeps a link in your text as text in the note name,** fills template variables, keeps a checkbox you typed and does not create notes for link Values.
 13. 🐛 **Settings survive a broken or interrupted save.** A second broken settings file is kept as a dated copy instead of overwriting the first.
+14. ✨ **`Add a Field` sets up the essentials at once, with a live preview.** Pick the type from three cards, the Block, and then the Values with their colors, the notes of a link (or every note of a folder), or an Element's emoji and kind; the preview shows the tagWheel cell and the line with your separators.
+15. ✨ **Renaming a link Value can rename its note too.** The window counts the links to the note in your notes and renames the note with them, or only the Value.
+16. 🎨 **`Move left` and `Move right` follow one rule.** The indent goes first, one step per press; at the left edge the line walks your Prefix list, and a task leaves its checkbox behind. With `Cycle line Prefixes` off the keys only change the indent, and the Prefix list is hidden.
 
 ## 0.10.0
 

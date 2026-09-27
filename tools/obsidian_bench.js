@@ -478,11 +478,25 @@ const SCENARIOS = {
         commands: Object.keys(window.app.commands.commands).filter((k) => /inline-overhaul:(mood|when)-/.test(k)),
       };
     });
+    /* Конец дороги — строка: новая команда ставит первое Value в свой Block. */
+    await host.keyboard.press("Escape").catch(() => {});
+    got.line = await win.evaluate(async () => {
+      const a = window.app;
+      window.app.setting.close();
+      const f = await a.vault.create("nf.md", "- купить хлеб\n");
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 500));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 0, ch: 13 });
+      a.commands.executeCommandById("inline-overhaul:mood-next");
+      await new Promise((r) => setTimeout(r, 500));
+      return e.getLine(0);
+    });
     console.log(JSON.stringify(got));
     const ok = got.left && got.values && got.values.join() === "#calm,#busy"
       && JSON.stringify(got.color || {}).includes("#44aa66")
       && got.when && got.when.emoji === "⏰" && got.when.format === "YYYY-MM-DD HH:mm" && got.when.increment.mode === "command"
-      && got.commands.length >= 4;
+      && got.commands.length >= 4 && got.line === "- #calm :: купить хлеб";
     console.log(ok ? "ok: окно заводит Field с главным сразу" : "РАСХОДИТСЯ");
     return ok;
   },
