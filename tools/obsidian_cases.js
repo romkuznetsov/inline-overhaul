@@ -144,7 +144,12 @@ module.exports = [
   /* Его ответ 2026-09-27: на верхнем уровне задача идёт по списку Prefix, чекбокс снимается;
      у него за `- ` в списке стоит «без знака». */
   { mine: true, id: "M2", title: "Move left: задача на верхнем уровне идёт по списку Prefix", files: { "m2.md": "- [x] сделано\n" },
-    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "сделано\n" } },
+    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "сделано\n" },
+    /* Обе стороны настройки (правило 162): тест 1 цикла 98 просит его выключить. */
+    cfg: { navigation: { moveSelection: { prefixCyclerEnabled: true } } } },
+  { mine: true, id: "M2.off", title: "Move left без Cycle line Prefixes: задача наверху не меняется", files: { "m2.md": "- [x] сделано\n" },
+    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "- [x] сделано\n" },
+    cfg: { navigation: { moveSelection: { prefixCyclerEnabled: false } } } },
   /* Его замечание 2026-09-27: строка Emoji окна Add Field видна у всех типов.
      Спрашивается каскад настоящего Obsidian: `app.css` + наш лист. */
   { mine: true, id: "M9", title: "Add Field: строка Emoji видна только у Element", files: {},

@@ -45,9 +45,18 @@ function prepare(name) {
        установщиком, что у человека, и ни одного `data.json` — стартовый набор. */
     require("child_process").execFileSync(process.execPath,
       [path.join(ROOT, "tools", "build", "install_test_vault.js"), "--no-build", vault], { cwd: ROOT, stdio: "ignore" });
+    /* Две демо-заметки установщика — его, а не человека из BRAT: у того их нет. */
+    for (const n of fs.readdirSync(vault)) if (n.endsWith(".md")) fs.rmSync(path.join(vault, n));
   } else {
-    /* Раскладка окон — его, стенду она не нужна и открывает лишнее. */
-    fs.cpSync(SRC_VAULT, vault, { recursive: true, filter: (p) => !/[\\/]\.obsidian[\\/]workspace(-mobile)?\.json$/.test(p) });
+    /* Пустой vault с его настройками (его слово 2026-09-28: «он должен
+       тестировать в новом vault (пустом), а если для тестирования нужны
+       заметки — то пусть сам создаёт их»). Из его vault берётся только
+       `.obsidian` — настройки, тема, плагины — без раскладки окон; заметки
+       кладёт `seedNotes`. */
+    fs.mkdirSync(vault, { recursive: true });
+    fs.cpSync(path.join(SRC_VAULT, ".obsidian"), path.join(vault, ".obsidian"),
+      { recursive: true, filter: (p) => !/[\\/]workspace(-mobile)?\.json$/.test(p) });
+    seedNotes(vault);
   }
   /* `IO_MAIN=<файл>` — другая сборка плагина в копии vault (контроль стенда
      подменённой сборкой); его `test-vault` не трогается. */
@@ -63,6 +72,41 @@ function prepare(name) {
     JSON.stringify({ vaults: { iobench00000001: { path: vault, ts: Date.now(), open: true } } }));
   return { work, profile, vault };
 }
+
+/**
+ * Заметки пустого vault: по пустой заметке на каждое Value-ссылку его
+ * настроек — ссылки в строках разрешаются так же, как у него, — и `SEED`
+ * старых сценариев. Остальное случаи заводят сами (`files`).
+ */
+function seedNotes(vault) {
+  const cfg = JSON.parse(fs.readFileSync(path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json"), "utf8"));
+  const links = (((cfg.pkm || {}).fields || {}).links || {}).fields || [];
+  const files = {};
+  for (const f of links) {
+    for (const v of f.values || []) {
+      const t = String((v && v.token) || v || "").replace(/^\[\[|\]\]$/g, "").split("|")[0].trim();
+      if (t) files[t + ".md"] = "";
+    }
+  }
+  Object.assign(files, SEED);
+  for (const [p, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(vault, p)), { recursive: true });
+    fs.writeFileSync(path.join(vault, p), text);
+  }
+}
+
+/** Строки сценариев цикла 96 — одной заметкой, как они стояли в его `testing.md`. */
+const SEED = {
+  "testing.md": [
+    "- строка для проверки порядка :: [[123]]",
+    "- строка для проверки Link to Navigator :: [[123]]",
+    "- Call the bank", "    - ask about the card", "    - check the rate",
+    "- Pay the rent", "    - transfer", "    - receipt",
+    "- Write the report", "    - intro", "    - numbers", "",
+  ].join("\n"),
+  /* Ссылки на Value в других заметках — цена переименования (`value-rename`). */
+  "Man1-links.md": "- [[Man1]] :: раз\n- [[Man1]] :: два\n",
+};
 
 async function launch(name) {
   const env = prepare(name);
@@ -100,6 +144,9 @@ async function launch(name) {
     for (let i = 0; i < 20 && !pick(); i++) await new Promise((r) => setTimeout(r, 250));
     const trust = pick();
     if (trust) { trust.click(); await new Promise((r) => setTimeout(r, 1500)); }
+    /* «Довериться» открывает настройки на плагинах сообщества — закрыть их,
+       чтобы осталось одно окно заметки (его слово 2026-09-28). */
+    if (window.app.setting && typeof window.app.setting.close === "function") window.app.setting.close();
     if (!p.plugins["inline-overhaul"]) { await p.setEnable(true); await p.enablePlugin("inline-overhaul"); }
     /* Окно «что изменилось» нашего же плагина — закрыть его кнопкой: у копии его
        vault версия в памяти плагина бывает старше сборки. */
@@ -518,24 +565,25 @@ const SCENARIOS = {
     await clickIn(host, "Tags & PKM");
     await host.evaluate(() => { const n = [...document.querySelectorAll(".io-fields__name")].find((x) => x.textContent.trim() === "People"); if (n) n.click(); });
     await host.waitForTimeout(700);
-    const typed = await host.evaluate(() => {
-      const input = [...document.querySelectorAll("input")].find((x) => x.getAttribute("aria-label") === "Value [[Man1]] of People");
-      if (!input) return false;
-      input.value = "Man7";
-      input.dispatchEvent(new Event("change"));
-      return true;
-    });
-    if (!typed) {
+    /* Набор настоящей клавиатурой, без Enter и без ухода из поля (его
+       замечание к тесту 2 цикла 98): окно обязано открыться само, и имя
+       допечатывается в нём. `IO_COMMIT=enter` — главное действие Enter-ом. */
+    const sel = "input[aria-label=\"Value [[Man1]] of People\"]";
+    if (!(await host.$(sel))) {
       const seen = await host.evaluate(() => [...document.querySelectorAll("input")].map((x) => x.getAttribute("aria-label")).filter((x) => /Value /.test(x || "")).slice(0, 12));
       throw new Error("нет поля Value Man1 у People; есть: " + JSON.stringify(seen));
     }
-    await host.waitForTimeout(700);
+    await host.click(sel, { clickCount: 3 });
+    await host.keyboard.type("Man7", { delay: 60 });
+    await host.waitForTimeout(500);
     const said = await host.evaluate(() => {
       const m = [...document.querySelectorAll(".modal-container")].find((x) => /Rename the note too/.test(x.textContent));
-      return m ? m.textContent : null;
+      const input = m && m.querySelector("input");
+      return m ? { text: m.textContent, name: input ? input.value : null } : null;
     });
-    console.log("окно:", said);
-    if (!said) { console.log("РАСХОДИТСЯ: окна цены нет"); return false; }
+    console.log("окно:", JSON.stringify(said));
+    if (!said || said.name !== "Man7") { console.log("РАСХОДИТСЯ: окна цены нет или имя не допечаталось в нём"); return false; }
+    if (process.env.IO_COMMIT === "enter") { await host.keyboard.press("Enter"); await host.waitForTimeout(700); } else
     await clickIn(host, "Rename note and links");
     await win.waitForTimeout(2500);
     const got = await win.evaluate(async () => {
