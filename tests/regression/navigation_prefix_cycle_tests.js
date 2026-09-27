@@ -107,17 +107,41 @@ function press(line, direction, over) {
 })();
 
 /*
- * BUGHUNT 2026-09-26, корень R5. Задача: шаг идёт только по знакам списка, и
- * чекбокс человека остаётся (`В-239`); свой Prefix человека (`> `, `+ `)
- * узнаётся, и цикл не дописывает второй; каретка остаётся в тексте.
+ * Его ответ 2026-09-27 (замечание к тесту 2 цикла 97): задача идёт по списку
+ * Prefix, как любая строка, и чекбокс при смене Prefix снимается — прежнее
+ * «шаг только по знакам списка» давало перещёлкивание `- [ ]` ↔ `1. [ ]`.
+ * Свой Prefix человека (`> `, `+ `) узнаётся; каретка остаётся в тексте.
  */
-(function testTaskKeepsItsCheckbox() {
-  assertEq(press("- [ ] b", "right", { rightCycles: true }), "1. [ ] b",
-    "N1: Move right на задаче снял чекбокс");
-  assertEq(press("- [x] сделано", "left", { rightCycles: true }), "1. [x] сделано",
-    "N1: Move left на сделанной задаче снял отметку или ушёл в заголовок");
+(function testTaskWalksTheWholeList() {
+  assertEq(press("- [x] сделано", "left", { rightCycles: true }), "## сделано",
+    "задача на верхнем уровне идёт по всему списку, отметка снимается");
+  assertEq(press("1. [ ] b", "right", { rightCycles: true }), "    1. [ ] b",
+    "конец списка у задачи — отступ, чекбокс на месте");
   assertEq(press("- text", "left", { rightCycles: true }), "## text",
-    "отрицательный контроль: без чекбокса шаг идёт по всему циклу");
+    "строка без чекбокса — тот же шаг");
+})();
+
+/*
+ * Его замечание 2026-09-27: `\t\t- [ ] задача` + `Move left` давало
+ * `[ ] задача`. Шаг отступа у Obsidian — таб (`indentUnit`), а снятие
+ * отступа отрезало `tabSize` знаков. Подделка без `cm` отвечала пробелами и
+ * этого не видела — здесь редактор отдаёт таб, как у него.
+ */
+function tabEditor(text) {
+  const ed = fakeEditor(text);
+  ed.cm = { state: { tabSize: 4, facet: () => "\t" } };
+  return ed;
+}
+(function testTabIndentLosesOneStep() {
+  const cfg = { inlineEnabled: true, prefixCyclerEnabled: true, indentFallbackEnabled: true, onCycleEnd: "indent", rightCycles: true };
+  const ed = tabEditor("\t\t- [ ] задача");
+  nav.moveSelection(ed, "left", cfg);
+  assertEq(ed.getValue(), "\t- [ ] задача", "Move left снял больше одного шага отступа");
+  nav.moveSelection(ed, "left", cfg);
+  assertEq(ed.getValue(), "- [ ] задача", "второе нажатие — ещё один шаг");
+  const right = tabEditor("- [ ] задача");
+  nav.moveSelection(right, "right", cfg);
+  assertEq(right.getValue(), "\t- [ ] задача", "Move right — шаг табом");
 })();
 
 (function testOwnPrefixIsRecognised() {

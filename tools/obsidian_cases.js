@@ -141,8 +141,13 @@ module.exports = [
      (`node tools/obsidian_bench.js mine`). Ожидаемое здесь — то, что стоит в 🎯А. */
   { mine: true, id: "M1", title: "Move right: чекбокс остаётся", files: { "m1.md": "- [ ] задача\n" },
     at: { file: "m1.md", line: 0 }, steps: ["move-right"], expect: { "m1.md": "\t- [ ] задача\n" } },
-  { mine: true, id: "M2", title: "Move left: Prefix меняется, чекбокс остаётся", files: { "m2.md": "- [x] сделано\n" },
-    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "1. [x] сделано\n" } },
+  /* Его ответ 2026-09-27: на верхнем уровне задача идёт по списку Prefix, чекбокс снимается;
+     у него за `- ` в списке стоит «без знака». */
+  { mine: true, id: "M2", title: "Move left: задача на верхнем уровне идёт по списку Prefix", files: { "m2.md": "- [x] сделано\n" },
+    at: { file: "m2.md", line: 0 }, steps: ["move-left"], expect: { "m2.md": "сделано\n" } },
+  /* Его замечание 2026-09-27: `\t\t- [ ] задача` + Move left давало `[ ] задача`. */
+  { mine: true, id: "M8", title: "Move left: вложенная задача теряет один шаг отступа", files: { "m8.md": "- к строке ниже\n\t- исходная строка\n\t\t- [ ] задача\n" },
+    at: { file: "m8.md", line: 2 }, steps: ["move-left", "move-left"], expect: { "m8.md": "- к строке ниже\n\t- исходная строка\n- [ ] задача\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },

@@ -1205,10 +1205,18 @@ function indentLine(editor, direction, rules) {
     editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
   }
 }
-function removeOneIndent(editor, lineNo, currentIndent, rules) { const line = editor.getLine(lineNo); const indentWidth = rules.indentWidth || 4; const INDENT = getIndentStr(rules); const delta = Math.min(currentIndent, indentWidth); if (line.startsWith(INDENT)) editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: indentWidth }); else if (line.startsWith("\t")) editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: 1 }); else editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: delta }); }
+/*
+ * Один шаг отступа в знаках: таб — один знак, пробелы — до `tabSize`. Здесь
+ * снималось `tabSize` знаков всякий раз, когда строка начиналась с шага
+ * Obsidian, а с табом (`indentUnit`) это `\t\t- ` целиком (его замечание
+ * 2026-09-27). Многострочный путь снимал `min(отступ, tabSize)` знаков — все
+ * табы сразу.
+ */
+function oneIndentLength(line, rules) { if (line.startsWith("\t")) return 1; const m = line.match(/^ */); return Math.min(m[0].length, rules.indentWidth || 4); }
+function removeOneIndent(editor, lineNo, currentIndent, rules) { const n = oneIndentLength(editor.getLine(lineNo), rules); if (n) editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: n }); }
 function indentMultipleLines(editor, direction, rules) {
   const from = editor.getCursor("from"); const to = editor.getCursor("to");
-  const startLine = from.line; let endLine = to.line; const indentWidth = rules.indentWidth || 4; const INDENT = getIndentStr(rules);
+  const startLine = from.line; let endLine = to.line; const INDENT = getIndentStr(rules);
   if (to.ch === 0 && to.line > from.line) endLine = to.line - 1;
   const changes = []; const lineData = [];
   for (let i = startLine; i <= endLine; i++) {
@@ -1219,7 +1227,7 @@ function indentMultipleLines(editor, direction, rules) {
     for (const data of lineData) {
       const currentIndent = getIndent(data.line);
       if (currentIndent > 0) {
-        if (rules.indentFallbackEnabled) changes.push({ from: data.startOffset, to: data.startOffset + Math.min(currentIndent, indentWidth), insert: "" });
+        if (rules.indentFallbackEnabled) changes.push({ from: data.startOffset, to: data.startOffset + oneIndentLength(data.line, rules), insert: "" });
       }
       else {
         if (rules.prefixCyclerEnabled) {
@@ -1288,32 +1296,24 @@ function currentCyclePrefix(line, arr) {
   }
   return { indent, key, taken, checkbox, content: after };
 }
-function isListCyclePrefix(prefix) { return /^(?:[-*+]|\d+\.) $/.test(String(prefix || "")); }
 function cycleLineTypeRaw(line, direction, rules, options) {
   const arr = direction === "left" ? rules.rightToLeft : rules.leftToRight;
   const info = currentCyclePrefix(line, arr);
   let idx = arr.indexOf(info.key); if (idx === -1) idx = arr.indexOf(""); if (idx === -1) return null;
   /*
-   * Один шаг — один Prefix; у задачи шаг идёт только по знакам списка:
-   * заголовок и простая строка задачей быть не могут, и отметка «сделано»
-   * пропадала одним нажатием (BUGHUNT N1, `В-239`).
+   * Один шаг — один Prefix, у задачи так же, как у любой строки, и чекбокс
+   * при смене Prefix снимается — его ответ 2026-09-27 к тесту 2 цикла 97.
+   * Прежнее «шаг только по знакам списка» перещёлкивало `- [ ]` ↔ `1. [ ]`.
    */
-  let newPrefix = null;
-  for (let step = 1; step <= arr.length; step++) {
-    const at = idx + step;
-    if (direction === "right" && rules.onCycleEnd === "indent" && at >= arr.length) return null;
-    const cand = arr[at % arr.length];
-    if (info.checkbox && !isListCyclePrefix(cand)) continue;
-    newPrefix = cand;
-    break;
-  }
-  if (newPrefix === null) return null;
+  const at = idx + 1;
+  if (direction === "right" && rules.onCycleEnd === "indent" && at >= arr.length) return null;
+  let newPrefix = arr[at % arr.length];
   if (/^#+$/.test(newPrefix)) newPrefix += " ";
   if (/^\d+\.\s$/.test(newPrefix)) {
     if (options && options.editor && options.lineNo != null) newPrefix = getNextNumber(options.editor, options.lineNo) + ". ";
     else newPrefix = "1. ";
   }
-  return info.indent + newPrefix + info.checkbox + info.content;
+  return info.indent + newPrefix + info.content;
 }
 /*
  * Каретка остаётся на своём месте в тексте (BUGHUNT N3): смена Prefix
