@@ -404,12 +404,12 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
 - **Cycle in both directions** — `right-cycles`, `toggle`, path `navigation.moveSelection.rightCycles`, default `true`
   - desc: On: <code>Move right</code> changes the marker too, but only on a line with no indent
   - tip: On, both keys change the marker while the line sits at the left edge: <code>Move right</code> walks down the list below and <code>Move left</code> walks back up. <b>An indented line is not part of this</b> — there <code>Move right</code> indents as it always did, and cycling stays a <code>Move left</code> job. <b>The price is at the left edge</b>: a line with no indent is no longer pushed by <code>Move right</code> while the list still has somewhere to go, and what happens when it runs out is <code>After the last one</code> — with <b>Start over</b> the key never pushes at all, and indenting is left to <code>Tab</code>. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents
-  - выключена если: `navigation.moveSelection.prefixCyclerEnabled`
+  - видна если: `navigation.moveSelection.prefixCyclerEnabled`
 - **After the last one** — `prefix-cycle-end`, `dropdown`, path `navigation.moveSelection.onCycleEnd`, default `indent`
   - desc: What happens when you reach the bottom of the list below
   - tip: <b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Indent</b> stops cycling and starts pushing the line to the right instead
   - варианты: `indent` Indent · `wrap` Start over
-  - выключена если: `navigation.moveSelection.prefixCyclerEnabled`
+  - видна если: `navigation.moveSelection.prefixCyclerEnabled`
   - старые названия для поиска: «On cycle end»
 - **Change the indent** — `indent-fallback`, `toggle`, path `navigation.moveSelection.indentFallbackEnabled`, default `true`
   - desc: When neither of the two jobs above applies, move the line right or left instead
