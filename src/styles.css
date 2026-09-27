@@ -3149,6 +3149,7 @@
   font-weight: var(--font-medium);
   color: var(--text-muted);
 }
+.io-dlg__name,
 .io-dlg__input,
 .io-dlg__select {
   width: 100%;

@@ -150,37 +150,54 @@ export function askNewFieldModal(
  * цикла 97. Цену считает `linkValueRenameImpact` (платформа: кэш ссылок и
  * поиск заметки). Окна нет, когда ссылок на старое имя нет вовсе.
  *
+ * **Окно открывается с первой буквы, а имя допечатывается в нём** — его
+ * замечание к тесту 2 цикла 98 (2026-09-28): «если я не нажимаю enter (просто
+ * изменяю значение в textbox), то уведомление не появляется». Стенд показал
+ * хуже: закрыв настройки с набранным именем, он терял правку молча. Теперь
+ * поле Value зовёт окно на первом же `input` (`live`), фокус и набранное
+ * уходят в поле окна, цена пересчитывается на каждой букве — «занято» видно
+ * до нажатия. `Enter` — главное действие окна, `Esc` — отказ.
+ *
  * Дорога одна: при «Rename note and links» сперва пишется Value, потом
  * переименовывается заметка — `fileManager.renameFile`, и ссылки переписывает
  * сам Obsidian. Следствие «Value идёт за заметкой» (F16) находит Value уже
  * переименованным и второй записи не делает.
+ *
+ * Ответ — открылось ли окно: у `live` без ссылок окна нет, и поле остаётся
+ * обычным полем до ухода фокуса.
  */
 function askLinkValueRenameModal(
   Modal: ModalCtor,
   app: unknown,
   oldToken: string,
   nextToken: string,
-  apply: () => void,
+  apply: (name: string) => void,
   revert: () => void,
   say: Say,
   notice: (text: string) => void,
-): void {
-  const impact = linkRename.linkValueRenameImpact(app, oldToken, nextToken) as LinkRenameImpact | null;
-  if (!impact || !impact.links) { apply(); return; }
+  live = false,
+): boolean {
+  const impactOf = (name: string): LinkRenameImpact | null =>
+    linkRename.linkValueRenameImpact(app, oldToken, name) as LinkRenameImpact | null;
+  const first = impactOf(nextToken);
+  if (!first || !first.links) {
+    if (!live) apply(nextToken);
+    return false;
+  }
   const count = (n: number, one: string, many: string): string => say(n === 1 ? one : many, n);
-  const links = count(impact.links, "LINK_RENAME_LINKS_ONE", "LINK_RENAME_LINKS_MANY");
-  const notes = count(impact.notes, "LINK_RENAME_NOTES_ONE", "LINK_RENAME_NOTES_MANY");
-  const words = [oldToken, impact.oldTarget, impact.newTarget, links, notes] as const;
   const vault = (app as { vault?: { getConfig?: (k: string) => unknown } }).vault;
   /* Проба: `getConfig` у vault внутренний, и «нет» — ответ, а не отказ. */
   const asksFirst = !!vault && typeof vault.getConfig === "function" && vault.getConfig("alwaysUpdateLinks") === false;
 
+  let name = nextToken;
+  let impact: LinkRenameImpact = first;
   let answered = false;
   const finish = (choice: "note" | "value" | null): void => {
     if (answered) return;
     answered = true;
-    if (!choice) { revert(); return; }
-    apply();
+    const next = name.trim();
+    if (!choice || !next || next === oldToken) { revert(); return; }
+    apply(next);
     if (choice !== "note" || !impact.file) return;
     const fm = (app as { fileManager?: { renameFile?: (f: unknown, p: string) => Promise<void> } }).fileManager;
     if (!fm || typeof fm.renameFile !== "function") return;
@@ -194,27 +211,63 @@ function askLinkValueRenameModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      const kind = impact!.kind;
-      el(box, "h4", "io-dlg__title", say(kind === "note" ? "LINK_RENAME_TITLE" : kind === "clash" ? "LINK_RENAME_CLASH_TITLE" : "LINK_RENAME_NONE_TITLE"));
-      rich(el(box, "p", "io-item__desc"),
-        say(kind === "note" ? "LINK_RENAME_NOTE_BODY" : kind === "clash" ? "LINK_RENAME_CLASH_BODY" : "LINK_RENAME_NONE_BODY", ...words));
-      if (kind === "note") {
-        const warn = el(box, "div", "io-dlg__warn");
-        rich(el(warn, "p", "io-item__desc"), say("LINK_RENAME_NOTE_ONLY", ...words));
-        if (asksFirst) rich(el(warn, "p", "io-item__desc"), say("LINK_RENAME_ASKS_FIRST"));
-      }
+      const title = el(box, "h4", "io-dlg__title", "");
+      const input = box.createEl("input", {
+        cls: "io-text io-text--mono io-dlg__name", type: "text", value: name,
+        attr: { "aria-label": say("LINK_RENAME_NAME_ARIA", oldToken) },
+      }) as unknown as El & { value: string; focus?: () => void; setSelectionRange?: (a: number, b: number) => void };
+      const body = el(box, "div", "io-dlg__body");
       const foot = el(box, "div", "io-dlg__foot");
-      const button = (text: string, cls: string, choice: "note" | "value" | null): void => {
-        const b = foot.createEl("button", { cls, text, attr: { type: "button" } });
-        b.addEventListener("click", (() => { finish(choice); this.close(); }) as never);
+      let primary: "note" | "value" = "value";
+      const draw = (): void => {
+        const fresh = impactOf(name);
+        if (fresh) impact = fresh;
+        const kind = impact.kind;
+        const same = !name.trim() || name.trim() === oldToken;
+        const words = [oldToken, impact.oldTarget, impact.newTarget,
+          count(impact.links, "LINK_RENAME_LINKS_ONE", "LINK_RENAME_LINKS_MANY"),
+          count(impact.notes, "LINK_RENAME_NOTES_ONE", "LINK_RENAME_NOTES_MANY")] as const;
+        title.textContent = say(kind === "note" ? "LINK_RENAME_TITLE" : kind === "clash" ? "LINK_RENAME_CLASH_TITLE" : "LINK_RENAME_NONE_TITLE");
+        body.empty();
+        rich(el(body, "p", "io-item__desc"),
+          say(kind === "note" ? "LINK_RENAME_NOTE_BODY" : kind === "clash" ? "LINK_RENAME_CLASH_BODY" : "LINK_RENAME_NONE_BODY", ...words));
+        if (kind === "note") {
+          const warn = el(body, "div", "io-dlg__warn");
+          rich(el(warn, "p", "io-item__desc"), say("LINK_RENAME_NOTE_ONLY", ...words));
+          if (asksFirst) rich(el(warn, "p", "io-item__desc"), say("LINK_RENAME_ASKS_FIRST"));
+        }
+        foot.empty();
+        const button = (text: string, cls: string, choice: "note" | "value" | null): void => {
+          const b = foot.createEl("button", { cls, text, attr: { type: "button" } }) as unknown as El & { disabled: boolean };
+          if (choice && same) b.disabled = true;
+          b.addEventListener("click", (() => { finish(choice); this.close(); }) as never);
+        };
+        button(say("CANCEL"), "io-btn", null);
+        if (kind === "note") {
+          button(say("LINK_RENAME_VALUE"), "io-btn", "value");
+          button(say("LINK_RENAME_BOTH"), "io-btn io-btn--cta", "note");
+          primary = "note";
+        } else {
+          button(say("LINK_RENAME_VALUE_CTA"), "io-btn io-btn--cta", "value");
+          primary = "value";
+        }
       };
-      button(say("CANCEL"), "io-btn", null);
-      if (kind === "note") {
-        button(say("LINK_RENAME_VALUE"), "io-btn", "value");
-        button(say("LINK_RENAME_BOTH"), "io-btn io-btn--cta", "note");
-      } else {
-        button(say("LINK_RENAME_VALUE_CTA"), "io-btn io-btn--cta", "value");
-      }
+      input.addEventListener("input", (() => { name = String(input.value || ""); draw(); }) as never);
+      input.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
+        if (!e || e.key !== "Enter") return;
+        if (typeof e.preventDefault === "function") e.preventDefault();
+        if (!name.trim() || name.trim() === oldToken) return;
+        finish(primary);
+        this.close();
+      }) as never);
+      draw();
+      /* Фокус — в поле имени, каретка в конец: набор продолжается здесь. */
+      const focusName = (): void => {
+        if (typeof input.focus === "function") input.focus();
+        if (typeof input.setSelectionRange === "function") input.setSelectionRange(name.length, name.length);
+      };
+      focusName();
+      setTimeout(focusName, 0);
     }
 
     override onClose(): void {
@@ -225,6 +278,7 @@ function askLinkValueRenameModal(
   }
 
   inSettingsWindow(() => new LinkValueRenameModal(app).open());
+  return true;
 }
 
 /**
@@ -447,8 +501,8 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
           })(),
         }),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
-        askLinkValueRename: (oldToken, nextToken, apply, revert) =>
-          askLinkValueRenameModal(Modal, app, oldToken, nextToken, apply, revert, say, notice),
+        askLinkValueRename: (oldToken, nextToken, apply, revert, live) =>
+          askLinkValueRenameModal(Modal, app, oldToken, nextToken, apply, revert, say, notice, live),
         askRename: (name, done) => askRenameModal(Modal, app, name, done, say),
         askRenameBlock: (name, done) => askRenameModal(Modal, app, name, done, say, true),
         confirmDeleteBlock: (name, fields, done) => confirmDeleteModal(Modal, app, name, done, say, {

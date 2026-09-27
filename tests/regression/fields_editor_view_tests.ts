@@ -2283,7 +2283,7 @@ function heightBtn(host: StubNode): StubNode {
  * Ссылка с одним значением и тег с двумя — иначе списку родителей нечего
  * предложить: варианты собираются из значений Fields, которые сами не ссылки.
  */
-function makeLinkView(): {
+function makeLinkView(ask?: NonNullable<Parameters<typeof renderFieldsEditor>[1]["askLinkValueRename"]>): {
   host: StubNode;
   writes: Write[];
   cfg: Any;
@@ -2334,10 +2334,52 @@ function makeLinkView(): {
       notice: () => {},
       askNewField: done => done(null),
       confirmDeleteField: (_name, done) => done(false),
+      ...(ask ? { askLinkValueRename: ask } : {}),
     });
   };
   draw();
   return { host, writes, cfg, draw };
+}
+
+/*
+ * Его замечание к тесту 2 цикла 98: окно цены переименования Value-ссылки —
+ * с первой набранной буквы, без Enter. Первое `input` зовёт окно с `live`;
+ * `change` от ухода фокуса в окно второй раз его не зовёт; имя пишет то, что
+ * окно отдало. Ссылок нет (`live` не открыл окна) — поле обычное до ухода.
+ */
+{
+  const calls: Array<{ next: string; live: boolean }> = [];
+  const held: { give?: (name: string) => void } = {};
+  const v = makeLinkView((_old, next, apply, _revert, live) => {
+    calls.push({ next, live: !!live });
+    if (live) { held.give = apply; return true; }
+    apply(next);
+    return false;
+  });
+  const token = one(all(v.host, "io-vals__row")[0] as StubNode, "io-valcell").children[0] as StubNode;
+  token.value = "C";
+  token.dispatch("input");
+  token.dispatch("change");
+  assert.deepEqual(calls, [{ next: "C", live: true }], "окно зовётся на первой букве, и change за ним не зовёт второе");
+  assert.ok(held.give, "окно получило, чем писать имя");
+  held.give!("ClientB");
+  const names = v.cfg.pkm.fields.links.fields.find((f: Any) => f.id === "project").values.map((x: Any) => x.token);
+  assert.ok(names.includes("ClientB") && !names.includes("ClientA"), "пишется имя из окна, а не первая буква: " + names.join());
+
+  const quiet: Array<{ next: string; live: boolean }> = [];
+  const w = makeLinkView((_old, next, apply, _revert, live) => {
+    quiet.push({ next, live: !!live });
+    if (live) return false;
+    apply(next);
+    return false;
+  });
+  const t2 = one(all(w.host, "io-vals__row")[0] as StubNode, "io-valcell").children[0] as StubNode;
+  t2.value = "ClientC";
+  t2.dispatch("input");
+  t2.dispatch("change");
+  assert.deepEqual(quiet, [{ next: "ClientC", live: true }, { next: "ClientC", live: false }],
+    "ссылок нет — окна нет, и уход из поля спрашивает ещё раз, как прежде");
+  ok("окно цены Value-ссылки открывается с первой буквы, а не по Enter");
 }
 
 /** Ячейка уровня у строки таблицы: стрелка одна, и она же читается. */

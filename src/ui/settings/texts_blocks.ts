@@ -351,6 +351,7 @@ export const BLOCK_TEXTS = {
     LINK_RENAME_NOTES_ONE: "{0} note",
     LINK_RENAME_NOTES_MANY: "{0} notes",
     LINK_RENAME_FAILED: "The note was not renamed: {0}",
+    LINK_RENAME_NAME_ARIA: "New name for {0}",
     DELETE_TITLE: "Delete Field",
     DELETE_BODY: "Deleting {0} removes its Values, their colors and its note property",
     DELETE_CONFIRM: "Delete",

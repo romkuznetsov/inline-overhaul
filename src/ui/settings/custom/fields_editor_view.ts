@@ -359,8 +359,10 @@ export interface FieldsViewOpts {
    * у Value есть заметка — окно предлагает переименовать и её, и Obsidian
    * перепишет ссылки на неё во всех заметках. `apply` пишет новое Value,
    * `revert` возвращает поле. Нет шва (заглушка гейта) — Value пишется сразу.
+   * `live` — зов с первой набранной буквы (его замечание к тесту 2 цикла 98):
+   * окно открывается, только если ссылки есть, и ответ — открылось ли оно.
    */
-  askLinkValueRename?: (oldToken: string, nextToken: string, apply: () => void, revert: () => void) => void;
+  askLinkValueRename?: (oldToken: string, nextToken: string, apply: (name: string) => void, revert: () => void, live?: boolean) => boolean;
   /** Окно имени custom block: то же окно, но без цены — хоткей держится за `id`. */
   askRenameBlock?: (name: string, done: (next: string | null) => void) => void;
   /**
@@ -1673,18 +1675,31 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       label: "Value " + v.token + " of " + row.strictName,
     });
     token.disabled = !o.enabled;
+    const applyName = (name: string): void => {
+      ve.saveTree(ve.editRow(ve.tree, at, { token: name }),
+        "pkm:behavior:order:deep:rename:" + row.key);
+      o.redraw();
+    };
+    /* Окно цены открыто с первой буквы — `change` от ухода фокуса в окно
+       второй раз его не зовёт (его замечание к тесту 2 цикла 98). */
+    let asking = false;
+    const revertName = (): void => { asking = false; token.value = v.token; };
+    token.addEventListener("input", (() => {
+      if (!o.enabled || !isLink || !o.askLinkValueRename || asking) return;
+      const next = String(token.value || "");
+      if (!next.trim() || next === v.token) return;
+      /* Флаг — до зова: открытие окна снимает фокус с поля, и `change`
+         приходит раньше, чем зов вернулся. */
+      asking = true;
+      asking = o.askLinkValueRename(v.token, next, name => { asking = false; applyName(name); }, revertName, true);
+    }) as never);
     token.addEventListener("change", (() => {
-      if (!o.enabled) return;
-      const apply = (): void => {
-        ve.saveTree(ve.editRow(ve.tree, at, { token: token.value }),
-          "pkm:behavior:order:deep:rename:" + row.key);
-        o.redraw();
-      };
+      if (!o.enabled || asking) return;
       if (isLink && o.askLinkValueRename) {
-        o.askLinkValueRename(v.token, String(token.value || ""), apply, () => { token.value = v.token; });
+        o.askLinkValueRename(v.token, String(token.value || ""), applyName, revertName);
         return;
       }
-      apply();
+      applyName(String(token.value || ""));
     }) as never);
 
     /*
