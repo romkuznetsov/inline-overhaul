@@ -169,7 +169,25 @@ function fieldsShape(rules) {
   }
   /* Признак собирается один раз на разбор строки, а не на токен: он обходит все
      поля, а от токена не зависит. */
-  return { markers: markers, values: values, isLink: __helpers.makeWikilinkValueTest(rules) };
+  return {
+    markers: markers,
+    values: values,
+    isLink: __helpers.makeWikilinkValueTest(rules),
+    stayText: __sharedUtils.typedTagsStayText(rules),
+    own: fieldValueTest(rules),
+  };
+}
+
+/**
+ * **Value поля в том виде, в каком оно стоит в строке**: тег в обеих записях
+ * (с решёткой и без — Value, заведённое панелью, хранится с решёткой, и
+ * склейка приставки давала `##high`, У-290) и ссылка-Value.
+ */
+function fieldValueTest(rules) {
+  const tokens = new Set(Object.keys(__helpers.buildTagTokenKeyMap(rules) || {}));
+  for (const t of collectManagedTokens(rules)) tokens.add(t);
+  const isLink = __helpers.makeWikilinkValueTest(rules);
+  return function(t) { return tokens.has(t) || isLink(t); };
 }
 
 /** Есть ли в теле хоть одно значение Field. */
@@ -387,6 +405,14 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
   }
   if (!rest) return null;
   const head = words.slice(0, words.length - __sharedUtils.lineWords(rest).length).join(" ");
+  if (!shape.stayText) {
+    /* Выключенный `Keep typed tags in text`: Value поля из текста уезжает в Block. */
+    const restWords = __sharedUtils.lineWords(rest);
+    const text = restWords.filter(function(t) { return !shape.own(t); });
+    if (!text.length) return null;
+    const moved = restWords.filter(function(t) { return shape.own(t); });
+    return { left: joinLeftPrefix(parts.prefix, [head].concat(moved).filter(Boolean).join(" ")), text: text.join(" ") };
+  }
   return { left: joinLeftPrefix(parts.prefix, head), text: rest };
 }
 
@@ -878,7 +904,14 @@ function stripLeadingValues(body, markers) {
 
 function extractOriginalTextFromRawLine(rawLine, rules) {
   const seg = splitSegments(rawLine, rules);
-  if (String(seg.text || "").trim()) return String(seg.text || "").trim();
+  if (String(seg.text || "").trim()) {
+    /* Выключенный `Keep typed tags in text`: значения поля из текста уезжают в
+       Block, и в исходный текст они не входят — иначе доводка вернула бы их
+       во фразу вторым экземпляром. */
+    if (__sharedUtils.typedTagsStayText(rules)) return String(seg.text || "").trim();
+    const own = fieldValueTest(rules);
+    return __sharedUtils.lineWords(seg.text).filter(function(t) { return !own(t); }).join(" ").trim();
+  }
   let left = String(seg.left || "").trim();
   /* Начало строки снимается общим объявлением: три своих образца знали
      только дефис, только точку и скобки без знака списка. */
@@ -1241,7 +1274,7 @@ function relocateTokenSetByPanel(options) {
      снимается. Кроме режима, где своё значение плагин сам пишет в текст
      (`rightToText`): там в тексте стоит прежнее наше, и его место занимает
      новое. */
-  var text = rightToText ? stripTokens(seg.text, allTokens) : String(seg.text || "").trim();
+  var text = (rightToText || !__sharedUtils.typedTagsStayText(rules)) ? stripTokens(seg.text, allTokens) : String(seg.text || "").trim();
   var dates = stripTokens(seg.dates, allTokens);
 
   /*

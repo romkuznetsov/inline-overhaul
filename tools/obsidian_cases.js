@@ -215,6 +215,10 @@ module.exports = [
   /* Тест 4 цикла 103, его ответ `В-249`: и в конце строки тег — его слово. */
   { mine: true, id: "M20", title: "Тег в конце строки — тоже слово человека", files: { "m20.md": "- купить молоко #todo\n" },
     at: { file: "m20.md", line: 0 }, steps: ["type-next"], expect: { "m20.md": "- #todo :: купить молоко #todo\n" } },
+  /* Тест 5 цикла 103: `Keep typed tags in text` выключен — Value из фразы переезжает в Block. */
+  { mine: true, id: "M21", title: "Keep typed tags in text: Off — тег из фразы переезжает в Block", files: { "m21.md": "- купить #todo молоко\n" },
+    cfg: { pkm: { placement: { typedTagsStayText: false } } },
+    at: { file: "m21.md", line: 0 }, steps: ["importance-next"], expect: { "m21.md": "- #high #todo :: купить молоко\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },

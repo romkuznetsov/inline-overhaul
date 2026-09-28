@@ -173,6 +173,31 @@ async function main(): Promise<void> {
     passed += 5;
     console.log("  ok T5 Transform: Value посреди и в конце текста — в имени, в начале — нет");
   }
+  /* `Keep typed tags in text` выключен (его заказ 2026-09-28): Value поля из
+     текста переезжает в свой Block и из фразы уходит — и командой, и панелью,
+     и Transform. Контроль — ключ доехал до правил движков. */
+  {
+    const raw = JSON.parse(JSON.stringify(cfg));
+    raw.pkm.placement.typedTagsStayText = false;
+    const offCfg = normalize.migrateConfig(raw);
+    assert.equal(rulesShape.buildRulesForEngines(offCfg).behavior.freeRoam.typedTagsStayText, false, "ключ не доехал до правил движков");
+    const off = async (id: string, line: string, want: string, title: string): Promise<void> => {
+      const got = await bench.runCommandById(offCfg, id, line, line.length);
+      assert.equal(got.line, want, title);
+      passed++;
+      console.log("  ok " + title);
+    };
+    await off("status-next", "- купить #todo молоко", "- #doing || купить молоко", "выкл.: тег из фразы — текущее значение, переехал в Block");
+    await off("priority-next", "- купить #todo молоко", "- #todo #low || купить молоко", "выкл.: значение другого Field переехало, не скопировалось");
+    await off("project-next", "- встреча по [[Project A]] вчера", "- встреча по вчера || [[Project B]]", "выкл.: ссылка из фразы — в правый Block");
+    const p = await bench.runTagWheel(offCfg, "left", "- купить #todo молоко", 21, ["ArrowRight", "ArrowUp"]);
+    assert.ok(p.opened, "выкл.: панель не открылась");
+    assert.ok(!/купить #todo молоко/.test(p.line) && /#todo/.test(p.line), "выкл.: панель оставила тег во фразе: " + JSON.stringify(p.line));
+    const transform = require("../../src/features/transform_feature.js");
+    assert.equal(transform.parseInlineLine("- встреча по [[Project A]] вчера", offCfg).payloadText, "встреча по вчера", "выкл.: Transform оставил Value в имени");
+    passed += 2;
+    console.log("  ok выкл.: панель и Transform переносят значение из фразы");
+  }
   console.log(passed + " проверок");
 }
 

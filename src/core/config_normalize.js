@@ -913,6 +913,7 @@ function normalizeConfigV2(cfg) {
   bool("pkm.placement.keepPrefixInsertOnly");
   bool("pkm.placement.fieldPrefixInsertOnly");
   bool("pkm.placement.bulletInStrict");
+  bool("pkm.placement.typedTagsStayText");
   oneOf("pkm.placement.freeInsertPosition", ["smart", "left", "right"]);
   text("pkm.lineFormat.separator1");
   text("pkm.lineFormat.separator2");

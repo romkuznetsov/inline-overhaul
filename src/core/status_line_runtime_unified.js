@@ -567,7 +567,10 @@ function selectTokenByPanelOrder(options) {
    * дороги: команды тегов и элементов, перестановка по Order и панель.
    */
   var zones = splitSegments(line, rules);
+  /* Выключенный `Keep typed tags in text` — значение читается и из текста. */
+  var stay = __sharedUtils.typedTagsStayText(rules);
   var inBlock = function(tok) {
+    if (!stay) return true;
     return getLastTokenMatchIndex(zones.left, tok) >= 0 || getLastTokenMatchIndex(zones.dates, tok) >= 0;
   };
 
@@ -608,6 +611,7 @@ function selectTokenByPanelOrder(options) {
   var orderedSegments = panel === "right"
     ? [String(seg.dates || ""), String(seg.left || "")]
     : [String(seg.left || ""), String(seg.dates || "")];
+  if (!stay) orderedSegments.splice(1, 0, String(seg.text || ""));
 
   var si;
   for (si = 0; si < orderedSegments.length; si++) {

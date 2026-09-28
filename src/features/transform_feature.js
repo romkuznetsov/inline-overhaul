@@ -994,6 +994,7 @@ function parseInlineLine(rawLine, cfg) {
   const singleSeparator = firstSeparator >= 0 && secondSeparator < 0;
   let singleIsSecond = false;
   let homeText = null;
+  let stayText = true;
   /* Строка без разделителей тоже спрашивает дом (`В-235`): значения подряд в
      начале — Block, дальше — текст, и Value посреди него — слово человека. Без
      этого все её значения считались значениями где угодно и выпадали из имени
@@ -1003,6 +1004,7 @@ function parseInlineLine(rawLine, cfg) {
     try {
       const rules = getRulesShapeModule().buildRulesForEngines(cfg);
       const seg = __linePipeline.splitSegments(line, rules);
+      stayText = __sharedUtils.typedTagsStayText(rules);
       homeText = String(seg && seg.text != null ? seg.text : "");
       singleIsSecond = singleSeparator && !!String(seg && seg.dates || "").trim();
     } catch (_) {
@@ -1010,7 +1012,9 @@ function parseInlineLine(rawLine, cfg) {
          позиционный разбор, как было. Это проба, и ответ «нет» — ответ. */
       homeText = null;
     }
-    if (firstSeparator < 0 && !String(homeText || "").trim()) homeText = null;
+    /* Выключенный `Keep typed tags in text` — прежний разбор: значения на такой
+       строке — значения где угодно. */
+    if (firstSeparator < 0 && (!stayText || !String(homeText || "").trim())) homeText = null;
   }
   /* Где на строке без разделителей стоит текст. Тег и ссылка внутри него —
      слово человека; всё остальное, как прежде, значение где угодно. Значения

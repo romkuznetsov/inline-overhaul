@@ -313,6 +313,7 @@ settings say what each mode means.
 | `Strict: add a bullet` | off | Starts the line with a bullet when the Field has nothing of its own to put there |
 | `Insert only: keep the Prefix` | on | Puts the Value where it belongs and does not touch the start of the line |
 | `Insert only: use Field Prefix` | on | Allows a Value with a Prefix of its own to change the start of the line after all |
+| `Keep typed tags in text` | on | A tag or link you type between words or at the end of a line stays your word; off, a Value of a Field in your text moves to its Block |
 
 ### Prefix priority
 

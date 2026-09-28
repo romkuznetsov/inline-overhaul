@@ -479,6 +479,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("pkm.placement.keepPrefixInsertOnly"),
   keepV2("pkm.placement.fieldPrefixInsertOnly"),
   keepV2("pkm.placement.bulletInStrict"),
+  keepV2("pkm.placement.typedTagsStayText"),
   keepV2("pkm.placement.freeInsertPosition"),
   keepV2("pkm.prefixPriority.decideBy"),
   keepV2("pkm.prefixPriority.fieldOrderSource"),

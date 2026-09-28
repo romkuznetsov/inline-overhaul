@@ -2488,7 +2488,11 @@ const SCHEMA = [
     { kind:"toggle", id:"placement-field-prefix", path:"pkm.placement.fieldPrefixInsertOnly", default:true,
       name:"Insert only: use Field Prefix", desc:"Allow a Value to change the start of the line after all, if it has its own",
       searchTerms:["Minimal mode Prefix"],
-      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" }
+      tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" },
+    { kind:"toggle", id:"placement-typed-tags", path:"pkm.placement.typedTagsStayText", default:true,
+      name:"Keep typed tags in text", desc:"A tag or link you type between words or at the end stays your word",
+      searchTerms:["Value in text", "tag in the middle"],
+      tip:"Applies to both modes. On, <code>- buy #todo milk</code> stays as you wrote it, and the Field command puts its own Value into the Block. Off, a Value of a Field anywhere in your text moves to its Block and leaves the sentence. Values at the very start of a line are Values either way" }
   ]
 },
 {

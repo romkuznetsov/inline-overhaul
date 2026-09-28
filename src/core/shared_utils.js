@@ -1153,6 +1153,17 @@ function isWikilinkToken(text) {
   return WIKILINK_TOKEN_RE.test(String(nz(text, "")).trim());
 }
 
+/**
+ * **Набранный в тексте тег — слово человека** (`В-235`, `В-249`) — или Value,
+ * которое переезжает в свой Block. Отвечает тумблер `Keep typed tags in text`
+ * (`pkm.placement.typedTagsStayText`, правила движков — `behavior.freeRoam`);
+ * вопрос объявлен здесь один раз и спрашивается каждым местом правила.
+ */
+function typedTagsStayText(rules) {
+  const fr = rules && rules.behavior && rules.behavior.freeRoam;
+  return !(fr && fr.typedTagsStayText === false);
+}
+
 /** Весь токен целиком — тег вида `#имя`. */
 function isTagToken(text) {
   return TAG_TOKEN_RE.test(String(nz(text, "")).trim());
@@ -1609,6 +1620,7 @@ module.exports = {
   WIKILINK_TOKEN_SRC,
   TAG_TOKEN_SRC,
   isWikilinkToken,
+  typedTagsStayText,
   isTagToken,
   startsWithTagToken,
   wikilinkTargetOf,

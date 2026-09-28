@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 17 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 18 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
@@ -594,6 +594,10 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - desc: Allow a Value to change the start of the line after all, if it has its own
   - tip: Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes
   - старые названия для поиска: «Minimal mode Prefix»
+- **Keep typed tags in text** — `placement-typed-tags`, `toggle`, path `pkm.placement.typedTagsStayText`, default `true`
+  - desc: A tag or link you type between words or at the end stays your word
+  - tip: Applies to both modes. On, <code>- buy #todo milk</code> stays as you wrote it, and the Field command puts its own Value into the Block. Off, a Value of a Field anywhere in your text moves to its Block and leaves the sentence. Values at the very start of a line are Values either way
+  - старые названия для поиска: «Value in text», «tag in the middle»
 
 #### Prefix priority — `prefix-priority` (вкладка `pkm`)
 
@@ -1250,6 +1254,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.placement.bulletInStrict` | toggle | `false` |
 | `pkm.placement.fieldPrefixInsertOnly` | toggle | `true` |
 | `pkm.placement.keepPrefixInsertOnly` | toggle | `true` |
+| `pkm.placement.typedTagsStayText` | toggle | `true` |
 | `pkm.prefixPriority.decideBy` | dropdown | `by-section` |
 | `pkm.prefixPriority.fieldOrderSource` | dropdown | `manual` |
 | `pkm.prefixPriority.parentOrChild` | dropdown | `subtag-over-tag` |

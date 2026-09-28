@@ -107,6 +107,9 @@ function buildRulesShapeFromConfig(cfg, blockId) {
     minimalPrefix: placement.fieldPrefixInsertOnly !== false,
     offPrefix: placement.bulletInStrict === true,
     fullPlacement: String(placement.freeInsertPosition || "smart"),
+    /* `Keep typed tags in text` (`В-235`, его слово 2026-09-28): выключен —
+       Value поля из текста переезжает в свой Block. */
+    typedTagsStayText: placement.typedTagsStayText !== false,
   };
 
   /*

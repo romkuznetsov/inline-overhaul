@@ -1183,7 +1183,10 @@ async function main() {
   const sepsNow = separatorsOf(cfg);
   const midForms = [];
   const el = elementTokenFor(cfg, rules);
-  for (const t of material.midText) {
+  /* Свойство держится только при включённом `Keep typed tags in text`:
+     выключенный переносит значение из фразы в Block нарочно. */
+  const stayText = shared.typedTagsStayText(rules);
+  for (const t of (stayText ? material.midText : [])) {
     const other = material.midText.filter((x) => x !== t && !shared.isWikilinkToken(x))[0];
     const shapes = [(w) => "- купить " + w + " молоко", (w) => "- встреча по " + w + " вчера"];
     if (other) shapes.push((w) => "- " + other + " " + sepsNow.sep1 + " купить " + w + " молоко");
@@ -1306,8 +1309,8 @@ async function main() {
   console.log("навигатор: строк " + navChecked + ", расходится " + navBad
     + (navPairs.length ? "" : "   <-- ни у одного дочернего поля нет `Parent is Navigator`"));
   console.log("посреди текста: пар " + midChecked + ", расходится " + midBad
-    + (midForms.length ? "" : "   <-- в его настройках нет ни одного Value тега или ссылки"));
-  if (!midForms.length) process.exitCode = 1;
+    + (!stayText ? "   (Keep typed tags in text выключен — половина не гоняется)" : midForms.length ? "" : "   <-- в его настройках нет ни одного Value тега или ссылки"));
+  if (stayText && !midForms.length) process.exitCode = 1;
   if (bad || subBad || ringBad || caretBad || navBad || midBad) process.exitCode = 1;
 }
 

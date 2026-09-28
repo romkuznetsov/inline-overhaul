@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (81)
+### Пути, которых не было в описи v1.0 (82)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -961,6 +961,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | tagWheel behavior |
 | `visual.tagWheel.edgeMode` | tagWheel navigation behavior (`wheel-edge`) | tagWheel behavior |
 | `visual.tagWheel.customTab` | Switch custom blocks on Tab (`wheel-custom-tab`) | tagWheel behavior |
+| `pkm.placement.typedTagsStayText` | Keep typed tags in text (`placement-typed-tags`) | Placement modes |
 | `pkm.prefixPriority.fieldOrderSource` | Field order source (`prefix-priority-source`) | Prefix priority |
 | `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
