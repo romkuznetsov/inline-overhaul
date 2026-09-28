@@ -22,7 +22,7 @@ a priority, a due date and a link to a project live next to the thought itself, 
 move, cycle and edit all of it from the keyboard.
 
 ```markdown
-- [ ] #todo #high || call the bank || [[Project A]] 📅 2026-09-15
+- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15
 ```
 
 Everything above is ordinary markdown in the file. The tags are searchable by Obsidian,

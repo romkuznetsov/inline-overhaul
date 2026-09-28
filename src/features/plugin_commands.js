@@ -531,6 +531,41 @@ async function ensurePkmRuntime(plugin) {
   return plugin.pkmRuntimeV2;
 }
 
+/**
+ * **Дата с пробелом после знака — та же дата** (его ответ `В-243`, 2026-09-28:
+ * «узнавать обе, писать как сейчас»). Движки под З3 знают одну запись —
+ * `📅2026-09-30`; запись Tasks `📅 2026-09-30` у них срывала знак и оставляла
+ * дату сиротой (F9). Вместо правки каждого движка строки под каретками
+ * приходят к ним уже без пробела: шов один на все команды полей и на открытие
+ * tagWheel. Что считать значением, решает общий дом —
+ * `spacedMarkerValueGaps`; пишутся только снятые пробелы, отрезками.
+ */
+function joinSpacedElementValues(plugin, cfg) {
+  const byField = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.fields) && isObj(cfg.pkm.fields.elements)
+    ? cfg.pkm.fields.elements.byField : null;
+  if (!isObj(byField)) return;
+  const marks = Object.values(byField).filter(isObj)
+    .map((r) => ({ marker: String(r.emoji || "").trim(), format: String(r.format || "") }))
+    .filter((m) => m.marker);
+  if (!marks.length) return;
+  const ws = plugin && plugin.app && plugin.app.workspace;
+  const ed = ws && ws.activeEditor && ws.activeEditor.editor;
+  /* Проба: редактора может не быть (панель, другое окно) — тогда и писать некуда. */
+  if (!ed || typeof ed.getLine !== "function" || typeof ed.replaceRange !== "function") return;
+  const sels = typeof ed.listSelections === "function" ? ed.listSelections() : [{ anchor: ed.getCursor(), head: ed.getCursor() }];
+  const lines = new Set();
+  for (const s of sels || []) {
+    const a = Math.min(s.anchor.line, s.head.line);
+    const b = Math.max(s.anchor.line, s.head.line);
+    for (let n = a; n <= b; n++) lines.add(n);
+  }
+  for (const n of lines) {
+    for (const g of __sharedUtils.spacedMarkerValueGaps(ed.getLine(n), marks)) {
+      ed.replaceRange("", { line: n, ch: g.from }, { line: n, ch: g.to });
+    }
+  }
+}
+
 async function runPkmRuntime(plugin, command, cfg, extraSettings) {
   /*
    * **Пока панель открыта, строкой распоряжается она, и больше никто.**
@@ -562,6 +597,7 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
   const rt = await ensurePkmRuntime(plugin);
   if (!rt) throw new Error("PKM runtime v2 is unavailable");
   if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
+  joinSpacedElementValues(plugin, cfg);
 
   const settings = Object.assign(
     __runtimeSettings.runtimeSettingsFromConfig(cfg),
@@ -631,4 +667,5 @@ module.exports = {
   runPkmGuard,
   ensurePkmRuntime,
   runPkmRuntime,
+  joinSpacedElementValues,
 };

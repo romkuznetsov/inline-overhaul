@@ -8,7 +8,7 @@ For the settings panel control by control, see the
 see the [setup and user guide](INSTRUCTIONS.md).
 
 ```markdown
-- [ ] #todo #/1 || call the bank || [[Project A]] 📅 2026-09-15
+- [ ] #todo #/1 || call the bank || [[Project A]] 📅2026-09-15
 ```
 
 Everything in that line is ordinary markdown in the file. The tags are searchable by
@@ -20,7 +20,7 @@ A **Field** is one slot a line can carry: a status, a priority, a type, a due da
 project link, an estimate. You define them; the plugin ships no methodology.
 
 - **Three types of Field**: `Tag` (`#todo`), `Link` (`[[Project A]]`) and `Element` —
-  a marker plus a format, such as `📅 2026-09-15`.
+  a marker plus a format, such as `📅2026-09-15`; a date written with a space, `📅 2026-09-15`, is read too.
 - **Values.** Each Field holds an ordered list of Values, and each Value carries its own
   writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the

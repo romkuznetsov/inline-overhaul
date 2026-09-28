@@ -47,6 +47,8 @@ export interface PluginInternals {
   runInlineToNote: (plugin: Any) => Promise<Any>;
   /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
   runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
+  /** Дата с пробелом после знака — строки под каретками без пробела (`В-243`). */
+  joinSpacedElementValues: (plugin: Any, cfg: Any) => void;
   registerPkm: (plugin: Any) => void;
   registerBinder: (plugin: Any) => void;
   followConfigWithCommands: (plugin: Any) => void;
@@ -268,6 +270,7 @@ export function loadPluginInternals(): PluginInternals {
     /* Двери команд PKM и Transform: код и таблица (BUGHUNT R4). */
     runPkmGuard: commands.runPkmGuard,
     runInlineToNote: commands.runInlineToNote,
+    joinSpacedElementValues: commands.joinSpacedElementValues,
     /* Дверь всех команд PKM. Через неё проходит и открытие панели, и каждая
        команда поля, поэтому правило «пока панель открыта, строкой распоряжается
        она» стоит именно здесь. Стенд `tools/line_bench.js` её не проходит: он

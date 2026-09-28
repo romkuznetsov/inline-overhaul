@@ -43,7 +43,7 @@ Leave all four as they are for now.
 In your `Tutorial` note, type this exactly:
 
 ```markdown
-- [ ] #todo #high || call the bank || [[Project A]] 📅 2026-09-15
+- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15
 ```
 
 Read what you just wrote. It is plain markdown — Obsidian sees two real tags, a real

@@ -605,6 +605,49 @@ function firstMarkerValueToken(text, marker, sources) {
   return "";
 }
 
+/**
+ * **Знак и значение через пробел — то же значение** (его ответ `В-243`,
+ * 2026-09-28: «узнавать обе, писать как сейчас»). Tasks и README пишут
+ * `📅 2026-09-30`, плагин пишет `📅2026-09-30`; запись с пробелом не узнавал
+ * ни один движок — знак срывался, дата оставалась сиротой в тексте (F9).
+ *
+ * Ответ — отрезки пробела между знаком Element и его значением, справа
+ * налево: сняв их, строка приходит к движкам в той форме, которую они знают.
+ * Значение узнаётся **строго** — образцом формата поля и общим видом даты
+ * (`elementValueSources` без запасного «слова до пробела»): `📅 встреча`
+ * остаётся текстом человека. Знак, стоящий не с начала токена, не наш.
+ *
+ * `marks` — `[{ marker, format }]` Fields типа `element`.
+ */
+function spacedMarkerValueGaps(text, marks) {
+  const src = String(text == null ? "" : text);
+  const out = [];
+  for (const m of Array.isArray(marks) ? marks : []) {
+    const mk = String(m && m.marker || "");
+    if (!mk) continue;
+    const fmt = String(m && m.format || "").trim() || "1";
+    const own = hasFormatTokens(fmt) ? buildFormatValueRegexSource(fmt) : buildTokenlessValueRegexSource(fmt);
+    const sources = [own, DATE_LIKE_VALUE_SRC].filter(Boolean);
+    for (let at = src.indexOf(mk); at !== -1; at = src.indexOf(mk, at + mk.length)) {
+      if (at !== 0 && !/\s/.test(src[at - 1])) continue;
+      const gap = /^[ \t]+/.exec(src.slice(at + mk.length));
+      if (!gap) continue;
+      const from = at + mk.length;
+      const len = longestValueLengthAt(src, from + gap[0].length, sources);
+      if (!len) continue;
+      if (!out.some((g) => g.from === from)) out.push({ from, to: from + gap[0].length });
+    }
+  }
+  return out.sort((a, b) => b.from - a.from);
+}
+
+/** Строка без пробелов между знаком и значением — ответ `spacedMarkerValueGaps`, применённый. */
+function joinSpacedMarkerValues(text, marks) {
+  let out = String(text == null ? "" : text);
+  for (const g of spacedMarkerValueGaps(out, marks)) out = out.slice(0, g.from) + out.slice(g.to);
+  return out;
+}
+
 function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
   const fmt = String(format || "").trim() || "1";
   const cmd = String(commandRaw || "").trim().toLowerCase();
@@ -1614,6 +1657,8 @@ module.exports = {
   elementValueSources,
   removeMarkerValueTokens,
   firstMarkerValueToken,
+  spacedMarkerValueGaps,
+  joinSpacedMarkerValues,
   ELEMENT_VALUE_CHARS,
   shouldHydrateGenericElementRaw,
   buildCustomPlanFromIncrement,
