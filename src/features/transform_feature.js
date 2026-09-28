@@ -84,6 +84,8 @@ const DEFAULT_INLINE2NOTE = {
     enabled: false,
     /* `Link to Navigator` — PRD 10.13.272, его ответ В-224. */
     navigator: false,
+    /* `Add empty line before wikilink` — его заказ 2026-09-28; `true` — прежнее поведение. */
+    emptyLine: true,
     placement: {
       position: "end",
       targetHeader: "",
@@ -443,6 +445,7 @@ function normalizeInline2Note(raw) {
   out.backlink = {
     enabled: backlink.enabled === true,
     navigator: backlink.navigator === true,
+    emptyLine: backlink.emptyLine !== false,
     /*
      * Оставляются ровно три ключа — те, у которых есть контрол. Остальное, что
      * умеет `placement`, здесь было бы ключом, который движок нормализует и
@@ -3608,7 +3611,7 @@ function findCustomHeaderInsertAt(lines, spec) {
  * `null` значит «заголовок не найден»: решение, что делать дальше, принимает
  * вызывающий, потому что запасные положения у двух путей разные.
  */
-function placeBlockUnderHeader(baseBody, block, spec, nl) {
+function placeBlockUnderHeader(baseBody, block, spec, nl, spaced = true) {
   const lines = String(baseBody || "").replace(/\r?\n/g, nl).split(nl);
   const at = findCustomHeaderInsertAt(lines, spec);
   if (at === -1) return null;
@@ -3621,9 +3624,9 @@ function placeBlockUnderHeader(baseBody, block, spec, nl) {
    * запись отделяется от соседей. Без неё наш заголовок слипся бы с чужим
    * абзацем в один, а Obsidian нарисовал бы их одной строкой.
    */
-  if (out.length && String(out[out.length - 1] || "").trim()) out.push("");
+  if (spaced && out.length && String(out[out.length - 1] || "").trim()) out.push("");
   for (const line of blockLines) out.push(line);
-  if (tail.length && String(tail[0] || "").trim()) out.push("");
+  if (spaced && tail.length && String(tail[0] || "").trim()) out.push("");
   for (const line of tail) out.push(line);
   return out.join(nl);
 }
@@ -3742,6 +3745,11 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   /* Пустая заметка получает блок с первой строки, без двух пустых перед ним
      (`В-244`: «две пустые строки в начале — дефект»). */
   if (!before.trim()) return text + nl;
+  /* Пустая строка между записью и соседями; `emptyLine: false` у ссылок в
+     чужих заметках снимает её (`Add empty line before wikilink`, его заказ
+     2026-09-28). У дописывания в свою заметку ключа нет — пустая строка есть. */
+  const spaced = !(isObj(i2n) && i2n.emptyLine === false);
+  const gap = spaced ? nl + nl : nl;
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const pos = String(placement.position || "end").trim().toLowerCase();
   /* `At the beginning` — за frontmatter, в начало тела (BUGHUNT T14): прежде
@@ -3750,14 +3758,14 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
     const fm = parseFrontmatter(before);
     const top = before.slice(0, before.length - fm.body.length);
     const rest = fm.body.replace(/^(?:\r?\n)+/, "").replace(/\r?\n/g, nl);
-    return rest.trim() ? `${top}${text}${nl}${nl}${rest}` : `${top}${text}${nl}`;
+    return rest.trim() ? `${top}${text}${gap}${rest}` : `${top}${text}${nl}`;
   }
-  if (pos !== "custom-header") return `${before.trimEnd()}${nl}${nl}${text}${nl}`;
+  if (pos !== "custom-header") return `${before.trimEnd()}${gap}${text}${nl}`;
 
   const parsed = parseFrontmatter(before);
   const head = before.slice(0, before.length - parsed.body.length);
   const spec = parseTargetHeaderSpec(placement.targetHeader);
-  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl);
+  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl, spaced);
   if (placed !== null) return `${head}${placed}`;
   /* Заголовка в заметке нет — заводится сам, тем же правилом, что и у новой
      заметки (S4). Второе правило «как выглядит заведённый заголовок»
@@ -3766,9 +3774,9 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   const fallback = String(placement.fallback || "end").trim().toLowerCase();
   if (fallback === "beginning") {
     const body = parsed.body.replace(/\r?\n/g, nl);
-    return body.trim() ? `${head}${own}${nl}${nl}${body}` : `${head}${own}${nl}`;
+    return body.trim() ? `${head}${own}${gap}${body}` : `${head}${own}${nl}`;
   }
-  return `${before.trimEnd()}${nl}${nl}${own}${nl}`;
+  return `${before.trimEnd()}${gap}${own}${nl}`;
 }
 
 function pathWithNumericSuffix(basePath, index) {

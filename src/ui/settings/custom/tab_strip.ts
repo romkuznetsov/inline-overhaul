@@ -51,6 +51,7 @@ interface StripHost extends El {
   parentElement?: StripHost | null;
   insertBefore?: (node: El, before: StripHost | null) => unknown;
   hasClass?: (cls: string) => boolean;
+  scrollTop?: number;
 }
 
 /** Событие клавиатуры в том виде, в каком его читает полоса. */
@@ -113,7 +114,11 @@ export function tabStripRow<Id extends string>(state: TabStripState<Id>): {
         btn.setAttribute("aria-selected", isActive ? "true" : "false");
         btn.tabIndex = isActive ? 0 : -1;
         if (tab.desc) btn.setAttribute("aria-description", tab.desc);
-        btn.addEventListener("click", (() => state.pick(tab.id)) as never);
+        /* Щелчок по открытой вкладке — наверх её настроек (его слово 2026-09-28). */
+        btn.addEventListener("click", (() => {
+          if (isActive && scroll) scroll.scrollTop = 0;
+          else state.pick(tab.id);
+        }) as never);
       });
 
       /* Стрелки ходят по полосе, Home и End прыгают на края. */

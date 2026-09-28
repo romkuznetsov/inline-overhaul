@@ -3332,6 +3332,12 @@ const SCHEMA = [
       desc:"Also write the link into the navigator note of a child link",
       tip:"A child link whose parent is a navigator stands on the line alone: the navigator is never written there. With this on, the navigator note gets the link too, and a child under two navigators links from both. A navigator note that does not exist yet is created empty. A Tag navigator is not a note, so nothing is written for it",
       visible: on("transform.inline2note.backlink.enabled") },
+    /* Его заказ 2026-09-28 в «Новое пишите сюда»: ссылки без пустых строк. */
+    { kind:"toggle", id:"backlink-empty-line", path:"transform.inline2note.backlink.emptyLine", default:true,
+      name:"Add empty line before wikilink",
+      desc:"Keep a blank line between the links written into a note",
+      tip:"<b>On</b> puts an empty line above every link it writes, so each link stands apart. <b>Off</b> writes the links one under another, as one tight list. The choice counts for every place the link can go, a heading included",
+      visible: on("transform.inline2note.backlink.enabled") },
     { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
       name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
       searchTerms:["Where the backlink goes"],
@@ -3507,7 +3513,7 @@ const VAULT_PROPERTIES = [
 ];
 
 const BINDER_ROWS = [
-  { insert:"[]", name:"Smart bracket", desc:"Cycle the brackets at the cursor: none, then [], then a wikilink", system:true },
+  { insert:"[]", name:"Smart bracket", desc:"Cycle the brackets on cursor: text → [text] → [[text]] → text", system:true },
   { insert:"→",  name:"Arrow",         desc:"Insert an arrow",               system:false }
 ];
 

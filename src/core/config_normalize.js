@@ -86,6 +86,8 @@ const SETTINGS_TABS = [
    нормализации, которая сама себя и кормила. */
 
 const BINDER_SMART_BRACKET_COMMAND_ID = __commandIds.SMART_BRACKET_COMMAND_ID;
+/* Описание строки Smart bracket: пишется в конфиг на каждом проходе — его слово 2026-09-28. */
+const SMART_BRACKET_DESCRIPTION = "Cycle the brackets on cursor: text → [text] → [[text]] → text";
 
 /**
  * Идентификатор строки Binder. Схема живёт в `command_ids.js`: своей копии
@@ -136,7 +138,7 @@ function normalizeBinderRows(rawRows, order) {
         rowId: "binder-system-smart-bracket",
         insertText: "[]",
         commandName: "Smart bracket",
-        description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
+        description: SMART_BRACKET_DESCRIPTION,
         commandId: BINDER_SMART_BRACKET_COMMAND_ID,
       });
       continue;
@@ -159,7 +161,7 @@ function normalizeBinderRows(rawRows, order) {
       rowId: "binder-system-smart-bracket",
       insertText: "[]",
       commandName: "Smart bracket",
-      description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
+      description: SMART_BRACKET_DESCRIPTION,
       commandId: BINDER_SMART_BRACKET_COMMAND_ID,
     });
   }
@@ -327,7 +329,7 @@ const DEFAULT_CONFIG = {
         rowId: "binder-system-smart-bracket",
         insertText: "[]",
         commandName: "Smart bracket",
-        description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
+        description: SMART_BRACKET_DESCRIPTION,
         commandId: BINDER_SMART_BRACKET_COMMAND_ID,
       },
     ],

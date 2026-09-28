@@ -1062,6 +1062,27 @@ runElementValueWrittenByPluginIsFoundSuite();
   console.log("  ok T15, T14, T22: переменные шаблона, место и строка дописывания, Clean ссылки с подписью");
 })();
 
+/* `Add empty line before wikilink` — его заказ 2026-09-28: при `Off` ссылки встают без пустых строк. */
+(function runBacklinkEmptyLineSuite() {
+  const note = "\n\n- [[123]]\n\n- [[444]]\n";
+  const off = transform.normalizeInline2Note({ backlink: { enabled: true, emptyLine: false } }).backlink;
+  const on = transform.normalizeInline2Note({ backlink: { enabled: true } }).backlink;
+  assertEq(on.emptyLine, true, "умолчание — прежнее поведение, пустая строка есть");
+  assertEq(off.emptyLine, false, "нормализация потеряла Off");
+  assertEq(transform.appendBlockIntoNote(note, "- [[встреча]]", off, "\n"), "\n\n- [[123]]\n\n- [[444]]\n- [[встреча]]\n",
+    "Off: ссылка в конец без пустой строки");
+  assertEq(transform.appendBlockIntoNote(note, "- [[встреча]]", on, "\n"), "\n\n- [[123]]\n\n- [[444]]\n\n- [[встреча]]\n",
+    "отрицательный контроль: On — с пустой строкой, как было");
+  const head = { ...off, placement: { position: "custom-header", targetHeader: "## Log", fallback: "end" } };
+  assertEq(transform.appendBlockIntoNote("# A\n## Log\n- [[x]]\n## B\n", "- [[y]]", head, "\n"), "# A\n## Log\n- [[x]]\n- [[y]]\n## B\n",
+    "Off под заголовком: без пустых строк");
+  assertEq(transform.appendBlockIntoNote("текст\n", "- [[y]]", { ...head, placement: { ...head.placement, targetHeader: "## Нет" } }, "\n"),
+    "текст\n## Нет\n- [[y]]\n", "Off: заведённый заголовок тоже без пустой строки");
+  const top = { ...off, placement: { position: "beginning" } };
+  assertEq(transform.appendBlockIntoNote("- [[x]]\n", "- [[y]]", top, "\n"), "- [[y]]\n- [[x]]\n", "Off в начале");
+  console.log("  ok Add empty line before wikilink: Off пишет ссылки без пустых строк, On — как было");
+})();
+
 console.log("Transform feature regression tests: OK");
 
 /* Ревизия Г-4: подпуть ссылки не становится именем заметки. */

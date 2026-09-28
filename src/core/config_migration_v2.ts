@@ -351,6 +351,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("transform.inline2note.backlink.enabled"),
   /* `Link to Navigator` и `Keep sub-fields` (PRD 10.13.272): ключи новые. */
   keepV2("transform.inline2note.backlink.navigator"),
+  /* `Add empty line before wikilink` — его заказ 2026-09-28: ключ новый. */
+  keepV2("transform.inline2note.backlink.emptyLine"),
   keepV2("transform.inline2note.sourceProcessing.keepSubFields"),
   keepV2("transform.inline2note.backlink.placement.position"),
   keepV2("transform.inline2note.backlink.placement.targetHeader"),

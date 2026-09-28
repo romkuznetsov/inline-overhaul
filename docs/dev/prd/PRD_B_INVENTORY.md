@@ -16,7 +16,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 14 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 17 | 5 |
-| 5 | Transform | `features.transform.enabled` | 7 | 34 | 5 |
+| 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
@@ -812,6 +812,10 @@ _Tip:_ A line often names the notes it belongs to — a project, a person, a pla
   - desc: Also write the link into the navigator note of a child link
   - tip: A child link whose parent is a navigator stands on the line alone: the navigator is never written there. With this on, the navigator note gets the link too, and a child under two navigators links from both. A navigator note that does not exist yet is created empty. A Tag navigator is not a note, so nothing is written for it
   - видна если: `transform.inline2note.backlink.enabled`
+- **Add empty line before wikilink** — `backlink-empty-line`, `toggle`, path `transform.inline2note.backlink.emptyLine`, default `true`
+  - desc: Keep a blank line between the links written into a note
+  - tip: <b>On</b> puts an empty line above every link it writes, so each link stands apart. <b>Off</b> writes the links one under another, as one tight list. The choice counts for every place the link can go, a heading included
+  - видна если: `transform.inline2note.backlink.enabled`
 - **Where to put the link** — `backlink-position`, `dropdown`, path `transform.inline2note.backlink.placement.position`, default `end`
   - desc: At the top of that note, or after whatever is already there
   - tip: <b>End</b> keeps the links in the order you filed them, which is what a growing list wants. <b>Under heading</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section
@@ -1249,6 +1253,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.prefixPriority.decideBy` | dropdown | `by-section` |
 | `pkm.prefixPriority.fieldOrderSource` | dropdown | `manual` |
 | `pkm.prefixPriority.parentOrChild` | dropdown | `subtag-over-tag` |
+| `transform.inline2note.backlink.emptyLine` | toggle | `true` |
 | `transform.inline2note.backlink.enabled` | toggle | `false` |
 | `transform.inline2note.backlink.navigator` | toggle | `false` |
 | `transform.inline2note.backlink.placement.fallback` | dropdown | `end` |

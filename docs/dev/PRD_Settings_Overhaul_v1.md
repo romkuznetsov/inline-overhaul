@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (80)
+### Пути, которых не было в описи v1.0 (81)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1010,6 +1010,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.sourceProcessing.visual.color` | Color of transformed line (`source-dim-color`) | Source line |
 | `transform.inline2note.backlink.enabled` | Link the notes you mention (`backlink-enabled`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.navigator` | Link to Navigator (`backlink-navigator`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.emptyLine` | Add empty line before wikilink (`backlink-empty-line`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.targetHeader` | Name of the heading (`backlink-target-header`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.fallback` | If heading not found (`backlink-header-missing`) | Auto-MOC in your links |
