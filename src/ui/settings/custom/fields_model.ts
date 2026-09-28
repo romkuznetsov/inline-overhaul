@@ -2321,6 +2321,20 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
           reason,
         );
+        /*
+         * Чекбокс Value-ссылки — ещё и в карту `prefixRules`, как у тега: её
+         * читает движок, а метаданные Value до правил не доезжают. Без этого
+         * Prefix у ссылки писался и не ставился в строку никогда (`В-248`).
+         */
+        const linkCheckboxes: Record<string, string> = {};
+        for (const row of nextTree as Loose[]) {
+          for (const r of [row, ...(Array.isArray(row && row.children) ? row.children : [])]) {
+            const cb = String(r && r.prefixMode || "").trim().toLowerCase() === "checkbox" ? normCheckbox(r && r.checkboxToken) : "";
+            const tok = normToken(r && r.token, kind);
+            if (tok && cb) linkCheckboxes[tok] = cb;
+          }
+        }
+        plugin.setConfigPatch(buildCheckboxPatch(nextTree, { checkboxByToken: linkCheckboxes }), reason + ":prefix");
         return { ok: true };
       }
 

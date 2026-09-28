@@ -99,12 +99,24 @@ function getPrefixRulesUnified(rules, deps) {
   }
   if (!out.checkboxByFieldValue.type) out.checkboxByFieldValue.type = {};
   if (!out.priorityTargets.length) {
-    const lf = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
+    /* Поля обоих видов: теги, затем ссылки — у Value-ссылки чекбокс из Prefix
+       не ставился вовсе и в 0.10.0 (`В-248`, его ответ «починить»). */
+    const lf = modeFieldsUnified(rules);
     for (let i = 0; i < lf.length; i++) {
       const id = lf[i] && lf[i].id ? String(lf[i].id) : "";
       if (!id) continue;
       if (!out.priorityTargets.includes(id)) out.priorityTargets.push(id);
     }
+  }
+  return out;
+}
+
+/** Поля правил обоих видов подряд: `leftMode` (теги), затем `rightMode` (ссылки). */
+function modeFieldsUnified(rules) {
+  const out = [];
+  for (const key of ["leftMode", "rightMode"]) {
+    const mode = rules && rules[key];
+    if (mode && Array.isArray(mode.fields)) out.push(...mode.fields);
   }
   return out;
 }
@@ -169,8 +181,7 @@ function selectedTokenByFieldIdUnified(rules, state, fieldId, deps) {
       }
       return null;
     };
-  const mode = rules && rules.leftMode ? rules.leftMode : { fields: [] };
-  const field = getFieldById(mode, fieldId);
+  const field = getFieldById({ fields: modeFieldsUnified(rules) }, fieldId);
   if (!field || !state || !state.selected) return "";
   const selectedId = String(state.selected[fieldId] || "");
   if (!selectedId) return "";
@@ -200,7 +211,10 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
     if (!isObj(byField[fid])) continue;
     const tok = selectedTokenByFieldIdUnified(rules, state, fid, deps);
     if (!tok) continue;
-    const cb = normalizeCheckboxToken(byField[fid][tok]);
+    /* Панель пишет ключ Value-ссылки в скобках (`[[Man1]]`, `normalizeToken`
+       редактора), а Value в правилах — без них: спрашиваются оба написания. */
+    const row = byField[fid];
+    const cb = normalizeCheckboxToken(row[tok] || (/^\[\[/.test(tok) ? "" : row["[[" + tok + "]]"]));
     if (!cb) continue;
     if (!hitByField[fid]) hitByField[fid] = cb;
   }
@@ -216,11 +230,9 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
     delete hitByField[parentId];
   };
 
-  const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields)
-    ? rules.leftMode.fields
-    : [];
-  for (let i = 0; i < leftFields.length; i++) {
-    const childField = leftFields[i];
+  const modeFields = modeFieldsUnified(rules);
+  for (let i = 0; i < modeFields.length; i++) {
+    const childField = modeFields[i];
     if (!childField || !childField.id || !childField.dependsOn) continue;
     applyPair(String(childField.dependsOn || ""), String(childField.id || ""));
   }

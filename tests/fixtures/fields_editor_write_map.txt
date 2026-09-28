@@ -148,13 +148,13 @@ link button [Expand Values] #15
 link button [Make [[ClientA]] a child Value] #16
     без записи
 link input:text [Value [[ClientA]] of project] #17
-    pkm:behavior:order:deep:rename:project -> pkm.fields.links.fields, pkm.fields.tags.fields
+    pkm:behavior:order:deep:rename:project -> pkm.fields.links.fields, pkm.fields.tags.fields | pkm:behavior:order:deep:rename:project:prefix -> pkm.prefixRules.checkboxByFieldValue.project = {}
 link input:text [Prefix for [[ClientA]]] #18
-    pkm:behavior:order:deep:checkbox:project -> pkm.fields.links.fields, pkm.fields.tags.fields
+    pkm:behavior:order:deep:checkbox:project -> pkm.fields.links.fields, pkm.fields.tags.fields | pkm:behavior:order:deep:checkbox:project:prefix -> pkm.prefixRules.checkboxByFieldValue.project.[[ClientA]]
 link select [Show, for [[ClientA]]] #19
     pkm:visuals:tag:visibility:project -> visual.tags.byTag.project.[[ClientA]].borderColor, visual.tags.byTag.project.[[ClientA]].customText, visual.tags.byTag.project.[[ClientA]].fillColor, visual.tags.byTag.project.[[ClientA]].textColor, visual.tags.byTag.project.[[ClientA]].visibility
 link button [Remove [[ClientA]]] #20
-    pkm:behavior:order:deep:delete-token:project -> pkm.fields.links.fields, pkm.fields.tags.fields
+    pkm:behavior:order:deep:delete-token:project -> pkm.fields.links.fields, pkm.fields.tags.fields | pkm:behavior:order:deep:delete-token:project:prefix -> pkm.prefixRules.checkboxByFieldValue.project = {}
 link input:text [New Value for project] #21
     без записи
 link button [Add a Value to project] #22

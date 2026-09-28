@@ -118,6 +118,22 @@ async function main(): Promise<void> {
   assert.ok(words.includes(" [[Project B]]"), "F4 ссылка с пробелом разрезана: " + JSON.stringify(words));
   passed += 2;
   console.log("  ok F4 ссылка с пробелом — одно слово плана записи полосы");
+  /* В-248: чекбокс из Prefix у Value-ссылки встаёт в строку, как у тега. Ключ —
+     в том написании, в каком его пишет панель (`[[Project A]]`). */
+  {
+    const raw = JSON.parse(JSON.stringify(cfg));
+    const proj = (raw.pkm.fields.links.fields as Any[]).find(f => JSON.stringify(f.values).includes("Project A"));
+    assert.ok(proj, "контроль фикстуры: Field со Value `Project A` есть");
+    raw.pkm.prefixRules = raw.pkm.prefixRules || {};
+    raw.pkm.prefixRules.checkboxByFieldValue = { ...(raw.pkm.prefixRules.checkboxByFieldValue || {}), [proj.id]: { "[[Project A]]": "[x]" } };
+    const cbCfg = normalize.migrateConfig(raw);
+    const plain = await bench.runCommandById(cfg, "project-next", "- x", 3);
+    assert.equal(plain.line, "- x || [[Project A]]", "контроль: без правила чекбокса нет");
+    const got = await bench.runCommandById(cbCfg, "project-next", "- x", 3);
+    assert.equal(got.line, "- [x] x || [[Project A]]", "В-248: чекбокс Value-ссылки не встал");
+    passed++;
+    console.log("  ok В-248 чекбокс из Prefix у Value-ссылки встаёт в строку");
+  }
   console.log(passed + " проверок");
 }
 

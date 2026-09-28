@@ -655,7 +655,7 @@ const SCENARIOS = {
     await host.waitForTimeout(700);
     const checkbox = await win.evaluate(() => {
       const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig();
-      return JSON.stringify(cfg.pkm.fields.order).match(/"Man1":"\[x\]"/) ? "[x]" : JSON.stringify((cfg.pkm.fields.links.fields.find((f) => f.id === "People") || {}).values);
+      return JSON.stringify((cfg.pkm.prefixRules || {}).checkboxByFieldValue || null);
     });
     /* Окно `Add a Field`: строка добавления под фишками. */
     await clickIn(host, "Add Field");
@@ -688,8 +688,8 @@ const SCENARIOS = {
     console.log(JSON.stringify(got));
     const ok = got.suggested.includes("vx-note") && got.values.includes("vx-note")
       && got.pfx && got.pfx.items > 20 && got.pfx.boxes > 20 && got.pfx.looks > 1 && got.stacked
-      /* `lines.box` печатается, но не спрашивается: чекбокс Value-ссылки движок не ставит и в 0.10.0 (В-248). */
-      && got.lines.next === "- [[vx-note]] :: звонок";
+      /* Чекбокс Value-ссылки — с В-248. */
+      && got.lines.next === "- [[vx-note]] :: звонок" && got.lines.box === "- [x] [[Man1]] :: звонок";
     console.log(ok ? "ok: подсказка заметок, выбиралка Prefix, строка добавления под фишками" : "РАСХОДИТСЯ");
     return ok;
   },

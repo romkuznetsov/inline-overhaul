@@ -2481,8 +2481,8 @@ const linkSubField = (cfg: Any): Any =>
 {
   const v = makeLinkView();
   levelArrow(all(v.host, "io-vals__row")[1] as StubNode).click();
-  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:deep:indent:project"],
-    "запись та же, что и у тега, — та же причина от той же модели");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:deep:indent:project", "pkm:behavior:order:deep:indent:project:prefix"],
+    "запись та же, что и у тега, — та же причина от той же модели; `:prefix` — карта чекбоксов для движка (В-248)");
 
   const parent = (v.cfg.pkm.fields.links.fields as Any[]).find(f => f.id === "project");
   assert.deepEqual((parent.values as Any[]).map(x => x.token), ["ClientA"],
