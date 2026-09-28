@@ -2005,6 +2005,20 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
+/* Выбиралка Prefix — отдельной строкой сетки под своей строкой (его пункт
+   2026-09-28). Образец рисует тема: у нас только раскладка и рамки. */
+.io-vals .io-pfx { grid-column: 1 / -1; margin-top: 6px; padding: 8px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); }
+.io-vals .io-pfx__hint { margin-bottom: 6px; color: var(--text-muted); }
+.io-vals .io-pfx__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); gap: 4px; max-height: 18em; overflow-y: auto; }
+.io-vals .io-pfx__item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  height: auto; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-s);
+  background: transparent; box-shadow: none; cursor: pointer; text-align: left;
+}
+.io-vals .io-pfx__item:hover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
+.io-vals .io-pfx__md { pointer-events: none; font-size: var(--font-text-size); }
+.io-vals .io-pfx__md ul { margin: 0; padding-left: 1.6em; }
+.io-vals .io-pfx__code { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-faint); }
 /*
  * Ф8: дочернее значение подкрашено фоном, а не отступом. Фон именно
  * `--background-secondary`: `--background-primary-alt` почти сливался с
@@ -3816,6 +3830,8 @@
 /* Фишки стоят в ряд: место броска — черта слева, а не сверху. */
 .io-nf .io-nf__chip.io-dragover { box-shadow: inset 2px 0 0 var(--interactive-accent); }
 .io-nf .io-nf__chip > .io-grip { margin-right: -2px; }
+/* Values: фишки, под ними строка добавления во всю ширину (тест 2 цикла 100). */
+.io-nf .io-item--stack > .io-item__control.io-nf__values { flex-direction: column; align-items: stretch; }
 /* Заголовок Value у Element — тем же шрифтом, что подписи контролов окна. */
 .io-nf .io-nf__sub { font-size: inherit; font-weight: inherit; }
 .io-nf__problem {

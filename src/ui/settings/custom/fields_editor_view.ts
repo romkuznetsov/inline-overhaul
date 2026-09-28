@@ -22,6 +22,8 @@ import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./co
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { attachPicker } from "./char_picker.ts";
+import { attachNoteSuggest } from "./new_field_dialog.ts";
+import { attachPrefixPicker } from "./prefix_picker.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 import { TYPE_COLOR, bareToken, typeColor, typeInk } from "./preview_data.ts";
 /*
@@ -1775,7 +1777,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       label: say("VALUE_PREFIX_FOR", v.token),
     });
     prefix.disabled = !o.enabled;
-    prefix.addEventListener("change", (() => {
+    const commitPrefix = (): void => {
       if (!o.enabled) return;
       const raw = String(prefix.value || "").trim();
       if (!raw) {
@@ -1793,7 +1795,17 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       ve.saveTree(ve.editRow(ve.tree, at, { prefixMode: "checkbox", checkboxToken: cb }),
         "pkm:behavior:order:deep:checkbox:" + row.key);
       o.redraw();
-    }) as never);
+    };
+    prefix.addEventListener("change", commitPrefix as never);
+    /* Щелчок в поле — выбиралка с видом каждого чекбокса в его теме (его
+       пункт «Новое пишите сюда» 2026-09-28); выбор пишется тем же путём. */
+    if (o.enabled) {
+      closers.push(attachPrefixPicker(prefix, line, {
+        say, sample: bareToken(v.token),
+        ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
+        onPick: token => { prefix.value = token; commitPrefix(); },
+      }).close);
+    }
 
     {
       /*
@@ -1989,6 +2001,18 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     o.redraw();
   };
   addBtn.addEventListener("click", addValue as never);
+  /* Link: щелчок в поле показывает заметки vault, набор их фильтрует, выбор
+     сразу встаёт в Values — как в окне `Add a Field` (его замечание к тесту 1
+     цикла 100). */
+  if (isLink && o.enabled) {
+    const app = o.ctx.platform ? (o.ctx.platform.plugin as { app?: unknown }).app : null;
+    const vault = (app as { vault?: { getMarkdownFiles?: () => Array<{ path: string }> } } | null)?.vault;
+    attachNoteSuggest(add, {
+      platform: o.ctx.platform, app,
+      notes: vault && typeof vault.getMarkdownFiles === "function" ? () => vault.getMarkdownFiles!().map(f => f.path) : undefined,
+      pick: target => { add.value = target; addValue(); },
+    });
+  }
   /* \u0421\u0442\u0440\u043e\u043a\u0430 \u00abUse \u2192 to make a Value a child\u2026\u00bb \u0438\u0437 \u043f\u043e\u0434\u0432\u0430\u043b\u0430 \u0443\u0431\u0440\u0430\u043d\u0430: \u043e\u043d\u0430 \u0443\u0435\u0445\u0430\u043b\u0430 \u0432
      \u043f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0443 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 `Level`, \u0433\u0434\u0435 \u0435\u0451 \u0438\u0449\u0443\u0442 (\u0437\u0430\u043c\u0435\u0447\u0430\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-08-27). */
 

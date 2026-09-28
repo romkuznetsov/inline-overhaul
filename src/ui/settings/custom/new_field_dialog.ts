@@ -335,6 +335,46 @@ interface NoteSuggest { setValue(v: string): void; close(): void; limit: number 
 type NoteSuggestCtor = new (app: unknown, input: unknown) => NoteSuggest;
 
 /**
+ * Подсказка заметок — родная подсказка Obsidian, как у свойства YAML: пустое
+ * поле показывает все заметки, набранное их фильтрует, выбор сразу встаёт
+ * в Values (его замечание к тесту 3 цикла 98). Набранное без выбора
+ * работает по-прежнему — Enter или `Add Value`. Одна на окно `Add a Field` и
+ * поле `Add Value` у Link в правой колонке (его замечание к тесту 1 цикла 100).
+ * Нет платформы (заглушка DOM) — подсказки нет, поле обычное.
+ */
+export function attachNoteSuggest(input: ElInput, o: {
+  platform: SettingsCtx["platform"]; app: unknown; notes: (() => readonly string[]) | undefined; pick: (target: string) => void;
+}): void {
+  const platform = o.platform;
+  if (!platform || typeof platform.AbstractInputSuggest !== "function" || !o.notes) return;
+  const notes = o.notes().map(p => p.replace(/\.md$/i, ""));
+  try {
+    const Base = platform.AbstractInputSuggest as NoteSuggestCtor;
+    class NoteSuggestImpl extends Base {
+      getSuggestions(query: string): string[] {
+        const q = String(query || "").trim().toLowerCase();
+        /* ponytail: первые 200 совпадений — дальше список всё равно фильтруют набором. */
+        return notes.filter(p => !q || p.toLowerCase().includes(q)).slice(0, 200);
+      }
+      renderSuggestion(p: string, node: El): void {
+        const cut = p.lastIndexOf("/");
+        el(node, "span", "io-suggest__name", cut < 0 ? p : p.slice(cut + 1));
+        if (cut >= 0) el(node, "span", "io-suggest__type", p.slice(0, cut));
+      }
+      selectSuggestion(p: string): void {
+        this.setValue("");
+        this.close();
+        o.pick(p);
+      }
+    }
+    new NoteSuggestImpl(o.app, input).limit = 200;
+  } catch (e) {
+    /* Класс платформы мог смениться формой: поле остаётся рабочим, подсказки нет (З8). */
+    console.error("inline-overhaul: подсказка заметок не подключилась", e);
+  }
+}
+
+/**
  * Нарисовать форму в `box`. Возвращает уборку: подсказки, выбиралка знака и
  * шаг скроллера обязаны уйти вместе с окном.
  */
@@ -506,6 +546,8 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* Values — строкой окна, как остальные контролы: тот же шрифт подписи и
        свой «?» (его замечание к тесту 3 цикла 99). */
     const valuesCtl = item(body, "NF_VALUES_HEAD", isLink ? "NF_VALUES_DESC_LINK" : "NF_VALUES_DESC_TAG", "NF_VALUES_TIP", true);
+    /* Строка добавления — под фишками, а не рядом (его замечание к тесту 2 цикла 100). */
+    valuesCtl.addClass("io-nf__values");
     const chips = el(valuesCtl, "div", "io-nf__chips");
     const theme = themePair(box);
     const held: DragHold = { taken: null };
@@ -574,47 +616,11 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     btn(addRow, "io-btn io-btn--sm", { text: say("ADD_VALUE") }).addEventListener("click", addOne as never);
     /* После выбора из подсказки фокус в поле не возвращается: платформа
        открыла бы список снова поверх формы (стенд `new-field`, снимок). */
-    if (isLink) attachNoteSuggest(input, t => { if (push(t)) draw(); });
+    if (isLink) attachNoteSuggest(input, { platform, app, notes: o.notes, pick: t => { if (push(t)) draw(); } });
     if (isLink) {
       const moc = item(body, "MOC_NAME", "MOC_DESC", "MOC_TIP", true);
       segmented(moc, [{ value: "yes", label: say("MOC_YES") }, { value: "no", label: say("MOC_NO") }],
         d.moc ? "yes" : "no", say("MOC_NAME"), v => { d.moc = v === "yes"; draw(); });
-    }
-  };
-
-  /**
-   * Подсказка заметок — родная подсказка Obsidian, как у свойства YAML: пустое
-   * поле показывает все заметки, набранное их фильтрует, выбор сразу встаёт
-   * в Values (его замечание к тесту 3 цикла 98). Набранное без выбора
-   * работает по-прежнему — Enter или `Add Value`. Нет платформы (заглушка
-   * DOM) — подсказки нет, поле обычное.
-   */
-  const attachNoteSuggest = (input: ElInput, pick: (target: string) => void): void => {
-    if (!platform || typeof platform.AbstractInputSuggest !== "function" || !o.notes) return;
-    const notes = o.notes().map(p => p.replace(/\.md$/i, ""));
-    try {
-      const Base = platform.AbstractInputSuggest as NoteSuggestCtor;
-      class NoteSuggestImpl extends Base {
-        getSuggestions(query: string): string[] {
-          const q = String(query || "").trim().toLowerCase();
-          /* ponytail: первые 200 совпадений — дальше список всё равно фильтруют набором. */
-          return notes.filter(p => !q || p.toLowerCase().includes(q)).slice(0, 200);
-        }
-        renderSuggestion(p: string, node: El): void {
-          const cut = p.lastIndexOf("/");
-          el(node, "span", "io-suggest__name", cut < 0 ? p : p.slice(cut + 1));
-          if (cut >= 0) el(node, "span", "io-suggest__type", p.slice(0, cut));
-        }
-        selectSuggestion(p: string): void {
-          this.setValue("");
-          this.close();
-          pick(p);
-        }
-      }
-      new NoteSuggestImpl(app, input).limit = 200;
-    } catch (e) {
-      /* Класс платформы мог смениться формой: поле остаётся рабочим, подсказки нет (З8). */
-      console.error("inline-overhaul: подсказка заметок не подключилась", e);
     }
   };
 

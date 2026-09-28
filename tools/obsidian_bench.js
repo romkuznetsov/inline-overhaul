@@ -604,6 +604,79 @@ const SCENARIOS = {
   },
 
   /*
+   * Его замечания цикла 100: у Link в правой колонке `Add Value` показывает
+   * заметки vault (выбор встаёт в Values), у Prefix — выбиралка с видом
+   * чекбоксов в его теме, а в окне `Add a Field` строка добавления под фишками.
+   * `IO_SHOTS` — снимок выбиралки Prefix.
+   */
+  async "values-extras"(win, browser) {
+    await win.evaluate(async () => {
+      const a = window.app;
+      await a.vault.create("vx-note.md", "");
+      a.setting.open();
+      a.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await host.evaluate(() => { const n = [...document.querySelectorAll(".io-fields__name")].find((x) => x.textContent.trim() === "People"); if (n) n.click(); });
+    await host.waitForTimeout(700);
+    const addSel = "input[aria-label=\"New Value for People\"]";
+    if (!(await host.$(addSel))) {
+      const seen = await host.evaluate(() => [...document.querySelectorAll(".io-vals__foot input")].map((x) => x.getAttribute("aria-label")));
+      throw new Error("нет поля нового Value у People; есть: " + JSON.stringify(seen));
+    }
+    await host.click(addSel);
+    await host.keyboard.type("vx-no", { delay: 40 });
+    await host.waitForTimeout(500);
+    const suggested = await host.evaluate(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].map((n) => n.textContent.trim()));
+    const hit = await host.evaluateHandle(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].find((n) => n.textContent.trim() === "vx-note"));
+    if (await hit.evaluate((n) => !!n)) { await hit.asElement().click(); await host.waitForTimeout(700); }
+    const values = await win.evaluate(() => {
+      const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig();
+      return cfg.pkm.fields.links.fields.find((f) => f.id === "People").values.map((v) => (v && v.token) || v);
+    });
+    /* Prefix у Man1: выбиралка, вид чекбоксов от темы, выбор `[x]`. */
+    const pfxSel = "input[aria-label=\"Prefix for [[Man1]]\"]";
+    await host.click(pfxSel);
+    await host.waitForTimeout(400);
+    const pfx = await host.evaluate(() => {
+      const panel = [...document.querySelectorAll(".io-pfx")].find((n) => !n.hidden);
+      if (!panel) return null;
+      const r = panel.getBoundingClientRect();
+      const boxes = [...panel.querySelectorAll(".task-list-item-checkbox")];
+      /* Тема рисует знаки по `data-task`: у разных знаков разный вид. */
+      const looks = new Set(boxes.map((b) => { const c = getComputedStyle(b); const m = getComputedStyle(b, "::after"); return [c.backgroundColor, c.borderColor, m.content, m.backgroundColor, m.webkitMaskImage].join("|"); }));
+      return { items: panel.querySelectorAll(".io-pfx__item").length, boxes: boxes.length, looks: looks.size, width: r.width, height: r.height };
+    });
+    const shots = process.env.IO_SHOTS || "";
+    if (shots) { const n = await host.$(".io-pfx:not([hidden])"); if (n) await n.screenshot({ path: path.join(shots, "prefix-picker.png") }); }
+    await host.evaluate(() => { const b = [...document.querySelectorAll(".io-pfx:not([hidden]) .io-pfx__item")].find((n) => n.getAttribute("aria-label") === "[x] Done"); if (b) b.click(); });
+    await host.waitForTimeout(700);
+    const checkbox = await win.evaluate(() => {
+      const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig();
+      return JSON.stringify(cfg.pkm.fields.order).match(/"Man1":"\[x\]"/) ? "[x]" : JSON.stringify((cfg.pkm.fields.links.fields.find((f) => f.id === "People") || {}).values);
+    });
+    /* Окно `Add a Field`: строка добавления под фишками. */
+    await clickIn(host, "Add Field");
+    await host.waitForSelector(".io-nf", { timeout: 5000 });
+    await host.fill("input[aria-label=\"New Value\"]", "calm");
+    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    const stacked = await host.evaluate(() => {
+      const c = document.querySelector(".io-nf__chips").getBoundingClientRect();
+      const a = document.querySelector(".io-nf__addrow").getBoundingClientRect();
+      return a.top >= c.bottom - 1;
+    });
+    await host.keyboard.press("Escape").catch(() => {});
+    const got = { suggested: suggested.slice(0, 5), values, pfx, checkbox, stacked };
+    console.log(JSON.stringify(got));
+    const ok = got.suggested.includes("vx-note") && got.values.includes("vx-note")
+      && got.pfx && got.pfx.items > 20 && got.pfx.boxes > 20 && got.pfx.looks > 1 && got.stacked;
+    console.log(ok ? "ok: подсказка заметок, выбиралка Prefix, строка добавления под фишками" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
    * Его пункт 2026-09-27 к тесту 7: переименование Value-ссылки в панели
    * называет цену и по «Rename note and links» переименовывает заметку —
    * ссылки переписывает Obsidian. Копия его vault: Value `Man1` у `People`.

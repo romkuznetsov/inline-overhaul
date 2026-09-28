@@ -1202,6 +1202,35 @@ function heightBtn(host: StubNode): StubNode {
   assert.equal(v.notices.length, 1, "человеку сказали, каким он должен быть");
   ok("негодный Prefix отклоняется с объяснением");
 }
+/* Его пункт 2026-09-28: щелчок в Prefix — выбиралка с видом каждого чекбокса разметкой Obsidian. */
+{
+  const v = makeView();
+  const row = all(v.host, "io-vals__row")[0] as StubNode;
+  const prefix = row.children.find(c => String(c.tagName) === "INPUT"
+    && String(c.getAttribute("aria-label") || "").startsWith("Prefix for")) as StubNode;
+  const panel = one(row, "io-pfx");
+  assert.equal((panel as unknown as { hidden: boolean }).hidden, true, "контроль: до щелчка выбиралки не видно");
+  prefix.dispatch("click");
+  assert.equal((panel as unknown as { hidden: boolean }).hidden, false, "щелчок в Prefix не раскрыл выбиралку");
+  const items = all(panel, "io-pfx__item");
+  assert.ok(items.length > 20, "знаков чекбокса мало: " + items.length);
+  const done = items.find(n => String(n.getAttribute("aria-label")) === "[x] Done") as StubNode;
+  const task = all(done, "task-list-item")[0] as StubNode;
+  assert.ok(task && task.getAttribute("data-task") === "x" && all(done, "task-list-item-checkbox").length === 1,
+    "образец — не разметка задачи Obsidian, тема его не покрасит");
+  done.click();
+  assert.deepEqual(v.writes.map(w => w.reason),
+    ["pkm:behavior:order:deep:checkbox:status", "pkm:behavior:order:deep:checkbox:status:prefix"],
+    "выбор из выбиралки пишется той же записью, что набор");
+  const row2 = all(v.host, "io-vals__row")[0] as StubNode;
+  const prefix2 = row2.children.find(c => String(c.tagName) === "INPUT"
+    && String(c.getAttribute("aria-label") || "").startsWith("Prefix for")) as StubNode;
+  assert.equal(String(prefix2.value), "[x]", "в поле не встал выбранный чекбокс");
+  prefix2.dispatch("click");
+  (all(one(row2, "io-pfx"), "io-pfx__item").find(n => String(n.getAttribute("aria-label")) === "No checkbox") as StubNode).click();
+  assert.equal(v.writes[v.writes.length - 1]!.reason.startsWith("pkm:behavior:order:deep:prefix-mode:status"), true, "«No checkbox» не снял чекбокс");
+  ok("выбиралка Prefix: вид чекбоксов разметкой задачи, выбор пишется тем же путём");
+}
 
 /* ---- Ф7: у ссылки колонок цвета нет ------------------------------------ */
 {

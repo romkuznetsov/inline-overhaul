@@ -159,8 +159,6 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
 
   let tab: PickKind = o.kinds[0] || "emoji";
   let query = "";
-  /* Как отдать `Escape` обратно окну; пусто — клавиша не взята. */
-  let release: (() => void) | null = null;
 
   /* Кнопки вкладок заводятся один раз и не пересобираются: пересобранная
      кнопка уносит фокус с собой, и уход фокуса наружу выбиралка бы не узнала. */
@@ -212,10 +210,31 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
     }
   };
 
+  const { close } = attachPopup(input, panel, { draw, ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}) });
+
+  search.addEventListener("input", (() => {
+    query = search.value;
+    draw();
+  }) as never);
+
+  return { close };
+}
+
+/**
+ * Поведение раскрывающейся панели под полем — одно на выбиралку знака и
+ * выбиралку Prefix: раскрыть по нажатию или фокусу, свернуть, когда фокус ушёл
+ * за пределы поля и панели, и держать `Escape` у себя, пока раскрыта.
+ */
+export function attachPopup(input: ElInput, panel: El, o: {
+  draw: () => void;
+  holdKeys?: (onEscape: () => void) => () => void;
+}): { close: () => void } {
+  /* Как отдать `Escape` обратно окну; пусто — клавиша не взята. */
+  let release: (() => void) | null = null;
   const open = (): void => {
     if (!panel.hidden) return;
     panel.hidden = false;
-    draw();
+    o.draw();
     if (o.holdKeys && !release) release = o.holdKeys(close);
   };
   /* Сворачивание отдаёт `Escape` окну всегда, каким бы путём оно ни пришло:
@@ -229,15 +248,10 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
     }
   };
 
-  search.addEventListener("input", (() => {
-    query = search.value;
-    draw();
-  }) as never);
-
   input.addEventListener("focus", open as never);
   input.addEventListener("click", open as never);
 
-  /* Фокус ушёл — закрыть, если только он не ушёл внутрь выбиралки или обратно
+  /* Фокус ушёл — закрыть, если только он не ушёл внутрь панели или обратно
      в поле. `relatedTarget` — куда уходит фокус; спрашивается у браузера. */
   const inside = (to: unknown): boolean => {
     const probe = panel as unknown as { contains?: (n: unknown) => boolean };

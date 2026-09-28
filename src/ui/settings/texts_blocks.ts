@@ -158,6 +158,9 @@ export const BLOCK_TEXTS = {
     VALUE_MAKE_CHILD: "Make {0} a child Value",
     VALUE_PREFIX_NO: "no",
     VALUE_PREFIX_FOR: "Prefix for {0}",
+    /* Выбиралка Prefix — его пункт 2026-09-28: вид чекбокса рисует его тема. */
+    PREFIX_PICK_HINT: "How each checkbox looks with your theme. Click one to use it, or type your own",
+    PREFIX_PICK_NONE: "No checkbox",
     /*
      * `VALUE_PREFIX_HINT` снята 2026-09-08 при разборе долга A46. Слово в
      * слово то же, что `ERR_PREFIX_TOKEN` ниже, — и на экране показывается
