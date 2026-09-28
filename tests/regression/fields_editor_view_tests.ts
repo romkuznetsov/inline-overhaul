@@ -2383,6 +2383,29 @@ function makeLinkView(ask?: NonNullable<Parameters<typeof renderFieldsEditor>[1]
     "ссылок нет — окна нет, и уход из поля спрашивает ещё раз, как прежде");
   ok("окно цены Value-ссылки открывается с первой буквы, а не по Enter");
 }
+/* Его замечание к тесту 2 цикла 99: Value `[[Man1]]` правится без скобок, уход из поля их возвращает. */
+{
+  const calls: string[] = [];
+  const v = makeLinkView((_old, next, apply, _revert, live) => { calls.push(next); if (!live) apply(next); return false; });
+  const field = v.cfg.pkm.fields.links.fields.find((f: Any) => f.id === "project");
+  field.values[0].token = "[[Man1]]";
+  v.draw();
+  const token = one(all(v.host, "io-vals__row")[0] as StubNode, "io-valcell").children[0] as StubNode;
+  assert.equal(String(token.value), "[[Man1]]", "контроль: без фокуса скобки на месте");
+  token.dispatch("focus");
+  assert.equal(String(token.value), "Man1", "в фокусе скобки не ушли");
+  token.value = "Man2";
+  token.dispatch("input");
+  assert.deepEqual(calls, ["[[Man2]]"], "окно цены получило имя без скобок");
+  token.dispatch("change");
+  const names = v.cfg.pkm.fields.links.fields.find((f: Any) => f.id === "project").values.map((x: Any) => x.token);
+  assert.ok(names.includes("Man2") && !names.includes("Man1"), "не переименовано в Man2 (скобки конфиг не хранит): " + names.join());
+  const again = one(all(v.host, "io-vals__row")[0] as StubNode, "io-valcell").children[0] as StubNode;
+  again.dispatch("focus");
+  again.dispatch("blur");
+  assert.equal(String(again.value), "[[Man2]]", "уход из поля не вернул скобки");
+  ok("Value-ссылка правится без скобок, уход из поля их возвращает");
+}
 
 /** Ячейка уровня у строки таблицы: стрелка одна, и она же читается. */
 const levelArrow = (row: StubNode): StubNode =>
@@ -3147,8 +3170,8 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   let answer: Any = "не звали";
   askNewFieldModal(FakeModal as never, {}, a => { answer = a; }, say, opts(true));
   const form = opened[0]!;
-  /* Tag по умолчанию: «?» у имени, Block и свойства YAML. */
-  assert.equal(walk(form, "io-help").length, 3, "у имени, Block и свойства YAML нового Field обязаны стоять «?»");
+  /* Tag по умолчанию: «?» у имени, Block, Values и свойства YAML (Values — его замечание к тесту 3 цикла 99). */
+  assert.equal(walk(form, "io-help").length, 4, "у имени, Block, Values и свойства YAML нового Field обязаны стоять «?»");
   askNewFieldModal(FakeModal as never, {}, () => {}, say, opts(false));
   assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
 
@@ -3163,6 +3186,21 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const addBtn = walk(form, "io-btn--cta")[0] as StubNode;
   assert.equal(addBtn.disabled, true, "без имени `Add Field` нажимается");
   const name = input("Name of the new Field");
+  /* Его замечания к тесту 3 цикла 99: имя обязательно — красная рамка; пустой
+     предпросмотр говорит `Field name` и `Value`, а не пример имени. */
+  assert.ok(name.classList.contains("io-text--needed"), "пустое имя без красной рамки");
+  assert.equal(String((name as unknown as { placeholder?: string }).placeholder ?? name.getAttribute("placeholder")), "Field name", "заглушка имени — не `Field name`");
+  const emptyText = (n: StubNode): string => n.children.map(c => String(c.textContent || "") + emptyText(c)).join("");
+  const [wheel0, line0] = walk(form, "io-nf__pline") as [StubNode, StubNode];
+  assert.equal(String((walk(wheel0, "io-wheelcell--active")[0] as StubNode).textContent), "[Field name]", "ячейка пустого tagWheel не `Field name`");
+  assert.ok(/Value/.test(emptyText(line0)) && !/Priority/.test(emptyText(line0)), "пустая строка предпросмотра не `Value`: " + emptyText(line0));
+  assert.ok(!line0.classList.contains("io-line--blockfill-left") && !line0.classList.contains("io-line--blockfill-right"), "у строки предпросмотра заливка Block");
+  const pcap = walk(form, "io-nf__pcap")[0] as StubNode;
+  const pbody = walk(form, "io-nf__pbody")[0] as StubNode;
+  pcap.click();
+  assert.ok(pbody.classList.contains("io-nf__pbody--closed") && pcap.getAttribute("aria-expanded") === "false", "щелчок по Preview не свернул его");
+  pcap.click();
+  assert.ok(!pbody.classList.contains("io-nf__pbody--closed"), "второй щелчок не развернул Preview");
   name.value = "status";
   name.dispatch("input");
   assert.equal(addBtn.disabled, true, "занятое имя пропущено");
@@ -3174,6 +3212,19 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   value.value = "calm";
   value.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
   assert.equal(walk(form, "io-nf__chip").length, 1, "Enter не добавил Value");
+  /* Порядок Values перетаскиванием за ручку (его замечание к тесту 3 цикла 99). */
+  const value2 = input("New Value");
+  value2.value = "busy";
+  value2.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+  const chips = walk(form, "io-nf__chip");
+  assert.equal(chips.length, 2, "второе Value не добавилось");
+  assert.ok(chips.every(c => c.children[0]!.classList.contains("io-grip")), "у фишки нет ручки перед цветами");
+  (chips[1]!.children[0] as StubNode).dispatch("dragstart", {});
+  chips[0]!.dispatch("drop", { preventDefault: () => {} });
+  assert.deepEqual(walk(form, "io-nf__chiptext").map(n => String(n.textContent)), ["#busy", "#calm"], "перетаскивание не сменило порядок");
+  (walk(form, "io-nf__chip")[1]!.children[0] as StubNode).dispatch("dragstart", {});
+  walk(form, "io-nf__chip")[0]!.dispatch("drop", { preventDefault: () => {} });
+  (walk(form, "io-nf__x")[1] as StubNode).click();
   /* Предпросмотр внизу (его замечание к тесту 3 цикла 98): две половины одной
      формы — в tagWheel на месте Field его имя и скроллер Values, в строке Value. */
   const text = (n: StubNode): string => n.children.map(c => String(c.textContent || "") + text(c)).join("");

@@ -3805,6 +3805,19 @@
 }
 .io-nf__pempty { color: var(--text-faint); font-style: italic; }
 .io-nf__pelem { color: var(--text-normal); }
+/* Подпись предпросмотра сворачивает его (его замечание к тесту 3 цикла 99). */
+.io-nf__pcap { cursor: pointer; user-select: none; }
+.io-nf__pcap::after { content: "▾"; margin-left: 6px; }
+.io-nf__pcap[aria-expanded="false"]::after { content: "▸"; }
+.io-nf__pbody--closed { display: none; }
+/* У Left ячейка стоит у края рамки: скроллер висит от её левого края, а не
+   от середины, иначе он вылезал за рамку предпросмотра (его снимки к тесту 3). */
+.io-nf .io-line__side--left .io-wheelpanel { left: 0; transform: none; }
+/* Фишки стоят в ряд: место броска — черта слева, а не сверху. */
+.io-nf .io-nf__chip.io-dragover { box-shadow: inset 2px 0 0 var(--interactive-accent); }
+.io-nf .io-nf__chip > .io-grip { margin-right: -2px; }
+/* Заголовок Value у Element — тем же шрифтом, что подписи контролов окна. */
+.io-nf .io-nf__sub { font-size: inherit; font-weight: inherit; }
 .io-nf__problem {
   margin-right: auto;
   align-self: center;

@@ -489,6 +489,23 @@ const SCENARIOS = {
     await host.press("input[aria-label=\"New Value\"]", "Enter");
     await type("New Value", "busy");
     await host.press("input[aria-label=\"New Value\"]", "Enter");
+    /* Порядок Values за ручку (тест 3 цикла 99): `busy` на место `calm` и обратно. */
+    await host.dragAndDrop(".io-nf__chip:nth-child(2) > .io-grip", ".io-nf__chip:nth-child(1)");
+    await host.waitForTimeout(300);
+    const dragged = await host.evaluate(() => [...document.querySelectorAll(".io-nf__chiptext")].map((n) => n.textContent));
+    await host.dragAndDrop(".io-nf__chip:nth-child(2) > .io-grip", ".io-nf__chip:nth-child(1)");
+    await host.waitForTimeout(300);
+    /* Скроллер у Left — внутри рамки предпросмотра; подпись Preview сворачивает. */
+    const inside = await host.evaluate(() => {
+      const p = document.querySelector(".io-nf__preview").getBoundingClientRect();
+      const w = document.querySelector(".io-nf .io-wheelpanel").getBoundingClientRect();
+      return w.left >= p.left && w.right <= p.right;
+    });
+    await host.click(".io-nf__pcap");
+    await host.waitForTimeout(150);
+    const folded = await host.evaluate(() => getComputedStyle(document.querySelector(".io-nf__pbody")).display === "none");
+    await host.click(".io-nf__pcap");
+    await host.waitForTimeout(150);
     /* Заливка и цвет текста у первого Value — точками в фишке (тест 3 цикла 98). */
     await host.evaluate(() => {
       const set = (sel, c) => { const d = document.querySelector(sel); d.value = c; d.dispatchEvent(new Event("input")); };
@@ -553,7 +570,7 @@ const SCENARIOS = {
         commands: Object.keys(window.app.commands.commands).filter((k) => /inline-overhaul:(mood|when)-/.test(k)),
       };
     });
-    Object.assign(got, { firstCursor, nextCursor, layout, suggested: suggested.slice(0, 5), chips, placeholder, mocOn });
+    Object.assign(got, { firstCursor, nextCursor, layout, suggested: suggested.slice(0, 5), chips, placeholder, mocOn, dragged, inside, folded });
     /* Конец дороги — строка: новая команда ставит первое Value в свой Block. */
     await host.keyboard.press("Escape").catch(() => {});
     got.line = await win.evaluate(async () => {
@@ -580,7 +597,8 @@ const SCENARIOS = {
       && got.moc && got.moc.client === false
       && !/\p{Extended_Pictographic}/u.test(String(got.placeholder || ""))
       && got.when && got.when.emoji === "⏰" && got.when.format === "YYYY-MM-DD HH:mm" && got.when.increment.mode === "command"
-      && got.commands.length >= 4 && got.line === "- #calm :: купить хлеб";
+      && got.commands.length >= 4 && got.line === "- #calm :: купить хлеб"
+      && got.dragged.join() === "#busy,#calm" && got.inside && got.folded;
     console.log(ok ? "ok: окно заводит Field с главным сразу" : "РАСХОДИТСЯ");
     return ok;
   },
@@ -610,7 +628,12 @@ const SCENARIOS = {
       const seen = await host.evaluate(() => [...document.querySelectorAll("input")].map((x) => x.getAttribute("aria-label")).filter((x) => /Value /.test(x || "")).slice(0, 12));
       throw new Error("нет поля Value Man1 у People; есть: " + JSON.stringify(seen));
     }
-    await host.click(sel, { clickCount: 3 });
+    /* В фокусе поле без скобок (его замечание к тесту 2 цикла 99). */
+    await host.click(sel);
+    await host.waitForTimeout(150);
+    const bare = await host.evaluate(() => document.activeElement && document.activeElement.value);
+    if (bare !== "Man1") { console.log("РАСХОДИТСЯ: в фокусе поле показывает " + JSON.stringify(bare) + ", а не Man1"); return false; }
+    await host.keyboard.press("Control+A");
     await host.keyboard.type("Man7", { delay: 60 });
     await host.waitForTimeout(500);
     const said = await host.evaluate(() => {

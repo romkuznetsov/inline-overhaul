@@ -20,6 +20,9 @@ import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import {
   renderFieldsEditor,
   FIELDS_HEIGHT_PATH,
+  isWrappedLink,
+  linkShownForEdit,
+  linkTokenOfTyped,
   type FieldsViewState,
   type NewField,
 } from "./fields_editor_view.ts";
@@ -208,8 +211,10 @@ function askLinkValueRenameModal(
       box.empty();
       box.addClass("io-dlg");
       const title = el(box, "h4", "io-dlg__title", "");
+      /* Скобки ссылки в поле окна не стоят — набор продолжается у имени (тест 2 цикла 99). */
+      const bare = isWrappedLink(oldToken);
       const input = box.createEl("input", {
-        cls: "io-text io-text--mono io-dlg__name", type: "text", value: name,
+        cls: "io-text io-text--mono io-dlg__name", type: "text", value: bare ? linkShownForEdit(name) : name,
         attr: { "aria-label": say("LINK_RENAME_NAME_ARIA", oldToken) },
       }) as unknown as El & { value: string; focus?: () => void; setSelectionRange?: (a: number, b: number) => void };
       const body = el(box, "div", "io-dlg__body");
@@ -248,7 +253,7 @@ function askLinkValueRenameModal(
           primary = "value";
         }
       };
-      input.addEventListener("input", (() => { name = String(input.value || ""); draw(); }) as never);
+      input.addEventListener("input", (() => { name = linkTokenOfTyped(String(input.value || ""), bare); draw(); }) as never);
       input.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
         if (!e || e.key !== "Enter") return;
         if (typeof e.preventDefault === "function") e.preventDefault();
@@ -260,7 +265,8 @@ function askLinkValueRenameModal(
       /* Фокус — в поле имени, каретка в конец: набор продолжается здесь. */
       const focusName = (): void => {
         if (typeof input.focus === "function") input.focus();
-        if (typeof input.setSelectionRange === "function") input.setSelectionRange(name.length, name.length);
+        const at = String(input.value || "").length;
+        if (typeof input.setSelectionRange === "function") input.setSelectionRange(at, at);
       };
       focusName();
       setTimeout(focusName, 0);

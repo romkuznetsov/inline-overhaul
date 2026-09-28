@@ -1717,10 +1717,30 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     /* Окно цены открыто с первой буквы — `change` от ухода фокуса в окно
        второй раз его не зовёт (его замечание к тесту 2 цикла 98). */
     let asking = false;
-    const revertName = (): void => { asking = false; token.value = v.token; };
+    /*
+     * Скобки ссылки на время правки уходят: в поле `Man1`, а не `[[Man1]]`, и
+     * уход из поля возвращает их (его замечание к тесту 2 цикла 99: «мне
+     * постоянно приходится водить курсором, чтобы не затереть эти кавычки»).
+     * Набранное со своими скобками берётся как есть.
+     */
+    const wrapped = isLink && isWrappedLink(v.token);
+    let bareShown = false;
+    const typedToken = (): string => linkTokenOfTyped(String(token.value || ""), bareShown);
+    token.addEventListener("focus", (() => {
+      if (!wrapped || bareShown || token.disabled) return;
+      bareShown = true;
+      token.value = linkShownForEdit(v.token);
+    }) as never);
+    token.addEventListener("blur", (() => {
+      if (!bareShown) return;
+      const full = typedToken();
+      bareShown = false;
+      token.value = full.trim() ? full : v.token;
+    }) as never);
+    const revertName = (): void => { asking = false; bareShown = false; token.value = v.token; };
     token.addEventListener("input", (() => {
       if (!o.enabled || !isLink || !o.askLinkValueRename || asking) return;
-      const next = String(token.value || "");
+      const next = typedToken();
       if (!next.trim() || next === v.token) return;
       /* Флаг — до зова: открытие окна снимает фокус с поля, и `change`
          приходит раньше, чем зов вернулся. */
@@ -1730,10 +1750,10 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     token.addEventListener("change", (() => {
       if (!o.enabled || asking) return;
       if (isLink && o.askLinkValueRename) {
-        o.askLinkValueRename(v.token, String(token.value || ""), applyName, revertName);
+        o.askLinkValueRename(v.token, typedToken(), applyName, revertName);
         return;
       }
-      applyName(String(token.value || ""));
+      applyName(typedToken());
     }) as never);
 
     /*
@@ -2175,6 +2195,19 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
  * Путь, на котором лежит высота таблицы Fields. Объявлен один раз: его
  * спрашивает вёрстка и его же пишет переключатель (У-32).
  */
+/*
+ * **Value-ссылка правится без скобок** (его замечание к тесту 2 цикла 99):
+ * в поле `Man1`, а не `[[Man1]]`, и уход из поля возвращает скобки. Одно
+ * правило на поле таблицы Values и на поле окна цены переименования.
+ * Набранное со своими скобками берётся как есть.
+ */
+export const isWrappedLink = (token: string): boolean => /^\[\[[\s\S]*\]\]$/.test(String(token || ""));
+export const linkShownForEdit = (token: string): string => (isWrappedLink(token) ? token.slice(2, -2) : token);
+export function linkTokenOfTyped(raw: string, bare: boolean): string {
+  if (!bare || !raw.trim() || /^\s*\[\[/.test(raw)) return raw;
+  return "[[" + raw.trim() + "]]";
+}
+
 export const FIELDS_HEIGHT_PATH = "ui.fieldsTableFixedHeight";
 
 /*
