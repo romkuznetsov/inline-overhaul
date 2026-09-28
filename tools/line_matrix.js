@@ -320,6 +320,24 @@ function casesFor(sep1, elementToken, material) {
     const withText = "- " + stuff.foreignLink + " текст " + sep1 + " #processed";
     out.push({ name: "ссылка Inline to note и текст", line: withText, ch: withText.length });
   }
+  /*
+   * **Value посреди текста — слово человека** (`В-235`, его ответ 2026-09-26 и
+   * 2026-09-28 «делать»). Все прежние формы держали значения поля в Block, и
+   * правило «посреди фразы значением не бывает» на них не спрашивалось ни разу
+   * (У-113). Отдельная половина обхода ниже сверяет такие строки со строкой, где
+   * на месте значения стоит обычное слово.
+   */
+  if (tags.length) {
+    const line = "- купить " + tags[0] + " молоко";
+    out.push({ name: "тег поля посреди текста", line: line, ch: line.length });
+    /* Контроль к ней: в конце строки значение — Block, как в начале. */
+    const tail = "- купить молоко " + tags[0];
+    out.push({ name: "тег поля в конце строки без разделителей", line: tail, ch: tail.length });
+  }
+  if (stuff.link) {
+    const line = "- встреча по " + stuff.link + " вчера";
+    out.push({ name: "ссылка поля посреди текста", line: line, ch: line.length });
+  }
   return out;
 }
 
@@ -341,6 +359,9 @@ function materialFor(rules) {
   const tags = [];
   const known = new Set();
   let link = "";
+  /* Первое Value каждого поля-тега и поля-ссылки — для половины «значение
+     посреди текста» (`В-235`). */
+  const midText = [];
   for (const f of fields) {
     if (!f || f.enabled === false) continue;
     if (String(f.dependsOn || "").trim()) continue;
@@ -353,10 +374,12 @@ function materialFor(rules) {
       if (t) known.add(t);
     }
     if (helpers.isWikilinkSourceField(f)) {
+      midText.push(token);
       if (!link) link = token;
       continue;
     }
     if (String(f.marker || "").trim()) continue;
+    midText.push(token);
     if (tags.length < 2) tags.push(token);
   }
   /*
@@ -369,7 +392,7 @@ function materialFor(rules) {
     const candidate = "[[333/заметка" + i + "]]";
     if (!known.has(candidate)) foreignLink = candidate;
   }
-  return { tags: tags, link: link, foreignLink: foreignLink };
+  return { tags: tags, link: link, foreignLink: foreignLink, midText: midText };
 }
 
 /*
@@ -644,10 +667,11 @@ async function main() {
   selfCheck(rules, cfg);
   /* Метка — из его правил, тем же объявлением, каким её берёт доводка;
      значение за ней пишет сам плагин по формату этого поля (см. ниже). */
+  const material = materialFor(rules);
   const CASES = casesFor(
     separatorsOf(cfg).sep1,
     elementTokenFor(cfg, rules),
-    materialFor(rules)
+    material
   );
 
   const order = cfg.pkm.fields.order;
@@ -1146,6 +1170,62 @@ async function main() {
     }
   }
 
+  /*
+   * **Value посреди текста — слово человека** (`В-235`). Свойство, а не
+   * эталон: строка, где посреди фразы стоит значение поля, обязана пройти
+   * команду и панель так же, как строка, где на том же месте обычное слово, —
+   * с точностью до этого слова. Значение не читается текущим, не уезжает в
+   * Block и не пропадает из фразы. Форм четыре: без разделителей, за левым
+   * Block, перед правым Block и ссылка; значения — первые Value каждого поля
+   * его конфига (У-182).
+   */
+  const WORD = "слово";
+  const sepsNow = separatorsOf(cfg);
+  const midForms = [];
+  const el = elementTokenFor(cfg, rules);
+  for (const t of material.midText) {
+    const other = material.midText.filter((x) => x !== t && !shared.isWikilinkToken(x))[0];
+    const shapes = [(w) => "- купить " + w + " молоко", (w) => "- встреча по " + w + " вчера"];
+    if (other) shapes.push((w) => "- " + other + " " + sepsNow.sep1 + " купить " + w + " молоко");
+    if (el) shapes.push((w) => "- купить " + w + " молоко " + sepsNow.sep2 + " " + el);
+    for (const make of shapes) midForms.push({ token: t, make });
+  }
+  let midBad = 0;
+  let midChecked = 0;
+  const midExpect = (out, token) => String(out).replace(WORD, token);
+  for (const key of fieldKeys) {
+    const def = defFor(key);
+    if (!def) continue;
+    for (const form of midForms) {
+      const withValue = form.make(form.token);
+      const withWord = form.make(WORD);
+      const problems = [];
+      midChecked++;
+      const a = await bench.runCommandById(cfg, def.id, withValue, withValue.length);
+      const b = await bench.runCommandById(cfg, def.id, withWord, withWord.length);
+      const maskA = isRandom(key) ? maskFrom(a.line, key) : dayMaskFrom(a.line, key);
+      const maskB = midExpect(isRandom(key) ? maskFrom(b.line, key) : dayMaskFrom(b.line, key), form.token);
+      if (maskA !== maskB) problems.push("команда : " + JSON.stringify(a.line) + ", ждали " + JSON.stringify(midExpect(b.line, form.token)));
+      const steps = await stepsTo(key, sideOf(key), withValue, withValue.length);
+      const stepsW = await stepsTo(key, sideOf(key), withWord, withWord.length);
+      if (steps !== null && stepsW !== null) {
+        const keysOf = (n) => { const k = []; for (let i = 0; i < n; i++) k.push("ArrowRight"); k.push("ArrowUp"); return k; };
+        const pa = await bench.runTagWheel(cfg, sideOf(key), withValue, withValue.length, keysOf(steps));
+        const pb = await bench.runTagWheel(cfg, sideOf(key), withWord, withWord.length, keysOf(stepsW));
+        const pA = isRandom(key) ? maskFrom(pa.line, key) : dayMaskFrom(pa.line, key);
+        const pB = midExpect(isRandom(key) ? maskFrom(pb.line, key) : dayMaskFrom(pb.line, key), form.token);
+        if (!pa.opened) problems.push("панель не открылась");
+        else if (pA !== pB) problems.push("панель  : " + JSON.stringify(pa.line) + ", ждали " + JSON.stringify(midExpect(pb.line, form.token)));
+      } else if ((steps === null) !== (stepsW === null)) {
+        problems.push("панель показывает поле на одной строке из двух");
+      }
+      if (!problems.length && !SHOW_ALL) continue;
+      if (problems.length) midBad++;
+      console.log((problems.length ? "РАЗОШЛОСЬ " : "ok  ") + "посреди текста: " + nameOf(key) + ", строка " + JSON.stringify(withValue));
+      for (const pr of problems) console.log("    " + pr);
+    }
+  }
+
   /* Запись, которой больше нечего описывать, снимается — иначе список
      перестаёт быть адресом и становится оправданием (У-127). */
   const stale = KNOWN.filter((k) => k.seen === 0);
@@ -1225,7 +1305,10 @@ async function main() {
     + (ringFields.length ? "" : "   <-- ни у одного дочернего поля нет `Show always`"));
   console.log("навигатор: строк " + navChecked + ", расходится " + navBad
     + (navPairs.length ? "" : "   <-- ни у одного дочернего поля нет `Parent is Navigator`"));
-  if (bad || subBad || ringBad || caretBad || navBad) process.exitCode = 1;
+  console.log("посреди текста: пар " + midChecked + ", расходится " + midBad
+    + (midForms.length ? "" : "   <-- в его настройках нет ни одного Value тега или ссылки"));
+  if (!midForms.length) process.exitCode = 1;
+  if (bad || subBad || ringBad || caretBad || navBad || midBad) process.exitCode = 1;
 }
 
 main().catch((e) => {

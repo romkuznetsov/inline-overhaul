@@ -2025,7 +2025,10 @@ async function testStatusTagsManagedTokenInsideTextKeepsTail() {
   const line = editor.snapshot().line;
   assertEq((line.match(/\btail\b/g) || []).length, 1, "text after a managed token must stay once");
   assertEq((line.match(/\b111\b/g) || []).length, 1, "text before a managed token must stay once");
-  assertTrue(/#area-alpha\s+\S+\s+111 tail\s*$/.test(line), "text around a managed token must land in the text slot in source order");
+  /* `В-235`, его слово 2026-09-26: Value посреди текста — слово человека. Прежде
+     здесь стояло «значение уходит в Block, текст — вокруг него»; теперь фраза
+     остаётся целой, а поле получает первое Value. */
+  assertTrue(/#area-alpha\s+\S+\s+111 #\/2 tail\s*$/.test(line), "a managed token between words stays in the text slot in source order: " + line);
 }
 
 /*

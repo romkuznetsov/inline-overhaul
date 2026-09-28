@@ -558,6 +558,19 @@ function selectTokenByPanelOrder(options) {
   var tokenFacts = Array.isArray(opts.tokenFacts) ? opts.tokenFacts : [];
   if (!tokenMap.length) return null;
 
+  /*
+   * **Значение поля стоит в Block, а посреди текста — слово человека**
+   * (`В-235`, его ответ 2026-09-26 и «делать» 2026-09-28). Зоны строки знает
+   * разбор (`splitSegments`); граф токенов делит строку только по разделителям
+   * и на строке без них относит к левому Block всю фразу — `- купить #todo
+   * молоко` читалось как «у Type стоит `#todo`». Через этот вопрос идут все
+   * дороги: команды тегов и элементов, перестановка по Order и панель.
+   */
+  var zones = splitSegments(line, rules);
+  var inBlock = function(tok) {
+    return getLastTokenMatchIndex(zones.left, tok) >= 0 || getLastTokenMatchIndex(zones.dates, tok) >= 0;
+  };
+
   if (tokenFacts.length) {
     var panelRank = panel === "right"
       ? { right: 0, text: 1, left: 2 }
@@ -573,6 +586,7 @@ function selectTokenByPanelOrder(options) {
         var fact = tokenFacts[fi];
         var raw = String(fact && fact.raw || "").trim();
         if (!raw || raw !== tokenFact) continue;
+        if (!inBlock(raw)) continue;
         var factPanel = String(fact && fact.panel || "").trim() || "text";
         var rank = Object.prototype.hasOwnProperty.call(panelRank, factPanel) ? panelRank[factPanel] : 9;
         var pos = Number(fact && fact.position || -1);
@@ -590,10 +604,10 @@ function selectTokenByPanelOrder(options) {
     if (bestFactHit && bestFactHit.id) return bestFactHit;
   }
 
-  var seg = splitSegments(line, rules);
+  var seg = zones;
   var orderedSegments = panel === "right"
-    ? [String(seg.dates || ""), String(seg.text || ""), String(seg.left || "")]
-    : [String(seg.left || ""), String(seg.dates || ""), String(seg.text || "")];
+    ? [String(seg.dates || ""), String(seg.left || "")]
+    : [String(seg.left || ""), String(seg.dates || "")];
 
   var si;
   for (si = 0; si < orderedSegments.length; si++) {

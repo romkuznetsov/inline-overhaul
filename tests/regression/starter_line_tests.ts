@@ -134,6 +134,43 @@ async function main(): Promise<void> {
     passed++;
     console.log("  ok В-248 чекбокс из Prefix у Value-ссылки встаёт в строку");
   }
+  /* F2, `В-235`: Value посреди текста — слово человека. Не читается текущим
+     значением, не уезжает в Block, не копируется туда полем другого Field и
+     не пропадает из фразы — ни командой, ни панелью. Стартовый набор, а не его
+     конфиг: у него значения записаны так, что разбор строки их посреди текста
+     не узнавал, и правка разбора на нём не видна. */
+  await cmd("project-next", "- встреча по [[Project A]] вчера", "- встреча по [[Project A]] вчера || [[Project A]]", undefined, "F2.a ссылка посреди текста на месте, поле пустое");
+  await cmd("status-next", "- купить #todo молоко", "- #todo || купить #todo молоко", undefined, "F2.b тег посреди текста на месте, поле пустое");
+  await cmd("priority-next", "- купить #todo молоко", "- #low || купить #todo молоко", undefined, "F2.c значение другого Field из фразы в Block не копируется");
+  await cmd("status-next", "- встреча по [[Project A]] вчера", "- #todo || встреча по [[Project A]] вчера", undefined, "F2.d ссылка из фразы в правый Block не дописывается");
+  await cmd("status-next", "- #low || купить #todo молоко", "- #todo #low || купить #todo молоко", undefined, "F2.e тег в зоне текста за левым Block");
+  await cmd("project-next", "- #todo || встреча по [[Project A]] вчера", "- #todo || встреча по [[Project A]] вчера || [[Project A]]", undefined, "F2.f ссылка в зоне текста за левым Block");
+  /* Отрицательный контроль: значения, стоящие подряд в начале строки, — Block. */
+  await cmd("status-next", "- #todo купить молоко", "- #doing || купить молоко", undefined, "F2 контроль: тег в начале строки — значение поля");
+  await cmd("status-next", "- #todo #low купить молоко", "- #doing #low || купить молоко", undefined, "F2 контроль: значения подряд в начале — Block");
+  {
+    const p = await bench.runTagWheel(cfg, "left", "- купить #todo молоко", 21, ["ArrowUp"]);
+    assert.ok(p.opened, "F2 панель не открылась");
+    assert.equal(p.line, "- #todo || купить #todo молоко", "F2.g панель: тег посреди текста");
+    const r = await bench.runTagWheel(cfg, "right", "- встреча по [[Project A]] вчера", 32, ["ArrowUp"]);
+    assert.ok(r.opened, "F2 панель справа не открылась");
+    assert.ok(r.line.startsWith("- встреча по [[Project A]] вчера || "), "F2.h панель справа: ссылка ушла из фразы: " + JSON.stringify(r.line));
+    assert.ok(!r.line.slice(r.line.indexOf("||")).includes("[[Project A]]"), "F2.h панель справа дописала ссылку из фразы: " + JSON.stringify(r.line));
+    passed += 3;
+    console.log("  ok F2.g, F2.h панель не трогает значение посреди текста");
+  }
+  /* T5: Transform на строке без разделителей — Value посреди текста остаётся
+     в имени и значением не заявляется; дата и тег в конце, как прежде, — нет. */
+  {
+    const transform = require("../../src/features/transform_feature.js");
+    const t5 = transform.parseInlineLine("- встреча по [[Project A]] и [[Другое]] вчера", cfg);
+    assert.equal(t5.payloadText, "встреча по [[Project A]] и [[Другое]] вчера", "T5 Value-ссылка выпала из текста");
+    assert.ok(t5.wikilinkOccurrences.every((o: Any) => o.panel === "payload"), "T5 ссылка посреди текста заявлена значением");
+    assert.equal(transform.parseInlineLine("- встреча 📅 2026-09-30", cfg).payloadText, "встреча", "F9.t дата в конце вошла в имя");
+    assert.equal(transform.parseInlineLine("- купить молоко #todo", cfg).payloadText, "купить молоко", "T5 контроль: тег в конце — значение");
+    passed += 4;
+    console.log("  ok T5 Transform: Value посреди текста — в имени, в конце — нет");
+  }
   console.log(passed + " проверок");
 }
 

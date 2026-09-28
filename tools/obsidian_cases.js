@@ -127,6 +127,9 @@ module.exports = [
   /* T — Transform: `Inline to note` включён (в чистом vault он выключен). */
   tr("T6", "Скобки ссылки не попадают в имя файла", "- #todo || встреча с [[Другое]] сегодня", [1],
     "встреча с Другое сегодня.md"),
+  /* `В-235`: Value посреди текста — слово человека, и из имени оно не выпадает. */
+  tr("T5", "Value-ссылка посреди текста остаётся в имени заметки", "- встреча по [[Project A]] и [[Другое]] вчера", [1],
+    "встреча по Project A и Другое вчера.md"),
   tr("T24", "Повторный Transform дописывает в ту же заметку, скобки не вкладываются", "- #todo || повтор", [1, 2],
     "повтор.md", "!a.vault.getFiles().some((f) => /\\[\\[|-01/.test(f.name)) && !/\\[\\[\\[\\[/.test(line)"),
   /* Его ответ `В-243`: дата с пробелом после знака — значение, а не часть имени заметки.
@@ -201,6 +204,14 @@ module.exports = [
   { mine: true, id: "M16.link", title: "В-248: Prefix [x] у Value ссылки встаёт в строку", files: { "m16l.md": "- звонок\n" },
     cfg: { pkm: { prefixRules: { checkboxByFieldValue: { People: { "[[Man1]]": "[x]" } } } } },
     at: { file: "m16l.md", line: 0 }, steps: ["people-next"], expect: { "m16l.md": "- [x] [[Man1]] :: звонок\n" } },
+  /* Тесты 1–3 цикла 103, `В-235`: Value посреди текста — слово человека. */
+  { mine: true, id: "M17", title: "Тег посреди фразы остаётся на месте", files: { "m17.md": "- купить #todo молоко\n" },
+    at: { file: "m17.md", line: 0 }, steps: ["type-next"], expect: { "m17.md": "- #todo :: купить #todo молоко\n" } },
+  { mine: true, id: "M18", title: "Ссылка посреди фразы остаётся на месте", files: { "m18.md": "- встреча по [[Man1]] вчера\n" },
+    at: { file: "m18.md", line: 0 }, steps: ["people-next"], expect: { "m18.md": "- [[Man1]] :: встреча по [[Man1]] вчера\n" } },
+  { mine: true, id: "M19", title: "Панель не стирает тег из фразы", files: { "m19.md": "- купить #todo молоко\n" },
+    at: { file: "m19.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowUp" }, { key: "Enter" }],
+    expect: { "m19.md": "- [[Man1]] :: купить #todo молоко\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },

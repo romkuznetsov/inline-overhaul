@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🐛 **A tag or link in the middle of your text stays your word.** Field commands and tagWheel no longer read `- buy #todo milk` as a Value of the Field, copy it into a Block or remove it from the sentence; `Inline to note` keeps it in the note name. Values at the start and at the end of the line are still Values.
+
 ## 0.11.0
 
 _2026-09-28 · [all changes since 0.10.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.10.0...0.11.0)_

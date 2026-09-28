@@ -169,7 +169,10 @@ function fieldsShape(rules) {
   }
   /* Признак собирается один раз на разбор строки, а не на токен: он обходит все
      поля, а от токена не зависит. */
-  return { markers: markers, values: values, isLink: __helpers.makeWikilinkValueTest(rules) };
+  /* `managed` — Values тегов в обеих записях, с решёткой и без (`В-235`):
+     `values` склеивает приставку и Value, заведённое панелью с решёткой, и
+     даёт `##high`. */
+  return { markers: markers, values: values, managed: collectManagedTokens(rules), isLink: __helpers.makeWikilinkValueTest(rules) };
 }
 
 /** Есть ли в теле хоть одно значение Field. */
@@ -363,17 +366,39 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
    * уходило в левый сегмент, панель Left дописывала `#random` в свой Block
    * вторым экземпляром, а команда Right рвала текст на `купить #random` и
    * `хлеб`. Ответ теперь тот же, что у исходного текста строки: значения,
-   * стоящие подряд в начале, — Block, с первого слова текста — текст, и из
-   * текста в Block уходят только значения Field. Чужой тег посреди текста
-   * остаётся текстом.
+   * стоящие подряд в начале, — Block, с первого слова текста — текст.
+   *
+   * **И значение Field посреди текста — тоже слово человека** (`В-235`, его
+   * ответ 2026-09-26, «делать» 2026-09-28). Здесь значения Field уходили из
+   * текста в Block, и `- купить #todo молоко` становилось `- #doing || купить
+   * молоко`: фраза теряла слово. Значение без приставки (голое слово из списка
+   * Values) в начале по-прежнему Block — его узнаёт только список.
+   *
+   * **Посреди — значит между словами.** Теги и ссылки-Value подряд в **конце**
+   * строки — тоже Block, как в прежней сборке. Значения элементов в конце
+   * остаются, где были: их Block решает своя перестановка, и дата, взятая
+   * сюда, вставала в левый Block (`- #todo 📅26-09-30 :: встреча`).
    */
-  const rest = stripLeadingValues(parts.body, shape.markers);
-  const words = __sharedUtils.lineWords(rest);
-  const text = words.filter(function(t) { return !shape.values.has(t); });
-  if (!text.length) return null;
-  const head = parts.body.slice(0, parts.body.length - rest.length).trim();
-  const own = words.filter(function(t) { return shape.values.has(t); });
-  return { left: joinLeftPrefix(parts.prefix, [head].concat(own).filter(Boolean).join(" ")), text: text.join(" ") };
+  const words = __sharedUtils.lineWords(parts.body);
+  let rest = parts.body;
+  for (;;) {
+    const w = __sharedUtils.lineWords(stripLeadingValues(rest, shape.markers));
+    let k = 0;
+    while (k < w.length && shape.values.has(w[k])) k++;
+    const next = w.slice(k).join(" ");
+    if (next === rest) break;
+    rest = next;
+  }
+  if (!rest) return null;
+  const head = words.slice(0, words.length - __sharedUtils.lineWords(rest).length).join(" ");
+  const tail = __sharedUtils.lineWords(rest);
+  let cut = tail.length;
+  const isEdgeValue = function(t) {
+    return shape.managed.has(t) || shape.isLink(t) || shape.values.has(t);
+  };
+  while (cut > 1 && isEdgeValue(tail[cut - 1])) cut--;
+  const trailing = tail.slice(cut).join(" ");
+  return { left: joinLeftPrefix(parts.prefix, [head, trailing].filter(Boolean).join(" ")), text: tail.slice(0, cut).join(" ") };
 }
 
 function splitSegments(rawLine, rules) {
@@ -1223,7 +1248,11 @@ function relocateTokenSetByPanel(options) {
   var seg = splitSegments(line, rules);
   var leftParts = splitLeftPrefix(seg.left);
   var leftBody = stripTokens(leftParts.body, allTokens);
-  var text = stripTokens(seg.text, allTokens);
+  /* Посреди текста значение поля — слово человека (`В-235`), и из фразы оно не
+     снимается. Кроме режима, где своё значение плагин сам пишет в текст
+     (`rightToText`): там в тексте стоит прежнее наше, и его место занимает
+     новое. */
+  var text = rightToText ? stripTokens(seg.text, allTokens) : String(seg.text || "").trim();
   var dates = stripTokens(seg.dates, allTokens);
 
   /*

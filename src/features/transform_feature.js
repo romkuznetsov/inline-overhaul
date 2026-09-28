@@ -994,7 +994,12 @@ function parseInlineLine(rawLine, cfg) {
   const singleSeparator = firstSeparator >= 0 && secondSeparator < 0;
   let singleIsSecond = false;
   let homeText = null;
-  if (firstSeparator >= 0) {
+  /* Строка без разделителей тоже спрашивает дом (`В-235`): значения подряд в
+     начале — Block, дальше — текст, и Value посреди него — слово человека. Без
+     этого все её значения считались значениями где угодно и выпадали из имени
+     заметки (T5). Текст дом отделяет только у строки со знаком начала;
+     нет его — остаётся прежний разбор. */
+  {
     try {
       const rules = getRulesShapeModule().buildRulesForEngines(cfg);
       const seg = __linePipeline.splitSegments(line, rules);
@@ -1005,9 +1010,22 @@ function parseInlineLine(rawLine, cfg) {
          позиционный разбор, как было. Это проба, и ответ «нет» — ответ. */
       homeText = null;
     }
+    if (firstSeparator < 0 && !String(homeText || "").trim()) homeText = null;
   }
-  const panelForSpan = (start) => {
-    if (firstSeparator < 0) return "any";
+  /* Где на строке без разделителей стоит текст. Тег и ссылка внутри него —
+     слово человека; всё остальное, как прежде, значение где угодно. Значения
+     элементов разбор посреди текста не отделяет, и для них ответ прежний. */
+  const plainText = (() => {
+    if (firstSeparator >= 0 || homeText === null) return null;
+    const ws = __sharedUtils.lineWords(homeText);
+    const m = new RegExp("(^|\\s)(" + ws.map(__sharedUtils.escapeRe).join("\\s+") + ")(?=\\s|$)").exec(line);
+    return m ? { start: m.index + m[1].length, end: m.index + m[1].length + m[2].length } : null;
+  })();
+  const panelForSpan = (start, element) => {
+    if (firstSeparator < 0) {
+      if (!plainText || element) return "any";
+      return start >= plainText.start && start < plainText.end ? "payload" : "any";
+    }
     if (singleIsSecond) {
       if (start >= firstSeparator + separators.separator1.length) return "right";
       return String(homeText || "").trim() ? "payload" : "left";
@@ -1054,7 +1072,7 @@ function parseInlineLine(rawLine, cfg) {
       if (value) {
         const span = { start: m.index, end: m.index + String(m[0] || "").length };
         emojis.push({ marker, value });
-        emojiOccurrences.push({ marker, value, ...span, panel: panelForSpan(span.start) });
+        emojiOccurrences.push({ marker, value, ...span, panel: panelForSpan(span.start, true) });
       }
     }
   }
@@ -1074,7 +1092,9 @@ function parseInlineLine(rawLine, cfg) {
    */
   const payloadTextRaw = homeText === null
     ? extractPrimaryPayloadText(line, separators)
-    : homeText;
+    : (plainText && markerPattern
+      ? homeText.replace(new RegExp(markerPattern, "g"), " ").replace(/\s+/g, " ").trim()
+      : homeText);
   /* Форма ссылки — общий дом; сверено с ним, расхождений ноль (10.13.141). */
   let textCore = line
     .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")

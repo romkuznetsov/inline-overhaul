@@ -57,6 +57,14 @@ function prepare(name) {
     fs.cpSync(path.join(SRC_VAULT, ".obsidian"), path.join(vault, ".obsidian"),
       { recursive: true, filter: (p) => !/[\\/]workspace(-mobile)?\.json$/.test(p) });
     seedNotes(vault);
+    /* Сборка — из `dist`, а не та, что лежит у него: без этого стенд мерил
+       плагин, поставленный последним `install:test`, и 2026-09-28 объявил
+       зелёным то, чего в той сборке ещё не было. */
+    const plug = path.join(vault, ".obsidian", "plugins", "inline-overhaul");
+    for (const f of ["main.js", "styles.css", "manifest.json"]) {
+      const from = path.join(ROOT, "dist", f);
+      if (fs.existsSync(from)) fs.copyFileSync(from, path.join(plug, f));
+    }
   }
   /* `IO_MAIN=<файл>` — другая сборка плагина в копии vault (контроль стенда
      подменённой сборкой); его `test-vault` не трогается. */

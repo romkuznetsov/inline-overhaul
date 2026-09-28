@@ -520,8 +520,11 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
    * `В-211`, его ответ «чинить в следующем цикле» (10.13.265). Одно значение
    * где угодно объявляло зоной значений всю строку без разделителей: панель
    * Left дописывала посторонний тег копией в свой Block, команда Right рвала
-   * текст. Теперь значения подряд в начале — Block, дальше текст, и из текста
-   * в Block уходят только значения Field.
+   * текст. Теперь значения подряд в начале — Block, дальше текст.
+   *
+   * `В-235` (его слово 2026-09-26, «делать» 2026-09-28): значение Field
+   * **посреди** текста — тоже слово человека; прежде оно уходило в Block. В
+   * конце строки значения Field — Block, как в начале.
    */
   const withValue: Any = JSON.parse(JSON.stringify(rules));
   withValue.leftMode.fields[0].values = [{ id: "high", token: "high" }];
@@ -534,8 +537,12 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
     "посторонний тег посреди текста уехал из текста");
   assert.deepEqual(seg("- #random купить хлеб", withValue), ["- #random", "купить хлеб", ""],
     "тег в начале строки — Block, как и прежде");
-  assert.deepEqual(seg("- купить #high хлеб", withValue), ["- #high", "купить хлеб", ""],
-    "значение Field посреди текста — значение, а не текст");
+  assert.deepEqual(seg("- купить #high хлеб", withValue), ["-", "купить #high хлеб", ""],
+    "значение Field посреди текста — слово человека (В-235)");
+  assert.deepEqual(seg("- купить хлеб #high", withValue), ["- #high", "купить хлеб", ""],
+    "значение Field в конце строки — Block");
+  assert.deepEqual(seg("- купить хлеб #random", withValue), ["-", "купить хлеб #random", ""],
+    "посторонний тег в конце строки — текст");
   assert.deepEqual(seg("- #random", withValue), ["- #random", "", ""],
     "строка из одних значений разбирается как прежде");
   assert.deepEqual(seg("купить #random хлеб", withValue), ["купить #random хлеб", "", ""],
