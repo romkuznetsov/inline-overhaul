@@ -668,10 +668,28 @@ const SCENARIOS = {
       return a.top >= c.bottom - 1;
     });
     await host.keyboard.press("Escape").catch(() => {});
-    const got = { suggested: suggested.slice(0, 5), values, pfx, checkbox, stacked };
+    /* Конец дороги — строка: `People next` доходит до нового Value, а у `Man1` встаёт чекбокс. */
+    const lines = await win.evaluate(async () => {
+      const a = window.app;
+      a.setting.close();
+      const run = async (name, text) => {
+        const f = await a.vault.create(name, text + "\n");
+        await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 500));
+        const e = a.workspace.activeEditor.editor;
+        e.setCursor({ line: 0, ch: e.getLine(0).length });
+        a.commands.executeCommandById("inline-overhaul:people-next");
+        await new Promise((r) => setTimeout(r, 500));
+        return e.getLine(0);
+      };
+      return { next: await run("vx1.md", "- [[Woman1]] :: звонок"), box: await run("vx2.md", "- звонок") };
+    });
+    const got = { suggested: suggested.slice(0, 5), values, pfx, checkbox, stacked, lines };
     console.log(JSON.stringify(got));
     const ok = got.suggested.includes("vx-note") && got.values.includes("vx-note")
-      && got.pfx && got.pfx.items > 20 && got.pfx.boxes > 20 && got.pfx.looks > 1 && got.stacked;
+      && got.pfx && got.pfx.items > 20 && got.pfx.boxes > 20 && got.pfx.looks > 1 && got.stacked
+      /* `lines.box` печатается, но не спрашивается: чекбокс Value-ссылки движок не ставит и в 0.10.0 (В-248). */
+      && got.lines.next === "- [[vx-note]] :: звонок";
     console.log(ok ? "ok: подсказка заметок, выбиралка Prefix, строка добавления под фишками" : "РАСХОДИТСЯ");
     return ok;
   },

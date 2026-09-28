@@ -194,6 +194,10 @@ module.exports = [
   /* Тест Smart bracket цикла 100: выделенное слово в квадратных скобках. */
   { mine: true, id: "M15", title: "Smart bracket: выделенное слово — в одинарные скобки", files: { "m15.md": "- слово\n" },
     at: { file: "m15.md", line: 0, sel: "слово" }, steps: ["smart-bracket"], expect: { "m15.md": "- [слово]\n" } },
+  /* Чекбокс Value (выбиралка Prefix цикла 101). У Value-ссылки чекбокс движок не ставит и в 0.10.0 — вопрос В-248. */
+  { mine: true, id: "M16", title: "Prefix [x] у Value тега встаёт в строку", files: { "m16.md": "- задача\n" },
+    cfg: { pkm: { prefixRules: { checkboxByFieldValue: { Type: { "#todo": "[x]" } } } } },
+    at: { file: "m16.md", line: 0 }, steps: ["type-next"], expect: { "m16.md": "- [x] #todo :: задача\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },
