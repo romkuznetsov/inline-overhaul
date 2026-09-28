@@ -402,6 +402,8 @@ function makeDefaultPkmOrder() {
     subNavigator: {},
     /* `YAML of navigator values` (PRD 10.13.272): ключ — дочерний Field. */
     yamlNavigator: {},
+    /* Link как MOC (его замечание к тесту 3 цикла 98): `false` — нет. */
+    useAsMoc: {},
     types: {},
     labels: {},
     strictNames: {},
@@ -558,7 +560,7 @@ function normalizePkmOrder(rawOrder) {
    * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
    * `left`/`right` нет нарочно.
    */
-  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator"]) {
+  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc"]) {
     if (!isObj(rawOrder[mapKey])) continue;
     for (const k of orderKeys) {
       if (typeof rawOrder[mapKey][k] !== "boolean") continue;

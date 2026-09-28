@@ -387,6 +387,30 @@ async function run() {
       "навигатор-тег — не заметка");
     ok("Link to Navigator: On пишет и в навигатора, у двух — в оба; Off — как прежде");
 
+    /* `Use as MOC: No` — его замечание к тесту 3 цикла 98: заметки такого Link
+       ссылок не получают и при включённых обратных ссылках. Карта идёт через
+       `migrateConfig` — тем же путём, что у панели. */
+    const noMoc = (keys) => {
+      const raw = config();
+      raw.pkm.fields.order.useAsMoc = Object.fromEntries(keys.map((k) => [k, false]));
+      return configNormalize.migrateConfig(raw);
+    };
+    const offChild = noMoc(["Clients_sub"]);
+    assert.deepEqual(offChild.pkm.fields.order.useAsMoc, { Clients_sub: false }, "карта MOC не пережила нормализацию");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(offChild, line), offChild, i2n(true)), ["AK"],
+      "ребёнок не MOC — его заметка без ссылки, навигатор получает");
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(offChild, line), offChild, i2n(false)), [],
+      "ребёнок не MOC, навигатор выключен — ссылок нет");
+    const offParent = noMoc(["Clients"]);
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(offParent, line), offParent, i2n(true)), ["client1"],
+      "родитель не MOC — заметка навигатора без ссылки");
+    /* Отрицательный контроль: `true` в карте — как нет ключа. */
+    const onRaw = config();
+    onRaw.pkm.fields.order.useAsMoc = { Clients_sub: true };
+    const on = configNormalize.migrateConfig(onRaw);
+    assert.deepEqual(transform.backlinkTargetsWithNavigators(ctxOf(on, line), on, i2n(true)), ["client1", "AK"], "Yes — как прежде");
+    ok("Use as MOC: No снимает ссылки в заметки этого Link, у ребёнка и у навигатора");
+
     /* `YAML of navigator values`. */
     const withYaml = (on) => {
       const raw = config();

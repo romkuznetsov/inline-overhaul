@@ -123,9 +123,14 @@ const inScrim = (cls) => 'const found = []; const go = n => { if (String(n.class
 check('тип — три карточки, Tag выбран',
   run('(() => { ' + inScrim("io-nf__type") + ' return found.length + ":" + found.filter(n => String(n.className).includes("io-nf__type--on")).map(n => n.children[1]._text).join(); })()'),
   '3:Tag');
-check('окно спрашивает имя и Block',
+/* Свойство YAML — у каждого типа (его замечание к тесту 3 цикла 98). */
+check('окно спрашивает имя, Block и свойство YAML',
   run('(() => { ' + inScrim("io-item__name") + ' return found.map(n => n._text).join(","); })()'),
-  'Name,Block');
+  'Name,Block,YAML property');
+/* Предпросмотр внизу, рядом с кнопками, двумя половинами. */
+check('предпросмотр внизу: tagWheel и строка',
+  run('(() => { ' + inScrim("io-nf__pane") + ' return found.length; })()'),
+  '2');
 const addInScrim = '(() => { let b = null; const go = n => { if (String(n._text) === "Add Field") b = n; n.children.forEach(go); }; go(' + scrim + '[0]); return b; })()';
 check('пока имя пустое, Add Field выключена', run('(() => { const b = ' + addInScrim + '; return b ? b.disabled : "кнопки нет"; })()'), 'true');
 

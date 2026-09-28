@@ -43,7 +43,7 @@ import { escapeScope } from "./char_picker.ts";
 import { renderNewFieldForm } from "./new_field_dialog.ts";
 
 /** То немногое от vault Obsidian, что спрашивает окно `Add a Field`. */
-interface VaultFile { path: string; parent?: { path: string } | null; children?: unknown[] }
+interface VaultFile { path: string }
 interface VaultLike { getAllLoadedFiles?: () => VaultFile[] }
 
 const deepState = deepStateModule as unknown as DeepState;
@@ -91,7 +91,7 @@ interface ModalCtor {
 /**
  * Окно «Add a Field» — главное сразу и живой предпросмотр (его заказ
  * 2026-09-27). Форма — `new_field_dialog.ts`; здесь окно платформы и то, что
- * форма спрашивает у vault: заметки, папки, есть ли заметка у Value.
+ * форма спрашивает у vault: заметки и есть ли заметка у Value.
  */
 export function askNewFieldModal(
   Modal: ModalCtor,
@@ -125,11 +125,7 @@ export function askNewFieldModal(
         say, ctx: o.ctx, showTips: o.showTips, showIds: o.showIds, blocks: o.blocks, checkName: o.checkName,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
         notes: () => files().filter(f => /\.md$/i.test(f.path)).map(f => f.path),
-        folders: () => files().filter(f => Array.isArray(f.children) && f.path && f.path !== "/").map(f => f.path),
         noteExists: t => !!(cache && typeof cache.getFirstLinkpathDest === "function" && cache.getFirstLinkpathDest(t, "")),
-        folderNotes: folder => files()
-          .filter(f => /\.md$/i.test(f.path) && f.parent && f.parent.path === folder)
-          .map(f => f.path.replace(/\.md$/i, "")),
         done: answer => { finish(answer); this.close(); },
       });
     }

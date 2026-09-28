@@ -489,27 +489,52 @@ const SCENARIOS = {
     await host.press("input[aria-label=\"New Value\"]", "Enter");
     await type("New Value", "busy");
     await host.press("input[aria-label=\"New Value\"]", "Enter");
-    await host.evaluate(() => { const d = document.querySelector(".io-nf__dot"); d.value = "#44aa66"; d.dispatchEvent(new Event("input")); });
+    /* Заливка и цвет текста у первого Value — точками в фишке (тест 3 цикла 98). */
+    await host.evaluate(() => {
+      const set = (sel, c) => { const d = document.querySelector(sel); d.value = c; d.dispatchEvent(new Event("input")); };
+      set(".io-nf__dot--fill", "#44aa66");
+      set(".io-nf__dot--text", "#112233");
+    });
+    await type("YAML property for mood", "mood");
     await host.waitForTimeout(200);
+    /* Курсор скроллера шагает сам: два снимка предпросмотра через шаг различаются. */
+    const cursorAt = () => host.evaluate(() => { const n = document.querySelector(".io-nf .io-wheelval--on"); return n ? n.textContent : null; });
+    const firstCursor = await cursorAt();
+    await host.waitForTimeout(1600);
+    const nextCursor = await cursorAt();
+    const layout = await host.evaluate(() => {
+      const box = (sel) => { const n = document.querySelector(sel); if (!n) return null; const r = n.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
+      return { preview: box(".io-nf__preview"), body: box(".io-nf__body"), add: box(".io-nf .io-btn--cta"), modal: box(".modal:has(.io-nf)") };
+    });
     await shot("tag");
     await host.click(".io-nf .io-btn--cta");
     await host.waitForTimeout(800);
-    /* Link — только снимок. */
+    /* Link: заметка из подсказки платформы — щелчком, и `Use as MOC: No`. Заметка
+       свободная: `Man1` уже Value у `People`, а одно Value двум Field не принадлежит. */
     await openForm();
     await card(2);
     await type("Name of the new Field", "client");
-    await type("New Value", "Man7");
-    await host.press("input[aria-label=\"New Value\"]", "Enter");
-    await type("New Value", "Acme");
-    await host.press("input[aria-label=\"New Value\"]", "Enter");
+    await host.click("input[aria-label=\"New Value\"]");
+    await host.keyboard.type("test", { delay: 40 });
+    await host.waitForTimeout(500);
+    const suggested = await host.evaluate(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].map((n) => n.textContent));
+    const hit = (await host.$$(".suggestion-container .suggestion-item")).length
+      ? await host.evaluateHandle(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].find((n) => n.textContent.trim() === "testing"))
+      : null;
+    if (hit && (await hit.evaluate((n) => !!n))) { await hit.asElement().click(); await host.waitForTimeout(400); }
+    const chips = await host.evaluate(() => [...document.querySelectorAll(".io-nf__chiptext")].map((n) => n.textContent));
+    const no = await host.evaluate(() => { const b = [...document.querySelectorAll(".io-nf .io-seg__btn")].find((n) => n.textContent.trim() === "No"); if (!b) return null; b.scrollIntoView({ block: "center" }); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    if (no) { await host.mouse.click(no.x, no.y); await host.waitForTimeout(400); }
+    const mocOn = await host.evaluate(() => { const b = [...document.querySelectorAll(".io-nf .io-seg__btn--on")].map((n) => n.textContent.trim()); return b; });
     await shot("link");
-    await host.keyboard.press("Escape");
-    await host.waitForTimeout(400);
-    /* Element. */
+    await host.click(".io-nf .io-btn--cta");
+    await host.waitForTimeout(800);
+    /* Element: дата и время, момент нажатия. */
     await openForm();
     await card(3);
     await type("Name of the new Field", "when");
     await type("Emoji of the new Field", "⏰");
+    const placeholder = await host.evaluate(() => document.querySelector("input[aria-label=\"Emoji of the new Field\"]").getAttribute("placeholder"));
     await clickIn(host, "Date and time");
     await shot("element");
     await host.click(".io-nf .io-btn--cta");
@@ -521,10 +546,14 @@ const SCENARIOS = {
         left: cfg.pkm.fields.order.left.includes("mood"),
         values: f ? f.values.map((v) => (v && v.token) || v) : null,
         color: cfg.visual.tags.byTag.mood,
+        property: cfg.pkm.fields.order.propertiesByField.mood,
+        moc: cfg.pkm.fields.order.useAsMoc,
+        client: (cfg.pkm.fields.links.fields.find((x) => x.id === "client") || { values: [] }).values.map((v) => (v && v.token) || v),
         when: cfg.pkm.fields.elements.byField.when,
         commands: Object.keys(window.app.commands.commands).filter((k) => /inline-overhaul:(mood|when)-/.test(k)),
       };
     });
+    Object.assign(got, { firstCursor, nextCursor, layout, suggested: suggested.slice(0, 5), chips, placeholder, mocOn });
     /* Конец дороги — строка: новая команда ставит первое Value в свой Block. */
     await host.keyboard.press("Escape").catch(() => {});
     got.line = await win.evaluate(async () => {
@@ -539,9 +568,17 @@ const SCENARIOS = {
       await new Promise((r) => setTimeout(r, 500));
       return e.getLine(0);
     });
-    console.log(JSON.stringify(got));
+    console.log(JSON.stringify(got, null, 1));
+    const colors = JSON.stringify(got.color || {});
     const ok = got.left && got.values && got.values.join() === "#calm,#busy"
-      && JSON.stringify(got.color || {}).includes("#44aa66")
+      && colors.includes("#44aa66") && colors.includes("#112233") && got.property === "mood"
+      && got.firstCursor && got.nextCursor && got.firstCursor !== got.nextCursor
+      /* Предпросмотр внизу и виден: кнопки под ним, оба внутри окна. */
+      && got.layout.preview && got.layout.add && got.layout.modal && got.layout.add.top >= got.layout.preview.bottom
+      && got.layout.add.bottom <= got.layout.modal.bottom + 1
+      && got.suggested.length > 0 && got.chips.includes("[[testing]]") && got.client.includes("testing")
+      && got.moc && got.moc.client === false
+      && !/\p{Extended_Pictographic}/u.test(String(got.placeholder || ""))
       && got.when && got.when.emoji === "⏰" && got.when.format === "YYYY-MM-DD HH:mm" && got.when.increment.mode === "command"
       && got.commands.length >= 4 && got.line === "- #calm :: купить хлеб";
     console.log(ok ? "ok: окно заводит Field с главным сразу" : "РАСХОДИТСЯ");

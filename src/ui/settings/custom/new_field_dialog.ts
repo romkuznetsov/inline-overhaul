@@ -4,18 +4,26 @@
  * ключевые настройки… в этой форме должен быть live preview… как будет
  * выглядеть field в tagwheel панели и в строке»).
  *
- * Что считается главным — по одному вопросу на тип, остальное остаётся
- * тонкой настройкой правой колонки редактора:
- * - **Tag** — Values, каждое со своим цветом;
- * - **Link** — Values-заметки: подсказка из vault, отметка «заметка есть» и
- *   «все заметки папки» одной кнопкой — то, чего у тега нет;
- * - **Element** — знак, вид значения (дата, дата и время, время, счётчик,
- *   список) и его формат.
- * Всем трём — имя и Block: прежде новый Field вставал только в правый.
+ * **Цикл 98, его замечания к тесту 3** (2026-09-28) переложили окно:
+ * - предпросмотр — **внизу, рядом с кнопками**, и в нём две половины рядом:
+ *   tagWheel (имя Field — постоянная ячейка, под ней скроллер со всеми Values,
+ *   по которому сам ходит курсор, как командой `next`) и строка, где Value
+ *   меняется вместе с курсором. Строка одной формы в обеих половинах: его
+ *   разделители и место по Block, у custom block — внутри текста;
+ * - у **Tag** — цвет заливки и цвет текста, у **Link** — одна строка
+ *   добавления с подсказкой заметок vault (подсказку рисует платформа) и
+ *   `Use as MOC`; «все заметки папки» снято — он не понял, зачем оно;
+ * - у **Element** — знак (заглушка нейтральна: `📅` в поле читался как уже
+ *   выбранный), вид значения `Date and time` / `Counter` / `Random`, у даты —
+ *   что показывать (дата, время, оба) и что делает нажатие (шаг или момент),
+ *   и шаг. «List» прежнего окна писал шаги-числа, а предпросмотр показывал их
+ *   словами — снят до режима списка у Element (его пункт в «Новое пишите
+ *   сюда», отдельная работа);
+ * - у всех — свойство YAML (`io-field-yaml-property` правой колонки).
  *
  * Здесь только вёрстка и черновик: запись — `configureNewField` модели, окно
  * платформы — `fields_editor.ts`. Вёрстка рисуется на заглушке DOM, поэтому
- * платформа приходит швами (`notes`, `noteExists`, `folderNotes`).
+ * платформа приходит швами (`noteExists`, `ctx.platform`).
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
@@ -25,10 +33,10 @@ import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink } from "./previews.ts";
 import { attachPicker } from "./char_picker.ts";
 import { toHexColor } from "./contrast.ts";
+import { propertyPicker, vaultProperties } from "./yaml_property.ts";
 import sharedUtils from "../../../core/shared_utils.js";
 
 type Say = (name: string, ...args: readonly (string | number)[]) => string;
-type Preset = NonNullable<NewFieldSetup["element"]>["preset"];
 
 /** Ответ окна: то, что заводит `addField`, и то, что донастраивает модель. */
 export interface NewFieldAnswer {
@@ -49,21 +57,21 @@ export interface NewFieldFormOpts {
   checkName: (name: string) => string;
   /** Пути заметок vault для подсказки Link; нет платформы — пусто. */
   notes?: () => readonly string[];
-  folders?: () => readonly string[];
   noteExists?: (target: string) => boolean;
-  /** Адреса заметок папки (путь без `.md`), прямые дети. */
-  folderNotes?: (folder: string) => readonly string[];
   holdKeys?: (onEscape: () => void) => () => void;
   done: (answer: NewFieldAnswer | null) => void;
 }
 
-/** Вид значения Element: формат и то, чем шагает команда. Порядок — порядок кнопок. */
-export const ELEMENT_PRESETS: ReadonlyArray<{ id: Preset; name: string; format: string }> = [
-  { id: "date", name: "NF_PRESET_DATE", format: "YYYY-MM-DD" },
-  { id: "datetime", name: "NF_PRESET_DATETIME", format: "YYYY-MM-DD HH:mm" },
-  { id: "time", name: "NF_PRESET_TIME", format: "HH:mm" },
-  { id: "counter", name: "NF_PRESET_COUNTER", format: "1" },
-  { id: "list", name: "NF_PRESET_LIST", format: "" },
+/** Что пишет Element. */
+export type ElementValue = "datetime" | "counter" | "random";
+/** Что показывает дата. */
+export type DateShows = "date" | "time" | "datetime";
+
+/** Формат по тому, что показывает дата. Порядок — порядок кнопок. */
+export const DATE_SHOWS: ReadonlyArray<{ id: DateShows; name: string; format: string }> = [
+  { id: "date", name: "NF_SHOWS_DATE", format: "YYYY-MM-DD" },
+  { id: "time", name: "NF_SHOWS_TIME", format: "HH:mm" },
+  { id: "datetime", name: "NF_SHOWS_BOTH", format: "YYYY-MM-DD HH:mm" },
 ];
 
 const TYPES: ReadonlyArray<{ kind: FieldKind; name: string; desc: string }> = [
@@ -79,18 +87,29 @@ export interface NewFieldDraft {
   side: FieldSide;
   /** Block выбран руками — смена типа его больше не трогает. */
   sideChosen: boolean;
-  values: Array<{ token: string; fill?: string }>;
+  values: Array<{ token: string; fill?: string; text?: string }>;
   marker: string;
-  preset: Preset;
+  value: ElementValue;
+  shows: DateShows;
+  /** Нажатие у даты: шаг от сегодня или момент нажатия. */
+  press: "step" | "now";
+  step: number;
+  random: "randomN" | "randomE";
   format: string;
-  customRaw: string;
+  /** Link: писать ли ссылки на новые заметки в заметки его Values. */
+  moc: boolean;
+  property: string;
 }
 
 /** Block по умолчанию: тег слева, ссылка и Element справа — как у стартового набора. */
 const defaultSide = (kind: FieldKind): FieldSide => (kind === "tag" ? "left" : "right");
 
 export function freshDraft(): NewFieldDraft {
-  return { kind: "tag", name: "", side: "left", sideChosen: false, values: [], marker: "", preset: "date", format: "YYYY-MM-DD", customRaw: "" };
+  return {
+    kind: "tag", name: "", side: "left", sideChosen: false, values: [], marker: "",
+    value: "datetime", shows: "date", press: "step", step: 1, random: "randomN", format: "YYYY-MM-DD",
+    moc: true, property: "",
+  };
 }
 
 /** Адрес Value так, как его пишет строка: без решётки и без скобок ссылки. */
@@ -100,125 +119,188 @@ function bare(token: string, kind: FieldKind): string {
   return sharedUtils.wikilinkTargetOf(t) || t;
 }
 
-/** Готово ли к `Add`: имя, знак Element и шаги списка — без них Field не работает. */
+/** Готово ли к `Add`: имя и знак Element — без них Field не работает. */
 export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string, say: Say): string {
   if (!d.name.trim()) return say("NF_NEED_NAME");
   const bad = checkName(d.name);
   if (bad) return bad;
   if (d.kind === "element" && !d.marker.trim()) return say("NF_NEED_EMOJI");
-  if (d.kind === "element" && d.preset === "list" && !d.customRaw.split("\n").some(s => s.trim())) return say("NF_NEED_STEPS");
   return "";
 }
+
+/** Шаг нажатия: целое от единицы. */
+const stepOf = (d: NewFieldDraft): number => Math.max(1, Math.trunc(Number(d.step) || 1));
 
 /** Ответ окна из черновика. */
 export function answerOf(d: NewFieldDraft): NewFieldAnswer {
   const setup: NewFieldSetup = { side: d.side };
   if (d.kind === "element") {
-    setup.element = { preset: d.preset, format: d.preset === "list" ? "" : d.format, customRaw: d.customRaw };
+    const format = d.format.trim() || (d.value === "counter" ? "1" : d.value === "random" ? "0000" : "YYYY-MM-DD");
+    setup.element = d.value === "random"
+      ? { mode: "command", command: d.random, format }
+      : d.value === "datetime" && d.press === "now"
+        ? { mode: "command", command: "now", format }
+        : { mode: "increment", incrementBy: stepOf(d), format };
   } else if (d.values.length) {
-    setup.values = d.values.map(v => (v.fill ? { token: v.token, fill: v.fill } : { token: v.token }));
+    setup.values = d.values.map(v => {
+      const out: { token: string; fill?: string; text?: string } = { token: v.token };
+      if (v.fill) out.fill = v.fill;
+      if (v.text) out.text = v.text;
+      return out;
+    });
   }
+  if (d.kind === "wikilink" && !d.moc) setup.moc = false;
+  if (d.property.trim()) setup.property = d.property.trim();
   const out: NewFieldAnswer = { name: d.name.trim(), kind: d.kind, setup };
   if (d.kind === "element") out.marker = d.marker.trim();
   return out;
 }
 
-/* ---- значение Element для предпросмотра --------------------------------- */
-
-/** Шаг Element на `n` от сейчас: дата — дни, время — минуты, счётчик — единицы, список — шаги. */
-function elementAt(d: NewFieldDraft, n: number, now: Date): string {
-  if (d.preset === "list") {
-    const steps = d.customRaw.split("\n").map(s => s.trim()).filter(Boolean);
-    if (!steps.length) return "";
-    return steps[((n % steps.length) + steps.length) % steps.length] as string;
-  }
-  if (d.preset === "counter") {
-    const width = /^\d+$/.test(d.format) ? d.format.length : 1;
-    const start = /^\d+$/.test(d.format) ? Number(d.format) : 1;
-    return String(Math.max(0, start + n)).padStart(width, "0");
-  }
-  const at = new Date(now.getTime());
-  if (d.preset === "date") at.setDate(at.getDate() + n);
-  else at.setMinutes(at.getMinutes() + n);
-  return String(sharedUtils.formatDateByMask(at, d.format || "YYYY-MM-DD"));
-}
+/* ---- значения для предпросмотра ----------------------------------------- */
 
 /**
- * **Предпросмотр: панель tagWheel и строка.** Классы и переменные — те же, что
- * у предпросмотров панели (`io-wheel*`, `io-line`, `applyTagVars`): вид берётся
- * из ваших настроек оформления, а не рисуется вторым правилом (У-32).
- * `now` — снаружи: проверка задаёт своё время (правило 76).
+ * Единица шага даты — самая мелкая в формате, как у движка: `mm` — минуты,
+ * `HH` — часы, `DD` — дни. Регистр различает минуты и месяц.
  */
-export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, now: Date): void {
+function unitOf(format: string): "minute" | "hour" | "day" | "month" | "year" {
+  if (/mm/.test(format)) return "minute";
+  if (/HH/.test(format)) return "hour";
+  if (/DD/.test(format)) return "day";
+  if (/MM/.test(format)) return "month";
+  return "year";
+}
+
+function addUnit(now: Date, unit: ReturnType<typeof unitOf>, n: number): Date {
+  const at = new Date(now.getTime());
+  if (unit === "minute") at.setMinutes(at.getMinutes() + n);
+  else if (unit === "hour") at.setHours(at.getHours() + n);
+  else if (unit === "day") at.setDate(at.getDate() + n);
+  else if (unit === "month") at.setMonth(at.getMonth() + n);
+  else at.setFullYear(at.getFullYear() + n);
+  return at;
+}
+
+/** Описание шага по единице формата: ключ каталога литералом, его спрашивает сторож. */
+const STEP_DESC: Record<ReturnType<typeof unitOf>, string> = {
+  minute: "NF_STEP_DESC_MINUTE", hour: "NF_STEP_DESC_HOUR", day: "NF_STEP_DESC_DAY",
+  month: "NF_STEP_DESC_MONTH", year: "NF_STEP_DESC_YEAR",
+};
+
+/** Сколько значений Element показывает скроллер: сегодня и четыре шага вперёд. */
+const SERIES = 5;
+
+/**
+ * Values Field так, как их увидит скроллер: у Tag и Link — его список, у
+ * Element — ряд шагов от сегодня (у момента нажатия он один, у случайного —
+ * три примера). `now` — снаружи: проверка задаёт своё время (правило 76).
+ */
+export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string; fill?: string; color?: string }> {
+  if (d.kind === "tag") return d.values.map(v => ({ text: "#" + bare(v.token, "tag"), ...(v.fill ? { fill: v.fill } : {}), ...(v.text ? { color: v.text } : {}) }));
+  if (d.kind === "wikilink") return d.values.map(v => ({ text: "[[" + bare(v.token, "wikilink") + "]]" }));
+  const fmt = d.format.trim();
+  if (d.value === "random") {
+    return [0, 1, 2].map(() => ({ text: d.marker + String(sharedUtils.renderCommandValueByFormat(fmt || "0000", d.random, now)) }));
+  }
+  if (d.value === "counter") {
+    const digits = /^\d+$/.test(fmt) ? fmt : "1";
+    return Array.from({ length: SERIES }, (_, k) => ({
+      text: d.marker + String(Number(digits) + k * stepOf(d)).padStart(digits.length, "0"),
+    }));
+  }
+  const mask = fmt || "YYYY-MM-DD";
+  if (d.press === "now") return [{ text: d.marker + String(sharedUtils.formatDateByMask(now, mask)) }];
+  const unit = unitOf(mask);
+  return Array.from({ length: SERIES }, (_, k) => ({
+    text: d.marker + String(sharedUtils.formatDateByMask(addUnit(now, unit, k * stepOf(d)), mask)),
+  }));
+}
+
+/** Сколько строк скроллера видно разом: окно вокруг курсора, как у настоящего. */
+const WHEEL_WINDOW = 5;
+
+/**
+ * **Предпросмотр: tagWheel и строка рядом** (его замечание к тесту 3 цикла
+ * 98). В обеих половинах строка одной формы — `имя :: lorem ipsum` у Left,
+ * `lorem ipsum :: имя` у Right, Field внутри текста у custom block, — и
+ * разделители его. Слева на месте Field стоит ячейка с его именем, под ней
+ * скроллер со всеми Values; справа на том же месте — Value, на котором стоит
+ * курсор скроллера. `at` — номер этого Value: окно двигает его само.
+ *
+ * Классы и переменные — предпросмотров панели (`io-wheel*`, `io-line`,
+ * `applyTagVars`): вид берётся из его настроек оформления (У-32).
+ */
+export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, now: Date, at = 0,
+  values: ReadonlyArray<{ text: string; fill?: string; color?: string }> = previewValues(d, now)): void {
   host.empty();
   const name = d.name.trim() || say("NEW_FIELD_NAME_HINT");
-  /* «Дата и время» и «Время» пишут момент нажатия: соседей у них нет. */
-  const moment = d.kind === "element" && (d.preset === "datetime" || d.preset === "time");
-  const values = d.kind === "element"
-    ? (moment ? [0] : [-1, 0, 1]).map(n => d.marker + elementAt(d, n, now))
-    : d.values.map(v => (d.kind === "tag" ? "#" + bare(v.token, "tag") : "[[" + bare(v.token, "wikilink") + "]]"));
-  /* Панель пишет у ссылки имя заметки, а не её скобки: в ячейке `[Acme]`, не `[[[Acme]]]`. */
-  const inWheel = (v: string): string => (d.kind === "wikilink" ? bare(v, "wikilink").split("/").pop() || v : v);
-  /* У Element круг — вчера, сегодня, завтра; у Values — список по кругу. */
-  const at = d.kind === "element" && !moment ? 1 : 0;
-  const cur = values.length ? (values[at] as string) : "";
-  const up = values.length > 1 ? [values[(at + 1) % values.length] as string] : [];
-  const down = values.length > 2 || (d.kind === "element" && !moment) ? [values[(at - 1 + values.length) % values.length] as string] : [];
-  const left = d.side === "left";
+  const n = values.length;
+  const cur = n ? values[((at % n) + n) % n] : undefined;
   const custom = String(d.side).startsWith("custom:");
+  const left = d.side === "left";
   const sep1 = String(ctx.get("pkm.lineFormat.separator1") ?? "");
   const sep2 = String(ctx.get("pkm.lineFormat.separator2") ?? "");
   const sample = say("NF_SAMPLE_TEXT");
 
-  /* tagWheel: ячейка этого Field активна, скроллер показывает соседей. */
-  const wheelRow = el(host, "div", "io-nf__prow");
-  el(wheelRow, "div", "io-nf__plabel", "tagWheel");
-  const stage = el(wheelRow, "div", "io-wheelstage io-nf__pstage");
-  cssVar(stage, "--io-wheel-up", up.length ? "39px" : "0px");
-  cssVar(stage, "--io-wheel-down", down.length ? "39px" : "0px");
-  const wline = el(stage, "div", "io-line io-line--wheel");
-  applyTagVars(wline, ctx, { blockFill: false, plainSize: true });
-  const wside = el(wline, "span", "io-line__side io-wheelline " + (left ? "io-line__side--left" : "io-line__side--right"));
-  const col = el(wside, "span", "io-wheelcol");
-  el(col, "span", "io-wheelcell io-wheelcell--active", "[" + (cur ? inWheel(cur) : name) + "]");
-  const box = (list: readonly string[], where: string): void => {
-    if (!list.length) return;
-    const p = el(col, "span", "io-wheelpanel io-wheelpanel--" + where);
-    for (const v of list) el(p, "span", "io-wheelval", inWheel(v));
-  };
-  box(up, "up");
-  box(down, "down");
-
-  /* Строка: Value встаёт в свой Block, ваши разделители — ваши. */
-  const lineRow = el(host, "div", "io-nf__prow");
-  el(lineRow, "div", "io-nf__plabel", say("NF_PREVIEW_LINE"));
-  const line = el(lineRow, "div", "io-line io-nf__pline");
-  applyTagVars(line, ctx);
-  el(line, "span", "io-line__prefix", "- ");
-  const drawValue = (parent: El): void => {
-    if (!cur) { el(parent, "span", "io-nf__pempty", name); return; }
-    if (d.kind === "tag") {
-      const first = d.values[0];
-      bubble(parent, { token: bare(cur, "tag"), fill: (first && first.fill) || "", shown: "value", depth: 0 });
-    } else if (d.kind === "wikilink") drawWrittenLink(parent, cur);
-    else el(parent, "span", "io-nf__pelem", cur);
-  };
-  if (custom) {
-    const words = sample.split(" ");
-    el(line, "span", "io-line__text", words[0] || "");
-    drawValue(el(line, "span", "io-line__side io-line__side--right"));
-    el(line, "span", "io-line__text", words.slice(1).join(" "));
-    return;
-  }
-  if (left) {
-    drawValue(el(line, "span", "io-line__side io-line__side--left"));
-    el(line, "span", "io-line__sep", sep1);
+  /* Строка одной формы: `slot` рисует то, что стоит на месте Field. */
+  const shape = (line: El, slot: (side: El) => void): void => {
+    if (custom) {
+      const words = sample.split(" ");
+      el(line, "span", "io-line__text", (words[0] || "") + " ");
+      slot(el(line, "span", "io-line__side io-line__side--right"));
+      el(line, "span", "io-line__text", " " + words.slice(1).join(" "));
+      return;
+    }
+    if (left) {
+      slot(el(line, "span", "io-line__side io-line__side--left"));
+      el(line, "span", "io-line__sep", sep1);
+      el(line, "span", "io-line__text", sample);
+      return;
+    }
     el(line, "span", "io-line__text", sample);
-    return;
-  }
-  el(line, "span", "io-line__text", sample);
-  el(line, "span", "io-line__sep", sep2);
-  drawValue(el(line, "span", "io-line__side io-line__side--right"));
+    el(line, "span", "io-line__sep", sep2);
+    slot(el(line, "span", "io-line__side io-line__side--right"));
+  };
+
+  /* tagWheel: ячейка — имя Field, скроллер — все его Values, курсор на `cur`. */
+  const wheelPane = el(host, "div", "io-nf__pane io-nf__pane--wheel");
+  el(wheelPane, "div", "io-nf__plabel", "tagWheel");
+  const shown = Math.min(n, WHEEL_WINDOW);
+  cssVar(wheelPane, "--io-nf-rows", String(Math.max(1, shown)));
+  const wline = el(wheelPane, "div", "io-line io-line--wheel io-nf__pline");
+  applyTagVars(wline, ctx, { blockFill: false, plainSize: true });
+  const activeText = String(ctx.get("visual.tagWheel.activeTextColor") ?? "");
+  const scrollFill = String(ctx.get("visual.tagWheel.scroller.fillColor") ?? "");
+  const scrollText = String(ctx.get("visual.tagWheel.scroller.textColor") ?? "");
+  shape(wline, side => {
+    side.addClass("io-wheelline");
+    const col = el(side, "span", "io-wheelcol");
+    const cell = el(col, "span", "io-wheelcell io-wheelcell--active", "[" + name + "]");
+    if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+    const panel = el(col, "span", "io-wheelpanel io-wheelpanel--down");
+    if (scrollFill) cssVar(panel, "--io-wheel-bg", scrollFill);
+    if (scrollText) cssVar(panel, "--io-wheel-fg", scrollText);
+    if (!n) { el(panel, "span", "io-wheelval io-nf__pempty", say("NF_PREVIEW_NO_VALUES")); return; }
+    const pos = ((at % n) + n) % n;
+    const from = Math.max(0, Math.min(pos - Math.floor(WHEEL_WINDOW / 2), n - WHEEL_WINDOW));
+    for (let i = from; i < from + shown; i++) {
+      const v = values[i] as { text: string };
+      const text = d.kind === "wikilink" ? (bare(v.text, "wikilink").split("/").pop() || v.text) : v.text;
+      el(panel, "span", "io-wheelval" + (i === pos ? " io-wheelval--on" : ""), text);
+    }
+  });
+
+  /* Строка: на месте Field — Value под курсором, в своих цветах. */
+  const linePane = el(host, "div", "io-nf__pane");
+  el(linePane, "div", "io-nf__plabel", say("NF_PREVIEW_LINE"));
+  const line = el(linePane, "div", "io-line io-nf__pline");
+  applyTagVars(line, ctx);
+  shape(line, side => {
+    if (!cur) { el(side, "span", "io-nf__pempty", name); return; }
+    if (d.kind === "tag") {
+      bubble(side, { token: bare(cur.text, "tag"), fill: cur.fill || "", ...(cur.color ? { text: cur.color } : {}), shown: "value", depth: 0 });
+    } else if (d.kind === "wikilink") drawWrittenLink(side, cur.text);
+    else el(side, "span", "io-nf__pelem", cur.text);
+  });
 }
 
 /* ---- вёрстка окна -------------------------------------------------------- */
@@ -248,9 +330,16 @@ function segmented(host: El, options: ReadonlyArray<{ value: string; label: stri
   }
 }
 
+/** Как часто курсор скроллера шагает сам. */
+const TICK_MS = 1400;
+
+/** Подсказка платформы в том виде, в каком она нужна полю заметок. */
+interface NoteSuggest { setValue(v: string): void; close(): void; limit: number }
+type NoteSuggestCtor = new (app: unknown, input: unknown) => NoteSuggest;
+
 /**
- * Нарисовать форму в `box`. Возвращает уборку: подсказки и выбиралка знака
- * обязаны уйти вместе с окном.
+ * Нарисовать форму в `box`. Возвращает уборку: подсказки, выбиралка знака и
+ * шаг скроллера обязаны уйти вместе с окном.
  */
 export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date = () => new Date()): () => void {
   const say = o.say;
@@ -258,36 +347,54 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   let closers: Array<() => void> = [];
   const closeAll = (): void => { closers.forEach(fn => fn()); closers = []; };
   let finished = false;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  const stopTimer = (): void => { if (timer !== null) { clearInterval(timer); timer = null; } };
   const finish = (answer: NewFieldAnswer | null): void => {
     if (finished) return;
     finished = true;
+    stopTimer();
     o.done(answer);
   };
 
   box.empty();
   box.addClass("io-dlg", "io-nf");
   el(box, "h4", "io-dlg__title", say("NEW_FIELD_TITLE"));
-  /* Две колонки: форма и предпросмотр рядом — картинка видна, пока
-     заполняется форма; на узком окне колонки встают одна под другую. */
-  const layout = el(box, "div", "io-nf__layout");
-  const body = el(layout, "div", "io-nf__body");
-  const side = el(layout, "div", "io-nf__side");
-  const previewBox = el(side, "div", "io-preview io-nf__preview");
+  const body = el(box, "div", "io-nf__body");
+  /* Низ окна: предпросмотр во всю ширину, под ним кнопки — его слово «должен
+     быть внизу, на уровне с кнопками Add field». */
+  const bottom = el(box, "div", "io-nf__bottom");
+  const previewBox = el(bottom, "div", "io-preview io-nf__preview");
   const previewCap = el(previewBox, "div", "io-preview__cap");
   el(previewCap, "span", undefined, say("NF_PREVIEW"));
   const preview = el(previewBox, "div", "io-nf__pbody");
-  const foot = el(box, "div", "io-dlg__foot");
+  const foot = el(bottom, "div", "io-dlg__foot io-nf__foot");
   const problem = el(foot, "span", "io-nf__problem");
   const cancel = btn(foot, "io-btn", { text: say("CANCEL") });
   const add = btn(foot, "io-btn io-btn--cta", { text: say("NEW_FIELD_ADD") }) as ElButton;
 
+  /* Курсор скроллера: шагает сам, пока окно открыто. Ряд значений считается
+     на правке, а не на шаге — у `Random` иначе примеры менялись бы на ходу. */
+  let tick = 0;
+  let series = previewValues(d, now());
+  const paint = (): void => drawNewFieldPreview(preview, o.ctx, d, say, now(), tick, series);
   const refresh = (): void => {
-    drawNewFieldPreview(preview, o.ctx, d, say, now());
+    series = previewValues(d, now());
+    paint();
     const why = draftProblem(d, o.checkName, say);
     add.disabled = !!why;
     /* Ошибку имени видно сразу — но не пустоту, пока человек ещё не начал. */
     problem.textContent = d.name.trim() ? why : "";
   };
+  const g = globalThis as { matchMedia?: (q: string) => { matches: boolean } };
+  /* Проба: `matchMedia` может не быть; «нет» — ответ, и тогда курсор шагает. */
+  const still = typeof g.matchMedia === "function" && g.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!still) {
+    timer = setInterval(() => { tick += 1; if (series.length > 1) paint(); }, TICK_MS);
+    /* В Node шаг не держит процесс: окно на заглушке рисуют проверки. */
+    const t = timer as unknown as { unref?: () => void };
+    if (typeof t.unref === "function") t.unref();
+  }
+
   const confirm = (): void => {
     if (draftProblem(d, o.checkName, say)) return;
     finish(answerOf(d));
@@ -314,6 +421,8 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
 
   /* Поле имени живёт через перерисовку тела: смена типа не должна уносить набранное. */
   let nameInput: ElInput | null = null;
+  const platform = o.ctx.platform;
+  const app = platform ? (platform.plugin as { app?: unknown } | undefined)?.app : undefined;
 
   const draw = (): void => {
     closeAll();
@@ -337,6 +446,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
         if (d.kind === t.kind) return;
         d.kind = t.kind;
         d.values = [];
+        tick = 0;
         if (!d.sideChosen) d.side = defaultSide(t.kind);
         draw();
       });
@@ -360,6 +470,19 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
 
     el(body, "div", "io-sub io-nf__sub", say(d.kind === "element" ? "NF_VALUE_HEAD" : "NF_VALUES_HEAD"));
     if (d.kind === "element") drawElement(); else drawValues();
+
+    /* Свойство YAML — у каждого типа (его замечание к тесту 3 цикла 98). */
+    const yaml = item(body, "YAML_HEAD", "YAML_DESC", "YAML_HEAD_TIP");
+    propertyPicker(yaml, {
+      value: d.property,
+      label: d.name.trim() || say("NEW_FIELD_NAME_HINT"),
+      placeholder: say("YAML_HINT"),
+      say,
+      props: vaultProperties(app),
+      suggest: platform && platform.AbstractInputSuggest ? { ctor: platform.AbstractInputSuggest, app } : undefined,
+      enabled: true,
+      write: v => { d.property = String(v || ""); },
+    });
     refresh();
   };
 
@@ -369,16 +492,28 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     const theme = themePair(box);
     d.values.forEach((v, i) => {
       const chip = el(chips, "span", "io-nf__chip");
+      /* Цвет заливки и цвет текста — двумя точками в самой фишке (его
+         замечание: «рядом цвет текста, по аналогии минималистично»), и имя
+         в фишке рисуется этими цветами; пока свой не выбран — цвет темы. */
+      let label: El | null = null;
+      const paintChip = (): void => {
+        if (!label) return;
+        cssVar(label, "--io-nf-chip-bg", v.fill || "transparent");
+        cssVar(label, "--io-nf-chip-fg", v.text || "inherit");
+      };
       if (!isLink) {
-        /* Цвет Value — точкой в самой фишке: цвет темы, пока не выбран свой. */
-        const dot = chip.createEl("input", {
-          cls: "io-nf__dot", type: "color",
-          value: v.fill || toHexColor(theme.fill) || toHexColor(theme.text),
-          attr: { "aria-label": say("NF_VALUE_COLOR", v.token) },
-        }) as ElInput;
-        dot.addEventListener("input", (() => { v.fill = dot.value; refresh(); }) as never);
+        const dot = (cls: string, aria: string, chosen: string | undefined, theme: string, set: (c: string) => void): void => {
+          const node = chip.createEl("input", {
+            cls: "io-nf__dot " + cls + (chosen ? "" : " io-nf__dot--unset"), type: "color", value: chosen || theme,
+            attr: { "aria-label": aria, title: aria },
+          }) as ElInput;
+          node.addEventListener("input", (() => { set(node.value); node.classList.remove("io-nf__dot--unset"); paintChip(); refresh(); }) as never);
+        };
+        dot("io-nf__dot--fill", say("NF_VALUE_COLOR", v.token), v.fill, toHexColor(theme.fill) || toHexColor(theme.text), c => { v.fill = c; });
+        dot("io-nf__dot--text", say("NF_VALUE_TEXT_COLOR", v.token), v.text, toHexColor(theme.text), c => { v.text = c; });
       }
-      el(chip, "span", "io-nf__chiptext", isLink ? "[[" + bare(v.token, "wikilink") + "]]" : "#" + bare(v.token, "tag"));
+      label = el(chip, "span", "io-nf__chiptext" + (isLink ? "" : " io-nf__chiptext--tag"), isLink ? "[[" + bare(v.token, "wikilink") + "]]" : "#" + bare(v.token, "tag"));
+      paintChip();
       if (isLink && o.noteExists) {
         const has = o.noteExists(bare(v.token, "wikilink"));
         el(chip, "span", "io-nf__note" + (has ? " io-nf__note--has" : ""), say(has ? "NF_NOTE_HAS" : "NF_NOTE_NONE"));
@@ -392,14 +527,6 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     const input = textInput(addRow, "io-text io-text--mono", {
       value: "", placeholder: say(isLink ? "NEW_VALUE_LINK_HINT" : "NEW_VALUE_TAG_HINT"), label: say("NF_VALUE_ARIA"),
     });
-    /* Подсказка заметок — встроенная `datalist` браузера, а не своя выпадашка. */
-    if (isLink && o.notes) {
-      const list = el(addRow, "datalist", undefined);
-      list.setAttribute("id", "io-nf-notes");
-      /* ponytail: первые 3000 заметок — дальше подсказку всё равно не листают. */
-      for (const p of o.notes().slice(0, 3000)) list.createEl("option", { value: p.replace(/\.md$/i, "") });
-      input.setAttribute("list", "io-nf-notes");
-    }
     const push = (raw: string): boolean => {
       const t = String(raw || "").trim();
       if (!t) return false;
@@ -414,21 +541,49 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       addOne();
     }) as never);
     btn(addRow, "io-btn io-btn--sm", { text: say("ADD_VALUE") }).addEventListener("click", addOne as never);
+    /* После выбора из подсказки фокус в поле не возвращается: платформа
+       открыла бы список снова поверх формы (стенд `new-field`, снимок). */
+    if (isLink) attachNoteSuggest(input, t => { if (push(t)) draw(); });
+    if (isLink) {
+      const moc = item(body, "MOC_NAME", "MOC_DESC", "MOC_TIP", true);
+      segmented(moc, [{ value: "yes", label: say("MOC_YES") }, { value: "no", label: say("MOC_NO") }],
+        d.moc ? "yes" : "no", say("MOC_NAME"), v => { d.moc = v === "yes"; draw(); });
+    }
+  };
 
-    /* Своё у ссылки: все заметки папки одной кнопкой. */
-    if (isLink && o.folderNotes && o.folders) {
-      const folderRow = el(body, "div", "io-nf__addrow");
-      const folder = textInput(folderRow, "io-text io-text--mono", { value: "", placeholder: say("NF_FOLDER_HINT"), label: say("NF_FOLDER_ARIA") });
-      const flist = el(folderRow, "datalist", undefined);
-      flist.setAttribute("id", "io-nf-folders");
-      for (const f of o.folders()) flist.createEl("option", { value: f });
-      folder.setAttribute("list", "io-nf-folders");
-      const fill = btn(folderRow, "io-btn io-btn--sm", { text: say("NF_FOLDER_ADD") });
-      fill.addEventListener("click", (() => {
-        let n = 0;
-        for (const t of o.folderNotes!(String(folder.value || "").trim())) if (push(t)) n++;
-        if (n) draw();
-      }) as never);
+  /**
+   * Подсказка заметок — родная подсказка Obsidian, как у свойства YAML: пустое
+   * поле показывает все заметки, набранное их фильтрует, выбор сразу встаёт
+   * в Values (его замечание к тесту 3 цикла 98). Набранное без выбора
+   * работает по-прежнему — Enter или `Add Value`. Нет платформы (заглушка
+   * DOM) — подсказки нет, поле обычное.
+   */
+  const attachNoteSuggest = (input: ElInput, pick: (target: string) => void): void => {
+    if (!platform || typeof platform.AbstractInputSuggest !== "function" || !o.notes) return;
+    const notes = o.notes().map(p => p.replace(/\.md$/i, ""));
+    try {
+      const Base = platform.AbstractInputSuggest as NoteSuggestCtor;
+      class NoteSuggestImpl extends Base {
+        getSuggestions(query: string): string[] {
+          const q = String(query || "").trim().toLowerCase();
+          /* ponytail: первые 200 совпадений — дальше список всё равно фильтруют набором. */
+          return notes.filter(p => !q || p.toLowerCase().includes(q)).slice(0, 200);
+        }
+        renderSuggestion(p: string, node: El): void {
+          const cut = p.lastIndexOf("/");
+          el(node, "span", "io-suggest__name", cut < 0 ? p : p.slice(cut + 1));
+          if (cut >= 0) el(node, "span", "io-suggest__type", p.slice(0, cut));
+        }
+        selectSuggestion(p: string): void {
+          this.setValue("");
+          this.close();
+          pick(p);
+        }
+      }
+      new NoteSuggestImpl(app, input).limit = 200;
+    } catch (e) {
+      /* Класс платформы мог смениться формой: поле остаётся рабочим, подсказки нет (З8). */
+      console.error("inline-overhaul: подсказка заметок не подключилась", e);
     }
   };
 
@@ -436,36 +591,69 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
 
   const drawElement = (): void => {
     const emoji = itemRow(body, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_LABEL", "NEW_FIELD_MARKER_TIP");
-    const emojiRow = emoji.row;
     const marker = textInput(emoji.control, "io-text", {
       value: d.marker, placeholder: say("NEW_FIELD_MARKER_HINT"), label: say("NEW_FIELD_MARKER_ARIA"), needed: true,
     });
     marker.addEventListener("input", (() => { d.marker = String(marker.value || ""); refresh(); }) as never);
-    const picker = attachPicker(marker, emojiRow, {
+    const picker = attachPicker(marker, emoji.row, {
       kinds: ["emoji"], say,
       ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
       onPick: char => { d.marker = char; marker.value = char; refresh(); },
     });
     closers.push(picker.close);
 
-    const kindCtl = item(body, "NF_PRESET", "NF_PRESET_DESC", "NF_PRESET_TIP", true);
-    segmented(kindCtl, ELEMENT_PRESETS.map(p => ({ value: p.id, label: say(p.name) })), d.preset, say("NF_PRESET"), v => {
-      const p = ELEMENT_PRESETS.find(x => x.id === v);
-      if (!p) return;
-      d.preset = p.id;
-      d.format = p.format;
+    const kindCtl = item(body, "NF_WRITES", "NF_WRITES_DESC", "NF_WRITES_TIP", true);
+    segmented(kindCtl, [
+      { value: "datetime", label: say("NF_WRITES_DATETIME") },
+      { value: "counter", label: say("NF_WRITES_COUNTER") },
+      { value: "random", label: say("NF_WRITES_RANDOM") },
+    ], d.value, say("NF_WRITES"), v => {
+      d.value = v as ElementValue;
+      d.format = v === "counter" ? "1" : v === "random" ? "0000" : (DATE_SHOWS.find(s => s.id === d.shows) || DATE_SHOWS[0]!).format;
+      d.press = v === "datetime" && d.shows !== "date" ? "now" : "step";
+      tick = 0;
       draw();
     });
 
-    if (d.preset === "list") {
-      const stepsCtl = item(body, "ELEMENT_STEPS_NAME", "NF_STEPS_DESC");
-      const area = stepsCtl.createEl("textarea", { cls: "io-textarea", attr: { "aria-label": say("ELEMENT_STEPS_NAME"), rows: "3" } }) as ElInput;
-      area.value = d.customRaw;
-      area.addEventListener("input", (() => { d.customRaw = String(area.value || ""); refresh(); }) as never);
-    } else {
-      const fmtCtl = item(body, "ELEMENT_FORMAT_NAME", d.preset === "counter" ? "NF_FORMAT_COUNTER_DESC" : "NF_FORMAT_DESC", "ELEMENT_FORMAT_TIP");
-      const fmt = textInput(fmtCtl, "io-text io-text--mono", { value: d.format, label: say("ELEMENT_FORMAT_NAME") });
-      fmt.addEventListener("input", (() => { d.format = String(fmt.value || ""); refresh(); }) as never);
+    if (d.value === "datetime") {
+      const shows = item(body, "NF_SHOWS", "NF_SHOWS_DESC", undefined, true);
+      segmented(shows, DATE_SHOWS.map(s => ({ value: s.id, label: say(s.name) })), d.shows, say("NF_SHOWS"), v => {
+        const s = DATE_SHOWS.find(x => x.id === v);
+        if (!s) return;
+        d.shows = s.id;
+        d.format = s.format;
+        /* Время по умолчанию пишет момент нажатия, дата шагает — как было. */
+        d.press = s.id === "date" ? "step" : "now";
+        draw();
+      });
+      const press = item(body, "NF_PRESS", "NF_PRESS_DESC", "NF_PRESS_TIP", true);
+      segmented(press, [
+        { value: "step", label: say("NF_PRESS_STEP") },
+        { value: "now", label: say("NF_PRESS_NOW") },
+      ], d.press, say("NF_PRESS"), v => { d.press = v === "now" ? "now" : "step"; tick = 0; draw(); });
+    }
+    if (d.value === "random") {
+      const kind = item(body, "NF_RANDOM", "NF_RANDOM_DESC", undefined, true);
+      segmented(kind, [
+        { value: "randomN", label: say("COMMAND_RANDOM_NUMBERS") },
+        { value: "randomE", label: say("COMMAND_RANDOM_CHARS") },
+      ], d.random, say("NF_RANDOM"), v => { d.random = v === "randomE" ? "randomE" : "randomN"; draw(); });
+    }
+
+    const fmtCtl = item(body, "ELEMENT_FORMAT_NAME",
+      d.value === "counter" ? "NF_FORMAT_COUNTER_DESC" : d.value === "random" ? "NF_FORMAT_RANDOM_DESC" : "NF_FORMAT_DESC", "ELEMENT_FORMAT_TIP");
+    const fmt = textInput(fmtCtl, "io-text io-text--mono", { value: d.format, label: say("ELEMENT_FORMAT_NAME") });
+    fmt.addEventListener("input", (() => { d.format = String(fmt.value || ""); refresh(); }) as never);
+
+    /* Шаг — у всего, что шагает (его замечание: «не хватает настройки шага инкремента»). */
+    if (d.value === "counter" || (d.value === "datetime" && d.press === "step")) {
+      const desc = d.value === "counter" ? "NF_STEP_DESC_COUNT" : STEP_DESC[unitOf(d.format.trim() || "YYYY-MM-DD")];
+      const stepCtl = item(body, "ELEMENT_AMOUNT_NAME", desc, "ELEMENT_AMOUNT_TIP");
+      const step = stepCtl.createEl("input", {
+        cls: "io-text io-num", type: "number", value: String(stepOf(d)),
+        attr: { "aria-label": say("ELEMENT_AMOUNT_NAME"), min: "1", step: "1" },
+      }) as ElInput;
+      step.addEventListener("input", (() => { d.step = Number(step.value) || 1; refresh(); }) as never);
     }
   };
 

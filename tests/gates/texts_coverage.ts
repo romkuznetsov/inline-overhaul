@@ -117,7 +117,7 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
      * Windows.
      */
     file: "src/ui/settings/custom/pick_data.ts",
-    left: 1444,
+    left: 1407,
     why: "имена знаков выбиралки и её рубрик из данных Unicode: имена знаков — это имена команд Binder, а они не переводятся (Я2)",
   },
   {
@@ -154,8 +154,8 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
   },
   {
     file: "src/ui/settings/custom/new_field_dialog.ts",
-    left: 1,
-    why: "маска формата вида «Date and time» (`YYYY-MM-DD HH:mm`): значение, которое окно `Add a Field` пишет в конфиг, а не текст — его же разбирает `formatDateByMask` (его заказ 2026-09-27)",
+    left: 2,
+    why: "маска формата вида «Date and time» (`YYYY-MM-DD HH:mm`): значение, которое окно `Add a Field` пишет в конфиг, а не текст — его же разбирает `formatDateByMask` (его заказ 2026-09-27); и запрос `matchMedia` о бережном движении — вопрос платформе, а не текст (тест 3 цикла 98)",
   },
   {
     file: "src/ui/settings/actions.ts",

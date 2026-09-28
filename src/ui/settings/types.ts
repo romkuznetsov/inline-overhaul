@@ -390,6 +390,11 @@ export interface OrderState {
   subNavigator: Record<string, boolean>;
   /** Навигатор ребёнка — в свойство родителя (PRD 10.13.272). */
   yamlNavigator: Record<string, boolean>;
+  /**
+   * Link как MOC (его замечание к тесту 3 цикла 98): `false` — `Link the
+   * notes you mention` не пишет ссылок в заметки его Values. Нет ключа — да.
+   */
+  useAsMoc?: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
   /** Custom block (PRD 10.13.260): свой Block у каретки, по разделу на блок. */

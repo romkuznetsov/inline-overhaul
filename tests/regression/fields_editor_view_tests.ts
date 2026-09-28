@@ -80,6 +80,8 @@ function normalizePkmOrder(raw: Any): Any {
     subNavigator: map(o.subNavigator),
     /* Пятая — `YAML of navigator values` (PRD 10.13.272), по той же причине. */
     yamlNavigator: map(o.yamlNavigator),
+    /* Шестая — `Use as MOC` у Link (тест 3 цикла 98), по той же причине. */
+    useAsMoc: map(o.useAsMoc),
     /* Custom block (PRD 10.13.260) — тоже переносится, по той же причине. */
     custom: (Array.isArray(o.custom) ? o.custom : []).map((b: Any) => ({ ...b, keys: drop(b.keys) })),
   };
@@ -3145,8 +3147,8 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   let answer: Any = "не звали";
   askNewFieldModal(FakeModal as never, {}, a => { answer = a; }, say, opts(true));
   const form = opened[0]!;
-  /* Tag по умолчанию: «?» у имени и Block. */
-  assert.equal(walk(form, "io-help").length, 2, "у имени и Block нового Field обязаны стоять «?»");
+  /* Tag по умолчанию: «?» у имени, Block и свойства YAML. */
+  assert.equal(walk(form, "io-help").length, 3, "у имени, Block и свойства YAML нового Field обязаны стоять «?»");
   askNewFieldModal(FakeModal as never, {}, () => {}, say, opts(false));
   assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
 
@@ -3172,13 +3174,21 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   value.value = "calm";
   value.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
   assert.equal(walk(form, "io-nf__chip").length, 1, "Enter не добавил Value");
-  /* Предпросмотр: Value в левом Block, дальше разделитель и текст. */
-  const line = walk(form, "io-nf__pline")[0] as StubNode;
+  /* Предпросмотр внизу (его замечание к тесту 3 цикла 98): две половины одной
+     формы — в tagWheel на месте Field его имя и скроллер Values, в строке Value. */
   const text = (n: StubNode): string => n.children.map(c => String(c.textContent || "") + text(c)).join("");
-  assert.ok(/#calm/.test(text(line)) && /::/.test(text(line)), "строка предпросмотра без Value и разделителя: " + text(line));
+  const panes = walk(form, "io-nf__pline") as StubNode[];
+  assert.equal(panes.length, 2, "половин предпросмотра не две");
+  const [wheelLine, line] = panes as [StubNode, StubNode];
+  assert.ok(/#calm/.test(text(line)) && /::/.test(text(line)) && /lorem ipsum/.test(text(line)), "строка предпросмотра без Value, разделителя и текста: " + text(line));
   assert.ok(walk(line, "io-line__side--left").length === 1, "Tag встал не в левый Block");
-  const active = walk(form, "io-wheelcell--active")[0] as StubNode;
-  assert.equal(String(active.textContent), "[#calm]", "ячейка tagWheel не показывает Value");
+  const active = walk(wheelLine, "io-wheelcell--active")[0] as StubNode;
+  assert.equal(String(active.textContent), "[mood]", "ячейка tagWheel — не имя Field");
+  assert.ok(/::/.test(text(wheelLine)) && /lorem ipsum/.test(text(wheelLine)), "строка tagWheel не той формы: " + text(wheelLine));
+  assert.deepEqual(walk(wheelLine, "io-wheelval").map(n => String(n.textContent)), ["#calm"], "скроллер не показывает Values");
+  assert.equal(walk(wheelLine, "io-wheelval--on").length, 1, "курсора в скроллере нет");
+  assert.ok(walk(form, "io-nf__bottom").length === 1 && walk(walk(form, "io-nf__bottom")[0]!, "io-btn--cta").length === 1,
+    "предпросмотр не внизу рядом с кнопками");
   /* Block — кнопкой; свой блок в ряду. */
   const blockBtns = walk(form, "io-seg__btn");
   assert.deepEqual(blockBtns.map(b => String(b.textContent)), ["Left", "Right", "Inbox"]);
@@ -3194,7 +3204,12 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   name2.dispatch("input");
   assert.equal((walk(f2, "io-btn--cta")[0] as StubNode).disabled, true, "Element без знака нажимается");
   const kinds = walk(f2, "io-seg__btn").map(b => String(b.textContent));
-  assert.ok(kinds.includes("Date and time") && kinds.includes("List"), "видов значения нет: " + kinds.join(", "));
+  assert.ok(kinds.includes("Counter") && kinds.includes("Random") && kinds.includes("Steps") && kinds.includes("The moment"),
+    "видов значения нет: " + kinds.join(", "));
+  assert.ok(!kinds.includes("List"), "«List» писал шаги-числа, а показывал слова — его не должно быть до режима списка");
+  const marker2 = walk(f2, "io-text").find(x => x.getAttribute("aria-label") === "Emoji of the new Field") as StubNode;
+  assert.ok(!/\p{Extended_Pictographic}/u.test(String(marker2.getAttribute("placeholder") || "")), "заглушка знака — эмодзи, читается как выбранный");
+  assert.ok(walk(f2, "io-text").some(x => x.getAttribute("aria-label") === "Amount"), "у даты, которая шагает, нет шага");
   const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
   assert.ok(own.NEW_FIELD_NAME_TIP && own.NF_BLOCK_TIP && own.NEW_FIELD_MARKER_TIP, "у подсказок окна нет текста в каталоге");
   passed++;

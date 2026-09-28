@@ -58,6 +58,8 @@ function normalizePkmOrder(raw: Any): Any {
     lead: map(o.lead), labels: map(o.labels), strictNames: map(o.strictNames),
     types: map(o.types), active: map(o.active), freeRoam: map(o.freeRoam),
     enabled: map(o.enabled), propertiesByField: map(o.propertiesByField),
+    /* `Use as MOC` у Link (тест 3 цикла 98): без него запись пропала бы из карты (правило 159). */
+    useAsMoc: map(o.useAsMoc),
     /* Custom block (PRD 10.13.260): без него запись `Add Block` пропала бы из карты. */
     custom: Array.isArray(o.custom) ? o.custom.map((b: Any) => ({ ...b, keys: (b.keys || []).slice() })) : [],
   };
@@ -478,6 +480,10 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
     shape: "pkm:behavior:order:sub-navigator:*",
     why: "ряд `Parent is Navigator` под `Child Field` — его заказ 2026-09-24 (PRD 10.13.269)",
   },
+  {
+    shape: "pkm:behavior:order:use-as-moc:*",
+    why: "ряд `Use as MOC` у Link — его замечание к тесту 3 цикла 98 (PRD 10.13.281)",
+  },
 ];
 
 /**
@@ -571,7 +577,7 @@ function shape(raw: string): string {
    * заодно переводило путь; теперь переводить нечего, и осталось только
    * подстановочное имя ключа.
    */
-  const orderMaps = /^(pkm\.fields\.order\.(?:labels|strictNames|types|active|freeRoam|enabled|propertiesByField))\./;
+  const orderMaps = /^(pkm\.fields\.order\.(?:labels|strictNames|types|active|freeRoam|enabled|propertiesByField|useAsMoc))\./;
   if (orderMaps.test(p)) return p.replace(orderMaps, "$1.").replace(/\.[^.]+$/, ".*");
   /* Элементы: ключ — имя Field, дальше своя форма. */
   if (/^pkm\.fields\.elements\.byField\./.test(p)) {
@@ -643,6 +649,7 @@ const UNSEEN: Array<{ path: string; why: string }> = [
   { path: "pkm.fields.elements.fields", why: "удаление Field: старая карта диалог не подтверждала" },
   { path: "visual.tags.byTag.*.*.borderColor", why: "цвет рамки Value — колонка `Side`, его пункт цикла 89" },
   { path: "pkm.fields.order.custom", why: "список custom block — кнопка `Add Block`, его постановка 2026-09-24 (PRD 10.13.260)" },
+  { path: "pkm.fields.order.useAsMoc.*", why: "`Use as MOC` у Link — его замечание к тесту 3 цикла 98 (PRD 10.13.281)" },
 ];
 
 /* ---- сверка ------------------------------------------------------------- */

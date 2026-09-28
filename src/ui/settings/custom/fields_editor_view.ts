@@ -176,6 +176,12 @@ const CHILD_NAV_OPTIONS = [
   { value: "on", name: "CHILD_NAV_ON" },
 ] as const;
 
+/** `Use as MOC` у Link (его замечание к тесту 3 цикла 98). */
+const MOC_OPTIONS = [
+  { value: "yes", name: "MOC_YES" },
+  { value: "no", name: "MOC_NO" },
+] as const;
+
 const CHILD_PARENT_OPTIONS = [
   { value: "keep", name: "CHILD_PARENT_KEEP" },
   { value: "add", name: "CHILD_PARENT_ADD" },
@@ -1442,6 +1448,34 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
       if (!o.enabled) return;
       if ((navPick.value === "on") === navYaml) return;
       commit(() => { o.model.setYamlNavigator(row.subKey, navPick.value === "on"); });
+    }) as never);
+  }
+
+  /*
+   * **Link как MOC** — его замечание к тесту 3 цикла 98: «если no — то тогда
+   * к нему не должны применяться настройки backlinks». Ряд только у Link: у
+   * тега и Element заметок нет, и решать нечего (З8).
+   */
+  if (row.kind === "wikilink") {
+    const moc = o.model.getUseAsMoc(row.key);
+    const mocRow = itemRow(detail, {
+      name: say("MOC_NAME"),
+      desc: say("MOC_DESC"),
+      tip: say("MOC_TIP"),
+      tipId: "io-field-moc-tip",
+      showTips: o.showTips, showIds: o.showIds,
+    });
+    closers.push(mocRow.closeTip);
+    const mocPick = selectInput(mocRow.control, "io-select", {
+      options: labelled(say, MOC_OPTIONS),
+      value: moc ? "yes" : "no",
+      label: say("MOC_OF", row.strictName),
+    });
+    mocPick.disabled = !o.enabled;
+    mocPick.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      if ((mocPick.value === "yes") === moc) return;
+      commit(() => { o.model.setUseAsMoc(row.key, mocPick.value === "yes"); });
     }) as never);
   }
 

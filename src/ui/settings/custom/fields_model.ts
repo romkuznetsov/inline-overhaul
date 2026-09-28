@@ -145,8 +145,13 @@ export type FieldSide = "left" | "right" | `custom:${string}`;
 /** Что окно `Add a Field` задаёт сразу (его заказ 2026-09-27). */
 export interface NewFieldSetup {
   side?: FieldSide;
-  values?: Array<{ token: string; fill?: string }>;
-  element?: { preset: "date" | "datetime" | "time" | "counter" | "list"; format: string; customRaw?: string };
+  values?: Array<{ token: string; fill?: string; text?: string }>;
+  /** Как шагает Element: на величину или командой (момент, случайное). */
+  element?: { mode: "increment" | "command"; format: string; incrementBy?: number; command?: "now" | "randomN" | "randomE" };
+  /** Link: `false` — не MOC (его замечание к тесту 3 цикла 98). */
+  moc?: boolean;
+  /** Свойство YAML, в которое уходит Value. */
+  property?: string;
 }
 
 /** Custom block так, как его читает вёрстка: `id`, имя и его Field. */
@@ -517,6 +522,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return !!(orderState.yamlNavigator && orderState.yamlNavigator[key] === true);
   };
 
+  /** Link как MOC: нет ключа — да (его замечание к тесту 3 цикла 98). */
+  const getUseAsMoc = (key: string): boolean => {
+    const k = String(key || "").trim();
+    return !(orderState.useAsMoc && orderState.useAsMoc[k] === false);
+  };
+
   /** Ключи, которых нет ни в одном Block, дописываются в правый (как было). */
   const ensureAllKeys = (): void => {
     for (const k of getOrderKeys()) {
@@ -529,7 +540,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   /** Карты Order по ключу Field: одно перечисление на удаление и надгробия (ревизия У-4). */
   const ORDER_MAPS = [
     "lead", "labels", "strictNames", "types", "active", "freeRoam", "enabled",
-    "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "propertiesByField",
+    "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc", "propertiesByField",
   ] as const;
 
   /**
@@ -897,6 +908,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       subOnAlt: { ...(liveOrder.subOnAlt || {}) },
       subNavigator: { ...(liveOrder.subNavigator || {}) },
       yamlNavigator: { ...(liveOrder.yamlNavigator || {}) },
+      useAsMoc: { ...(liveOrder.useAsMoc || {}) },
       propertiesByField: { ...(liveOrder.propertiesByField || {}) },
     };
     const maps = nextOrder as unknown as Record<string, Record<string, unknown>>;
@@ -1161,6 +1173,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.yamlNavigator = { ...(orderState.yamlNavigator || {}), [subKey]: !!on };
     setOrderPatch({ yamlNavigator: { [subKey]: !!on } },
       "pkm:behavior:order:yaml-navigator:" + subKey);
+    return { ok: true };
+  };
+
+  const setUseAsMoc = (k: string, on: boolean): WriteResult => {
+    orderState.useAsMoc = { ...(orderState.useAsMoc || {}), [k]: !!on };
+    setOrderPatch({ useAsMoc: { [k]: !!on } }, "pkm:behavior:order:use-as-moc:" + k);
     return { ok: true };
   };
 
@@ -2503,18 +2521,22 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       for (const v of setup.values || []) {
         const res = valuesEditor(k).addToken(v.token);
         if (res.error && !error) error = res.error;
-        if (!res.ok || kind !== "tag" || !v.fill) continue;
+        if (!res.ok || kind !== "tag" || !(v.fill || v.text)) continue;
         const want = normToken(v.token, "tag");
         const stored = valuesEditor(k).tree.map(t => t.token).find(t => normToken(t, "tag") === want);
-        if (stored) setValueVisual(k, stored, { fillColor: v.fill }, "pkm:visuals:tag:fill:" + k);
+        const visual: { fillColor?: string; textColor?: string } = {};
+        if (v.fill) visual.fillColor = v.fill;
+        if (v.text) visual.textColor = v.text;
+        if (stored) setValueVisual(k, stored, visual, "pkm:visuals:tag:fill:" + k);
       }
     } else if (setup.element) {
       const e = setup.element;
       elementEditor(k).setFormat(e.format);
-      if (e.preset === "list") elementEditor(k).setCustomRaw(e.customRaw || "");
-      else if (e.preset === "datetime" || e.preset === "time") elementEditor(k).setCommand("now");
-      else elementEditor(k).setIncrementBy(1);
+      if (e.mode === "command") elementEditor(k).setCommand(e.command || "now");
+      else elementEditor(k).setIncrementBy(Math.max(1, Math.trunc(Number(e.incrementBy) || 1)));
     }
+    if (kind === "wikilink" && setup.moc === false) setUseAsMoc(k, false);
+    if (setup.property) setProperty(k, setup.property);
     return error ? { ok: false, error } : { ok: true };
   };
 
@@ -2549,6 +2571,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     deleteBlock,
     addField,
     configureNewField,
+    getUseAsMoc,
+    setUseAsMoc,
     fieldNameError,
     deleteField,
     setStrictName,

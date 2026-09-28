@@ -1779,11 +1779,21 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
-.io-dlg.io-nf { width: min(940px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
+.io-dlg.io-nf { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
 .io-nf .io-text { width: 100%; }
-.io-nf__layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 20px; align-items: start; padding: 4px 15px 10px; }
-.io-nf__side { position: sticky; top: 0; }
-@media (max-width: 780px) { .io-nf__layout { grid-template-columns: minmax(0, 1fr); } .io-nf__side { position: static; } }
+.io-nf .io-num { width: 6em; }
+.io-nf__body { padding: 4px 15px 0; }
+.io-nf__bottom { margin: 14px 15px 0; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); }
+.io-nf__pbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 620px) { .io-nf__pbody { grid-template-columns: minmax(0, 1fr); } }
+.io-nf__pane { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.io-nf__pane--wheel { padding-bottom: calc(var(--io-nf-rows, 1) * 21px + 14px); }
+.io-nf .io-wheelval--on { font-weight: 700; color: var(--text-accent); background: var(--background-modifier-hover); }
+.io-nf__pline { white-space: nowrap; }
+.io-nf__pline .io-line__sep { margin: 0 0.35em; }
+.io-nf__chiptext--tag { padding: 0 5px; border-radius: 999px; background: var(--io-nf-chip-bg, transparent); color: var(--io-nf-chip-fg, inherit); }
+.io-nf__dot--text::-webkit-color-swatch { border-radius: 3px; }
+.io-nf__pempty { color: var(--text-faint); font-style: italic; }
 .io-nf__types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 6px; }
 .io-nf__type { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; text-align: left; cursor: pointer;
   border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
@@ -1806,10 +1816,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-nf__note, .io-nf__chipshint { font-size: 11px; color: var(--text-faint); }
 .io-nf__x { border: none; background: transparent; color: var(--text-faint); cursor: pointer; font-size: 10px; }
 .io-nf__addrow { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
-.io-nf__prow { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.io-nf__prow + .io-nf__prow { margin-top: 6px; }
 .io-nf__plabel { font-size: 11px; color: var(--text-faint); }
-.io-nf__pnext { margin-left: 8px; font-size: 11px; color: var(--text-muted); }
 .io-nf__pval { color: var(--text-accent); }
 .io-nf__problem { margin-right: auto; align-self: center; font-size: 11px; color: var(--text-error); }
 </style>
@@ -6076,6 +6083,20 @@ function propertyRow(host, f) {
     s.addEventListener("change", () => { f.yamlNav = s.value === "on"; renderContent(); refreshPreviews(); });
   });
 
+  /* Link как MOC — его замечание к тесту 3 цикла 98: «если no — то тогда к
+     нему не должны применяться настройки backlinks». Ряд только у Link (З8). */
+  if (f.type === "link") row({
+    name:"Use as MOC", key:"moc",
+    desc:"Let <code>Link the notes you mention</code> file new notes into the notes of these Values",
+    tip:"With <code>Link the notes you mention</code> on, <code>Inline to note</code> writes a link to the new note into the note of every link Value on the line, so a project note slowly becomes the list of everything filed under it. <b>No</b> keeps this Field out of it: its notes get no links, even when that setting is on. Pick it for links that are not a place to collect things, such as people you mention",
+  }, ctl => {
+    const s = selectEl(ctl, [
+      { value:"yes", label:"Yes" },
+      { value:"no",  label:"No" }
+    ], f.moc === false ? "no" : "yes", "Use as MOC for " + f.name);
+    s.addEventListener("change", () => { f.moc = s.value === "yes"; renderContent(); });
+  });
+
   row({
     name:"Preview", key:"yaml-written",
     desc:"How this Value will look like in YAML",
@@ -7206,17 +7227,24 @@ function renderSourcePreview(host) {
 
 /*
  * «Add a Field»: the essentials of each type at once and a live preview (his
- * order 2026-09-27). Type first, as three cards — it decides the rest. Tag gets
- * Values with a color each, Link gets notes (with "every note of a folder"),
- * Element gets its emoji, a kind (date, date and time, time, counter, list)
- * and a format. The preview shows the tagWheel cell and the line with the
- * real separators. The plugin draws the same form: new_field_dialog.ts.
+ * order 2026-09-27, reworked by his remarks to test 3 of cycle 98). Type first,
+ * as three cards — it decides the rest. Tag gets Values with a fill and a text
+ * color each, Link gets notes from one box with a list of the vault's notes and
+ * "Use as MOC", Element gets its emoji, what it writes (date and time, counter,
+ * random), what the date shows, what "next" does, the format and the step.
+ * Every type gets its YAML property. The preview sits at the bottom next to
+ * the buttons: tagWheel (the Field's name as the cell, a scroller of all its
+ * Values under it that the cursor walks by itself) and the line with the Value
+ * under the cursor. The plugin draws the same form: new_field_dialog.ts.
  */
 function renderAddFieldDialog() {
   const d = dialog;
-  if (!d.values) Object.assign(d, { side: "left", sideChosen: false, values: [], marker: "", preset: "date", format: "YYYY-MM-DD", steps: "" });
+  if (!d.values) Object.assign(d, { side: "left", sideChosen: false, values: [], marker: "", value: "datetime", shows: "date",
+    press: "step", step: 1, random: "randomN", format: "YYYY-MM-DD", moc: true, property: "", tick: 0 });
   const scrim = el("div", "io-scrim", document.body);
-  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; renderContent(); } });
+  const stop = () => { if (d.timer) { clearInterval(d.timer); d.timer = null; } };
+  const shut = () => { stop(); dialog = null; renderContent(); };
+  scrim.addEventListener("click", e => { if (e.target === scrim) shut(); });
   const dlg = el("div", "io-dlg io-nf", scrim);
   dlg.setAttribute("role", "dialog");
   dlg.setAttribute("aria-modal", "true");
@@ -7225,56 +7253,91 @@ function renderAddFieldDialog() {
   el("h4", null, head, "Add a Field");
   const close = iconBtn(head, "✕", "Cancel");
   close.style.setProperty("margin-left", "auto");
-  close.addEventListener("click", () => { dialog = null; renderContent(); });
+  close.addEventListener("click", shut);
 
-  const layout = el("div", "io-nf__layout", dlg);
-  const body = el("div", "io-nf__body", layout);
-  const side = el("div", "io-nf__side", layout);
-  const pv = el("div", "io-preview io-nf__preview", side);
+  const body = el("div", "io-nf__body", dlg);
+  const bottom = el("div", "io-nf__bottom", dlg);
+  const pv = el("div", "io-preview io-nf__preview", bottom);
   el("span", null, el("div", "io-preview__cap", pv), "Preview");
   const pbody = el("div", "io-nf__pbody", pv);
-  const foot = el("div", "io-dlg__foot", dlg);
+  const foot = el("div", "io-dlg__foot io-nf__foot", bottom);
   const problem = el("span", "io-nf__problem", foot);
   const cancel = el("button", "io-btn", foot, "Cancel");
   cancel.type = "button";
-  cancel.addEventListener("click", () => { dialog = null; renderContent(); });
+  cancel.addEventListener("click", shut);
   const save = el("button", "io-btn io-btn--cta", foot, "Add Field");
   save.type = "button";
 
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const fmtDate = (t, mask) => mask.replace(/YYYY|YY|MM|DD|HH|mm/g, k => ({ YYYY: t.getFullYear(), YY: pad(t.getFullYear() % 100),
+    MM: pad(t.getMonth() + 1), DD: pad(t.getDate()), HH: pad(t.getHours()), mm: pad(t.getMinutes()) }[k]));
+  const unitOf = f => /mm/.test(f) ? "minute" : /HH/.test(f) ? "hour" : /DD/.test(f) ? "day" : /MM/.test(f) ? "month" : "year";
   const bare = t => String(t || "").trim().replace(/^#+/, "").replace(/^\[\[|\]\]$/g, "");
+  const step = () => Math.max(1, Math.trunc(Number(d.step) || 1));
+  const values = () => {
+    if (d.type === "tag") return d.values.map(v => ({ text: "#" + bare(v.token), fill: v.fill, color: v.text }));
+    if (d.type === "wikilink") return d.values.map(v => ({ text: "[[" + bare(v.token) + "]]" }));
+    const f = String(d.format || "").trim();
+    if (d.value === "random") return [0, 1, 2].map(() => ({ text: d.marker + (f || "0000").replace(/./g, () => d.random === "randomN"
+      ? String(Math.floor(Math.random() * 10)) : "abcdefghjk"[Math.floor(Math.random() * 10)]) }));
+    if (d.value === "counter") { const w = /^\d+$/.test(f) ? f : "1"; return [0, 1, 2, 3, 4].map(k => ({ text: d.marker + String(Number(w) + k * step()).padStart(w.length, "0") })); }
+    const mask = f || "YYYY-MM-DD";
+    if (d.press === "now") return [{ text: d.marker + fmtDate(now, mask) }];
+    const unit = unitOf(mask);
+    return [0, 1, 2, 3, 4].map(k => {
+      const t = new Date(now.getTime()), n = k * step();
+      if (unit === "minute") t.setMinutes(t.getMinutes() + n); else if (unit === "hour") t.setHours(t.getHours() + n);
+      else if (unit === "day") t.setDate(t.getDate() + n); else if (unit === "month") t.setMonth(t.getMonth() + n); else t.setFullYear(t.getFullYear() + n);
+      return { text: d.marker + fmtDate(t, mask) };
+    });
+  };
   const why = () => {
     if (!String(d.name || "").trim()) return "Name the Field";
     if (FIELDS.some(f => f.name.toLowerCase() === String(d.name).trim().toLowerCase())) return "This name is taken";
     if (d.type === "element" && !String(d.marker || "").trim()) return "Pick the emoji the Element writes";
-    if (d.type === "element" && d.preset === "list" && !String(d.steps || "").trim()) return "Write at least one step, one per line";
     return "";
   };
+  let series = values();
   const drawPreview = () => {
     pbody.textContent = "";
-    const moment = d.type === "element" && (d.preset === "datetime" || d.preset === "time");
-    const fmt = { date: today, datetime: today + " 09:30", time: "09:30", counter: d.format || "1", list: String(d.steps || "").split("\n")[0] || "" };
-    const vals = d.type === "element" ? [d.marker + fmt[d.preset]]
-      : d.values.map(v => d.type === "tag" ? "#" + bare(v.token) : bare(v.token));
+    const vals = series, n = vals.length, pos = n ? d.tick % n : 0, cur = vals[pos];
     const name = String(d.name || "").trim() || "Priority";
-    const wheel = el("div", "io-nf__prow", pbody);
+    const sep1 = val("pkm.lineFormat.separator1") || "::", sep2 = val("pkm.lineFormat.separator2") || "::";
+    const shape = (line, slot) => {
+      if (String(d.side).startsWith("custom:")) { el("span", null, line, "lorem "); slot(el("span", "io-line__side", line)); el("span", null, line, " ipsum"); return; }
+      if (d.side === "left") { slot(el("span", "io-line__side", line)); el("span", "io-line__sep", line, sep1); el("span", null, line, "lorem ipsum"); return; }
+      el("span", null, line, "lorem ipsum"); el("span", "io-line__sep", line, sep2); slot(el("span", "io-line__side", line));
+    };
+    const wheel = el("div", "io-nf__pane io-nf__pane--wheel", pbody);
+    cssVar(wheel, "--io-nf-rows", String(Math.max(1, Math.min(n, 5))));
     el("div", "io-nf__plabel", wheel, "tagWheel");
-    const stage = el("div", "io-nf__pstage", wheel);
-    el("span", "io-wheelcell io-wheelcell--active", stage, "[" + (vals[0] || name) + "]");
-    if (vals.length > 1 && !moment) el("span", "io-nf__pnext", stage, "↑ " + vals[1]);
-    const lineRow = el("div", "io-nf__prow", pbody);
+    shape(el("div", "io-line io-nf__pline", wheel), side => {
+      const col = el("span", "io-wheelcol", side);
+      el("span", "io-wheelcell io-wheelcell--active", col, "[" + name + "]");
+      const panel = el("span", "io-wheelpanel io-wheelpanel--down", col);
+      if (!n) { el("span", "io-wheelval io-nf__pempty", panel, "No Values yet"); return; }
+      const from = Math.max(0, Math.min(pos - 2, n - 5));
+      for (let i = from; i < Math.min(n, from + 5); i++) {
+        el("span", "io-wheelval" + (i === pos ? " io-wheelval--on" : ""), panel, d.type === "wikilink" ? bare(vals[i].text).split("/").pop() : vals[i].text);
+      }
+    });
+    const lineRow = el("div", "io-nf__pane", pbody);
     el("div", "io-nf__plabel", lineRow, "Line");
-    const line = el("div", "io-line io-nf__pline", lineRow);
-    el("span", "io-line__prefix", line, "- ");
-    const shown = vals[0] ? (d.type === "wikilink" ? "[[" + vals[0] + "]]" : vals[0]) : name;
-    const sep = val("pkm.lineFormat.separator1") || "::";
-    if (d.side === "left") { el("span", "io-nf__pval", line, shown); el("span", "io-line__sep", line, sep); el("span", null, line, "Call the bank"); }
-    else if (d.side === "right") { el("span", null, line, "Call the bank"); el("span", "io-line__sep", line, sep); el("span", "io-nf__pval", line, shown); }
-    else { el("span", null, line, "Call"); el("span", "io-nf__pval", line, shown); el("span", null, line, "the bank"); }
+    shape(el("div", "io-line io-nf__pline", lineRow), side => {
+      if (!cur) { el("span", "io-nf__pempty", side, name); return; }
+      const v = el("span", d.type === "tag" ? "io-nf__pval io-nf__chiptext--tag" : "io-nf__pval", side, cur.text);
+      if (cur.fill) cssVar(v, "--io-nf-chip-bg", cur.fill);
+      if (cur.color) cssVar(v, "--io-nf-chip-fg", cur.color);
+    });
     const w = why();
     save.disabled = !!w;
     problem.textContent = String(d.name || "").trim() ? w : "";
   };
+  const refresh = () => { series = values(); drawPreview(); };
+  stop();
+  /* Проба: у заглушки проверок таймера нет — тогда курсор стоит. */
+  if (typeof setInterval === "function") d.timer = setInterval(() => { if (!document.body.contains(dlg)) { stop(); return; } d.tick += 1; if (series.length > 1) drawPreview(); }, 1400);
   const seg = (host, options, value, label, pick) => {
     const g = el("div", "io-seg", host);
     g.setAttribute("role", "group"); g.setAttribute("aria-label", label);
@@ -7296,9 +7359,9 @@ function renderAddFieldDialog() {
   const draw = () => {
     body.textContent = "";
     const types = el("div", "io-nf__types", body);
-    [["tag", "#todo", "Tag", "Values you step through, each with its color"],
+    [["tag", "#todo", "Tag", "Your own #tags, each in its own colors"],
      ["wikilink", "[[Project]]", "Link", "A link to one of your notes"],
-     ["element", "📅" + today, "Element", "An emoji and a date, a time, a count or a step"]].forEach(([k, sample, name, desc]) => {
+     ["element", "📅" + fmtDate(now, "YYYY-MM-DD"), "Element", "An emoji with a date, a time, a count or a random id"]].forEach(([k, sample, name, desc]) => {
       const c = el("button", "io-nf__type" + (d.type === k ? " io-nf__type--on" : ""), types);
       c.type = "button"; c.setAttribute("role", "radio"); c.setAttribute("aria-checked", String(d.type === k));
       el("span", "io-nf__sample", c, sample);
@@ -7306,35 +7369,51 @@ function renderAddFieldDialog() {
       el("span", "io-nf__typedesc", c, desc);
       c.addEventListener("pointerdown", () => {
         if (d.type === k) return;
-        d.type = k; d.values = [];
+        d.type = k; d.values = []; d.tick = 0;
         if (!d.sideChosen) d.side = k === "tag" ? "left" : "right";
         draw();
       });
     });
     const name = textEl(row("Name", "What this Field is called here and in the config note",
       "The name shows in the Fields list and in tagWheel. You can rename the Field later from its heading"), d.name, "Priority", "Name of the new Field");
-    name.addEventListener("input", () => { d.name = name.value; drawPreview(); });
+    name.addEventListener("input", () => { d.name = name.value; refresh(); });
     seg(row("Block", "Where in the line the Field writes",
       "<b>Left</b> is the part before your text, <b>Right</b> the part after it; a custom block writes where the cursor is. You can drag the Field to another Block later", true),
       [{ value: "left", label: "Left" }, { value: "right", label: "Right" }, { value: "custom:b1", label: "Custom block 1" }],
       d.side, "Block", v => { d.side = v; d.sideChosen = true; draw(); });
     el("div", "io-sub io-nf__sub", body, d.type === "element" ? "Value" : "Values");
     if (d.type === "element") {
-      const m = textEl(row("Emoji", "What stands in front of the Value in the line",
+      const m = textEl(row("Emoji", "What stands in front of the Value in the line, such as <code>📅</code> or <code>⏰</code>",
         "An Element writes this emoji and its Value after it, such as <code>📅2026-08-27</code>. Without it tagWheel cannot tell the Value from your text, so the Field needs one from the start"),
-        d.marker, "📅", "Emoji of the new Field", "io-text", true);
-      m.addEventListener("input", () => { d.marker = m.value; drawPreview(); });
-      seg(row("Kind", "What the Element writes after its emoji",
-        "<b>Date</b> steps a day at a time, <b>Date and time</b> and <b>Time</b> write the moment you press, <b>Counter</b> counts up and down, <b>List</b> walks through the steps you write", true),
-        [["date", "Date", "YYYY-MM-DD"], ["datetime", "Date and time", "YYYY-MM-DD HH:mm"], ["time", "Time", "HH:mm"], ["counter", "Counter", "1"], ["list", "List", ""]].map(([value, label]) => ({ value, label })),
-        d.preset, "Kind", v => { d.preset = v; d.format = { date: "YYYY-MM-DD", datetime: "YYYY-MM-DD HH:mm", time: "HH:mm", counter: "1", list: "" }[v]; draw(); });
-      if (d.preset === "list") {
-        const a = el("textarea", "io-textarea", row("Steps", "One step per line, in the order the command walks them"));
-        a.value = d.steps; a.rows = 3;
-        a.addEventListener("input", () => { d.steps = a.value; drawPreview(); });
-      } else {
-        const f = textEl(row("Value format", d.preset === "counter" ? "The first number; its digits set the width, such as 001" : "How the Value is spelled, such as YYYY-MM-DD"), d.format, "", "Value format", "io-text io-text--mono");
-        f.addEventListener("input", () => { d.format = f.value; drawPreview(); });
+        d.marker, "Pick or type", "Emoji of the new Field", "io-text", true);
+      m.addEventListener("input", () => { d.marker = m.value; refresh(); });
+      const SHOWS = { date: "YYYY-MM-DD", time: "HH:mm", datetime: "YYYY-MM-DD HH:mm" };
+      seg(row("Writes", "What the Element writes after its emoji",
+        "<b>Date and time</b> writes a date, a time or both, and either steps it from today or writes the moment you press. <b>Counter</b> counts up and down. <b>Random</b> writes fresh numbers or letters on every press, which is what an id needs", true),
+        [{ value: "datetime", label: "Date and time" }, { value: "counter", label: "Counter" }, { value: "random", label: "Random" }],
+        d.value, "Writes", v => { d.value = v; d.format = v === "counter" ? "1" : v === "random" ? "0000" : SHOWS[d.shows]; d.press = v === "datetime" && d.shows !== "date" ? "now" : "step"; d.tick = 0; draw(); });
+      if (d.value === "datetime") {
+        seg(row("Shows", "The date, the time or both", "", true),
+          [{ value: "date", label: "Date" }, { value: "time", label: "Time" }, { value: "datetime", label: "Date and time" }],
+          d.shows, "Shows", v => { d.shows = v; d.format = SHOWS[v]; d.press = v === "date" ? "step" : "now"; draw(); });
+        seg(row("On next", "What the <code>next</code> command does to the Value",
+          "<b>Steps</b> starts from today and moves by the amount below on every press, and <code>previous</code> moves back. <b>The moment</b> writes the date and time of the press, whatever stood there before", true),
+          [{ value: "step", label: "Steps" }, { value: "now", label: "The moment" }], d.press, "On next", v => { d.press = v; d.tick = 0; draw(); });
+      }
+      if (d.value === "random") {
+        seg(row("Made of", "Numbers or letters", "", true),
+          [{ value: "randomN", label: "Random numbers" }, { value: "randomE", label: "Random characters" }], d.random, "Made of", v => { d.random = v; draw(); });
+      }
+      const f = textEl(row("Value format", d.value === "counter" ? "The first number; its digits set the width, such as <code>001</code>"
+        : d.value === "random" ? "As many characters as digits here, such as <code>0000</code>" : "How the Value is spelled, such as <code>YYYY-MM-DD</code>"),
+        d.format, "", "Value format", "io-text io-text--mono");
+      f.addEventListener("input", () => { d.format = f.value; refresh(); });
+      if (d.value === "counter" || (d.value === "datetime" && d.press === "step")) {
+        const unit = d.value === "counter" ? "" : unitOf(String(d.format || "YYYY-MM-DD"));
+        const s = el("input", "io-text io-num", row("Amount", unit ? "How many " + unit + "s one press adds" : "How much one press adds",
+          "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one"));
+        s.type = "number"; s.min = "1"; s.value = String(step()); s.setAttribute("aria-label", "Amount");
+        s.addEventListener("input", () => { d.step = Number(s.value) || 1; refresh(); });
       }
     } else {
       const isLink = d.type === "wikilink";
@@ -7342,17 +7421,21 @@ function renderAddFieldDialog() {
       d.values.forEach((v, i) => {
         const chip = el("span", "io-nf__chip", chips);
         if (!isLink) {
-          const dot = el("input", "io-nf__dot", chip);
-          dot.type = "color"; dot.value = v.fill || "#888888"; dot.setAttribute("aria-label", "Color of " + v.token);
-          dot.addEventListener("input", () => { v.fill = dot.value; drawPreview(); });
+          [["fill", "Fill color of "], ["text", "Text color of "]].forEach(([k, aria]) => {
+            const dot = el("input", "io-nf__dot io-nf__dot--" + k, chip);
+            dot.type = "color"; dot.value = v[k] || "#888888"; dot.setAttribute("aria-label", aria + v.token); dot.title = aria + v.token;
+            dot.addEventListener("input", () => { v[k] = dot.value; draw(); });
+          });
         }
-        el("span", "io-nf__chiptext", chip, isLink ? "[[" + bare(v.token) + "]]" : "#" + bare(v.token));
+        const t = el("span", "io-nf__chiptext" + (isLink ? "" : " io-nf__chiptext--tag"), chip, isLink ? "[[" + bare(v.token) + "]]" : "#" + bare(v.token));
+        if (v.fill) cssVar(t, "--io-nf-chip-bg", v.fill);
+        if (v.text) cssVar(t, "--io-nf-chip-fg", v.text);
         if (isLink) el("span", "io-nf__note", chip, "no note yet");
         const x = el("button", "io-nf__x", chip, "✕");
         x.type = "button"; x.setAttribute("aria-label", "Remove " + v.token);
         x.addEventListener("click", () => { d.values.splice(i, 1); draw(); });
       });
-      if (!d.values.length) el("span", "io-nf__chipshint", chips, isLink ? "No notes yet — type a note name below, or add every note of a folder" : "No Values yet — type one below and press Enter");
+      if (!d.values.length) el("span", "io-nf__chipshint", chips, isLink ? "No notes yet — click the box below to pick one, or type a name" : "No Values yet — type one below and press Enter");
       const addRow = el("div", "io-nf__addrow", body);
       const input = textEl(addRow, "", isLink ? "[[wikilink]] / wikilink" : "#tag / tag", "New Value", "io-text io-text--mono");
       const push = () => {
@@ -7363,12 +7446,16 @@ function renderAddFieldDialog() {
       input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); push(); } });
       el("button", "io-btn io-btn--sm", addRow, "Add Value").addEventListener("click", push);
       if (isLink) {
-        const folderRow = el("div", "io-nf__addrow", body);
-        textEl(folderRow, "", "Folder", "Folder whose notes become Values", "io-text io-text--mono");
-        el("button", "io-btn io-btn--sm", folderRow, "Add its notes");
+        seg(row("Use as MOC", "Let <code>Link the notes you mention</code> file new notes into the notes of these Values",
+          "With <code>Link the notes you mention</code> on, <code>Inline to note</code> writes a link to the new note into the note of every link Value on the line, so a project note slowly becomes the list of everything filed under it. <b>No</b> keeps this Field out of it: its notes get no links, even when that setting is on. Pick it for links that are not a place to collect things, such as people you mention", true),
+          [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }], d.moc ? "yes" : "no", "Use as MOC", v => { d.moc = v === "yes"; draw(); });
       }
     }
-    drawPreview();
+    const y = textEl(row("YAML property", "If you use <code>Inline to note</code>, to which YAML property this Field should go",
+      "<code>Inline to note</code> on the Transform tab turns a line into a note, and it writes any Field into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied"),
+      d.property, "select a property", "YAML property for the new Field", "io-text io-text--mono");
+    y.addEventListener("input", () => { d.property = y.value; });
+    refresh();
   };
 
   save.addEventListener("click", () => {
@@ -7376,10 +7463,11 @@ function renderAddFieldDialog() {
     const name = String(d.name || "").trim();
     const id = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
     FIELDS.push({ id, name, short:"", type:d.type === "wikilink" ? "link" : d.type, position:d.side === "left" ? "Left" : "Right", behavior:"Strict",
-      color:TYPE_COLOR[d.type === "wikilink" ? "link" : d.type], property:"", cardinality:"auto", valueRule:"raw",
-      marker:d.marker || "", format:d.format || "", step:d.preset === "list" ? "custom" : d.preset === "datetime" || d.preset === "time" ? "command" : "increment",
+      color:TYPE_COLOR[d.type === "wikilink" ? "link" : d.type], property:d.property || "", cardinality:"auto", valueRule:"raw", moc:d.moc,
+      marker:d.marker || "", format:d.format || "", step:d.value === "random" || (d.value === "datetime" && d.press === "now") ? "command" : "increment",
       values:d.values.map(v => ({ token:bare(v.token), fill:v.fill || "" })) });
     selectedFieldId = id;
+    stop();
     dialog = null;
     renderContent();
   });
@@ -7387,7 +7475,7 @@ function renderAddFieldDialog() {
   const esc = e => {
     if (e.key !== "Escape") return;
     document.removeEventListener("keydown", esc);
-    dialog = null; renderContent();
+    shut();
   };
   document.addEventListener("keydown", esc);
   draw();

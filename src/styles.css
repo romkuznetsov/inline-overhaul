@@ -3626,7 +3626,7 @@
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
    white-space: nowrap }` у них снимается явно — как у `.io-dlg__pick`. */
-.modal:has(> .modal-content.io-nf) { width: min(940px, 94vw); }
+.modal:has(> .modal-content.io-nf) { width: min(760px, 94vw); }
 .io-nf__body { display: flex; flex-direction: column; }
 .io-nf .io-nf__types {
   display: grid;
@@ -3750,29 +3750,59 @@
 .io-nf__addrow { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 .io-nf__addrow > .io-text { flex: 1 1 auto; min-width: 0; }
 
-/* Две колонки: форма слева, предпросмотр справа и прижат к верху, пока окно
-   прокручивается (прокручивает сам `.modal`). На узком окне — одна колонка. */
-.io-nf__layout {
+/* Низ окна: предпросмотр во всю ширину, кнопки под ним справа — его слово
+   к тесту 3 цикла 98: «должен быть внизу, на уровне с кнопками Add field». */
+/* Полоса прилипает к низу окна: длинная форма прокручивается, а предпросмотр
+   и кнопки видны всё время — ради них окно и открыто. */
+.io-nf__bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 14px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--modal-background, var(--background-primary));
+}
+.io-nf__preview { margin: 0; }
+.io-nf .io-nf__foot { margin-top: 10px; }
+/* Две половины рядом: tagWheel и строка; на узком окне — одна под другой. */
+.io-nf__pbody {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
   align-items: start;
 }
-.io-nf__side { position: sticky; top: 0; }
-.io-nf__preview { margin-top: 10px; }
-@media (max-width: 780px) {
-  .io-nf__layout { grid-template-columns: minmax(0, 1fr); }
-  .io-nf__side { position: static; }
+@media (max-width: 620px) { .io-nf__pbody { grid-template-columns: minmax(0, 1fr); } }
+.io-nf__pane { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+/* Место под скроллер резервируется заранее: панель висит от ячейки и не
+   должна наезжать на кнопки. Высота строки — та же, что у `.io-wheelval`. */
+.io-nf__pane--wheel { padding-bottom: calc(var(--io-nf-rows, 1) * 21px + 14px); }
+.io-nf .io-wheelval { transition: background-color 160ms ease, color 160ms ease; }
+.io-nf .io-wheelval--on {
+  font-weight: 700;
+  color: var(--io-wheel-cell-active, var(--text-accent));
+  background: var(--background-modifier-hover);
 }
+@media (prefers-reduced-motion: reduce) { .io-nf .io-wheelval { transition: none; } }
+.io-nf__pline { white-space: nowrap; }
+.io-nf__pline .io-line__sep { margin: 0 0.35em; }
+/* Фишка тега рисуется своими цветами: заливка и текст, как в строке. */
+.io-nf__chiptext--tag {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--io-nf-chip-bg, transparent);
+  color: var(--io-nf-chip-fg, inherit);
+}
+/* Цвет не выбран — точка бледная: в строке будет цвет темы, а не этот. */
+.io-nf__dot--unset { opacity: 0.35; }
+/* Точка цвета текста — квадратиком, чтобы не спутать с круглой заливкой. */
+.io-nf__dot--text::-webkit-color-swatch { border-radius: 3px; }
+.io-nf .io-num { width: 6em; }
 .io-nf__pline .io-link { font-size: inherit; }
-.io-nf__pbody { display: flex; flex-direction: column; gap: 4px; }
-.io-nf__prow { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.io-nf__prow + .io-nf__prow { margin-top: 6px; }
 .io-nf__plabel {
   font-size: var(--font-ui-smaller);
   color: var(--text-faint);
 }
-.io-nf__pstage { flex: 1 1 auto; min-width: 0; }
 .io-nf__pempty { color: var(--text-faint); font-style: italic; }
 .io-nf__pelem { color: var(--text-normal); }
 .io-nf__problem {

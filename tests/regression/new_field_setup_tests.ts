@@ -60,7 +60,7 @@ function panel(): { model: () => Any; cfg: () => Any } {
   const m = p.model();
   const res = m.addField("mood", "tag");
   assert.equal(res.ok, true, JSON.stringify(res));
-  assert.equal(m.configureNewField("mood", { side: "left", values: [{ token: "calm", fill: "#44aa66" }, { token: "#busy" }] }).ok, true);
+  assert.equal(m.configureNewField("mood", { side: "left", values: [{ token: "calm", fill: "#44aa66", text: "#112233" }, { token: "#busy" }], property: "mood" }).ok, true);
   const cfg = p.cfg();
   assert.ok(cfg.pkm.fields.order.left.includes("mood"), "Field не в левом Block: " + JSON.stringify(cfg.pkm.fields.order));
   assert.ok(!cfg.pkm.fields.order.right.includes("mood"), "Field остался и в правом Block");
@@ -70,8 +70,10 @@ function panel(): { model: () => Any; cfg: () => Any } {
   const byTag = cfg.visual.tags.byTag.mood;
   const colored = Object.keys(byTag).find((t) => t.replace(/^#/, "") === "calm");
   assert.ok(colored && byTag[colored].fillColor === "#44aa66", "цвет Value не записан: " + JSON.stringify(byTag));
+  assert.equal(byTag[colored!].textColor, "#112233", "цвет текста Value не записан (его замечание к тесту 3 цикла 98)");
+  assert.equal(cfg.pkm.fields.order.propertiesByField.mood, "mood", "свойство YAML не записано");
   assert.ok(!Object.keys(byTag).some((t) => t.replace(/^#/, "") === "busy"), "отрицательный контроль: цвет без выбора не пишется");
-  ok("Tag: Block, Values и цвет одним нажатием");
+  ok("Tag: Block, Values, заливка и цвет текста, свойство YAML одним нажатием");
 }
 
 /* Ссылка: Values — заметки, Block по умолчанию правый. */
@@ -79,28 +81,35 @@ function panel(): { model: () => Any; cfg: () => Any } {
   const p = panel();
   const m = p.model();
   assert.equal(m.addField("client", "wikilink").ok, true);
-  assert.equal(m.configureNewField("client", { values: [{ token: "[[Acme]]" }, { token: "Work/Globex" }] }).ok, true);
+  assert.equal(m.configureNewField("client", { values: [{ token: "[[Acme]]" }, { token: "Work/Globex" }], moc: false }).ok, true);
   const cfg = p.cfg();
+  assert.equal(cfg.pkm.fields.order.useAsMoc && cfg.pkm.fields.order.useAsMoc.client, false,
+    "`Use as MOC: No` не дожил до конфига после migrateConfig: " + JSON.stringify(cfg.pkm.fields.order.useAsMoc));
+  assert.equal(p.model().getUseAsMoc("client"), false, "модель не читает `Use as MOC`");
+  assert.equal(p.model().getUseAsMoc("status"), true, "нет ключа — MOC, как было");
   assert.ok(cfg.pkm.fields.order.right.includes("client"), "Field ссылки не в правом Block");
   const all = JSON.stringify([cfg.pkm.fields.tags.fields, cfg.pkm.fields.links && cfg.pkm.fields.links.fields]);
   assert.ok(all.includes("Acme") && all.includes("Work/Globex"), "Values ссылки не записаны: " + all);
   ok("Link: Values-заметки, Block справа");
 }
 
-/* Element: вид значения выбирает формат и способ шага. */
+/* Element: способ шага, формат и шаг (его замечание: «не хватает настройки шага инкремента»). */
 /* «Шаг на величину» конфиг хранит словом `standard` — так записан и его `Due`. */
-for (const [preset, format, mode] of [["datetime", "YYYY-MM-DD HH:mm", "command"], ["date", "YYYY-MM-DD", "standard"], ["list", "", "custom"]] as const) {
+for (const [id, element, mode, extra] of [
+  ["now", { mode: "command", command: "now", format: "YYYY-MM-DD HH:mm" }, "command", { command: "now" }],
+  ["date", { mode: "increment", incrementBy: 7, format: "YYYY-MM-DD" }, "standard", { incrementBy: 7 }],
+  ["id", { mode: "command", command: "randomE", format: "0000" }, "command", { command: "randomE" }],
+] as const) {
   const p = panel();
   const m = p.model();
-  assert.equal(m.addField("when_" + preset, "element", "⏰").ok, true);
-  m.configureNewField("when_" + preset, { element: { preset, format, customRaw: "low\nmid\nhigh" } });
-  const row = p.cfg().pkm.fields.elements.byField["when_" + preset];
+  assert.equal(m.addField("when_" + id, "element", "⏰").ok, true);
+  m.configureNewField("when_" + id, { element });
+  const row = p.cfg().pkm.fields.elements.byField["when_" + id];
   assert.equal(row.emoji, "⏰", "знак потерян");
-  assert.equal(row.format, format, preset + ": формат не записан");
-  assert.equal(row.increment.mode, mode, preset + ": способ шага " + JSON.stringify(row.increment));
-  if (preset === "datetime") assert.equal(row.increment.command, "now");
-  if (preset === "list") assert.deepEqual(row.increment.customRaw, ["low", "mid", "high"]);
-  ok("Element " + preset + ": формат " + JSON.stringify(format) + ", шаг " + mode);
+  assert.equal(row.format, element.format, id + ": формат не записан");
+  assert.equal(row.increment.mode, mode, id + ": способ шага " + JSON.stringify(row.increment));
+  for (const [k, v] of Object.entries(extra)) assert.equal(row.increment[k], v, id + ": " + k + " " + JSON.stringify(row.increment));
+  ok("Element " + id + ": формат " + JSON.stringify(element.format) + ", шаг " + mode + " " + JSON.stringify(extra));
 }
 
 /* Имя: то же правило, что у заведения. */

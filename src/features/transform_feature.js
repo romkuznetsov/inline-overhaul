@@ -2291,18 +2291,53 @@ function folderOfNotePath(notePath) {
  * Отдаются цели **в порядке строки и без повторов**: два одинаковых значения
  * на одной строке — одна заметка, и писать в неё дважды незачем.
  */
-function backlinkTargetsFromContext(context) {
+function backlinkTargetsFromContext(context, cfg) {
   const rows = Array.isArray(context && context.matches) ? context.matches : [];
+  const off = notMocFieldIds(cfg);
   const out = [];
   const seen = new Set();
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row || String(row.fieldType || "") !== "wikilink") continue;
+    if (off.has(String(row.fieldId || "").trim())) continue;
     /* Адрес, а не подпись: `[[111/имя|имя]]` ведёт в `111/имя` (10.13.277). */
     const target = String(__sharedUtils.wikilinkTargetOf(String(row.rawToken || "")) || "").trim();
     if (!target || seen.has(target)) continue;
     seen.add(target);
     out.push(target);
+  }
+  return out;
+}
+
+/**
+ * **Link, который не MOC** — его замечание к тесту 3 цикла 98: «если no — то
+ * тогда к нему не должны применяться настройки backlinks (т.е. даже при
+ * backlinks=ON в них не должны создаваться ссылки)». Карта — `useAsMoc` в
+ * Order по ключу Field, `false` значит «нет», нет ключа — «да», как было.
+ * Ответ — идентификаторы полей: совпадения строки несут `fieldId`.
+ */
+function notMocFieldIds(cfg) {
+  const fields = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const map = isObj(fields.order) && isObj(fields.order.useAsMoc) ? fields.order.useAsMoc : {};
+  const off = new Set(Object.keys(map).filter((k) => map[k] === false).map((k) => String(k).trim()));
+  if (!off.size) return off;
+  const links = isObj(fields.links) && Array.isArray(fields.links.fields) ? fields.links.fields : [];
+  for (const f of links) if (f && off.has(String(f.orderKey || "").trim())) off.add(String(f.id || "").trim());
+  return off;
+}
+
+/** Values полей, которые не MOC: навигатор такого поля заметкой-MOC не становится. */
+function notMocTargets(cfg) {
+  const off = notMocFieldIds(cfg);
+  const out = new Set();
+  if (!off.size) return out;
+  const links = isObj(cfg.pkm.fields.links) && Array.isArray(cfg.pkm.fields.links.fields) ? cfg.pkm.fields.links.fields : [];
+  for (const f of links) {
+    if (!f || !off.has(String(f.id || "").trim())) continue;
+    for (const v of Array.isArray(f.values) ? f.values : []) {
+      const tok = String(v && v.token || v || "").trim();
+      if (tok) out.add(normalizeRuleWikilink(tok));
+    }
   }
   return out;
 }
@@ -2316,12 +2351,16 @@ function backlinkTargetsFromContext(context) {
  * Навигатор, уже стоящий на строке, второй раз не пишется.
  */
 function backlinkTargetsWithNavigators(context, cfg, i2n) {
-  const targets = backlinkTargetsFromContext(context);
+  const targets = backlinkTargetsFromContext(context, cfg);
   if (!(isObj(i2n && i2n.backlink) && i2n.backlink.navigator === true)) return targets;
   const seen = new Set(targets.map(normalizeRuleWikilink));
-  const present = { tags: new Set(), wikilinks: new Set(seen), emojiMarkers: new Set() };
+  /* Навигатор ищется по всем ссылкам строки, и по ребёнку-не-MOC тоже: MOC
+     решает, писать ли в заметку, а не то, что стоит на строке. */
+  const all = backlinkTargetsFromContext(context).map(normalizeRuleWikilink);
+  const present = { tags: new Set(), wikilinks: new Set(all), emojiMarkers: new Set() };
   addNavigatorsOfChildren(cfg, present);
-  for (const w of present.wikilinks) if (!seen.has(w)) targets.push(w);
+  const off = notMocTargets(cfg);
+  for (const w of present.wikilinks) if (!seen.has(w) && !all.includes(w) && !off.has(w)) targets.push(w);
   return targets;
 }
 
@@ -2419,7 +2458,7 @@ async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2
   if (!vault) throw new Error("vault unavailable for backlink write");
   const selfPath = String(targetPath || "").trim();
   /* Цели-значения — Value полей; навигаторы добавляются к ним отдельно. */
-  const valueTargets = new Set(backlinkTargetsFromContext(context));
+  const valueTargets = new Set(backlinkTargetsFromContext(context, pluginCfg));
   for (const target of backlinkTargetsWithNavigators(context, pluginCfg, i2n)) {
     const path = resolveBacklinkNotePath(app, target, sourcePath);
     /* Ссылка на самоё себя не пишется: строка может ссылаться на заметку с тем
