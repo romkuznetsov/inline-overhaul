@@ -169,10 +169,7 @@ function fieldsShape(rules) {
   }
   /* Признак собирается один раз на разбор строки, а не на токен: он обходит все
      поля, а от токена не зависит. */
-  /* `managed` — Values тегов в обеих записях, с решёткой и без (`В-235`):
-     `values` склеивает приставку и Value, заведённое панелью с решёткой, и
-     даёт `##high`. */
-  return { markers: markers, values: values, managed: collectManagedTokens(rules), isLink: __helpers.makeWikilinkValueTest(rules) };
+  return { markers: markers, values: values, isLink: __helpers.makeWikilinkValueTest(rules) };
 }
 
 /** Есть ли в теле хоть одно значение Field. */
@@ -374,10 +371,9 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
    * молоко`: фраза теряла слово. Значение без приставки (голое слово из списка
    * Values) в начале по-прежнему Block — его узнаёт только список.
    *
-   * **Посреди — значит между словами.** Теги и ссылки-Value подряд в **конце**
-   * строки — тоже Block, как в прежней сборке. Значения элементов в конце
-   * остаются, где были: их Block решает своя перестановка, и дата, взятая
-   * сюда, вставала в левый Block (`- #todo 📅26-09-30 :: встреча`).
+   * **И в конце строки тег и ссылка — слово человека** (`В-249`, его ответ
+   * 2026-09-28: «тоже моё слово»). Block на строке без разделителей — только
+   * значения подряд в начале.
    */
   const words = __sharedUtils.lineWords(parts.body);
   let rest = parts.body;
@@ -391,14 +387,7 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
   }
   if (!rest) return null;
   const head = words.slice(0, words.length - __sharedUtils.lineWords(rest).length).join(" ");
-  const tail = __sharedUtils.lineWords(rest);
-  let cut = tail.length;
-  const isEdgeValue = function(t) {
-    return shape.managed.has(t) || shape.isLink(t) || shape.values.has(t);
-  };
-  while (cut > 1 && isEdgeValue(tail[cut - 1])) cut--;
-  const trailing = tail.slice(cut).join(" ");
-  return { left: joinLeftPrefix(parts.prefix, [head, trailing].filter(Boolean).join(" ")), text: tail.slice(0, cut).join(" ") };
+  return { left: joinLeftPrefix(parts.prefix, head), text: rest };
 }
 
 function splitSegments(rawLine, rules) {

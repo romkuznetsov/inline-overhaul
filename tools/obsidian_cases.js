@@ -212,6 +212,9 @@ module.exports = [
   { mine: true, id: "M19", title: "Панель не стирает тег из фразы", files: { "m19.md": "- купить #todo молоко\n" },
     at: { file: "m19.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowUp" }, { key: "Enter" }],
     expect: { "m19.md": "- [[Man1]] :: купить #todo молоко\n" } },
+  /* Тест 4 цикла 103, его ответ `В-249`: и в конце строки тег — его слово. */
+  { mine: true, id: "M20", title: "Тег в конце строки — тоже слово человека", files: { "m20.md": "- купить молоко #todo\n" },
+    at: { file: "m20.md", line: 0 }, steps: ["type-next"], expect: { "m20.md": "- #todo :: купить молоко #todo\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },

@@ -523,8 +523,8 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
    * текст. Теперь значения подряд в начале — Block, дальше текст.
    *
    * `В-235` (его слово 2026-09-26, «делать» 2026-09-28): значение Field
-   * **посреди** текста — тоже слово человека; прежде оно уходило в Block. В
-   * конце строки значения Field — Block, как в начале.
+   * **посреди** текста — тоже слово человека; прежде оно уходило в Block. И
+   * в конце строки — слово человека (`В-249`).
    */
   const withValue: Any = JSON.parse(JSON.stringify(rules));
   withValue.leftMode.fields[0].values = [{ id: "high", token: "high" }];
@@ -539,8 +539,8 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
     "тег в начале строки — Block, как и прежде");
   assert.deepEqual(seg("- купить #high хлеб", withValue), ["-", "купить #high хлеб", ""],
     "значение Field посреди текста — слово человека (В-235)");
-  assert.deepEqual(seg("- купить хлеб #high", withValue), ["- #high", "купить хлеб", ""],
-    "значение Field в конце строки — Block");
+  assert.deepEqual(seg("- купить хлеб #high", withValue), ["-", "купить хлеб #high", ""],
+    "значение Field в конце строки — слово человека (В-249)");
   assert.deepEqual(seg("- купить хлеб #random", withValue), ["-", "купить хлеб #random", ""],
     "посторонний тег в конце строки — текст");
   assert.deepEqual(seg("- #random", withValue), ["- #random", "", ""],

@@ -330,7 +330,7 @@ function casesFor(sep1, elementToken, material) {
   if (tags.length) {
     const line = "- купить " + tags[0] + " молоко";
     out.push({ name: "тег поля посреди текста", line: line, ch: line.length });
-    /* Контроль к ней: в конце строки значение — Block, как в начале. */
+    /* И в конце строки — слово человека (`В-249`, его ответ «тоже моё слово»). */
     const tail = "- купить молоко " + tags[0];
     out.push({ name: "тег поля в конце строки без разделителей", line: tail, ch: tail.length });
   }
