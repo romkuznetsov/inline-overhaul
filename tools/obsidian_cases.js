@@ -172,6 +172,16 @@ module.exports = [
     at: { file: "m11.md", line: 0 }, steps: ["type-next"], expect: { "m11.md": "- #todo :: задача :: 📅26-09-30\n" } },
   { mine: true, id: "M12", title: "Знак со словом через пробел — не дата, текст не трогается", files: { "m12.md": "- задача 📅 встреча\n" },
     at: { file: "m12.md", line: 0 }, steps: ["type-next"], expect: { "m12.md": "- #todo :: задача 📅 встреча\n" } },
+  /* Его замечание к тесту 3 цикла 98: `Use as MOC: No` — заметки этого Link без ссылок. */
+  { mine: true, id: "M13", title: "Use as MOC: No — Inline to note не пишет ссылку в заметку People", files: { "m13.md": "- [[Man1]] :: звонок\n", "Man1.md": "", "111/template.md": "" },
+    cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, backlink: { enabled: true } } }, pkm: { fields: { order: { useAsMoc: { People: false } } } } },
+    at: { file: "m13.md", line: 0 }, steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 2000 }],
+    /* Контроль «Transform сработал» (У-152): строка обязана смениться. */
+    check: "const man = await a.vault.adapter.read('Man1.md'); const line = a.workspace.activeEditor.editor.getLine(0); return (man === '' && line !== '- [[Man1]] :: звонок') || JSON.stringify({ man, line });" },
+  { mine: true, id: "M13.on", title: "Use as MOC: Yes — ссылка в заметку People пишется", files: { "m13on.md": "- [[Man1]] :: звонок\n", "Man1.md": "", "111/template.md": "" },
+    cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, backlink: { enabled: true } } }, pkm: { fields: { order: { useAsMoc: { People: true } } } } },
+    at: { file: "m13on.md", line: 0 }, steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 2000 }],
+    check: "const man = await a.vault.adapter.read('Man1.md'); return /\\[\\[/.test(man) || JSON.stringify({ man, line: a.workspace.activeEditor.editor.getLine(0) });" },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },
