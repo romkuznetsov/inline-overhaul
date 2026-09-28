@@ -44,6 +44,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 21. 🎨 **Clicking the open settings tab scrolls it back to the top.**
 22. ✨ **Adding a link Value suggests your notes.** Click the box under a link Field's Values and pick a note, or type to filter.
 23. ✨ **A Prefix picker for Values.** Click a Value's Prefix to see every checkbox drawn by your theme and pick one, or type your own.
+24. 🐛 **A checkbox set in the Prefix of a link Value reaches the line,** such as `- [x] [[Man1]] :: call`; before, it was saved and never used.
 
 ## 0.10.0
 
