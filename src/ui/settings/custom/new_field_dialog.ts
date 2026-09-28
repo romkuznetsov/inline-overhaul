@@ -63,8 +63,8 @@ export interface NewFieldFormOpts {
   done: (answer: NewFieldAnswer | null) => void;
 }
 
-/** Что пишет Element. */
-export type ElementValue = "datetime" | "counter" | "random";
+/** Что пишет Element; `list` — свои Values со своим знаком каждое (`В-247`). */
+export type ElementValue = "datetime" | "counter" | "random" | "list";
 /** Что показывает дата. */
 export type DateShows = "date" | "time" | "datetime";
 
@@ -125,7 +125,7 @@ export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string,
   if (!d.name.trim()) return say("NF_NEED_NAME");
   const bad = checkName(d.name);
   if (bad) return bad;
-  if (d.kind === "element" && !d.marker.trim()) return say("NF_NEED_EMOJI");
+  if (d.kind === "element" && d.value !== "list" && !d.marker.trim()) return say("NF_NEED_EMOJI");
   return "";
 }
 
@@ -135,7 +135,9 @@ const stepOf = (d: NewFieldDraft): number => Math.max(1, Math.trunc(Number(d.ste
 /** Ответ окна из черновика. */
 export function answerOf(d: NewFieldDraft): NewFieldAnswer {
   const setup: NewFieldSetup = { side: d.side };
-  if (d.kind === "element") {
+  if (d.kind === "element" && d.value === "list") {
+    setup.element = { mode: "list", format: "", list: d.values.map(v => v.token.trim()).filter(Boolean) };
+  } else if (d.kind === "element") {
     const format = d.format.trim() || (d.value === "counter" ? "1" : d.value === "random" ? "0000" : "YYYY-MM-DD");
     setup.element = d.value === "random"
       ? { mode: "command", command: d.random, format }
@@ -153,7 +155,7 @@ export function answerOf(d: NewFieldDraft): NewFieldAnswer {
   if (d.kind === "wikilink" && !d.moc) setup.moc = false;
   if (d.property.trim()) setup.property = d.property.trim();
   const out: NewFieldAnswer = { name: d.name.trim(), kind: d.kind, setup };
-  if (d.kind === "element") out.marker = d.marker.trim();
+  if (d.kind === "element" && d.value !== "list") out.marker = d.marker.trim();
   return out;
 }
 
@@ -192,6 +194,8 @@ const SERIES = 5;
 export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string; fill?: string; color?: string }> {
   if (d.kind === "tag") return d.values.map(v => ({ text: "#" + bare(v.token, "tag"), ...(v.fill ? { fill: v.fill } : {}), ...(v.text ? { color: v.text } : {}) }));
   if (d.kind === "wikilink") return d.values.map(v => ({ text: "[[" + bare(v.token, "wikilink") + "]]" }));
+  /* Element-список: Value пишется как есть, знак в нём самом. */
+  if (d.value === "list") return d.values.map(v => ({ text: v.token.trim() }));
   const fmt = d.format.trim();
   if (d.value === "random") {
     return [0, 1, 2].map(() => ({ text: d.marker + String(sharedUtils.renderCommandValueByFormat(fmt || "0000", d.random, now)) }));
@@ -551,7 +555,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     ], d.side, say("NF_BLOCK"), v => { d.side = v as FieldSide; d.sideChosen = true; draw(); });
 
     if (d.kind === "element") {
-      el(body, "div", "io-sub io-nf__sub", say("NF_VALUE_HEAD"));
+      el(body, "div", "io-sub io-nf__sub", say(d.value === "list" ? "NF_VALUES_HEAD" : "NF_VALUE_HEAD"));
       drawElement();
     } else drawValues();
 
@@ -572,9 +576,11 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
 
   const drawValues = (): void => {
     const isLink = d.kind === "wikilink";
+    /* Element-список (`В-247`): Values как есть, без цвета и без решётки. */
+    const isList = d.kind === "element";
     /* Values — строкой окна, как остальные контролы: тот же шрифт подписи и
        свой «?» (его замечание к тесту 3 цикла 99). */
-    const valuesCtl = item(body, "NF_VALUES_HEAD", isLink ? "NF_VALUES_DESC_LINK" : "NF_VALUES_DESC_TAG", "NF_VALUES_TIP", true);
+    const valuesCtl = item(body, "NF_VALUES_HEAD", isLink ? "NF_VALUES_DESC_LINK" : isList ? "NF_VALUES_DESC_LIST" : "NF_VALUES_DESC_TAG", "NF_VALUES_TIP", true);
     /* Строка добавления — под фишками, а не рядом (его замечание к тесту 2 цикла 100). */
     valuesCtl.addClass("io-nf__values");
     const chips = el(valuesCtl, "div", "io-nf__chips");
@@ -601,7 +607,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
         cssVar(label, "--io-nf-chip-bg", v.fill || "transparent");
         cssVar(label, "--io-nf-chip-fg", v.text || "inherit");
       };
-      if (!isLink) {
+      if (!isLink && !isList) {
         const dot = (cls: string, aria: string, chosen: string | undefined, theme: string, set: (c: string) => void): void => {
           const node = chip.createEl("input", {
             cls: "io-nf__dot " + cls + (chosen ? "" : " io-nf__dot--unset"), type: "color", value: chosen || theme,
@@ -612,7 +618,8 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
         dot("io-nf__dot--fill", say("NF_VALUE_COLOR", v.token), v.fill, toHexColor(theme.fill) || toHexColor(theme.text), c => { v.fill = c; });
         dot("io-nf__dot--text", say("NF_VALUE_TEXT_COLOR", v.token), v.text, toHexColor(theme.text), c => { v.text = c; });
       }
-      label = el(chip, "span", "io-nf__chiptext" + (isLink ? "" : " io-nf__chiptext--tag"), isLink ? "[[" + bare(v.token, "wikilink") + "]]" : "#" + bare(v.token, "tag"));
+      label = el(chip, "span", "io-nf__chiptext" + (isLink || isList ? "" : " io-nf__chiptext--tag"),
+        isLink ? "[[" + bare(v.token, "wikilink") + "]]" : isList ? v.token.trim() : "#" + bare(v.token, "tag"));
       paintChip();
       /* Есть заметка — молчим: `note` у каждой ссылки он назвал лишним (тест 3
          цикла 99). Говорится только то, чего не видно, — заметки ещё нет. */
@@ -622,17 +629,17 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       const x = btn(chip, "io-nf__x", { text: "✕", label: say("NF_VALUE_REMOVE", v.token) });
       x.addEventListener("click", (() => { d.values.splice(i, 1); draw(); }) as never);
     });
-    if (!d.values.length) el(chips, "span", "io-nf__chipshint", say(isLink ? "NF_VALUES_EMPTY_LINK" : "NF_VALUES_EMPTY_TAG"));
+    if (!d.values.length) el(chips, "span", "io-nf__chipshint", say(isLink ? "NF_VALUES_EMPTY_LINK" : isList ? "NF_VALUES_EMPTY_LIST" : "NF_VALUES_EMPTY_TAG"));
 
     const addRow = el(valuesCtl, "div", "io-nf__addrow");
     const input = textInput(addRow, "io-text io-text--mono", {
-      value: "", placeholder: say(isLink ? "NEW_VALUE_LINK_HINT" : "NEW_VALUE_TAG_HINT"), label: say("NF_VALUE_ARIA"),
+      value: "", placeholder: say(isLink ? "NEW_VALUE_LINK_HINT" : isList ? "NEW_VALUE_LIST_HINT" : "NEW_VALUE_TAG_HINT"), label: say("NF_VALUE_ARIA"),
     });
     valueInput = input;
     const push = (raw: string): boolean => {
       const t = String(raw || "").trim();
       if (!t) return false;
-      if (d.values.some(v => bare(v.token, d.kind) === bare(t, d.kind))) return false;
+      if (d.values.some(v => (isList ? v.token.trim() === t : bare(v.token, d.kind) === bare(t, d.kind)))) return false;
       d.values.push({ token: t });
       return true;
     };
@@ -646,6 +653,15 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* После выбора из подсказки фокус в поле не возвращается: платформа
        открыла бы список снова поверх формы (стенд `new-field`, снимок). */
     if (isLink) attachNoteSuggest(input, { platform, app, notes: o.notes, pick: t => { if (push(t)) draw(); } });
+    /* Эмодзи набирать неудобно — у поля Value списка своя выбиралка; знак встаёт в поле, слово человек допечатывает. */
+    if (isList) {
+      const picker = attachPicker(input, addRow, {
+        kinds: ["emoji"], say,
+        ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
+        onPick: char => { input.value = String(input.value || "") + char; focusValue(); },
+      });
+      closers.push(picker.close);
+    }
     if (isLink) {
       const moc = item(body, "MOC_NAME", "MOC_DESC", "MOC_TIP", true);
       segmented(moc, [{ value: "yes", label: say("MOC_YES") }, { value: "no", label: say("MOC_NO") }],
@@ -661,6 +677,9 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   };
 
   const drawElement = (): void => {
+    /* У списка знак стоит в каждом Value, и строк знака и формата нет (`В-247`). */
+    const listMode = d.value === "list";
+    if (!listMode) {
     const emoji = itemRow(body, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_LABEL", "NEW_FIELD_MARKER_TIP");
     const marker = textInput(emoji.control, "io-text", {
       value: d.marker, placeholder: say("NEW_FIELD_MARKER_HINT"), label: say("NEW_FIELD_MARKER_ARIA"), needed: true,
@@ -672,13 +691,18 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       onPick: char => { d.marker = char; marker.value = char; refresh(); },
     });
     closers.push(picker.close);
+    }
 
     const kindCtl = item(body, "NF_WRITES", "NF_WRITES_DESC", "NF_WRITES_TIP", true);
     segmented(kindCtl, [
       { value: "datetime", label: say("NF_WRITES_DATETIME") },
       { value: "counter", label: say("NF_WRITES_COUNTER") },
       { value: "random", label: say("NF_WRITES_RANDOM") },
+      { value: "list", label: say("NF_WRITES_LIST") },
     ], d.value, say("NF_WRITES"), v => {
+      if (v === d.value) return;
+      /* Values списка к шагу даты не относятся, и наоборот. */
+      d.values = [];
       d.value = v as ElementValue;
       d.format = v === "counter" ? "1" : v === "random" ? "0000" : (DATE_SHOWS.find(s => s.id === d.shows) || DATE_SHOWS[0]!).format;
       d.press = v === "datetime" && d.shows !== "date" ? "now" : "step";
@@ -686,6 +710,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       draw();
     });
 
+    if (listMode) { drawValues(); return; }
     if (d.value === "datetime") {
       const shows = item(body, "NF_SHOWS", "NF_SHOWS_DESC", "NF_SHOWS_TIP", true);
       segmented(shows, DATE_SHOWS.map(s => ({ value: s.id, label: say(s.name) })), d.shows, say("NF_SHOWS"), v => {

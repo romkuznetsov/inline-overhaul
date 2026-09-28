@@ -22,7 +22,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 ## Unreleased
 
 1. 🐛 **A tag or link you type in your text stays your word.** Field commands, tagWheel and `Inline to note` no longer read `- buy #todo milk` as a Value, copy it into a Block or remove it; a Value at the start of a line is still a Value. `Keep typed tags in text` in `Placement modes` turns this off.
-2. 🐛 **A link typed after the only separator is drawn as text.** `- [[Man1]] :: met [[Man1]] yesterday` no longer gives the second link the fill and size of the right Block.
+2. ✨ **An Element can be a list of your own Values.** `Steps by` → `List of Values` (or `Writes` → `List` in `Add Field`) cycles Values that each carry their own emoji, such as `🙂‍↕️yes` and `🙂‍↔️no`, or an emoji alone — by command and in tagWheel, like a tag.
+3. 🐛 **A tag typed into your text stays there when tagWheel sets a right Block Field.** Before, choosing a Value of such a Field removed the same tag from your phrase.
+4. 🐛 **A link typed after the only separator is drawn as text.** `- [[Man1]] :: met [[Man1]] yesterday` no longer gives the second link the fill and size of the right Block.
 
 ## 0.11.0
 

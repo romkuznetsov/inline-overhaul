@@ -1142,8 +1142,17 @@ function makeWikilinkValueTest(rules) {
     const target = __sharedUtils.wikilinkTargetOf(token);
     if (target) targets.add(target);
   }
+  /*
+   * **Value без решётки и без скобок — тоже названное значение** (`В-247`,
+   * режим списка у Element: `🙂‍↕️да`, `💡`). Формы у него нет, и узнаётся оно
+   * только тем, что стоит в списке Values поля. Вопрос тот же, что у ссылки, и
+   * спрашивают его те же 19 мест: без этой строки разбор панели уносил такое
+   * Value в текст, и круг рядом с `#todo` множил его во фразе.
+   */
+  const named = new Set(Object.keys(map).filter((t) => !__sharedUtils.isWikilinkToken(t) && !__sharedUtils.isTagToken(t)));
   return function isFieldWikilinkValue(token) {
     const t = String(token || "").trim();
+    if (named.has(t)) return true;
     if (!__sharedUtils.isWikilinkToken(t)) return false;
     const target = __sharedUtils.wikilinkTargetOf(t);
     return !!target && targets.has(target);

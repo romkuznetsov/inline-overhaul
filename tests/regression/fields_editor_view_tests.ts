@@ -1961,11 +1961,27 @@ function heightBtn(host: StubNode): StubNode {
   const step = all(v.host, "io-select").find(s =>
     String(s.getAttribute("aria-label") || "").startsWith("Steps by")) as StubNode;
   assert.deepEqual(step.children.map(c => String(c.textContent || "").trim()),
-    ["Fixed step", "Command", "Custom step"],
-    "подписи режимов шага — те, которые назвал заказчик");
+    ["Fixed step", "Command", "Custom step", "List of Values"],
+    "подписи режимов шага — те, которые назвал заказчик (четвёртый — его `В-247`)");
   assert.deepEqual(step.children.map(c => String(c.value || "")),
-    ["increment", "command", "custom"], "значения в конфиге прежние (З1)");
+    ["increment", "command", "custom", "list"], "значения в конфиге прежние (З1), `list` — новый");
   ok("второй круг 6: у Field типа Emoji свой заголовок и понятные подписи режимов");
+}
+{
+  /* `В-247`: у Element-списка знак и формат в каждом Value — строк знака и
+     формата нет, есть поле Values; запись — Values строками и режим `list`. */
+  const v = makeView();
+  const dueKey = (v.model.listFields() as Array<{ key: string; label: string }>).find(f => f.label === "Due")!.key;
+  v.model.elementEditor(dueKey).setList("\u{1F642}‍↕️yes\n\n\u{1F4A1}");
+  v.draw();
+  const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
+  one(due, "io-fields__pick").click();
+  const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
+  assert.ok(!names.includes("Emoji prefix") && !names.includes("Value format"), "у списка остались строки знака и формата: " + names.join(", "));
+  assert.ok(names.includes("Values"), "у списка нет строки Values: " + names.join(", "));
+  const ed = v.model.elementEditor(dueKey);
+  assert.deepEqual([ed.mode, ed.list], ["list", ["\u{1F642}‍↕️yes", "\u{1F4A1}"]], "Values списка записаны строками без пустых");
+  ok("В-247: у Element-списка строка Values вместо знака и формата");
 }
 {
   const v = makeView();
@@ -3286,12 +3302,34 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const kinds = walk(f2, "io-seg__btn").map(b => String(b.textContent));
   assert.ok(kinds.includes("Counter") && kinds.includes("Random") && kinds.includes("Steps") && kinds.includes("The moment"),
     "видов значения нет: " + kinds.join(", "));
-  assert.ok(!kinds.includes("List"), "«List» писал шаги-числа, а показывал слова — его не должно быть до режима списка");
+  assert.ok(kinds.includes("List"), "у Element нет вида `List` (`В-247`): " + kinds.join(", "));
   const marker2 = walk(f2, "io-text").find(x => x.getAttribute("aria-label") === "Emoji of the new Field") as StubNode;
   assert.ok(!/\p{Extended_Pictographic}/u.test(String(marker2.getAttribute("placeholder") || "")), "заглушка знака — эмодзи, читается как выбранный");
   assert.ok(walk(f2, "io-text").some(x => x.getAttribute("aria-label") === "Amount"), "у даты, которая шагает, нет шага");
   const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
   assert.ok(own.NEW_FIELD_NAME_TIP && own.NF_BLOCK_TIP && own.NEW_FIELD_MARKER_TIP, "у подсказок окна нет текста в каталоге");
+  /* `В-247`: `List` — Values со своим знаком каждое; знака и формата у Field нет. */
+  let answer3: Any = "не звали";
+  askNewFieldModal(FakeModal as never, {}, a => { answer3 = a; }, say, opts(true));
+  const f3 = opened[opened.length - 1]!;
+  walk(f3, "io-nf__type")[2]!.click();
+  const name3 = walk(f3, "io-text").find(x => x.getAttribute("aria-label") === "Name of the new Field") as StubNode;
+  name3.value = "mood";
+  name3.dispatch("input");
+  (walk(f3, "io-seg__btn").find(b => String(b.textContent) === "List") as StubNode).click();
+  assert.ok(!walk(f3, "io-text").some(x => x.getAttribute("aria-label") === "Emoji of the new Field"), "у списка осталось поле знака");
+  assert.ok(!walk(f3, "io-text").some(x => x.getAttribute("aria-label") === "Value format"), "у списка осталось поле формата");
+  const add3 = walk(f3, "io-btn--cta")[0] as StubNode;
+  assert.equal(add3.disabled, false, "список без знака не нажимается — знак стоит в каждом Value");
+  for (const t of ["\u{1F642}‍↕️yes", "\u{1F4A1}"]) {
+    const vi = walk(f3, "io-text").find(x => x.getAttribute("aria-label") === "New Value") as StubNode;
+    vi.value = t;
+    vi.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+  }
+  assert.deepEqual(walk(f3, "io-nf__chiptext").map(n => String(n.textContent)), ["\u{1F642}‍↕️yes", "\u{1F4A1}"], "фишки списка не как есть");
+  (walk(f3, "io-btn--cta")[0] as StubNode).click();
+  assert.deepEqual(answer3, { name: "mood", kind: "element", setup: { side: "right", element: { mode: "list", format: "", list: ["\u{1F642}‍↕️yes", "\u{1F4A1}"] } } },
+    "ответ окна для списка не тот");
   passed++;
   console.log("  ok окно `Add a Field`: тип карточками, Block, Values с Enter, предпросмотр и ответ");
 }

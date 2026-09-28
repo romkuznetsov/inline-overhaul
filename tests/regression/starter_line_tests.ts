@@ -198,6 +198,85 @@ async function main(): Promise<void> {
     passed += 2;
     console.log("  ok выкл.: панель и Transform переносят значение из фразы");
   }
+  /*
+   * `В-247`: Element в режиме списка — Values со своим знаком каждое, без
+   * решётки. Узнаётся списком (`makeWikilinkValueTest`), шагает как тег, стоит
+   * среди тегов (`ensureBehaviorModesFromOrder`). Отрицательный контроль —
+   * круг рядом с `#todo`: без правки дома Value уезжало в текст и множилось.
+   */
+  const VALS = ["\u{1F642}‍↕️да", "\u{1F642}‍↔️нет", "\u{1F4A1}"];
+  const withList = (side: "left" | "right"): Any => {
+    const c = JSON.parse(JSON.stringify(cfg));
+    const order = c.pkm.fields.order;
+    order[side].push("Mood");
+    order.types.Mood = "element";
+    order.active.Mood = "yes";
+    c.pkm.fields.elements.byField.Mood = { emoji: "", format: "", increment: { mode: "list" }, list: [...VALS, " ", VALS[0] as string] };
+    return normalize.migrateConfig(c);
+  };
+  const sep = cfg.pkm.lineFormat.separator1;
+  for (const side of ["left", "right"] as const) {
+    const lc = withList(side);
+    assert.deepEqual(lc.pkm.fields.elements.byField.Mood.list, VALS, side + ": Values списка без пустых и повторов");
+    assert.ok(lc.pkm.fields.tags.fields.some((f: Any) => f.id === "Mood"), side + ": Element-список не встал среди тегов");
+    assert.ok(!lc.pkm.fields.links.fields.some((f: Any) => f.id === "Mood"), side + ": Element-список остался среди элементов");
+    const start = side === "left" ? `- #todo ${sep} купить` : `- купить ${sep} 📅2026-09-30`;
+    const put = (v: string): string => (side === "left" ? `- #todo ${v} ${sep} купить` : `- купить ${sep} 📅2026-09-30 ${v}`);
+    let line = start;
+    for (const want of [put(VALS[0]!), put(VALS[1]!), put(VALS[2]!), start]) {
+      line = (await bench.runCommandById(lc, "mood-next", line, line.length)).line;
+      assert.equal(line, want, side + ": круг Element-списка командой");
+      passed++;
+    }
+    assert.equal((await bench.runCommandById(lc, "mood-previous", start, start.length)).line, put(VALS[2]!), side + ": previous с пустого — последнее Value");
+    const walk: string[] = await bench.fieldWalk(lc, side, put(VALS[0]!), put(VALS[0]!).length, 12);
+    const at = walk.indexOf("Mood");
+    assert.ok(at >= 0, side + ": панель не дошла до Element-списка");
+    const keys = Array(at).fill("ArrowRight").concat(["ArrowUp"]);
+    const byPanel = await bench.runTagWheel(lc, side, put(VALS[0]!), put(VALS[0]!).length, keys);
+    assert.equal(byPanel.line, put(VALS[1]!), side + ": панель шагает Element-список");
+    passed += 3;
+  }
+  const hd = withList("left");
+  const hdLine = `# ${VALS[0]} #aaa ${sep}`;
+  const hdWalk: string[] = await bench.fieldWalk(hd, "left", hdLine, hdLine.length, 12);
+  const hdPanel = await bench.runTagWheel(hd, "left", hdLine, hdLine.length, Array(hdWalk.indexOf("Mood")).fill("ArrowRight").concat(["ArrowUp"]));
+  assert.equal(hdPanel.line.trimEnd(), `# ${VALS[1]} #aaa ${sep}`, "тег за Value списка в начале строки — тоже значение (extractOriginalTextFromRawLine)");
+  passed++;
+  /* Transform: Value из Block — в свойство, из фразы — в имени (`В-235`). */
+  const tf = require("../../src/features/transform_feature.js");
+  const yamlOf = (c: Any, l: string): string[] => tf.renderYamlBlockWithOrder([], tf.buildYamlMapFromContext(tf.buildTransformContext(tf.parseInlineLine(l, c), c), c), c);
+  const hdYaml = JSON.parse(JSON.stringify(hd));
+  hdYaml.pkm.fields.order.propertiesByField = { ...(hdYaml.pkm.fields.order.propertiesByField || {}), Mood: "mood" };
+  const ty = normalize.migrateConfig(hdYaml);
+  assert.ok(yamlOf(ty, `- ${VALS[0]} ${sep} купить`).some((r) => r === "mood: " + VALS[0]), "Transform не записал Value списка в свойство");
+  assert.equal(tf.parseInlineLine(`- ${VALS[0]} ${sep} купить`, ty).payloadText, "купить", "Transform оставил Value списка из Block в имени");
+  assert.equal(tf.parseInlineLine(`- купить ${VALS[2]} молоко`, ty).payloadText, `купить ${VALS[2]} молоко`, "Transform унёс Value списка из фразы");
+  /* Оформление: Value списка в своём Block — значение Element, во фразе — текст. */
+  const vis = require("../../src/core/editor_visuals_config.js");
+  const zones = (l: string): string => vis.scanLineVisualTokens(l, sep, sep, vis.buildElementMarkersFromConfig(hd),
+    vis.buildBlockKindsFromConfig(hd), vis.buildWikilinkValueTestFromConfig(hd), vis.buildLineSplitFromConfig(hd))
+    .map((h: Any) => h.token + ":" + h.kind + ":" + h.zone).join(" ");
+  assert.equal(zones(`- ${VALS[0]} ${sep} купить`), `${VALS[0]}:element:left`, "оформление не узнало Value списка в Block");
+  assert.equal(zones(`- купить ${VALS[2]} молоко`), `${VALS[2]}:element:middle`, "Value списка во фразе оформлено как Block");
+  passed += 5;
+  console.log("  ok В-247 Element-список: команда, панель, Transform и оформление");
+  /*
+   * Тег в правом Block, набранный посреди фразы, панель не стирает (`В-235`,
+   * `relocateOffEntriesToRightPanel`). У его конфига и стартового набора тегов
+   * справа нет — обход этого не видел.
+   */
+  const tr = JSON.parse(JSON.stringify(cfg));
+  tr.pkm.fields.order.left = tr.pkm.fields.order.left.filter((k: string) => k !== "Status");
+  tr.pkm.fields.order.right.push("Status");
+  const trCfg = normalize.migrateConfig(tr);
+  const phrase = "- купить #todo молоко";
+  const trWalk: string[] = await bench.fieldWalk(trCfg, "right", phrase, phrase.length, 12);
+  assert.ok(trWalk.indexOf("Status") >= 0, "панель справа не дошла до Status");
+  const trPanel = await bench.runTagWheel(trCfg, "right", phrase, phrase.length, Array(trWalk.indexOf("Status")).fill("ArrowRight").concat(["ArrowUp"]));
+  assert.ok(/купить #todo молоко/.test(trPanel.line), "панель стёрла тег из фразы у поля правого Block: " + JSON.stringify(trPanel.line));
+  passed++;
+  console.log("  ok тег правого Block посреди фразы — слово человека и у панели");
   console.log(passed + " проверок");
 }
 

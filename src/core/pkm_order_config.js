@@ -99,6 +99,25 @@ function buildLeftFieldDefinition(key, kind) {
   };
 }
 
+function uniqueTrimmed(list) {
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const t = String(raw == null ? "" : raw).trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Values Element в режиме списка (`В-247`); `null` — поле не в этом режиме.
+ * Одно объявление на сборку определения и на оформление.
+ */
+function elementListValues(elemCfg) {
+  const inc = isObj(elemCfg && elemCfg.increment) ? elemCfg.increment : {};
+  if (String(inc.mode || "").trim().toLowerCase() !== "list") return null;
+  return uniqueTrimmed(elemCfg && elemCfg.list);
+}
+
 function buildRightElementFieldDefinition(key) {
   const dflt = inferElementDefaultsByKey(key);
   return {
@@ -168,10 +187,13 @@ function ensureBehaviorModesFromOrder(cfg) {
       if (kind0 === "tag") allowedCustomSubIds.add(inferSubFieldKey(key));
     }
   }
+  const byFieldNow = isObj(fields.elements && fields.elements.byField) ? fields.elements.byField : {};
   fields.tags.fields = leftFields.filter((f) => {
     const id = String(f && f.id || "").trim();
     if (!id) return false;
     if (builtInLeftIds.has(id)) return true;
+    /* Element в режиме списка стоит среди тегов (`В-247`). */
+    if (allowedCustomElementIds.has(id)) return elementListValues(byFieldNow[id]) !== null;
     if (allowedCustomTagIds.has(id)) return true;
     if (allowedCustomSubIds.has(id)) return true;
     return false;
@@ -200,6 +222,31 @@ function ensureBehaviorModesFromOrder(cfg) {
         : {};
       const marker = String(elemCfg.emoji || inferElementDefaultsByKey(key).marker || "").trim();
       const placeholder = String(order.labels && order.labels[key] ? order.labels[key] : (key || "")).trim() || key;
+      /*
+       * **Режим списка — движкам полем со списком Values, как у тега** (`В-247`).
+       * Знака у поля нет — он в каждом Value, — и формы у значения нет: движки
+       * узнают его по списку (`makeWikilinkValueTest`), шагают и прокручивают
+       * тем же ходом, что тег. Определение — среди тегов (`leftMode`): панель
+       * пишет в строку значения только оттуда, `rightMode` для неё — ссылки и
+       * элементы движка дат. Values живут у Element (`list`), здесь только
+       * выводятся.
+       */
+      const list = elementListValues(elemCfg);
+      const dropFrom = (arr) => {
+        const at = arr.findIndex((f) => String(f && f.id || "").trim() === key);
+        if (at !== -1) arr.splice(at, 1);
+      };
+      if (list) {
+        dropFrom(rightFieldsLive);
+        rightByIdLive.delete(key);
+        dropFrom(leftFieldsLive);
+        leftFieldsLive.push({ id: key, prefix: "", placeholder, values: list.map((token) => ({ token, active: true })) });
+        leftByIdLive.add(key);
+        continue;
+      }
+      /* Вернулись из списка — прежнее определение среди тегов уже чужое. */
+      dropFrom(leftFieldsLive);
+      leftByIdLive.delete(key);
       if (!rightByIdLive.has(key)) {
         const d = buildRightElementFieldDefinition(key);
         rightFieldsLive.push({ ...d, marker, placeholder });
@@ -346,7 +393,7 @@ function ensureBehaviorModesFromOrder(cfg) {
     const cur = curElem;
     const incCur = isObj(cur.increment) ? cur.increment : {};
     const modeRaw = String(incCur.mode || "standard").trim().toLowerCase();
-    const mode = modeRaw === "custom" || modeRaw === "command" ? modeRaw : "standard";
+    const mode = modeRaw === "custom" || modeRaw === "command" || modeRaw === "list" ? modeRaw : "standard";
     const incrementBy = Math.max(1, Math.trunc(Number(incCur.incrementBy || 1)));
     const command = String(incCur.command || "now").trim() || "now";
     const customRaw = Array.isArray(incCur.customRaw)
@@ -369,6 +416,8 @@ function ensureBehaviorModesFromOrder(cfg) {
         custom,
       },
     };
+    /* Values списка (`В-247`): строки без пустых и без повторов. */
+    if (Array.isArray(cur.list)) normalizedEntry.list = uniqueTrimmed(cur.list);
     fields.elements.byField[key] = normalizedEntry;
   }
 
@@ -774,6 +823,7 @@ module.exports = {
   buildLeftFieldDefinition,
   buildRightElementFieldDefinition,
   ensureBehaviorModesFromOrder,
+  elementListValues,
   makeDefaultPkmOrder,
   STRICT_FIELD_NAME_RE,
   normalizePkmOrder,

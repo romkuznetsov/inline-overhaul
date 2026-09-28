@@ -23,6 +23,7 @@ const __linePipeline = require("../core/line_pipeline.js");
 const __rulesShape = require("../core/pkm_rules_shape.js");
 const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
 const __domainRegistry = require("../core/pkm_domain_registry.js");
+const __pkmOrderConfig = require("../core/pkm_order_config.js");
 
 function getRulesShapeModule() { return __rulesShape; }
 
@@ -613,6 +614,18 @@ function escapeRegexLiteral(s) {
   return __sharedUtils.escapeRe(s);
 }
 
+/** Values всех Element в режиме списка (`В-247`). */
+function getElementListValuesFromConfig(cfg) {
+  const byField = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements && cfg.pkm.fields.elements.byField)
+    ? cfg.pkm.fields.elements.byField
+    : {};
+  const out = new Set();
+  for (const key of Object.keys(byField)) {
+    for (const v of __pkmOrderConfig.elementListValues(byField[key]) || []) out.add(v);
+  }
+  return out;
+}
+
 /**
  * Метки эмодзи-элементов и длина хвоста у каждой.
  *
@@ -1065,6 +1078,19 @@ function parseInlineLine(rawLine, cfg) {
     tagSpans.push(span);
     tagOccurrences.push({ token: String(m[2] || "").trim(), ...span, panel: panelForSpan(span.start) });
   }
+  /* Value Element-списка (`В-247`) — значение, как тег: формы у него нет,
+     узнаётся словом из списка. */
+  const listValues = getElementListValuesFromConfig(cfg);
+  if (listValues.size) {
+    const wordRe = /\S+/g;
+    while ((m = wordRe.exec(line)) !== null) {
+      if (!listValues.has(m[0]) || isInSpans(m.index, wikilinkSpans)) continue;
+      const span = { start: m.index, end: m.index + m[0].length };
+      tags.push(m[0]);
+      tagSpans.push(span);
+      tagOccurrences.push({ token: m[0], ...span, panel: panelForSpan(span.start) });
+    }
+  }
   for (let mi = 0; mi < markerRules.length; mi++) {
     const marker = String(markerRules[mi] && markerRules[mi].marker || "").trim();
     if (!marker) continue;
@@ -1160,7 +1186,8 @@ function getModeFields(cfg) {
 
 function fieldTokenCandidates(field) {
   const src = Array.isArray(field && field.values) ? field.values : [];
-  const prefix = String(field && field.prefix || "#");
+  /* Пустой Prefix — у Element-списка (`В-247`): Value пишется как есть. */
+  const prefix = field && field.prefix != null ? String(field.prefix) : "#";
   const out = [];
   for (let i = 0; i < src.length; i++) {
     const row = isObj(src[i]) ? src[i] : {};
@@ -1214,6 +1241,9 @@ function buildTransformContext(parsed, cfg) {
   const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const orderTypes = isObj(order.types) ? order.types : {};
+  const elementsByField = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements && cfg.pkm.fields.elements.byField)
+    ? cfg.pkm.fields.elements.byField
+    : {};
   const fields = getModeFields(cfg);
   /*
    * В каком Block Field пишется — говорит Order, а не список определений, в
@@ -1309,7 +1339,8 @@ function buildTransformContext(parsed, cfg) {
     const f = fields[i];
     const fid = String(f.id || "").trim();
     if (!fid) continue;
-    const fType = resolveEffectiveFieldType(f, orderTypes, fid);
+    /* Element в режиме списка — значения как у тега (`В-247`). */
+    const fType = __pkmOrderConfig.elementListValues(elementsByField[fid]) ? "tag" : resolveEffectiveFieldType(f, orderTypes, fid);
     const defaultYamlProperty = String(propertiesByField[fid] || "").trim();
     const parentFid = String(f.dependsOn || "").trim();
     const isSubField = !!parentFid;

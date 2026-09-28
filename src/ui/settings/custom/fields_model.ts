@@ -146,8 +146,8 @@ export type FieldSide = "left" | "right" | `custom:${string}`;
 export interface NewFieldSetup {
   side?: FieldSide;
   values?: Array<{ token: string; fill?: string; text?: string }>;
-  /** Как шагает Element: на величину или командой (момент, случайное). */
-  element?: { mode: "increment" | "command"; format: string; incrementBy?: number; command?: "now" | "randomN" | "randomE" };
+  /** Как шагает Element: на величину, командой (момент, случайное) или по списку Values (`В-247`). */
+  element?: { mode: "increment" | "command" | "list"; format: string; incrementBy?: number; command?: "now" | "randomN" | "randomE"; list?: string[] };
   /** Link: `false` — не MOC (его замечание к тесту 3 цикла 98). */
   moc?: boolean;
   /** Свойство YAML, в которое уходит Value. */
@@ -341,12 +341,15 @@ export interface ElementEditor {
   incrementBy: number;
   command: string;
   customRaw: string[];
+  /** Values режима `list` (`В-247`): каждое со своим знаком. */
+  list: string[];
   setEmoji: (v: string) => void;
   setFormat: (v: string) => void;
   setMode: (v: string) => void;
   setIncrementBy: (v: number) => void;
   setCommand: (v: string) => void;
   setCustomRaw: (text: string) => void;
+  setList: (text: string) => void;
 }
 
 export interface OrderSnapshot {
@@ -1833,10 +1836,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       fieldId: elementFieldId,
       emoji: String(cur.emoji || ""),
       format: String(cur.format || ""),
-      mode: ["increment", "command", "custom"].includes(modeRaw) ? modeRaw : "increment",
+      mode: ["increment", "command", "custom", "list"].includes(modeRaw) ? modeRaw : "increment",
       incrementBy: Number.isFinite(Number(inc.incrementBy)) ? Number(inc.incrementBy) : 1,
       command: ["now", "randomN", "randomE"].includes(String(inc.command || "")) ? String(inc.command) : "now",
       customRaw: Array.isArray(inc.customRaw) ? inc.customRaw.map((x: Loose) => String(x || "")) : [],
+      list: Array.isArray(cur.list) ? cur.list.map((x: Loose) => String(x || "")) : [],
       setEmoji: v => write({ ...cur, emoji: v }, "pkm:behavior:order:deep:emoji:" + k),
       setFormat: v => write({ ...cur, format: v }, "pkm:behavior:order:deep:format:" + k),
       setMode: v => write(
@@ -1858,6 +1862,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           "pkm:behavior:order:deep:custom:" + k,
         );
       },
+      /* Строки без пустых; повторы снимает нормализация (`ensureBehaviorModesFromOrder`). */
+      setList: text => write(
+        { ...cur, increment: { ...inc, mode: "list" }, list: normalizeCustomRaw(text) },
+        "pkm:behavior:order:deep:list:" + k,
+      ),
     };
   };
 
@@ -2545,8 +2554,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       }
     } else if (setup.element) {
       const e = setup.element;
-      elementEditor(k).setFormat(e.format);
-      if (e.mode === "command") elementEditor(k).setCommand(e.command || "now");
+      if (e.mode === "list") elementEditor(k).setList((e.list || []).join("\n"));
+      else elementEditor(k).setFormat(e.format);
+      if (e.mode === "list") { /* Values записаны выше, шага у списка нет. */ } else if (e.mode === "command") elementEditor(k).setCommand(e.command || "now");
       else elementEditor(k).setIncrementBy(Math.max(1, Math.trunc(Number(e.incrementBy) || 1)));
     }
     if (kind === "wikilink" && setup.moc === false) setUseAsMoc(k, false);

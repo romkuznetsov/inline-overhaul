@@ -112,6 +112,22 @@ for (const [id, element, mode, extra] of [
   ok("Element " + id + ": формат " + JSON.stringify(element.format) + ", шаг " + mode + " " + JSON.stringify(extra));
 }
 
+/* `В-247`: Element-список — без знака; Values строками, определение среди тегов. */
+{
+  const p = panel();
+  const m = p.model();
+  const res = m.addField("mood", "element");
+  assert.equal(res.ok, true, "Element без знака не заводится: " + JSON.stringify(res));
+  m.configureNewField("mood", { side: "left", element: { mode: "list", format: "", list: ["\u{1F642}‍↕️yes", "\u{1F4A1}"] } });
+  const cfg = p.cfg();
+  const row = cfg.pkm.fields.elements.byField.mood;
+  assert.deepEqual([row.increment.mode, row.list], ["list", ["\u{1F642}‍↕️yes", "\u{1F4A1}"]], "режим и Values списка не записаны: " + JSON.stringify(row));
+  const def = cfg.pkm.fields.tags.fields.find((f: Any) => f.id === "mood");
+  assert.ok(def && def.prefix === "" && def.values.map((v: Any) => v.token).join(" ") === "\u{1F642}‍↕️yes \u{1F4A1}", "определение для движков не среди тегов: " + JSON.stringify(def));
+  assert.ok(cfg.pkm.fields.order.left.includes("mood"), "Block не записан");
+  ok("Element-список: без знака, Values строками, определение среди тегов");
+}
+
 /* Имя: то же правило, что у заведения. */
 {
   const m = panel().model();

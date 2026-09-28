@@ -916,7 +916,22 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
   /* Начало строки снимается общим объявлением: три своих образца знали
      только дефис, только точку и скобки без знака списка. */
   left = String(__sharedUtils.lineStartOf(left).body || "").trim();
-  left = stripLeadingValues(left, getRightMarkers(rules));
+  const managed = collectManagedTokens(rules);
+  /*
+   * **Value без формы снимается с начала тоже** (`В-247`, режим списка у
+   * Element: `🙂‍↕️да`). Формы узнаёт `stripLeadingValues`, Value списка — только
+   * список; без чередования `#aaa` за таким Value объявлялся текстом, и панель
+   * уносила его в правый Block. То же чередование — у разбора строки без
+   * разделителей (`demoteLeftBodyToText`).
+   */
+  for (;;) {
+    const w = __sharedUtils.lineWords(stripLeadingValues(left, getRightMarkers(rules)));
+    let k = 0;
+    while (k < w.length && managed.has(w[k])) k++;
+    const next = w.slice(k).join(" ");
+    if (next === left) break;
+    left = next;
+  }
   /*
    * Цикл выше снимает токены только **с начала** тела, и токен, стоящий после
    * прозы, уезжал в «исходный текст» вместе с ней. Дальше
@@ -925,7 +940,6 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
    * проза попадала в строку дважды (A18). Поэтому объявленные токены снимаются
    * по всему телу, а не только с начала.
    */
-  const managed = collectManagedTokens(rules);
   if (managed.size) {
     left = __sharedUtils.lineWords(left)
       .filter(function(t) { return !managed.has(t); })

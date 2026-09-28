@@ -1083,7 +1083,13 @@ function relocateOffEntriesToRightPanel(options) {
   }
 
   const leftBody = removeTokens(leftParts.body, uniq);
-  seg.text = removeTokens(seg.text, uniq);
+  /*
+   * **Value в тексте — слово человека** (`В-235`): при включённом `Keep typed
+   * tags in text` фраза не трогается, как и в `relocateTokenSetByPanel`. Здесь
+   * этого вопроса не было, и панель стирала тег из фразы у всякого поля
+   * правого Block (обход `line_matrix` с тегом справа, цикл 104).
+   */
+  if (!__sharedUtils.typedTagsStayText(rules)) seg.text = removeTokens(seg.text, uniq);
   seg.dates = removeTokens(seg.dates, uniq);
   for (let i = 0; i < entries.length; i++) {
     const tok = String(entries[i] && entries[i].token ? entries[i].token : "").trim();

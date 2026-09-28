@@ -2031,6 +2031,7 @@ const STEP_OPTIONS = [
   { value: "increment", name: "STEP_FIXED" },
   { value: "command", name: "STEP_COMMAND" },
   { value: "custom", name: "STEP_CUSTOM" },
+  { value: "list", name: "STEP_LIST" },
 ] as const;
 
 /*
@@ -2102,7 +2103,9 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
    * пришёл ровно с этим: «при активации tagwheel я получу ошибку `these fields
    * need an Emoji`. Это не интуитивно».
    */
-  const marker = line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
+  /* У списка знак и формат стоят в каждом Value, и этих строк нет (`В-247`). */
+  const listMode = ed.mode === "list";
+  const marker = listMode ? null : line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
     say("ELEMENT_EMOJI_HINT"), v => ed.setEmoji(v), true);
   /*
    * Выбиралка эмодзи под знаком (`В-182`, его пункт 10): «при нажатии на
@@ -2111,7 +2114,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
    * знак Field — один знак, и символы с рожицами ему не годятся по его же
    * слову. Выбранное пишется той же дорогой, что и набранное руками.
    */
-  if (o.enabled) {
+  if (o.enabled && marker) {
     const picker = attachPicker(marker.input, marker.row, {
       kinds: ["emoji"],
       say,
@@ -2124,8 +2127,10 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     /* Перерисовка снимает строку — выбиралка обязана отдать `Escape`. */
     closers.push(picker.close);
   }
-  line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
-    say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
+  if (!listMode) {
+    line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
+      say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
+  }
 
   const steps = itemRow(sec, {
     name: say("ELEMENT_STEP_NAME"),
@@ -2188,6 +2193,26 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     pick.addEventListener("change", (() => {
       if (!o.enabled) return;
       ed.setCommand(pick.value);
+    }) as never);
+  } else if (listMode) {
+    const own = itemRow(sec, {
+      name: say("ELEMENT_LIST_NAME"),
+      desc: say("ELEMENT_LIST_DESC"),
+      tip: say("ELEMENT_LIST_TIP"),
+      tipId: "io-element-list-tip",
+      showTips: o.showTips, showIds: o.showIds,
+    });
+    closers.push(own.closeTip);
+    const area = own.control.createEl("textarea", {
+      cls: "io-textarea",
+      attr: { "aria-label": say("ELEMENT_LIST_FOR", row.strictName), rows: "3", placeholder: say("NEW_VALUE_LIST_HINT") },
+    }) as ElInput;
+    area.value = ed.list.join("\n");
+    area.disabled = !o.enabled;
+    area.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      ed.setList(area.value);
+      o.redraw();
     }) as never);
   } else {
     const own = itemRow(sec, {

@@ -21,6 +21,8 @@ project link, an estimate. You define them; the plugin ships no methodology.
 
 - **Three types of Field**: `Tag` (`#todo`), `Link` (`[[Project A]]`) and `Element` —
   a marker plus a format, such as `📅2026-09-15`; a date written with a space, `📅 2026-09-15`, is read too.
+  An `Element` can also be a list: Values you write, each with its own emoji, such as `🙂‍↕️yes` and `🙂‍↔️no`,
+  or an emoji alone, such as `💡`, cycled like the Values of a tag.
 - **Values.** Each Field holds an ordered list of Values, and each Value carries its own
   writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the

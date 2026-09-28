@@ -36,6 +36,7 @@ const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 /* Правила для движков собираются из настроек — тем же модулем, из которого
    собирается и служебная заметка (PRD 10.13.52, П-8, шаг второй). */
 const __rulesShape = require("../core/pkm_rules_shape.js");
+const __pkmOrderConfig = require("../core/pkm_order_config.js");
 
 function getBehaviorValue(cfg, key, dflt) {
   if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];
@@ -297,6 +298,11 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     return (order.custom || []).find((b) => Array.isArray(b.keys) && b.keys.includes(parent)) || null;
   };
 
+  const elementCfgOf = (key) => {
+    const byField = cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements ? cfg.pkm.fields.elements.byField : null;
+    return byField && typeof byField === "object" ? byField[key] : null;
+  };
+
   const buildActionSpec = (key, kind, dir) => {
     const direction = dir === "decrease" ? "decrease" : "increase";
     /*
@@ -310,7 +316,10 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
         settings: { [O.CUSTOM_CYCLE]: JSON.stringify({ key, direction }) },
       };
     }
-    if (kind === "element") {
+    /* Element в режиме списка шагает как тег (`В-247`). */
+    const listElement = kind === "element"
+      && __pkmOrderConfig.elementListValues(elementCfgOf(key)) !== null;
+    if (kind === "element" && !listElement) {
       return {
         v2Command: "statusDate",
         settings: {

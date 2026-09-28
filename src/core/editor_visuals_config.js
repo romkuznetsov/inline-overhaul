@@ -20,6 +20,7 @@ const __priorityStripEngine = require("./priority_strip_engine.js");
 const __rulesShape = require("./pkm_rules_shape.js");
 const __rulesHelpers = require("./pkm_rules_runtime_helpers.js");
 const __linePipeline = require("./line_pipeline.js");
+const __pkmOrderConfig = require("./pkm_order_config.js");
 
 /* Те же однострочные обёртки, что были в `main.js`: тела переехавших функций
    зовут их этими именами, и переписывать тела ради переезда нельзя (У-11). */
@@ -727,6 +728,16 @@ function buildElementMarkersFromConfig(cfg) {
   const seen = new Set();
   for (const key of Object.keys(byField)) {
     const row = isObj(byField[key]) ? byField[key] : {};
+    /* Element в режиме списка (`В-247`): каждое Value — своя метка, целым словом. */
+    const list = __pkmOrderConfig.elementListValues(row);
+    if (list) {
+      for (const value of list) {
+        if (seen.has(value)) continue;
+        seen.add(value);
+        out.push({ marker: value, tail: "(?=\\s|$)" });
+      }
+      continue;
+    }
     const marker = String(row.emoji || "").trim();
     if (!marker || seen.has(marker)) continue;
     seen.add(marker);

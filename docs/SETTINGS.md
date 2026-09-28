@@ -253,7 +253,9 @@ folded stays folded until Obsidian is restarted.
 
 A Field is one of three types, picked when you press `Add Field`: `Tag` (`#todo`), `Link`
 (`[[Project A]]`) or `Element` — a marker and a format instead of a list, such as
-`📅2026-09-15`. A Value can hold a child Value, and a child Field’s Values are the ones
+`📅2026-09-15`. An `Element` whose `Steps by` is `List of Values` (`List` in the
+`Add Field` window) cycles Values you write, each with its own emoji — `🙂‍↕️yes`,
+`🙂‍↔️no`, or an emoji alone, `💡`. A Value can hold a child Value, and a child Field’s Values are the ones
 marked child in that table.
 
 Each Value carries its own writing rule, its own color, and a `Show` column: at `default`

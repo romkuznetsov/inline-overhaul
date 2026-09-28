@@ -10,6 +10,9 @@
  * Строка перечня и номер случая совпадают: `F3.a` — первый случай F3.
  */
 
+/* Включённый `Keep typed tags in text` — поведение `В-235` (цикл 103). */
+const STAY_ON = { pkm: { placement: { typedTagsStayText: true } } };
+
 /* Своя заметка у каждого случая: открытый редактор прошлого случая не
    успевает принять новое содержимое той же заметки. */
 const one = (id, title, line, steps, want, extra) => {
@@ -204,21 +207,36 @@ module.exports = [
   { mine: true, id: "M16.link", title: "В-248: Prefix [x] у Value ссылки встаёт в строку", files: { "m16l.md": "- звонок\n" },
     cfg: { pkm: { prefixRules: { checkboxByFieldValue: { People: { "[[Man1]]": "[x]" } } } } },
     at: { file: "m16l.md", line: 0 }, steps: ["people-next"], expect: { "m16l.md": "- [x] [[Man1]] :: звонок\n" } },
-  /* Тесты 1–3 цикла 103, `В-235`: Value посреди текста — слово человека. */
+  /* Тесты 1–3 цикла 103, `В-235`: Value посреди текста — слово человека. Тумблер `Keep typed tags in text`
+     закреплён включённым: у него он бывает выключен, и случаи мерили бы
+     сегодняшнее положение, а не правило (правило 162). */
   { mine: true, id: "M17", title: "Тег посреди фразы остаётся на месте", files: { "m17.md": "- купить #todo молоко\n" },
+    cfg: STAY_ON,
     at: { file: "m17.md", line: 0 }, steps: ["type-next"], expect: { "m17.md": "- #todo :: купить #todo молоко\n" } },
   { mine: true, id: "M18", title: "Ссылка посреди фразы остаётся на месте", files: { "m18.md": "- встреча по [[Man1]] вчера\n" },
+    cfg: STAY_ON,
     at: { file: "m18.md", line: 0 }, steps: ["people-next"], expect: { "m18.md": "- [[Man1]] :: встреча по [[Man1]] вчера\n" } },
   { mine: true, id: "M19", title: "Панель не стирает тег из фразы", files: { "m19.md": "- купить #todo молоко\n" },
+    cfg: STAY_ON,
     at: { file: "m19.md", line: 0 }, steps: ["open-tagwheel-left", { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowRight" }, { key: "ArrowUp" }, { key: "Enter" }],
     expect: { "m19.md": "- [[Man1]] :: купить #todo молоко\n" } },
   /* Тест 4 цикла 103, его ответ `В-249`: и в конце строки тег — его слово. */
   { mine: true, id: "M20", title: "Тег в конце строки — тоже слово человека", files: { "m20.md": "- купить молоко #todo\n" },
+    cfg: STAY_ON,
     at: { file: "m20.md", line: 0 }, steps: ["type-next"], expect: { "m20.md": "- #todo :: купить молоко #todo\n" } },
   /* Тест 5 цикла 103: `Keep typed tags in text` выключен — Value из фразы переезжает в Block. */
   { mine: true, id: "M21", title: "Keep typed tags in text: Off — тег из фразы переезжает в Block", files: { "m21.md": "- купить #todo молоко\n" },
     cfg: { pkm: { placement: { typedTagsStayText: false } } },
     at: { file: "m21.md", line: 0 }, steps: ["importance-next"], expect: { "m21.md": "- #high #todo :: купить молоко\n" } },
+  /*
+   * `В-247`: Element-список на его конфиге. Поле заводится шагом `js` — его
+   * порядок берётся из его же `order` (правило 102), литералом только новое
+   * поле. Сперва сессия с тегом на месте: круг идёт рядом с его значением.
+   */
+  { mine: true, id: "M22", title: "Element-список: команда шагает Values со своим знаком", files: { "m22.md": "- купить\n" },
+    steps: [{ js: "const o = plugin.getConfig().pkm.fields.order; plugin.setConfigPatch({ pkm: { fields: { order: { left: o.left.filter(k => k !== 'Mood').concat(['Mood']), types: { Mood: 'element' }, active: { Mood: 'yes' } }, elements: { byField: { Mood: { emoji: '', format: '', increment: { mode: 'list' }, list: ['\u{1F642}‍↕️да', '\u{1F4A1}'] } } } } } }, 'bench'); plugin.registerPkmCommands();", wait: 400 },
+      { open: "m22.md" }, { cursor: { line: 0, ch: 8 } }, "type-next", "mood-next", "mood-next"],
+    expect: { "m22.md": "- #todo \u{1F4A1} :: купить\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },
