@@ -19,7 +19,23 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.11.0
+
+_2026-09-28 · [all changes since 0.10.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.10.0...0.11.0)_
+
+> [!NOTE]
+> 🐛 **12** bug fixes · 🎨 **3** changes you can see · ✨ **9** new things
+>
+> **New in this release**
+> - **`Delete` and `Backspace` merge the Fields of two lines**
+> - **A link Value follows its note when you rename the note**
+> - **`Add Field` asks for the emoji of a new Element**
+> - **`Add a Field` sets up the essentials at once, with a live preview**
+> - **Renaming a link Value can rename its note too**
+> - **`Use as MOC` for a link Field**
+> - **`Add empty line before wikilink`**
+> - **Adding a link Value suggests your notes**
+> - **A Prefix picker for Values**
 
 1. 🐛 **A link Value with a space stays one Value.** `[[Project A]]` is no longer split in two by Field commands, tagWheel, Smart Enter or `Inline to note`, and your text next to it stays in place.
 2. 🐛 **tagWheel no longer writes into another note.** Switching notes or closing the tab while the panel is open puts the line back as it was.
