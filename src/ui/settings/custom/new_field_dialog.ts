@@ -331,7 +331,17 @@ function segmented(host: El, options: ReadonlyArray<{ value: string; label: stri
 const TICK_MS = 1400;
 
 /** Подсказка платформы в том виде, в каком она нужна полю заметок. */
-interface NoteSuggest { setValue(v: string): void; close(): void; limit: number }
+/** Прямоугольник, которым платформа ставит список (координаты его контейнера). */
+interface SuggestRect { top: number; bottom: number; left: number; right: number }
+interface SuggestBox {
+  offsetParent: SuggestBox | null;
+  scrollTop: number;
+  clientHeight: number;
+  style: { setProperty(name: string, value: string): void };
+  classList: { add(cls: string): void };
+  doc?: { documentElement: SuggestBox };
+}
+interface NoteSuggest { setValue(v: string): void; close(): void; limit: number; suggestEl: SuggestBox; reposition(rect: SuggestRect): void }
 type NoteSuggestCtor = new (app: unknown, input: unknown) => NoteSuggest;
 
 /**
@@ -365,6 +375,25 @@ export function attachNoteSuggest(input: ElInput, o: {
         this.setValue("");
         this.close();
         o.pick(p);
+      }
+      /*
+       * Список — всегда под полем (его замечание к тесту 1 цикла 101: «прыгает —
+       * то сверху, то снизу»). Платформа ставит его вниз, только если он
+       * помещается целиком, иначе наверх (`dm` в `app.js` 1.13.7), а высота
+       * меняется с каждой буквой. Здесь низ закреплён, высота — до края окна,
+       * по тем же отступам, что у платформы: 5 от поля, 10 от края.
+       */
+      override reposition(rect: SuggestRect): void {
+        super.reposition(rect);
+        const box = this.suggestEl;
+        const host = box.offsetParent || (box.doc ? box.doc.documentElement : null);
+        if (!host) return;
+        const floor = host.scrollTop + host.clientHeight - 10;
+        /* Место — переменными: инлайновый стиль своему коду каталог запрещает
+           (Г1), а класс перебивает инлайн платформы (`.io-suggest--below`). */
+        box.classList.add("io-suggest--below");
+        box.style.setProperty("--io-suggest-top", String(rect.bottom + 5) + "px");
+        box.style.setProperty("--io-suggest-max", String(Math.max(80, floor - rect.bottom - 5)) + "px");
       }
     }
     new NoteSuggestImpl(o.app, input).limit = 200;

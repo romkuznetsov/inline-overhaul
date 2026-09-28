@@ -2007,18 +2007,40 @@
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
 /* Выбиралка Prefix — отдельной строкой сетки под своей строкой (его пункт
    2026-09-28). Образец рисует тема: у нас только раскладка и рамки. */
+/*
+ * Список подсказки заметок — всегда под полем (его замечание к тесту 1 цикла
+ * 101). Платформа ставит его инлайновым стилем и уводит наверх, когда он не
+ * помещается целиком (`dm` в `app.js` 1.13.7); перебить инлайн может только
+ * `!important`. Цена названа: класс ставит одна наша подсказка заметок, чужие
+ * списки Obsidian не трогаются.
+ */
+.io-suggest--below {
+  top: var(--io-suggest-top) !important;
+  bottom: auto !important;
+  max-height: var(--io-suggest-max) !important;
+}
 .io-vals .io-pfx { grid-column: 1 / -1; margin-top: 6px; padding: 8px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); }
 .io-vals .io-pfx__hint { margin-bottom: 6px; color: var(--text-muted); }
-.io-vals .io-pfx__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); gap: 4px; max-height: 18em; overflow-y: auto; }
+.io-vals .io-pfx__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; max-height: 18em; overflow-y: auto; overflow-x: hidden; }
 .io-vals .io-pfx__item {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  height: auto; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--radius-s);
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px; min-width: 0;
+  height: auto; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-s);
   background: transparent; box-shadow: none; cursor: pointer; text-align: left;
 }
 .io-vals .io-pfx__item:hover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
-.io-vals .io-pfx__md { pointer-events: none; font-size: var(--font-text-size); }
-.io-vals .io-pfx__md ul { margin: 0; padding-left: 1.6em; }
-.io-vals .io-pfx__code { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-faint); }
+/* Образец мельче текста заметки и вровень с подписью под ним: у темы у списка
+   и чекбокса свои отступы (чекбокс вынесен влево от текста), здесь они сняты —
+   его замечание к тесту 3 цикла 101 «смещены, выглядит некрасиво». */
+.io-vals .io-pfx__md { pointer-events: none; font-size: var(--font-ui-small); min-width: 0; }
+.io-vals .io-pfx__md ul { margin: 0; padding: 0; list-style: none; }
+.io-vals .io-pfx__md li,
+.io-vals .io-pfx__md li.task-list-item {
+  display: flex; align-items: center; gap: 0.4em; margin: 0; padding: 0; text-indent: 0; min-width: 0;
+}
+.io-vals .io-pfx__md li > .task-list-item-checkbox { flex: 0 0 auto; margin: 0; }
+.io-vals .io-pfx__md li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-vals .io-pfx__bullet { flex: 0 0 auto; width: var(--checkbox-size, 1em); text-align: center; color: var(--list-marker-color, var(--text-faint)); }
+.io-vals .io-pfx__code { font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /*
  * Ф8: дочернее значение подкрашено фоном, а не отступом. Фон именно
  * `--background-secondary`: `--background-primary-alt` почти сливался с

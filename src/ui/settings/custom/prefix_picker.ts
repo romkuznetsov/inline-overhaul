@@ -69,12 +69,17 @@ export function attachPrefixPicker(input: ElInput, host: El, o: PrefixPickerOpts
     const none = btn(grid, "io-pfx__item", { label: o.say("PREFIX_PICK_NONE") });
     const plain = el(none, "div", "io-pfx__md");
     plain.addClass("markdown-rendered");
-    plain.createEl("ul").createEl("li", { text: o.sample });
+    /* Знак списка — своим узлом: строка образца — флекс, и `::marker` у неё не рисуется. */
+    const li = plain.createEl("ul").createEl("li");
+    li.createEl("span", { cls: "io-pfx__bullet", text: "•" });
+    li.createEl("span", { text: o.sample });
     el(none, "span", "io-pfx__code", o.say("PREFIX_PICK_NONE"));
     none.addEventListener("click", (() => { o.onPick(""); close(); }) as never);
     for (const [ch, name] of CHECKBOX_PREFIXES) {
       const token = "[" + ch + "]";
       const cell = btn(grid, "io-pfx__item", { label: token + " " + name });
+      /* Три в ряд режут длинное имя многоточием — целиком оно во всплывающей подписи. */
+      cell.setAttribute("title", token + " " + name);
       drawTask(cell, ch, o.sample);
       el(cell, "span", "io-pfx__code", token + " " + name);
       cell.addEventListener("click", (() => { o.onPick(token); close(); }) as never);

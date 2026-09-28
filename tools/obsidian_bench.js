@@ -626,9 +626,21 @@ const SCENARIOS = {
       const seen = await host.evaluate(() => [...document.querySelectorAll(".io-vals__foot input")].map((x) => x.getAttribute("aria-label")));
       throw new Error("нет поля нового Value у People; есть: " + JSON.stringify(seen));
     }
+    /* Поле внизу окна — там платформа уводила список наверх (тест 1 цикла 101). */
+    await host.evaluate((sel) => { document.querySelector(sel).scrollIntoView({ block: "end" }); }, addSel);
     await host.click(addSel);
+    await host.waitForTimeout(500);
+    const below = () => host.evaluate((sel) => {
+      const i = document.querySelector(sel).getBoundingClientRect();
+      const box = [...document.querySelectorAll(".suggestion-container")].find((n) => n.offsetParent !== null);
+      if (!box) return null;
+      const r = box.getBoundingClientRect();
+      return r.top >= i.bottom - 1;
+    }, addSel);
+    const belowLong = await below();
     await host.keyboard.type("vx-no", { delay: 40 });
     await host.waitForTimeout(500);
+    const belowShort = await below();
     const suggested = await host.evaluate(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].map((n) => n.textContent.trim()));
     const hit = await host.evaluateHandle(() => [...document.querySelectorAll(".suggestion-container .suggestion-item")].find((n) => n.textContent.trim() === "vx-note"));
     if (await hit.evaluate((n) => !!n)) { await hit.asElement().click(); await host.waitForTimeout(700); }
@@ -647,7 +659,20 @@ const SCENARIOS = {
       const boxes = [...panel.querySelectorAll(".task-list-item-checkbox")];
       /* Тема рисует знаки по `data-task`: у разных знаков разный вид. */
       const looks = new Set(boxes.map((b) => { const c = getComputedStyle(b); const m = getComputedStyle(b, "::after"); return [c.backgroundColor, c.borderColor, m.content, m.backgroundColor, m.webkitMaskImage].join("|"); }));
-      return { items: panel.querySelectorAll(".io-pfx__item").length, boxes: boxes.length, looks: looks.size, width: r.width, height: r.height };
+      const grid = panel.querySelector(".io-pfx__grid");
+      const items = [...panel.querySelectorAll(".io-pfx__item")];
+      const cols = new Set(items.slice(0, 3).map((n) => Math.round(n.getBoundingClientRect().top))).size === 1
+        && Math.round(items[3].getBoundingClientRect().left) === Math.round(items[0].getBoundingClientRect().left);
+      /* Чекбокс вровень с подписью под ним и по центру своего текста. */
+      let worst = 0;
+      for (const it of items.slice(1)) {
+        const b = it.querySelector(".task-list-item-checkbox").getBoundingClientRect();
+        const t = it.querySelector("li > span:last-child").getBoundingClientRect();
+        const c = it.querySelector(".io-pfx__code").getBoundingClientRect();
+        worst = Math.max(worst, Math.abs(b.left - c.left), Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2));
+      }
+      return { items: items.length, boxes: boxes.length, looks: looks.size, width: r.width, height: r.height,
+        threeInRow: cols, sideScroll: grid.scrollWidth > grid.clientWidth + 1, worstPx: Math.round(worst * 10) / 10 };
     });
     const shots = process.env.IO_SHOTS || "";
     if (shots) { const n = await host.$(".io-pfx:not([hidden])"); if (n) await n.screenshot({ path: path.join(shots, "prefix-picker.png") }); }
@@ -684,10 +709,12 @@ const SCENARIOS = {
       };
       return { next: await run("vx1.md", "- [[Woman1]] :: звонок"), box: await run("vx2.md", "- звонок") };
     });
-    const got = { suggested: suggested.slice(0, 5), values, pfx, checkbox, stacked, lines };
+    const got = { suggested: suggested.slice(0, 5), values, pfx, checkbox, stacked, lines, belowLong, belowShort };
     console.log(JSON.stringify(got));
     const ok = got.suggested.includes("vx-note") && got.values.includes("vx-note")
       && got.pfx && got.pfx.items > 20 && got.pfx.boxes > 20 && got.pfx.looks > 1 && got.stacked
+      && got.belowLong === true && got.belowShort === true
+      && got.pfx.threeInRow && !got.pfx.sideScroll && got.pfx.worstPx <= 1.5
       /* Чекбокс Value-ссылки — с В-248. */
       && got.lines.next === "- [[vx-note]] :: звонок" && got.lines.box === "- [x] [[Man1]] :: звонок";
     console.log(ok ? "ok: подсказка заметок, выбиралка Prefix, строка добавления под фишками" : "РАСХОДИТСЯ");
