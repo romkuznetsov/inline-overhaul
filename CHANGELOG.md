@@ -42,6 +42,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 19. 🎨 **A link Value is edited without its brackets.** Click it in the Values table and you type the name; the brackets come back when you leave the box.
 20. ✨ **`Add empty line before wikilink`** in `Auto-MOC in your links`: turn it off and the links are written one under another, with no empty lines.
 21. 🎨 **Clicking the open settings tab scrolls it back to the top.**
+22. ✨ **Adding a link Value suggests your notes.** Click the box under a link Field's Values and pick a note, or type to filter.
+23. ✨ **A Prefix picker for Values.** Click a Value's Prefix to see every checkbox drawn by your theme and pick one, or type your own.
 
 ## 0.10.0
 
