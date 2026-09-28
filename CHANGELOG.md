@@ -21,7 +21,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. 🐛 **A tag or link in the middle of your text stays your word.** Field commands and tagWheel no longer read `- buy #todo milk` as a Value of the Field, copy it into a Block or remove it from the sentence; `Inline to note` keeps it in the note name. The same goes for a tag at the end of a line; Values at the start of the line are still Values. Turn off `Keep typed tags in text` in `Placement modes` to move a Value from your text to its Block instead.
+1. 🐛 **A tag or link you type in your text stays your word.** Field commands, tagWheel and `Inline to note` no longer read `- buy #todo milk` as a Value, copy it into a Block or remove it; a Value at the start of a line is still a Value. `Keep typed tags in text` in `Placement modes` turns this off.
 
 ## 0.11.0
 
