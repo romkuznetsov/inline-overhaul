@@ -182,6 +182,18 @@ module.exports = [
     cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, backlink: { enabled: true } } }, pkm: { fields: { order: { useAsMoc: { People: true } } } } },
     at: { file: "m13on.md", line: 0 }, steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 2000 }],
     check: "const man = await a.vault.adapter.read('Man1.md'); return /\\[\\[/.test(man) || JSON.stringify({ man, line: a.workspace.activeEditor.editor.getLine(0) });" },
+  /* Его заказ 2026-09-28: `Add empty line before wikilink` — Off пишет ссылку без пустой строки. */
+  { mine: true, id: "M14", title: "Add empty line before wikilink: Off — ссылка встаёт вплотную", files: { "m14.md": "- [[Man1]] :: звонок\n", "Man1.md": "- [[123]]\n", "111/template.md": "" },
+    cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, backlink: { enabled: true, emptyLine: false } } }, pkm: { fields: { order: { useAsMoc: { People: true } } } } },
+    at: { file: "m14.md", line: 0 }, steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 2000 }],
+    check: "const man = await a.vault.adapter.read('Man1.md'); return /^- \\[\\[123\\]\\]\\n- \\[\\[[^\\n]+\\]\\]\\n$/.test(man) || JSON.stringify({ man });" },
+  { mine: true, id: "M14.on", title: "Add empty line before wikilink: On — пустая строка, как было", files: { "m14on.md": "- [[Man1]] :: звонок\n", "Man1.md": "- [[123]]\n", "111/template.md": "" },
+    cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, backlink: { enabled: true, emptyLine: true } } }, pkm: { fields: { order: { useAsMoc: { People: true } } } } },
+    at: { file: "m14on.md", line: 0 }, steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 2000 }],
+    check: "const man = await a.vault.adapter.read('Man1.md'); return /^- \\[\\[123\\]\\]\\n\\n- \\[\\[[^\\n]+\\]\\]\\n$/.test(man) || JSON.stringify({ man });" },
+  /* Тест Smart bracket цикла 100: выделенное слово в квадратных скобках. */
+  { mine: true, id: "M15", title: "Smart bracket: выделенное слово — в одинарные скобки", files: { "m15.md": "- слово\n" },
+    at: { file: "m15.md", line: 0, sel: "слово" }, steps: ["smart-bracket"], expect: { "m15.md": "- [слово]\n" } },
   { mine: true, id: "M3", title: "Move down: пустая строка — одна остановка", files: { "m3.md": "- раз\n- два\n\n- три\n" },
     at: { file: "m3.md", line: 1 }, steps: ["move-line-down"], expect: { "m3.md": "- раз\n\n- два\n- три\n" } },
   { mine: true, id: "M4", title: "Delete в конце строки сливает поля двух строк", files: { "m4.md": "- #test1 :: первая\n- [[Man1]] :: вторая\n- третья\n" },
