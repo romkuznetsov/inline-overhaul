@@ -1718,6 +1718,26 @@ function rowBoxOf(row) {
   /* За разделителем текст — разделитель первый, ответ прежний. */
   assertEq(zoneOf(`- купить #random хлеб ${sep} текст`, "#random", true), "left",
     "строка с текстом за разделителем не меняется");
+
+  /*
+   * **Обратная половина: разделитель прочитан первым — правого Block нет** (его
+   * замечание к тесту 2, цикл 103: ссылка посреди фразы «распозналось как
+   * left/right block»). Значение в тексте за единственным разделителем — слово
+   * человека (`В-235`), и оформления правого Block у него нет.
+   */
+  /* Значение поля правого Block фикстуры (`type`) — он держит теги. */
+  const mid = cfg.pkm.fields.tags.fields.find((f) => f.id === "type").values[0].token;
+  const inText = `- #/1 ${sep} встреча ${mid} вчера`;
+  /* Контроль: без разбора — прежний ответ по положению (У-37). */
+  assertEq(zoneOf(inText, mid, false), "right", "без разбора значение в тексте читалось правым Block");
+  assertEq(zoneOf(inText, mid, true), "middle", "значение посреди текста — текст");
+  assertEq(visuals.blockFillSpansInLine(inText, sep, sep, markers, kinds, isLink, split)
+    .filter((s) => s.zone === "right"), [], "подложки правого Block на тексте нет");
+  /* За разделителем одно значение — разделитель второй, правый Block на месте. */
+  assertEq(zoneOf(`- #/1 ${sep} ${mid}`, mid, true), "right", "значение за разделителем — правый Block");
+  assertEq(zoneOf(`- купить ${sep} ${mid}`, mid, true), "right", "и без левого Block — тоже");
+  /* Открытая панель за разделителем — правый Block, как и прежде. */
+  assertEq(zoneOf(`- #/1 ${sep} ==${mid} **[Due]**==`, mid, true), "right", "панель за разделителем — правый Block");
 })();
 
 console.log("Block fill regression tests: OK");

@@ -22,6 +22,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 ## Unreleased
 
 1. 🐛 **A tag or link you type in your text stays your word.** Field commands, tagWheel and `Inline to note` no longer read `- buy #todo milk` as a Value, copy it into a Block or remove it; a Value at the start of a line is still a Value. `Keep typed tags in text` in `Placement modes` turns this off.
+2. 🐛 **A link typed after the only separator is drawn as text.** `- [[Man1]] :: met [[Man1]] yesterday` no longer gives the second link the fill and size of the right Block.
 
 ## 0.11.0
 

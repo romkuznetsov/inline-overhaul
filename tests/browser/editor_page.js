@@ -812,6 +812,28 @@ window.__ioWrongRowBoundary = async function (on, shift) {
 
 window.__ioWrongRowBoundaryHits = function () { return wrongRowBoundaryHits; };
 
+/*
+ * **Зона и подложка — теми же вызовами, что у слоя оформления**, вместе с
+ * разбором строки (`buildLineSplitFromConfig`). Спрошенная по одному положению
+ * (`resolveTagVisualZone`), зона расходится с продуктом на строке с одним
+ * разделителем: за ним текст, а положение говорит «правый Block» (его
+ * замечание к тесту 2, цикл 103; У-159).
+ */
+function productArgs() {
+  return [
+    visuals.buildElementMarkersFromConfig(CFG),
+    visuals.buildBlockKindsFromConfig(CFG),
+    visuals.buildWikilinkValueTestFromConfig(CFG),
+    visuals.buildLineSplitFromConfig(CFG),
+  ];
+}
+
+function productZoneAt(text, index) {
+  const hit = visuals.scanLineVisualTokens(text, SEP, SEP, ...productArgs())
+    .find((h) => index >= h.index && index < h.end);
+  return hit ? hit.zone : "middle";
+}
+
 window.__ioSetTags = function (patch) {
   Object.assign(CFG.visual.tags, patch || {});
   view.dispatch({ selection: view.state.selection });
@@ -822,7 +844,7 @@ window.__ioSetTags = function (patch) {
  * Пузыри тегов по зонам: что браузер насчитал каждому.
  *
  * Зона у каждого спрашивается **у того же объявления, каким её считает
- * продукт** (`resolveTagVisualZone`), а не выводится из вида строки: своя
+ * продукт** (`productZoneAt`), а не выводится из вида строки: своя
  * копия правила разошлась бы с ним молча (У-32).
  */
 window.__ioBubblesByZone = function () {
@@ -840,7 +862,7 @@ window.__ioBubblesByZone = function () {
      */
     const pos = view.posAtDOM(el);
     const line = doc.lineAt(pos);
-    const zone = visuals.resolveTagVisualZone(line.text, pos - line.from, SEP, SEP);
+    const zone = productZoneAt(line.text, pos - line.from);
     out.push({
       token,
       zone,
@@ -1144,15 +1166,10 @@ window.__ioEditorProbe = function () {
   const rows = [];
   for (let n = 1; n <= doc.lines; n++) {
     const line = doc.line(n);
-    const spans = visuals.blockFillSpansInLine(
-      line.text, SEP, SEP,
-      visuals.buildElementMarkersFromConfig(CFG),
-      /* Род значений каждого Block — тем же вызовом, что и у слоя: проба,
-         спрашивающая иначе, мерила бы не то, что нарисовано (У-4). И признак
-         «эта ссылка — значение поля» тем же (В-141): без него проба считает
-         значением Block ссылку, которой слой оформления его не даёт. */
-      visuals.buildBlockKindsFromConfig(CFG),
-      visuals.buildWikilinkValueTestFromConfig(CFG));
+    /* Род значений каждого Block, признак «эта ссылка — значение поля» (В-141)
+       и разбор строки — тем же вызовом, что и у слоя: проба, спрашивающая
+       иначе, мерила бы не то, что нарисовано (У-4). */
+    const spans = visuals.blockFillSpansInLine(line.text, SEP, SEP, ...productArgs());
     const left = spans.find((s) => s.zone === "left") || null;
     const at = (pos, side) => {
       const c = view.coordsAtPos(pos, side);
@@ -1292,14 +1309,14 @@ window.__ioEditorProbe = function () {
    * Нужны они одному вопросу — «подложка накрывает значение или стоит рядом с
    * ним»: его слово 2026-09-14 «на перенесённой строке полоска не подкрашивает
    * последнее value». Зона спрашивается у того же объявления, каким её считает
-   * продукт (`resolveTagVisualZone`), а не выводится из вида строки (У-32), а
+   * продукт (`productZoneAt`), а не выводится из вида строки (У-32), а
    * место — у браузера.
    */
   const blockBubbles = Array.from(document.querySelectorAll("[data-io-tag-token]"))
     .map((el) => {
       const pos = view.posAtDOM(el);
       const line = doc.lineAt(pos);
-      const zone = visuals.resolveTagVisualZone(line.text, pos - line.from, SEP, SEP);
+      const zone = productZoneAt(line.text, pos - line.from);
       if (zone !== "left" && zone !== "right") return null;
       const r = el.getBoundingClientRect();
       if (!(r.width > 0)) return null;

@@ -597,6 +597,29 @@ function leftZoneEnd(src, at, splitLine) {
   return at.first;
 }
 
+/**
+ * Есть ли у строки правый Block — вторая половина того же вопроса, что
+ * `leftZoneEnd`.
+ *
+ * **Ответ берётся у разбора строки, и это починка** (его замечание к тесту 2,
+ * цикл 103: «распозналось как left/right block»). Строка
+ * `- [[Man1]] :: встреча по [[Man1]] вчера` несёт один разделитель, и по
+ * положению он последний; разбор же читает его первым — слева Block, справа
+ * текст, правого Block нет (`В-235`: значение посреди текста — слово
+ * человека). Слой оформления отвечал по положению и красил ссылку в тексте
+ * подложкой и кеглем правого Block. Тот же ответ получал бы эмодзи-элемент
+ * посреди фразы.
+ */
+function lineHasRightZone(src, at, splitLine) {
+  if (at.last < 0) return false;
+  if (at.first !== at.last || typeof splitLine !== "function") return true;
+  /* Открытая панель за разделителем — правый Block (см. `leftZoneEnd`). */
+  const wheel = tagwheelPanelSpanInLine(src);
+  if (wheel && wheel.start >= at.firstEnd) return true;
+  const seg = splitLine(src);
+  return !seg || !!seg.dates;
+}
+
 /** Разбор строки движками для слоя оформления; `null`, если правила не собрались. */
 function buildLineSplitFromConfig(cfg) {
   try {
@@ -773,14 +796,17 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLi
 
   const at = lineSeparatorBounds(src, sep1, sep2);
   const leftEnd = leftZoneEnd(src, at, splitLine);
+  const hasRight = lineHasRightZone(src, at, splitLine);
   const out = [];
   let claimedTo = -1;
   for (const entry of found) {
     if (entry.index < claimedTo) continue;
     /* Между первым словом текста и разделителем — текст, а не Left Block (`leftZoneEnd`). */
-    const zone = entry.index >= leftEnd && entry.index < at.first
+    const byPlace = entry.index >= leftEnd && entry.index < at.first
       ? "middle"
       : resolveTagVisualZone(src, entry.index, sep1, sep2);
+    /* Разделитель прочитан первым — за ним текст, а не правый Block (`lineHasRightZone`). */
+    const zone = byPlace === "right" && !hasRight ? "middle" : byPlace;
     out.push({
       token: entry.token,
       kind: entry.kind,
