@@ -39,6 +39,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 16. 🎨 **`Move left` and `Move right` follow one rule.** The indent goes first, one step per press; at the left edge the line walks your Prefix list, and a task leaves its checkbox behind. With `Cycle line Prefixes` off the keys only change the indent, and the Prefix list is hidden.
 17. ✨ **`Use as MOC` for a link Field.** Set it to `No` and `Link the notes you mention` writes no links into the notes of its Values.
 18. 🐛 **A date written with a space after its emoji is read,** such as `📅 2026-09-30` from Tasks: Field commands step it instead of leaving the date behind in your text.
+19. 🎨 **A link Value is edited without its brackets.** Click it in the Values table and you type the name; the brackets come back when you leave the box.
+20. ✨ **`Add empty line before wikilink`** in `Auto-MOC in your links`: turn it off and the links are written one under another, with no empty lines.
+21. 🎨 **Clicking the open settings tab scrolls it back to the top.**
 
 ## 0.10.0
 
