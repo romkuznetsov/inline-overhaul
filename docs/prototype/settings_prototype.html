@@ -806,6 +806,14 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .io-vals__foot .io-note { margin: 0; }
+/*
+ * Values Element-списка (его замечание к тесту 4 цикла 104): строка на Value и
+ * поле с `Add Value` внизу, как у таблицы Values тега. Выбиралка встаёт
+ * последним ребёнком строки и переносится на свою строчку.
+ */
+.io-elist { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.io-elist__row > .io-text { flex: 1 1 0; min-width: 0; }
 .io-colin {
   width: 22px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s); background: var(--background-modifier-form-field); cursor: pointer;
@@ -5927,11 +5935,27 @@ function elementRows(host, f) {
       s.addEventListener("change", () => { apply(s.value); renderContent(); });
       return;
     }
-    if (r.area) {
-      const area = el("textarea", "io-textarea", ctl);
-      area.rows = 3; area.value = value; area.placeholder = r.ph;
-      area.setAttribute("aria-label", r.name + " for " + f.name);
-      area.addEventListener("change", () => { apply(area.value); renderContent(); });
+    if (r.list) {
+      const values = f.values || (f.values = []);
+      const box = el("div", "io-elist", ctl);
+      values.forEach((v, i) => {
+        const line = el("div", "io-elist__row", box);
+        const input = textEl(line, v.token, "", r.name + " for " + f.name, "io-text io-text--mono");
+        input.addEventListener("change", () => { v.token = input.value.trim(); if (!v.token) values.splice(i, 1); renderContent(); });
+        const del = iconBtn(line, "✕", "Remove " + v.token);
+        del.classList.add("io-icon--danger");
+        del.addEventListener("click", () => { values.splice(i, 1); renderContent(); });
+        attachEmojiPicker(input, line, () => { v.token = input.value; renderContent(); });
+      });
+      const foot = el("div", "io-elist__row io-elist__foot", box);
+      const add = textEl(foot, "", "🙂‍↕️yes / 💡", "New Value for " + f.name, "io-text io-text--mono");
+      const btnAdd = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add Value");
+      btnAdd.type = "button";
+      btnAdd.addEventListener("click", () => {
+        const t = add.value.trim();
+        if (t && !values.some(v => v.token === t)) { values.push({ token: t }); renderContent(); }
+      });
+      attachEmojiPicker(add, foot, () => {});
       return;
     }
     const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono",
@@ -5995,10 +6019,12 @@ function elementRows(host, f) {
       ] },
       f.command || "now", v => { f.command = v; });
   } else if (listMode) {
-    row({ name:"Values", key:"list", ph:"🙂‍↕️yes", area:true,
+    /* Строка на Value и `Add Value` внизу, как у таблицы Values тега (его
+       замечание к тесту 4 цикла 104). */
+    row({ name:"Values", key:"list", list:true,
       desc:"One Value per line, in the order <code>next</code> walks them",
       tip:"Write each Value with its own emoji in front, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, or an emoji alone, such as <code>💡</code>. <code>next</code> after the last one removes the Value from the line, the way a tag ends its cycle" },
-      (f.values || []).map(v => v.token).join("\n"), v => { f.values = v.split("\n").map(x => x.trim()).filter(Boolean).map(token => ({ token })); });
+      null, null);
   } else {
     row({ name:"Steps", key:"steps", ph:"1 (3)",
       desc:"One step per line, in the order the presses walk them",

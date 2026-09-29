@@ -1982,6 +1982,27 @@ function heightBtn(host: StubNode): StubNode {
   const ed = v.model.elementEditor(dueKey);
   assert.deepEqual([ed.mode, ed.list], ["list", ["\u{1F642}‍↕️yes", "\u{1F4A1}"]], "Values списка записаны строками без пустых");
   ok("В-247: у Element-списка строка Values вместо знака и формата");
+
+  /* Его замечание к тесту 4 цикла 104: строка на Value, `Add Value` внизу и
+     выбиралка Binder у каждого поля. */
+  const box = one(v.host, "io-elist");
+  const rowsNow = (): StubNode[] => all(one(v.host, "io-elist"), "io-elist__row").filter(r => !r.classList.contains("io-elist__foot"));
+  assert.deepEqual(rowsNow().map(r => String(one(r, "io-text").value)), ["\u{1F642}‍↕️yes", "\u{1F4A1}"],
+    "у каждого Value своя строка, в порядке списка");
+  assert.equal(all(v.host, "io-textarea").length, 0, "одного длинного поля на все Values больше нет");
+  assert.deepEqual(all(rowsNow()[0]!, "io-pick__tab").map(t => String(t.getAttribute("aria-label") || "")), ["Symbol", "Emoji", "Kaomoji"],
+    "у поля Value выбиралка с теми же вкладками, что у Binder");
+  const foot = one(box, "io-elist__foot");
+  one(foot, "io-text").value = "\u{1F921}";
+  (all(foot, "io-btn").find(b => String(b.textContent || "").trim() === "Add Value") as StubNode).click();
+  assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F642}‍↕️yes", "\u{1F4A1}", "\u{1F921}"], "Add Value дописывает Value последним");
+  one(rowsNow()[0]!, "io-icon--danger").click();
+  assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F4A1}", "\u{1F921}"], "✕ снимает свой Value");
+  const first = one(rowsNow()[0]!, "io-text");
+  first.value = "\u{1F4A1}idea";
+  first.dispatch("change");
+  assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F4A1}idea", "\u{1F921}"], "правка в строке пишет свой Value");
+  ok("В-247, тест 4 цикла 104: Values списка — строками, с Add Value и выбиралкой Binder");
 }
 {
   const v = makeView();

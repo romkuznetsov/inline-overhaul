@@ -2203,17 +2203,74 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(own.closeTip);
-    const area = own.control.createEl("textarea", {
-      cls: "io-textarea",
-      attr: { "aria-label": say("ELEMENT_LIST_FOR", row.strictName), rows: "3", placeholder: say("NEW_VALUE_LIST_HINT") },
-    }) as ElInput;
-    area.value = ed.list.join("\n");
-    area.disabled = !o.enabled;
-    area.addEventListener("change", (() => {
+    /*
+     * Строка на Value и `Add Value` внизу, как у таблицы Values тега; у
+     * каждого поля выбиралка Binder — символ, эмодзи и рожица (его замечание к
+     * тесту 4 цикла 104). Выбранный знак встаёт на место каретки: слово
+     * человек допечатывает.
+     */
+    const values = ed.list.slice();
+    const save = (): void => { ed.setList(values.join("\n")); o.redraw(); };
+    const withPicker = (input: ElInput, host: El, picked: () => void): void => {
       if (!o.enabled) return;
-      ed.setList(area.value);
-      o.redraw();
+      const picker = attachPicker(input, host, {
+        kinds: ["symbols", "emoji", "faces"],
+        say,
+        ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
+        onPick: char => {
+          const at = (input as unknown as { selectionStart?: number | null; selectionEnd?: number | null });
+          const text = String(input.value || "");
+          const from = typeof at.selectionStart === "number" ? at.selectionStart : text.length;
+          const to = typeof at.selectionEnd === "number" ? at.selectionEnd : from;
+          input.value = text.slice(0, from) + char + text.slice(to);
+          picked();
+        },
+      });
+      closers.push(picker.close);
+    };
+    const box = el(own.control, "div", "io-elist");
+    values.forEach((token, i) => {
+      const item = el(box, "div", "io-elist__row");
+      const input = textInput(item, "io-text io-text--mono", { value: token, label: say("ELEMENT_LIST_FOR", row.strictName) });
+      input.disabled = !o.enabled;
+      const put = (): void => {
+        if (!o.enabled) return;
+        values[i] = String(input.value || "").trim();
+        save();
+      };
+      input.addEventListener("change", put as never);
+      const del = btn(item, "io-icon io-icon--danger", { text: "✕", label: say("VALUE_REMOVE", token) });
+      del.disabled = !o.enabled;
+      del.addEventListener("click", (() => {
+        if (!o.enabled) return;
+        values.splice(i, 1);
+        save();
+      }) as never);
+      withPicker(input, item, put);
+    });
+    const foot = el(box, "div", "io-elist__row io-elist__foot");
+    const add = textInput(foot, "io-text io-text--mono", {
+      value: "", placeholder: say("NEW_VALUE_LIST_HINT"), label: say("NEW_VALUE_FOR", row.strictName),
+    });
+    add.disabled = !o.enabled;
+    const addBtn = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: say("ADD_VALUE"), label: say("ADD_VALUE_TO", row.strictName) });
+    addBtn.disabled = !o.enabled;
+    const addValue = (): void => {
+      const t = String(add.value || "").trim();
+      if (!o.enabled || !t || values.includes(t)) return;
+      values.push(t);
+      save();
+    };
+    addBtn.addEventListener("click", addValue as never);
+    add.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
+      if (!e || e.key !== "Enter") return;
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      addValue();
     }) as never);
+    withPicker(add, foot, () => {
+      const field = add as unknown as { focus?: () => void };
+      if (typeof field.focus === "function") field.focus();
+    });
   } else {
     const own = itemRow(sec, {
       name: say("ELEMENT_STEPS_NAME"),

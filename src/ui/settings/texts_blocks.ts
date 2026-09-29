@@ -196,8 +196,12 @@ export const BLOCK_TEXTS = {
     ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
     ELEMENT_EMOJI_TIP: "This is how the Field is recognized: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one",
     ELEMENT_EMOJI_HINT: "one character or emoji",
-    /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10). Вкладка одна, и
-       подписи ей не нужно: строки ниже — поиск и пустой ответ. */
+    /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10): вкладка одна, и
+       подписи ей не нужно. У Values Element-списка — три вкладки Binder (тест 4
+       цикла 104), подписи те же, что у Binder. */
+    PICK_EMOJI: "Emoji",
+    PICK_SYMBOLS: "Symbol",
+    PICK_FACES: "Kaomoji",
     PICK_SEARCH: "Search by name",
     PICK_EMPTY: "Nothing by that name — paste your own character into the field",
     ELEMENT_FORMAT_NAME: "Value format",

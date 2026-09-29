@@ -653,10 +653,10 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* После выбора из подсказки фокус в поле не возвращается: платформа
        открыла бы список снова поверх формы (стенд `new-field`, снимок). */
     if (isLink) attachNoteSuggest(input, { platform, app, notes: o.notes, pick: t => { if (push(t)) draw(); } });
-    /* Эмодзи набирать неудобно — у поля Value списка своя выбиралка; знак встаёт в поле, слово человек допечатывает. */
+    /* Эмодзи набирать неудобно — у поля Value списка выбиралка Binder (символ, эмодзи, рожица; тест 4 цикла 104); знак встаёт в поле, слово человек допечатывает. */
     if (isList) {
       const picker = attachPicker(input, addRow, {
-        kinds: ["emoji"], say,
+        kinds: ["symbols", "emoji", "faces"], say,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
         onPick: char => { input.value = String(input.value || "") + char; focusValue(); },
       });
