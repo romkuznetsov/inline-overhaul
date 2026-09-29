@@ -1063,16 +1063,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return v === k ? "" : v;
   };
   /**
-   * Что tagWheel покажет, пока своего имени нет: `<короткое имя родителя>_sub`
-   * или `sub`. Вторая запись правила `shortNameFor` в
-   * `pkm_rules_runtime_helpers.js` и тамошнего запасного `sub` в
-   * `tagwheel_core.js`: здесь оно только подсказка в пустом поле.
+   * Что tagWheel покажет, пока своего имени нет, — `sub` у всех (его ответ
+   * интервью 2026-09-29 «всегда sub»). Запасной ответ `tagwheel_core.js` и
+   * `placeholder` дочки; здесь он только подсказка в пустом поле.
    */
-  const subLabelShown = (parentKey: string): string => {
-    const k = String(parentKey || "").trim();
-    const own = String((k && orderState.labels && orderState.labels[k]) || "").trim();
-    return own && own !== k ? own + "_sub" : "sub";
-  };
+  const subLabelShown = (): string => "sub";
   const setSubLabel = (subKey: string, rawValue: string): WriteResult => {
     const k = String(subKey || "").trim();
     if (!k) return { ok: false };

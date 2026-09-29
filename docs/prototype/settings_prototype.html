@@ -6074,11 +6074,11 @@ function nameInWheelRow(host, f) {
   const snrow = el("div", "io-item__namerow", sinfo);
   el("div", "io-item__name", snrow, "Child name in tagWheel");
   attachTipItem(snrow, srow, { name:"Child name in tagWheel",
-    tip:"The child Field stands right after its parent in tagWheel and is called <b>sub</b> there, or <b>Stat_sub</b> when the parent is written as <b>Stat</b>. Type a name to use it instead; clear the field to go back" });
+    tip:"The child Field stands right after its parent in tagWheel and is called <b>sub</b> there. Type a name to use it instead; clear the field to go back to <b>sub</b>" });
   subComment(snrow, sinfo, "field-editor/short-sub");
   el("div", "io-item__desc", sinfo, "Shorter name for child Field in tagWheel panel");
   const sctl = el("div", "io-item__control", srow);
-  const sin = textEl(sctl, f.shortSub || "", f.short && f.short !== f.name ? f.short + "_sub" : "sub", "Child name in tagWheel for " + f.name, "io-text io-text--prop");
+  const sin = textEl(sctl, f.shortSub || "", "sub", "Child name in tagWheel for " + f.name, "io-text io-text--prop");
   sin.addEventListener("input", () => { f.shortSub = sin.value; refreshPreviews(); });
 }
 

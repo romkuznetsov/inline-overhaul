@@ -208,6 +208,11 @@ const PREPARE = {
     fs.writeFileSync(path.join(vault, "readme.md"), README_LINE + "\n\n");
     fs.writeFileSync(path.join(vault, "Project A.md"), "");
   },
+  "clean-readme-extra"(vault) {
+    PREPARE["clean-readme-shot"](vault);
+    /* Пустые строки сверху: скроллер открывается вверх и лёг бы на заголовок заметки. */
+    fs.writeFileSync(path.join(vault, "wheel.md"), "\n\n\n\n\n- your text\n\n\n\n\n");
+  },
   /* Его заказ к тесту 2 цикла 96: Value ссылки с папкой. У детей `Project` —
      `222/123` и `333/123`, заметка `bench-folder.md` с пустой строкой. */
   "link-folder-value"(vault) {
@@ -463,6 +468,92 @@ const SCENARIOS = {
       fs.writeFileSync(path.join(out, file), Buffer.from(shot.data, "base64"));
     }
     console.log(ok ? "ok: снимки в " + out : "РАСХОДИТСЯ: тема не сменилась или строку рисует не плагин");
+    return ok;
+  },
+
+  /*
+   * Ещё два снимка README (его правки к тесту 2 цикла 105): та же строка
+   * «после настройки» — `#todo` знаком 🎯 (`Show` = custom), `#high` пустым
+   * пузырём, полосы Block, Tag Bars у Priority, Block на 70 %, как у него в
+   * `data.json`, — и строка `your text` с открытым tagWheel и скроллером.
+   * Чистый vault со стартовым набором; снимки — в `docs/media/readme/`.
+   */
+  async "clean-readme-extra"(win) {
+    const out = process.env.IO_SHOTS || path.join(ROOT, "docs", "media", "readme");
+    fs.mkdirSync(out, { recursive: true });
+    const patch = await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      const byTag = p.getConfig().visual.tags.byTag;
+      const set = (f, t, v) => Object.assign(byTag[f]["#" + t], v);
+      set("Status", "todo", { fillColor: "#cbd4fb", textColor: "", visibility: "custom", customText: "\u{1F3AF}" });
+      set("Priority", "high", { fillColor: "#d11f1f", visibility: "empty" });
+      p.setConfigPatch({ visual: {
+        tags: { byTag, emptyBubblePct: 35, textSizePctLeft: 70, textSizePctRight: 70,
+          blockFill: { enabled: true, direction: "both", color: "#d1c1f5", opacity: 29, heightPct: 100, widthPct: 100 } },
+        tagBars: { active: true, fieldId: "Priority", tagVisibility: true, stripesToShow: 3, thickness: 2, spacing: 20, childOffset: 12, lineGap: 2 },
+        tagWheel: { scroller: { enabled: true } },
+      } }, "bench:readme-extra");
+      await new Promise((r) => setTimeout(r, 800));
+      const c = p.getConfig().visual;
+      return { bars: c.tagBars.active, size: c.tags.textSizePctLeft, todo: c.tags.byTag.Status["#todo"].visibility };
+    });
+    /* Контроль «правка доехала» (У-152). */
+    console.log("настройки:", JSON.stringify(patch));
+    if (!patch.bars || patch.size !== 70 || patch.todo !== "custom") { console.log("РАСХОДИТСЯ: настройки не записались"); return false; }
+    const cdp = await win.context().newCDPSession(win);
+    let ok = true;
+    const shoot = async (file, lineText, wheel) => {
+      const n = await openAt(win, wheel ? "wheel.md" : "readme.md", lineText);
+      if (n < 0) { console.log("РАСХОДИТСЯ: нет строки " + lineText); ok = false; return; }
+      for (const [theme, dark, suffix] of [["moonstone", false, "light"], ["obsidian", true, "dark"]]) {
+        const box = await win.evaluate(async ({ theme, n, wheel }) => {
+          window.app.changeTheme(theme);
+          const ed = window.app.workspace.activeEditor.editor;
+          if (wheel) {
+            ed.setCursor({ line: n, ch: ed.getLine(n).length });
+            ed.focus();
+            await new Promise((r) => setTimeout(r, 600));
+            window.app.commands.executeCommandById("inline-overhaul:open-tagwheel-left");
+          } else {
+            ed.setCursor({ line: n + 1, ch: 0 });
+          }
+          await new Promise((r) => setTimeout(r, 1500));
+          const view = ed.cm;
+          if (!wheel) { view.contentDOM.blur(); await new Promise((r) => setTimeout(r, 300)); }
+          const at = view.domAtPos(view.state.doc.line(n + 1).from).node;
+          const line = (at.nodeType === 1 ? at : at.parentElement).closest(".cm-line");
+          const range = document.createRange();
+          range.selectNodeContents(line);
+          const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+          const outer = line.getBoundingClientRect();
+          const extra = [...document.querySelectorAll(".io-twscroller--shown")].map((x) => x.getBoundingClientRect()).filter((r) => r.width > 0);
+          const all = rects.concat(extra);
+          const left = Math.min(...all.map((r) => r.left));
+          const right = Math.max(...all.map((r) => r.right));
+          const top = Math.min(outer.top, ...extra.map((r) => r.top));
+          const bottom = Math.max(outer.bottom, ...extra.map((r) => r.bottom));
+          return {
+            clip: { x: Math.max(0, left - 20), y: top - 12, width: right - left + 40, height: bottom - top + 24 },
+            dark: document.body.classList.contains("theme-dark"),
+            ours: !!line.querySelector("[class*='io-']") || /(^|\s)io-/.test(line.className),
+            wheel: !!document.querySelector(".io-twline") && extra.length > 0,
+            text: line.textContent,
+          };
+        }, { theme, n, wheel });
+        const name = file + "-" + suffix + ".png";
+        console.log(name + ":", "тема тёмная —", box.dark, "| наше оформление —", box.ours, wheel ? "| tagWheel со скроллером — " + box.wheel : "", "| текст:", box.text);
+        if (box.dark !== dark || !box.ours || (wheel && !box.wheel)) { ok = false; continue; }
+        const shot = await cdp.send("Page.captureScreenshot", { format: "png", clip: { ...box.clip, scale: 2 } });
+        fs.writeFileSync(path.join(out, name), Buffer.from(shot.data, "base64"));
+        if (wheel) {
+          await win.keyboard.press("Escape");
+          await win.waitForTimeout(500);
+        }
+      }
+    };
+    await shoot("line-tuned", README_LINE, false);
+    await shoot("tagwheel", "- your text", true);
+    console.log(ok ? "ok: снимки в " + out : "РАСХОДИТСЯ: см. строки выше");
     return ok;
   },
 

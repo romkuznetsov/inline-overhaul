@@ -1102,7 +1102,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     subRow.row.hidden = !o.model.valuesEditor(row.key).tree.some(n => (n.children || []).length > 0);
     const sub = textInput(subRow.control, "io-text io-text--prop", {
       value: o.model.getSubLabel(row.subKey),
-      placeholder: o.model.subLabelShown(row.key),
+      placeholder: o.model.subLabelShown(),
       label: say("SHORT_SUB_NAME") + " for " + row.strictName,
     });
     sub.disabled = !o.enabled;

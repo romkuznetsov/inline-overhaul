@@ -5,7 +5,7 @@
   <img alt="inlineOverhaul" src="docs/brand/io-wordmark-light-anim.svg" width="560">
 </picture>
 
-**Keep tags, links and dates on the same line as the thought.**
+**Turn a raw thought into a structured line without leaving it.**
 
 [![Obsidian 1.13+](https://img.shields.io/badge/Obsidian-1.13%2B-4a7b9b?style=flat-square&labelColor=1d1b30)](https://obsidian.md)
 [![Release](https://img.shields.io/github/v/release/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](https://github.com/romkuznetsov/inline-overhaul/releases)
@@ -17,90 +17,138 @@
   <img alt="One line in Obsidian with inlineOverhaul: a checkbox, a status and a priority drawn as colored bubbles, the text, a project link and a due date" src="docs/media/readme/line-light.png" width="588">
 </picture>
 
-[**See it in motion →**](docs/SHOWCASE.md)
+[Install](#install) · [Tutorial](docs/TUTORIAL.md) · [Showcase](docs/SHOWCASE.md) · [All features](FEATURES.md)
 
 </div>
 
-Most task plugins ask you to leave the sentence you are writing: open a modal, fill a
-form, come back. inlineOverhaul does the opposite — it keeps you on the line. A status,
-a priority, a due date and a link to a project live next to the thought itself, and you
-move, cycle and edit all of it from the keyboard.
+You write down a raw thought:
 
-The line above is ordinary markdown in the file:
+```markdown
+- call the bank
+```
+
+A few keystrokes and about five seconds later it reads:
 
 ```markdown
 - [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15
 ```
 
-The tags are searchable by Obsidian, the link is a real link, the date is text your
-other plugins can read. Nothing is hidden, and nothing is stored in a database of ours.
+<details>
+<summary><b>This is how it looks in your note</b></summary>
+<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/line-dark.png">
+  <img alt="The same line drawn by inlineOverhaul: the tags as colored bubbles, the project as a link and the date with its emoji" src="docs/media/readme/line-light.png" width="588">
+</picture>
+</details>
+
+<details>
+<summary><b>…or like this, after a few changes in the settings</b></summary>
+<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/line-tuned-dark.png">
+  <img alt="The same line restyled: the status shown as a target emoji, the priority as an empty red bubble with a red Tag Bar in the margin, both Blocks on a Stripe and written smaller than the text" src="docs/media/readme/line-tuned-light.png" width="449">
+</picture>
+</details>
+
+Your whole PKM — status, priority, project, dates and so on — lives right in the line.
+You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once
+and it stays that way, which takes a whole class of small decisions off your mind.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/tagwheel-dark.png">
+  <img alt="tagWheel open on the line “your text”: the Fields Status and Priority before the text, and the Scroller showing the Values of Status above and below" src="docs/media/readme/tagwheel-light.png" width="316">
+</picture>
+
+And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is
+a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
+
+That is only the tip of the iceberg — inlineOverhaul makes a lot of everyday work in
+Obsidian smoother.
 
 ## What you get
 
-The sections follow the tabs of the settings panel, so what you read here is where you
+Section names match the tabs of the settings panel, so what you read here is where you
 find it later.
 
-### Tags & PKM — a line that carries its own data
+### Tags & PKM — a line that carries your own PKM system
 
 - **Fields you design.** A status, a priority, a project, a due date: each is a Field
-  with its own Values, and the plugin ships no methodology of its own.
-- **A key for every Field.** `Status next` walks `#todo → #doing → #done` in place,
+  (e.g. `Priority`) with its own Values (e.g. `high`, `low`). The plugin ships no
+  methodology of its own, so GTD, PARA or a system you invented all fit.
+- **A command for every Field.** `Status next` walks `#todo → #doing → #done` in place,
   without touching the words around it.
-- **Three kinds of Value.** Tags, links to notes, and elements such as `📅2026-09-15`
-  that step by a day, a counter or your own list.
+- **Three kinds of Value.** Tags (`#todo`), wikilinks (`[[Project A]]`) and
+  emoji-elements such as `📅2026-09-15`, which step the way you want: by a day, by a
+  counter of your own, or through a list you write.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#direct-taglink-field-cycle-increasedecrease)
+<img alt="Cycling a Field on a line" src="docs/media/showcase/pkm-cycle.gif" width="640">
 
 ### tagWheel — choose instead of typing
 
-When you do not remember the Values by heart, the wheel lays every Field out over the
-line. Arrows move between Fields and Values, `Enter` writes the line back as plain
-markdown.
+You do not have to remember every Value or every command: one command holds them all.
+The tagWheel panel shows every Field of the line with its Values — walk them with the
+arrow keys, press `Enter`, and the Values you picked land in the line where they belong.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#tagwheel-leftrightnavigationapplycancel)
+<img alt="Picking Values with tagWheel" src="docs/media/showcase/tagwheel.gif" width="640">
+
+### Transform (inline2note) — turn a line into a note in one click
+
+The inline2note floating button takes the line with its Values and the template you
+choose, and creates a note from it. Each Value becomes a YAML property, and you decide
+which one goes where. Smart Rules pick the template, so a line with `#meeting` and a line
+with `#bug` become different kinds of note.
+
+Because the properties are real frontmatter, a transformed note shows up in Bases and
+Dataview as soon as it exists.
+
+[▸ Watch it in the showcase](docs/SHOWCASE.md#transform-inline2note)
 
 ### Navigation — move a line with everything it carries
 
 - **Move up and down** with the tags, the link, the date and the whole indented tree.
-- **Move left and right** cycles the Prefix — bullet, checkbox, quote, heading — so
+- **Move left and right** cycles the Prefix (bullet, checkbox, quote, heading), so
   restructuring a note does not mean retyping it.
 - **Jump** between headings, and through the parts of one line.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#move-linestrees)
+<img alt="Moving lines and trees" src="docs/media/showcase/move-lines.gif" width="640">
 
 ### Keyboard — the keys you press all day, made smarter
 
 - **Smart `Ctrl+A`** widens the selection a step at a time: word, line, block, note.
-- **Smart Enter** adds a line below instead of splitting yours; **Delete** and **Backspace** step over the indent and the Prefix.
-- **Binder** puts any snippet on a hotkey; `Smart bracket` ships with it.
+- **Smart Enter** adds a line below instead of splitting yours; **Delete** and
+  **Backspace** step over the indent and the Prefix.
+- **Binder** puts any snippet on a hotkey, and `Smart bracket` ships with it.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#smart-bracket)
-
-### Transform — turn a line into a note
-
-Transform takes the line, your template and the Values on it, and writes a note — the
-Values become its properties. Smart Rules pick the template, so a `#meeting` line and a
-`#bug` line become different notes.
-
-[▸ Watch it in the showcase](docs/SHOWCASE.md#transform-inline2note)
-
-### Visual — see the structure at a glance
+### Visual — see the PKM structure of a line at a glance
 
 Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the margin,
-and a caret you can restyle. Drawing only: the file on disk stays untouched.
+and a caret you can restyle. This is drawing only: the file on disk stays untouched.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#tagwheel-panelscroller)
+[**More in the showcase →**](docs/SHOWCASE.md) animations, grouped by workflow.
 
-## Where to go next
+## First steps
 
-| | |
-|---|---|
-| [**Tutorial**](docs/TUTORIAL.md) | Fifteen minutes from install to a line that works |
-| [**Feature list**](FEATURES.md) | Everything the plugin can do, in full |
-| [**Visual showcase**](docs/SHOWCASE.md) | Thirty animations, grouped by workflow |
-| [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
-| [**Settings reference**](docs/SETTINGS.md) | The panel, tab by tab |
-| [**Changelog**](CHANGELOG.md) | What changed in every release |
+1. **Give the commands keys.** The plugin assigns no hotkeys, so it cannot clash with
+   yours. **Keyboard → Commands & Hotkeys** lists every command; bind the tagWheel and
+   the `next` commands of the Fields you use. Hotkeys set before `0.2.0` may have come
+   loose: the [command id map](docs/COMMAND_IDS_V1_V2.md) shows the old and new names.
+2. **Start from the four Fields you already have.** A fresh install arrives with
+   `Status` and `Priority` before your text, `Due` and `Project` after it. Change them in
+   **Tags & PKM → Fields** once you know what you want.
+3. **Write a line and press your keys.** The [tutorial](docs/TUTORIAL.md) takes about
+   fifteen minutes from here to a line that works.
+
+## Documentation
+
+|                                             |                                                   |
+| ------------------------------------------- | ------------------------------------------------- |
+| [**Tutorial**](docs/TUTORIAL.md)            | Fifteen minutes from install to a line that works |
+| [**Feature list**](FEATURES.md)             | Everything the plugin can do, in full             |
+| [**Visual showcase**](docs/SHOWCASE.md)     | Thirty animations, grouped by workflow            |
+| [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting  |
+| [**Settings reference**](docs/SETTINGS.md)  | The panel, tab by tab                             |
+| [**Changelog**](CHANGELOG.md)               | What changed in every release                     |
 
 ## Install
 
@@ -110,15 +158,15 @@ and a caret you can restyle. Drawing only: the file on disk stays untouched.
 
 You need Obsidian desktop **1.13.0** or newer; mobile is not supported.
 
+**With BRAT**
+
 1. Install the **BRAT** community plugin and enable it.
 2. In BRAT, choose **Add Beta plugin** and enter `romkuznetsov/inline-overhaul`.
 3. Enable **inlineOverhaul** under **Settings → Community plugins**.
 
-A fresh install arrives with four Fields, so there is something to press on the first
-day: `Status` and `Priority` before your text, `Due` and `Project` after it. The plugin
-assigns no hotkeys — **Keyboard → Commands & Hotkeys** lists every command, and you give
-keys to the ones you use. Hotkeys set before `0.2.0` may have come loose: the
-[command id map](docs/COMMAND_IDS_V1_V2.md) shows the old and new names.
+**Manually:** copy `main.js`, `manifest.json` and `styles.css` from the
+[latest release](https://github.com/romkuznetsov/inline-overhaul/releases) into
+`<vault>/.obsidian/plugins/inline-overhaul/`, then enable the plugin.
 
 <details>
 <summary><b>Build from source and contribute</b></summary>

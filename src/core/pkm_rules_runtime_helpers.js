@@ -1544,13 +1544,11 @@ function applyOrderToRules(rules, orderCfg, options) {
    * ветка вывода имени дочернего Field недостижима, и заказчик видел
    * `Category_sub` вместо `Cat_sub` при родителе `Cat` (D12).
    *
-   * У дочернего Field своего короткого имени нет и заводить его заказчик не
-   * захотел: дочка берёт имя родителя и добавляет `_sub` — было `sub`, стало
-   * `Imp_sub`. Ключ дочки и есть `<ключ родителя>_sub`, поэтому родитель
-   * находится отрезанием суффикса, а не отдельной картой связей.
-   *
-   * Своё короткое имя, если его когда-нибудь начнут задавать, сильнее
-   * выведенного: сначала смотрим `labels[k]`, потом уже родителя.
+   * Своё имя у дочернего Field есть с 2026-09-29 — строка `Child name in
+   * tagWheel` пишет `labels[<ключ>_sub]`. Без него дочка зовётся `sub` у
+   * всех: его ответ интервью 2026-09-29 «всегда sub» снял прежний вывод из
+   * имени родителя (`Imp_sub`, D12). Запасной `sub` стоит у `tagwheel_core.js`
+   * и у определения дочки (`placeholder`), поэтому здесь ответ — пусто.
    */
   const labelsMap = isObj(orderCfg.labels) ? orderCfg.labels : {};
   const ownShortName = (rawKey) => {
@@ -1562,11 +1560,7 @@ function applyOrderToRules(rules, orderCfg, options) {
   const shortNameFor = (rawKey) => {
     const key = String(rawKey || "").trim();
     if (!key) return "";
-    const own = ownShortName(key);
-    if (own) return own;
-    if (!/_sub$/.test(key)) return "";
-    const parentShort = ownShortName(key.slice(0, -4));
-    return parentShort ? parentShort + "_sub" : "";
+    return ownShortName(key);
   };
 
   for (const f of allFields) {

@@ -2851,30 +2851,34 @@ function runChildFieldShortNameSuite() {
     return { byId: byId, groups: groups }
   }
 
+  /*
+   * Его ответ интервью 2026-09-29 «всегда sub»: имя дочки из имени родителя
+   * (`Imp_sub`, D12) больше не выводится. Без своего имени дочка — `sub`, со
+   * своим (строка `Child name in tagWheel`) — своё.
+   */
   var short = build({ importance: 'Imp', category: 'Cat' })
   assertEq(short.byId.importance.placeholder, 'Imp', 'parent field keeps its own short name')
-  assertEq(short.byId.importance_sub.placeholder, 'Imp_sub', 'child field takes the parent short name with _sub')
-  assertEq(short.byId.category_sub.placeholder, 'Cat_sub', 'child short name is derived per parent, not globally')
-  assertEq(short.groups.importance_subGroup, 'Imp_sub', 'TagWheel group of a child field shows the derived short name')
-  assertEq(short.groups.category_subGroup, 'Cat_sub', 'TagWheel group of the second child field shows its own parent name')
+  assertEq(short.byId.importance_sub.placeholder, 'sub', 'child field is sub even when the parent has a short name')
+  assertEq(short.byId.category_sub.placeholder, 'sub', 'every child without its own name is sub')
+  assertEq(short.groups.importance_subGroup, 'sub', 'TagWheel group of a child field shows sub')
 
-  /* Короткого имени у родителя нет — дочке нечего наследовать, всё как было. */
+  /* Короткого имени у родителя нет — всё как было. */
   var plain = build({})
   assertEq(plain.byId.importance.placeholder, 'importance', 'without a short name the parent keeps the rules placeholder')
   assertEq(plain.byId.importance_sub.placeholder, 'sub', 'without a parent short name the child keeps the rules placeholder')
 
-  /* Своё короткое имя дочки, если его когда-нибудь начнут задавать, сильнее выведенного. */
+  /* Своё имя дочки — из строки панели — стоит и в поле, и в группе. */
   var own = build({ importance: 'Imp', importance_sub: 'Level' })
-  assertEq(own.byId.importance_sub.placeholder, 'Level', 'an explicit child short name wins over the derived one')
+  assertEq(own.byId.importance_sub.placeholder, 'Level', 'an explicit child short name is used')
+  assertEq(own.groups.importance_subGroup, 'Level', 'the TagWheel group shows the explicit child name')
 
   /*
    * Подпись, равная ключу, именем не является: её досыпает `parseOrderConfig`
-   * каждому Field. Это и был дефект D12.
+   * каждому Field (D12).
    */
   var echoed = build({ importance: 'Imp', importance_sub: 'importance_sub', category: 'category' })
-  assertEq(echoed.byId.importance_sub.placeholder, 'Imp_sub', 'a label equal to the key is not an own short name')
-  assertEq(echoed.groups.importance_subGroup, 'Imp_sub', 'the TagWheel group ignores the echoed key too')
-  assertEq(echoed.byId.category_sub.placeholder, 'sub', 'an echoed parent label leaves the child with the rules placeholder')
+  assertEq(echoed.byId.importance_sub.placeholder, 'sub', 'a label equal to the key is not an own short name')
+  assertEq(echoed.groups.importance_subGroup, 'sub', 'the TagWheel group ignores the echoed key too')
 }
 
 /**

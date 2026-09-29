@@ -2036,7 +2036,7 @@ function heightBtn(host: StubNode): StubNode {
   const row = subRowOf()!;
   assert.equal((row as unknown as { hidden?: boolean }).hidden, false, "у Field с дочерними Values строки имени дочки не видно");
   const input = one(row, "io-text");
-  assert.equal((input as unknown as { placeholder?: string }).placeholder, v.model.subLabelShown(shown.f.key), "пустое поле не говорит, что выведется");
+  assert.equal((input as unknown as { placeholder?: string }).placeholder, v.model.subLabelShown(), "пустое поле не говорит, что выведется");
   input.value = "kid";
   input.dispatch("change");
   assert.equal(v.model.getSubLabel(shown.f.subKey), "kid", "имя дочки не записалось");

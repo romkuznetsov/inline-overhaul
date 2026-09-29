@@ -343,6 +343,14 @@ async function rowsOnOneLine(width) {
          * переключение состоялось, говорит `steps` ниже: подмена, которая
          * ничего не сдвинула, читается как «проверка слепа» (У-110).
          */
+        /* Список спрятан, пока `Smart Ctrl+A` выключен (неприменимое прячется,
+           его пункт «Новое» 2026-09-29): сперва включить функцию. */
+        const selectAllToggle = Array.from(document.querySelectorAll("input[type=checkbox]")).find((el) => {
+          const item = el.closest(".io-item");
+          const name = item ? item.querySelector(".io-item__name") : null;
+          return !!name && (name.textContent || "").trim() === "Smart Ctrl+A";
+        });
+        if (selectAllToggle && !selectAllToggle.checked) selectAllToggle.click();
         for (const sel of Array.from(document.querySelectorAll("select"))) {
           const values = Array.from(sel.options || []).map(function (o) { return o.value; });
           if (values.indexOf("word-line-tree-header-note") < 0) continue;
