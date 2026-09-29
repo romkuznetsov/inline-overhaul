@@ -199,7 +199,15 @@ function runCommand(win, id) {
 }
 
 /** Подготовка копии vault до запуска: имя — то же, что у сценария. */
+/** Строка README (`clean-readme-shot`): та же, что в блоке `markdown` README. */
+const README_LINE = "- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15";
+
 const PREPARE = {
+  /* Заметка строки README и заметка ссылки: ссылка без заметки рисуется неразрешённой. */
+  "clean-readme-shot"(vault) {
+    fs.writeFileSync(path.join(vault, "readme.md"), README_LINE + "\n\n");
+    fs.writeFileSync(path.join(vault, "Project A.md"), "");
+  },
   /* Его заказ к тесту 2 цикла 96: Value ссылки с папкой. У детей `Project` —
      `222/123` и `333/123`, заметка `bench-folder.md` с пустой строкой. */
   "link-folder-value"(vault) {
@@ -405,6 +413,59 @@ async function clickIn(pg, text) {
 }
 
 const SCENARIOS = {
+  /*
+   * Снимок строки README настоящим Obsidian (его пункт «Новое» 2026-09-29:
+   * «изображение инлайн строки выглядит некрасиво… без всех фишек плагина»).
+   * Чистый vault — стартовый набор и тема Obsidian по умолчанию, то есть то,
+   * что увидит новый человек. Каретка стоит на соседней строке: на своей
+   * строке Obsidian показывает разметку. Снимки — в `docs/media/readme/`,
+   * другая папка — `IO_SHOTS`.
+   */
+  async "clean-readme-shot"(win) {
+    const out = process.env.IO_SHOTS || path.join(ROOT, "docs", "media", "readme");
+    fs.mkdirSync(out, { recursive: true });
+    const n = await openAt(win, "readme.md", README_LINE);
+    if (n < 0) throw new Error("строки README нет в заметке");
+    /* Снимок вдвое плотнее экрана при той же вёрстке — для экрана высокой
+       плотности; README показывает его вдвое меньше. Зум окна сужает строку, и
+       она переносится; подмена плотности через Playwright Electron не берёт. */
+    const cdp = await win.context().newCDPSession(win);
+    let ok = true;
+    for (const [theme, dark, file] of [["moonstone", false, "line-light.png"], ["obsidian", true, "line-dark.png"]]) {
+      const box = await win.evaluate(async ({ theme, n }) => {
+        window.app.changeTheme(theme);
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setCursor({ line: n + 1, ch: 0 });
+        await new Promise((r) => setTimeout(r, 1500));
+        const view = ed.cm;
+        /* Каретка соседней строки попадает в поля снимка — фокус снимается. */
+        view.contentDOM.blur();
+        await new Promise((r) => setTimeout(r, 300));
+        const at = view.domAtPos(view.state.doc.line(n + 1).from).node;
+        const line = (at.nodeType === 1 ? at : at.parentElement).closest(".cm-line");
+        const range = document.createRange();
+        range.selectNodeContents(line);
+        const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+        const outer = line.getBoundingClientRect();
+        const left = Math.min(...rects.map((r) => r.left));
+        const right = Math.max(...rects.map((r) => r.right));
+        return {
+          clip: { x: Math.max(0, left - 20), y: outer.top - 12, width: right - left + 40, height: outer.height + 24 },
+          dark: document.body.classList.contains("theme-dark"),
+          ours: !!line.querySelector("[class*='io-']") || /(^|\s)io-/.test(line.className),
+          text: line.textContent,
+        };
+      }, { theme, n });
+      /* Контроль «сняли то, что надо» (У-152): тема сменилась, строку рисует плагин. */
+      console.log(file + ":", "тема тёмная —", box.dark, "| наше оформление —", box.ours, "| текст:", box.text);
+      if (box.dark !== dark || !box.ours) { ok = false; continue; }
+      const shot = await cdp.send("Page.captureScreenshot", { format: "png", clip: { ...box.clip, scale: 2 } });
+      fs.writeFileSync(path.join(out, file), Buffer.from(shot.data, "base64"));
+    }
+    console.log(ok ? "ok: снимки в " + out : "РАСХОДИТСЯ: тема не сменилась или строку рисует не плагин");
+    return ok;
+  },
+
   /*
    * BUGHUNT R2 (S1): окна панели встают в окно настроек. Obsidian 1.13
    * открывает настройки отдельным окном; «Add Field» ставил окно в главное,

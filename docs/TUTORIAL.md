@@ -15,8 +15,8 @@ page picks one. The [feature list](../FEATURES.md) and the
 ## Before you start
 
 You need Obsidian **1.13.0** or newer on desktop, and inlineOverhaul installed and
-enabled. If it is not installed yet, the four steps are in the
-[README](../README.md#install-with-brat).
+enabled. If it is not installed yet, the three steps are in the
+[README](../README.md#install).
 
 Make a new note called `Tutorial` and leave it open. Everything below happens in it.
 

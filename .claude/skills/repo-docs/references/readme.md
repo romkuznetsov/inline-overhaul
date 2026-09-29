@@ -12,7 +12,7 @@
    репозитория и в `description` манифеста. Три разных описания одного плагина — первое,
    что выдаёт непричёсанный проект;
 3. **бейджи** — четыре, одного стиля;
-4. **гифка** — до всякой прозы.
+4. **снимок строки из настоящего Obsidian** — до всякой прозы; гифка встанет рядом, когда он принесёт новые записи.
 
 Так устроены README, которые считаются образцовыми: у `httpie` анимация стоит выше
 любого текста, у `obsidian-dataview` четыре примера со скриншотами идут раньше
@@ -32,7 +32,7 @@
 
 [![Obsidian 1.13+](https://img.shields.io/badge/Obsidian-1.13%2B-4a7b9b?style=flat-square&labelColor=1d1b30)](https://obsidian.md)
 [![Release](https://img.shields.io/github/v/release/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](https://github.com/romkuznetsov/inline-overhaul/releases)
-[![Public beta](https://img.shields.io/badge/status-public%20beta-ffb547?style=flat-square&labelColor=1d1b30)](#before-you-install)
+[![Public beta](https://img.shields.io/badge/status-public%20beta-ffb547?style=flat-square&labelColor=1d1b30)](#install)
 [![MIT](https://img.shields.io/github/license/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](LICENSE)
 
 </div>
@@ -40,18 +40,23 @@
 
 ## Порядок разделов
 
+Порядок — его слово 2026-09-29: техническое уходит в конец, чтобы новый человек
+сперва увидел, что плагин умеет, а возможности идут по вкладкам панели.
+
 | # | Раздел | Обязателен | Что в нём |
 |---|---|---|---|
-| 1 | Шапка | да | знак, строка описания, бейджи, по центру |
-| 2 | Демонстрация | да | одна гифка, `width` задан явно |
-| 3 | Что это | да | два-три предложения + настоящий пример строки в блоке `markdown` |
-| 4 | Before you install | пока бета | `> [!WARNING]` про резервную копию |
-| 5 | Install | да | BRAT, по шагам, нумерованным списком |
-| 6 | What you get | да | четыре-пять возможностей, у каждой гифка и одна строка подписи |
-| 7 | Where to go next | да | таблица ссылок на документы |
-| 8 | Requirements | да | версия Obsidian, платформа |
-| 9 | Build | да | три команды |
-| 10 | License | да | последним разделом |
+| 1 | Шапка | да | знак, строка описания, бейджи, снимок строки, по центру |
+| 2 | Что это | да | два-три предложения + та же строка в блоке `markdown` |
+| 3 | What you get | да | раздел на вкладку панели: Tags & PKM, tagWheel, Navigation, Keyboard, Transform, Visual; у каждого место под гифку |
+| 4 | Where to go next | да | таблица ссылок на документы |
+| 5 | Install | да | `> [!WARNING]` про бету, требования, BRAT по шагам |
+| 6 | Сборка и участие | да | свёрнутый `<details>`: три команды, CONTRIBUTING, SECURITY |
+| 7 | License | да | последним разделом |
+
+**Снимок строки** — `docs/media/readme/line-{light,dark}.png`, снимает его
+`node tools/obsidian_bench.js clean-readme-shot`: чистый vault, стартовый набор,
+тема Obsidian по умолчанию, вдвое плотнее экрана. В README `width` — половина
+ширины файла. Руками снимок не правится: сменилась строка или вид — перезапуск.
 
 Оглавление вручную не собираем: GitHub сам рисует его кнопкой **Outline** в шапке
 файла для любого документа с двумя и более заголовками.
