@@ -81,9 +81,8 @@ function nextMarkerFor(lineText, mode) {
  * была. Условия отказа:
  *
  *   1. функция выключена;
- *   2. **у строки нет слота текста** — то есть ни одного разделителя плагина в
- *      ней не нашлось. Обычная заметка нашей не становится, и `Enter` в ней
- *      работает так, как работал;
+ *   2. строка пуста или в ней один знак списка — `Enter` на ней выходит из
+ *      списка; строка без разделителей плагина — целиком слот текста;
  *   3. при `scope = "text"` — курсор вне слота текста: в зоне значений клавиша
  *      снова принадлежит Obsidian;
  *   4. курсор не один или что-то выделено (это решается выше, в обработчике:
@@ -101,8 +100,19 @@ function planSmartEnter(opts) {
   if (!o.enabled) return null;
 
   const text = String(o.lineText || "");
-  const bounds = o.textSlot;
-  if (!bounds || typeof bounds.end !== "number") return null;
+  const p = __sharedUtils.lineMarkerOf(text);
+  /*
+   * **Строка без разделителей — целиком слот текста** (его пункт «Новое»
+   * 2026-09-29: «smart enter не работает на plain text и списке без values в
+   * left/right block»). Прежде такая строка нашей не считалась, и клавиша
+   * уходила платформе. Пустая строка и пустой пункт списка остаются ей:
+   * `Enter` на них выходит из списка.
+   */
+  let bounds = o.textSlot;
+  if (!bounds || typeof bounds.end !== "number") {
+    if (!text.slice(p.at).trim()) return null;
+    bounds = { start: p.at, end: text.length };
+  }
 
   const ch = Math.max(0, Math.min(Number(o.ch) || 0, text.length));
   if (String(o.scope || "line") === "text") {
@@ -110,7 +120,6 @@ function planSmartEnter(opts) {
     if (ch < from || ch > bounds.end) return null;
   }
 
-  const p = __sharedUtils.lineMarkerOf(text);
   /*
    * Отступ остаётся при **любом** положении, знак списка — по настройке.
    * Отступ Prefix-ом не зовётся ни в панели, ни в PRD: строка на третьем
@@ -146,6 +155,8 @@ function handleSmartEnterKeymap(plugin) {
     if (!Number.isFinite(line)) return false;
 
     const lineText = String(editor.getLine(line) || "");
+    /* Код и таблица — не запись: там `Enter` рвёт строку (R4). */
+    if (__sharedUtils.isCodeOrTableLine((n) => editor.getLine(n), line)) return false;
     /*
      * Правила — те же, что получают движки (`buildRulesForEngines`): не
      * только разделители человека, но и его Fields. Без Fields одиночный

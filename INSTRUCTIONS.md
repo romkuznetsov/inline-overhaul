@@ -203,9 +203,9 @@ The line-start target is immediately after the structural prefix, such as indent
 
 Inline navigation is currently reliable when both boundaries use the same separator. A distinct **Separator 2** is supported by the line model but may produce incorrect inline boundary navigation; test that configuration on disposable text before relying on it.
 
-### Expanded 'Ctrl/Cmd+A'
+### Smart SelectAll (Ctrl+A)
 
-Under **Keyboard → Expanded 'Ctrl+A'**, this setting replaces ordinary selection expansion with one of these repeated-press sequences:
+Under **Keyboard → Smart SelectAll (Ctrl+A)**, this setting replaces ordinary selection expansion with one of these repeated-press sequences:
 
 - line → whole note;
 - line → indentation tree → whole note;
@@ -242,7 +242,9 @@ line` keeps the whole line together: wherever the cursor stands — in a Block, 
 Separator or in your text — the key adds a line below. `Text only` narrows it to
 the text slot, the part between your Separators, so `Enter` inside a Block goes back to
 being Obsidian’s own. If a line carries only one Separator, the text slot is whatever
-lies after the first or before the second.
+lies after the first or before the second, and a line with none is text from end to end.
+In code, in a table, on an empty line and on an empty list item `Enter` stays Obsidian’s
+own, so it still takes you out of a list.
 
 `Prefix on the new line` decides what the new line starts with, and it has three
 settings. `Same as above` repeats the marker exactly as Obsidian does it on its
@@ -257,9 +259,9 @@ The key is **off** by default and stays Obsidian’s own everywhere else: in any
 carries no Separator of yours, outside your text when `Where it works` says so, with a
 selection, or with more than one cursor.
 
-### Smart paste
+### Smart Paste (Ctrl+V)
 
-Under **Keyboard → Smart paste**, `Ctrl/Cmd + V` learns two things about lists.
+Under **Keyboard → Smart Paste (Ctrl+V)**, `Ctrl/Cmd + V` learns two things about lists.
 
 Cut a numbered list out of one note and paste it into another, and it arrives carrying the
 numbers it had where it came from: a list that started at nine goes on starting at nine.

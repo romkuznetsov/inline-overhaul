@@ -205,7 +205,11 @@ const checkPred = (owner, pr) => {
 };
 for (const g of SCHEMA) {
   checkPred("group " + g.id, g.visible);
-  for (const it of g.items) { checkPred(it.id, it.visible); checkPred(it.id, it.disabled); }
+  for (const it of g.items) {
+    checkPred(it.id, it.visible);
+    /* Неприменимое прячется, а не гаснет (его пункт «Новое» 2026-09-29). */
+    if (it.disabled) bad(it.id + " is dimmed when it does not apply: hide it with visible instead");
+  }
 }
 for (const [t, p] of Object.entries(TAB_MODULE)) if (!known.has(p)) bad("tab gate " + t + " unknown path " + p);
 

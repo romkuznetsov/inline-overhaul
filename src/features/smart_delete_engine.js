@@ -26,6 +26,23 @@ const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
 const __rulesShape = require("../core/pkm_rules_shape.js");
 
 /**
+ * Сегменты строки для склейки. Строку без Prefix и без разделителей разбор
+ * движков объявляет Block целиком: правило «значения подряд в начале — Block,
+ * с первого слова текста — текст» (`demoteLeftBodyToText`, `В-211`, `В-249`)
+ * он применяет только к строке с Prefix. Для `Del` это значило, что `💭 123`
+ * под `#high :: 123` уезжало в левый Block вместе со словом (его пункт
+ * «Новое» 2026-09-29). Такая строка разбирается с условным `- `, и он же
+ * снимается с левого сегмента.
+ */
+function segmentsOf(line, rules) {
+  const start = __sharedUtils.lineStartOf(String(line || ""));
+  /* `prefix` у `lineStartOf` включает отступ: спрашивается сам знак. */
+  if (start.marker || start.checkbox || start.heading || !String(start.body || "").trim()) return __linePipeline.splitSegments(line, rules);
+  const seg = __linePipeline.splitSegments("- " + start.body, rules);
+  return { ...seg, indent: start.indent + start.quote + start.callout, left: String(__sharedUtils.lineStartOf(String(seg.left || "")).body || "") };
+}
+
+/**
  * **Склейка двух строк с полями сливает поля в блоки** (`В-242`, его ответ
  * 2026-09-26 «слить поля в блоки»; BUGHUNT K2). Прежде `Del` в конце
  * `- #todo || a` над `- #low || b` давал `- #todo || a #low || b` — две
@@ -40,8 +57,8 @@ const __rulesShape = require("../core/pkm_rules_shape.js");
  */
 function mergeLinesWithFields(upper, lower, rules) {
   if (!rules || !rules.io) return null;
-  const a = __linePipeline.splitSegments(upper, rules);
-  const b = __linePipeline.splitSegments(lower, rules);
+  const a = segmentsOf(upper, rules);
+  const b = segmentsOf(lower, rules);
   const bLeft = String(__sharedUtils.lineStartOf(String(b.left || "")).body || "").trim();
   const bDates = String(b.dates || "").trim();
   if (!bLeft && !bDates) return null;

@@ -1084,6 +1084,36 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   }) as never);
 
   /*
+   * Имя дочернего Field в tagWheel — строкой под именем родителя (его заказ
+   * 2026-09-29). Строка спрятана, пока у Field нет дочерних Values: называть
+   * нечего (З8). Спрятана, а не снята: стрелка `Level` заводит первый
+   * дочерний Value, и снятая строка сдвигала бы дерево под фокусом
+   * (`keepview`). Пустое поле — имя, которое tagWheel выводит сам.
+   */
+  if (row.subKey) {
+    const subRow = itemRow(detail, {
+      name: say("SHORT_SUB_NAME"),
+      desc: say("SHORT_SUB_DESC"),
+      tip: say("SHORT_SUB_TIP"),
+      tipId: "io-field-short-sub-tip",
+      showTips: o.showTips, showIds: o.showIds,
+    });
+    closers.push(subRow.closeTip);
+    subRow.row.hidden = !o.model.valuesEditor(row.key).tree.some(n => (n.children || []).length > 0);
+    const sub = textInput(subRow.control, "io-text io-text--prop", {
+      value: o.model.getSubLabel(row.subKey),
+      placeholder: o.model.subLabelShown(row.key),
+      label: say("SHORT_SUB_NAME") + " for " + row.strictName,
+    });
+    sub.disabled = !o.enabled;
+    sub.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      o.model.setSubLabel(row.subKey, sub.value);
+      o.redraw();
+    }) as never);
+  }
+
+  /*
    * Что Field пишет в строку — раньше того, как он себя ведёт. Заказчик
    * просил поднять `Values` под `Name in TagWheel` и над `Behavior`, и для
    * всех типов Field сразу (замечание 1.4.1.2.4); у `element` значение одно,

@@ -147,8 +147,11 @@ interface Ident {
   id: string;
   /** Старое имя настройки, чтобы её находил поиск (С4). */
   searchTerms?: readonly string[];
+  /*
+   * Неприменимая строка прячется, а не гаснет: `disabled` снят (его пункт
+   * «Новое» 2026-09-29). Запрет держит гейт `gates.js`.
+   */
   visible?: Predicate;
-  disabled?: Predicate;
 }
 
 interface Base extends Ident {
@@ -322,15 +325,16 @@ export function eq(path: string, value: unknown): Predicate {
   return { deps: [path], test: ctx => ctx.get(path) === value };
 }
 /**
- * Выключен, когда ложь стоит по **обоим** путям.
- *
- * У настройки бывает два хозяина: `Drop the line Prefix` и `Join with a space`
- * относятся и к `Del`, и к `Backspace`, а те включаются врозь (заказчик
- * 2026-09-05, 10.13.32 Д11). `not()` тут дал бы строку, погашенную при
- * работающей второй клавише.
+ * Виден, пока истина стоит хоть по одному из путей. Строка, у которой два
+ * хозяина (`Del` и `Backspace` включаются врозь), прячется, когда выключены оба (его пункт «Новое»
+ * 2026-09-29 — неприменимое прячется, а не гаснет).
  */
-export function neither(a: string, b: string): Predicate {
-  return { deps: [a, b], test: ctx => !ctx.get(a) && !ctx.get(b) };
+export function either(a: string, b: string): Predicate {
+  return { deps: [a, b], test: ctx => ctx.get(a) === true || ctx.get(b) === true };
+}
+/** Оба условия сразу: у строки уже было своё `visible`, и к нему добавился хозяин. */
+export function both(p: Predicate, q: Predicate): Predicate {
+  return { deps: [...p.deps, ...q.deps], test: ctx => p.test(ctx) && q.test(ctx) };
 }
 
 /* ---- конфиг редактора Fields (Ф16) ------------------------------------ */

@@ -140,7 +140,7 @@ it to one that already exists. Off out of the box.
 
 ## Keyboard
 
-- **Expanded `Ctrl+A`** — successive presses widen the selection in steps: the word, the
+- **Smart `Ctrl+A`** — successive presses widen the selection in steps: the word, the
   part of the line, the line, the block, the note. `Custom` picks which steps a press
   stops at.
 - **Smart Delete\Backspace** — `Del` at the end of a line and `Backspace` at the start

@@ -249,7 +249,7 @@ async function main(): Promise<void> {
     for (const g of SCHEMA) for (const it of g.items) if (isBound(it)) paths.add(it.path);
     for (const g of SCHEMA) {
       for (const it of g.items) {
-        for (const p of [it.visible, it.disabled]) {
+        for (const p of [it.visible]) {
           if (!p) continue;
           assert.ok(p.deps.length, it.id + ": предикат без deps");
           for (const d of p.deps) assert.ok(paths.has(d), it.id + ": deps на неизвестный путь " + d);
@@ -602,8 +602,8 @@ async function main(): Promise<void> {
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
     const byName = (n: string) => items.find((i: Def) => i.name === n);
 
-    assert.equal(byName("Expanded 'Ctrl+A'")?.control?.type, "toggle");
-    assert.equal(byName("Expanded 'Ctrl+A'")?.control?.key, "editor.selectAll.enabled");
+    assert.equal(byName("Smart Ctrl+A")?.control?.type, "toggle");
+    assert.equal(byName("Smart Ctrl+A")?.control?.key, "editor.selectAll.enabled");
 
     const steps = byName("Selection steps");
     assert.equal(steps?.control?.type, "dropdown");
@@ -629,14 +629,17 @@ async function main(): Promise<void> {
     const delay = items.find((i: Def) => i.name === "Time between presses");
     const steps = items.find((i: Def) => i.name === "Selection steps");
 
+    /* Неприменимое прячется, а не гаснет (его пункт «Новое» 2026-09-29). */
     assert.equal(typeof delay?.visible, "function");
-    assert.equal(delay?.visible?.(), false, "таймер выключен — задержки не видно");
+    assert.equal(typeof steps?.visible, "function");
+    assert.equal(steps?.visible?.(), false, "пока функция выключена, шаги видны");
     void store.set("editor.selectAll.useDelay", true);
-    assert.equal(delay?.visible?.(), true, "таймер включён — задержка видна");
-
-    assert.equal(steps?.control?.disabled?.(), true, "пока функция выключена, шаги неактивны");
+    assert.equal(delay?.visible?.(), false, "функция выключена — задержку видно, хоть таймер и включён");
     void store.set("editor.selectAll.enabled", true);
-    assert.equal(steps?.control?.disabled?.(), false);
+    assert.equal(steps?.visible?.(), true, "функция включена — шагов не видно");
+    assert.equal(delay?.visible?.(), true, "функция и таймер включены — задержки не видно");
+    void store.set("editor.selectAll.useDelay", false);
+    assert.equal(delay?.visible?.(), false, "таймер выключен — задержку видно");
   });
 
   /*
@@ -686,21 +689,20 @@ async function main(): Promise<void> {
     assert.equal(back?.control?.disabled?.() ?? false, false,
       "Smart Backspace больше никому не подчинён и гаснуть не должен");
 
-    assert.equal(prefix?.control?.disabled?.(), true, "обе клавиши выключены — настройка мертва");
-    assert.equal(space?.control?.disabled?.(), true, "обе клавиши выключены — настройка мертва");
+    /* Неприменимое прячется, а не гаснет (его пункт «Новое» 2026-09-29). */
+    assert.equal(prefix?.visible?.(), false, "обе клавиши выключены — настройку видно");
+    assert.equal(space?.visible?.(), false, "обе клавиши выключены — настройку видно");
 
     void store.set("editor.smartDelete.onBackspace", true);
-    assert.equal(prefix?.control?.disabled?.(), false,
-      "один Smart Backspace уже делает настройку живой");
-    assert.equal(space?.control?.disabled?.(), false,
-      "один Smart Backspace уже делает настройку живой");
+    assert.equal(prefix?.visible?.(), true, "один Smart Backspace уже делает настройку видной");
+    assert.equal(space?.visible?.(), true, "один Smart Backspace уже делает настройку видной");
 
     void store.set("editor.smartDelete.onBackspace", false);
     void store.set("editor.smartDelete.enabled", true);
-    assert.equal(prefix?.control?.disabled?.(), false, "один Smart Delete — то же самое");
+    assert.equal(prefix?.visible?.(), true, "один Smart Delete — то же самое");
 
     void store.set("editor.smartDelete.onBackspace", true);
-    assert.equal(prefix?.control?.disabled?.(), false, "обе включены — тем более");
+    assert.equal(prefix?.visible?.(), true, "обе включены — тем более");
   });
 
   /* ---- вводные коллауты (10.1) ---------------------------------------- */
@@ -1410,9 +1412,9 @@ async function main(): Promise<void> {
   await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
     const { pane } = makePane();
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
-    const it = items.find((i: Def) => i.name === "Expanded 'Ctrl+A'");
+    const it = items.find((i: Def) => i.name === "Smart Ctrl+A");
     /* Оба прежних имени: и до PRD, и то, что панель носила до 2026-08-26. */
-    assert.deepEqual(it?.aliases, ["Enhanced Mod+A", "Expanded select all"],
+    assert.deepEqual(it?.aliases, ["Enhanced Mod+A", "Expanded select all", "Expanded 'Ctrl+A'"],
       "старые имена должны попасть в aliases");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("Enhanced Mod+A"), "и не должно попасть в видимое описание: " + text);
@@ -1435,20 +1437,10 @@ async function main(): Promise<void> {
       "обычного пробела в подписи слайдера быть не должно — он и переносится");
   });
 
-  await test("неактивность живёт в контроле, а не в определении", () => {
-    const { pane, store } = makePane();
-    const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
-    const steps = items.find((i: Def) => i.name === "Selection steps");
-    assert.equal(steps?.disabled, undefined, "у определения контрола disabled нет");
-    assert.equal(steps?.control?.disabled?.(), true);
-    void store.set("editor.selectAll.enabled", true);
-    assert.equal(steps?.control?.disabled?.(), false);
-  });
-
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
-    const it = items.find((i: Def) => i.name === "Expanded 'Ctrl+A'");
+    const it = items.find((i: Def) => i.name === "Smart Ctrl+A");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("On a task list"), "подсказка осталась при выключенном Show tips");
   });

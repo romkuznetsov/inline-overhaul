@@ -636,7 +636,12 @@ function normalizePkmOrder(rawOrder) {
   }
 
   if (isObj(rawOrder.labels)) {
-    for (const k of orderFields) {
+    /* Имя дочернего Field в tagWheel — тоже подпись (его заказ 2026-09-29,
+       `io-field-short-sub`): ключ дочки берётся из `orderKeys`. Подпись
+       `<ключ> sub` панель писала сама до 2026-09-04 (D12) — это не имя
+       человека, и она по-прежнему отбрасывается. */
+    for (const k of orderKeys) {
+      if (/_sub$/.test(k) && String(rawOrder.labels[k] || "").trim() === k.slice(0, -4) + " sub") continue;
       if (typeof rawOrder.labels[k] === "string" && rawOrder.labels[k].trim()) {
         out.labels[k] = rawOrder.labels[k].trim();
       }

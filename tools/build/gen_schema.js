@@ -370,7 +370,7 @@ for (const tab of Object.keys(TAB_FILE)) {
   if (!list.length) continue;
 
   const text = list.map(g => g.text).join(",\n");
-  const helpers = ["on", "not", "eq", "neither"].filter(h => new RegExp("[^A-Za-z]" + h + "\\(").test(text));
+  const helpers = ["on", "not", "eq", "either", "both"].filter(h => new RegExp("[^A-Za-z]" + h + "\\(").test(text));
 
   const skipNote = (skipped[tab] || [])
     .map(s => " *   " + s.id + ": " + s.drop.join(", "))

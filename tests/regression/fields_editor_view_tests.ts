@@ -2015,6 +2015,34 @@ function heightBtn(host: StubNode): StubNode {
   ok("тест 1 цикла 105: Values списка — имя над строками, рамка и ⠿");
 }
 {
+  /* Его заказ 2026-09-29: имя дочернего Field под `Name in tagWheel`, видно
+     только у Field с дочерними Values; пустое поле показывает, что выведется. */
+  const v = makeView();
+  const subRowOf = (): StubNode | undefined => all(v.host, "io-item")
+    .find(r => String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child name in tagWheel");
+  const pick = (label: string): void => {
+    one(rowsOf(v.host).find(r => nameIn(r) === label) as StubNode, "io-fields__pick").click();
+  };
+  assert.equal(v.model.addField("Plain", "tag").ok, true, "Field без дочерних Values не завёлся");
+  v.draw();
+  const withKids = (v.model.listFields() as Array<{ key: string; label: string; kind: string; subKey: string }>)
+    .filter(f => f.subKey)
+    .map(f => ({ f, kids: (v.model.valuesEditor(f.key).tree as Array<{ children?: unknown[] }>).some(n => (n.children || []).length > 0) }));
+  const shown = withKids.find(x => x.kids)!, bare = withKids.find(x => !x.kids)!;
+  assert.ok(shown && bare, "в фикстуре нет Field с дочерними Values и без них: " + JSON.stringify(withKids.map(x => [x.f.label, x.kids])));
+  pick(bare.f.label);
+  assert.equal((subRowOf() as unknown as { hidden?: boolean } | undefined)?.hidden, true, "у Field без дочерних Values строка имени дочки видна");
+  pick(shown.f.label);
+  const row = subRowOf()!;
+  assert.equal((row as unknown as { hidden?: boolean }).hidden, false, "у Field с дочерними Values строки имени дочки не видно");
+  const input = one(row, "io-text");
+  assert.equal((input as unknown as { placeholder?: string }).placeholder, v.model.subLabelShown(shown.f.key), "пустое поле не говорит, что выведется");
+  input.value = "kid";
+  input.dispatch("change");
+  assert.equal(v.model.getSubLabel(shown.f.subKey), "kid", "имя дочки не записалось");
+  ok("строка io-field-short-sub: видна при дочерних Values, пишет имя дочки");
+}
+{
   const v = makeView();
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
@@ -2169,7 +2197,9 @@ function heightBtn(host: StubNode): StubNode {
     "эти разделы правой колонки ничего о себе не говорят: " + mute.join(", "));
   const behaviorRows = all(v.host, "io-item")
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
-  assert.deepEqual(behaviorRows.slice(0, 4), [SHORT_NAME, "Active", "Prefix behavior", "Child Field"],
+  /* Имя дочернего Field — под именем родителя: у Field фикстуры дочерние
+     Values есть (его заказ 2026-09-29). */
+  assert.deepEqual(behaviorRows.slice(0, 5), [SHORT_NAME, "Child name in tagWheel", "Active", "Prefix behavior", "Child Field"],
     "имя в TagWheel стоит до раздела, а под Behavior — Active, Prefix behavior и Child Field");
   ok("третий круг 2: раздел называется Behavior и держит три настройки");
 }

@@ -598,6 +598,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
          * прежнее». Проверено на настоящем пути записи.
          */
         propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField),
+        /* И имени дочернего Field: стёртое оставалось бы в конфиге (его заказ
+           2026-09-29, `io-field-short-sub`). */
+        labels: withTombstones(next.labels, current.labels),
       };
       plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
       return;
@@ -1045,6 +1048,40 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     if (!v) return { ok: false };
     orderState.labels = { ...(orderState.labels || {}), [k]: v };
     setOrderPatch(orderState, "pkm:behavior:order:label:" + k);
+    return { ok: true };
+  };
+
+  /**
+   * Имя дочернего Field в tagWheel (его заказ 2026-09-29, строка
+   * `io-field-short-sub`). Лежит там же, где имя родителя, — `labels` под
+   * ключом дочки, и его уже читает `shortNameFor`. Пустое снимает своё имя:
+   * tagWheel снова выводит его из родителя.
+   */
+  const getSubLabel = (subKey: string): string => {
+    const k = String(subKey || "").trim();
+    const v = String((k && orderState.labels && orderState.labels[k]) || "").trim();
+    return v === k ? "" : v;
+  };
+  /**
+   * Что tagWheel покажет, пока своего имени нет: `<короткое имя родителя>_sub`
+   * или `sub`. Вторая запись правила `shortNameFor` в
+   * `pkm_rules_runtime_helpers.js` и тамошнего запасного `sub` в
+   * `tagwheel_core.js`: здесь оно только подсказка в пустом поле.
+   */
+  const subLabelShown = (parentKey: string): string => {
+    const k = String(parentKey || "").trim();
+    const own = String((k && orderState.labels && orderState.labels[k]) || "").trim();
+    return own && own !== k ? own + "_sub" : "sub";
+  };
+  const setSubLabel = (subKey: string, rawValue: string): WriteResult => {
+    const k = String(subKey || "").trim();
+    if (!k) return { ok: false };
+    const v = String(rawValue || "").trim();
+    const labels = { ...(orderState.labels || {}) };
+    if (v) labels[k] = v;
+    else delete labels[k];
+    orderState.labels = labels;
+    setOrderPatch({ labels: { [k]: v || null } } as unknown as Partial<OrderState>, "pkm:behavior:order:label:" + k);
     return { ok: true };
   };
 
@@ -2601,6 +2638,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     deleteField,
     setStrictName,
     setLabel,
+    getSubLabel,
+    subLabelShown,
+    setSubLabel,
     setProperty,
     listYamlFields,
     listFieldTokens,

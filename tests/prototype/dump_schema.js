@@ -80,7 +80,6 @@ SCHEMA.slice().sort((a, b) => (a.tab + String(a.order).padStart(4, "0"))
       (it.unit ? ", ед. " + it.unit : ""));
     if (it.buttons) L.push("  - кнопки: " + it.buttons.map(b => "`" + b.action + "` " + b.label).join(" · "));
     if (it.visible) L.push("  - видна если: `" + it.visible.deps.join(", ") + "`");
-    if (it.disabled) L.push("  - выключена если: `" + it.disabled.deps.join(", ") + "`");
     if (it.seeAlso) L.push("  - см. также: `" + it.seeAlso.id + "` — " + it.seeAlso.label);
     if (it.searchTerms) L.push("  - старые названия для поиска: " + it.searchTerms.map(s => "«" + s + "»").join(", "));
   });

@@ -843,7 +843,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:1987 | — | `features.pkm.enabled` | Tags & PKM (`module-pkm`, Modules) |
 | перенесено | R:1987 | — | `features.visual.enabled` | Visual (`module-visual`, Modules) |
 | перенесено | R:1987 | — | `features.transform.enabled` | Transform (`module-transform`, Modules) |
-| перенесено | R:2020 | `Enhanced Mod+A` | `editor.selectAll.enabled` | Expanded 'Ctrl+A' (`select-all-enabled`, Global hotkeys) |
+| перенесено | R:2020 | `Enhanced Mod+A` | `editor.selectAll.enabled` | Smart Ctrl+A (`select-all-enabled`, Global hotkeys) |
 | перенесено | R:2029 | `Select-all mode` | `editor.selectAll.mode` | Selection steps (`select-all-steps`, Global hotkeys) |
 | перенесено | R:2043 | `Use multi-press delay` | `editor.selectAll.useDelay` | Count presses by timer (`select-all-timer`, Global hotkeys) |
 | перенесено | R:2053 | `Multi-press delay` | `editor.selectAll.delayMs` | Time between presses (`select-all-delay`, Global hotkeys) |

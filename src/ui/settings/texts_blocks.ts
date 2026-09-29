@@ -73,7 +73,10 @@ export const BLOCK_TEXTS = {
     /* Правая колонка: шапка и разделы. */
     DETAIL_TIP: "Everything about the Field picked on the left. Its name in tagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields — pick another one on the left and the whole column changes",
     SHORT_NAME_NAME: "Name in tagWheel",
-    SHORT_NAME_DESC: "A shorter name for the tagWheel row, where there is little room",
+    SHORT_NAME_DESC: "Shorter name for parent Field in tagWheel panel",
+    SHORT_SUB_NAME: "Child name in tagWheel",
+    SHORT_SUB_DESC: "Shorter name for child Field in tagWheel panel",
+    SHORT_SUB_TIP: "The child Field stands right after its parent in tagWheel and is called <b>sub</b> there, or <b>Stat_sub</b> when the parent is written as <b>Stat</b>. Type a name to use it instead; clear the field to go back",
     SHORT_NAME_TIP: "tagWheel puts every Field side by side, so a long name crowds its neighbors. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name",
     /* Раздел Behavior. */
     BEHAVIOR_HEAD: "Behavior",

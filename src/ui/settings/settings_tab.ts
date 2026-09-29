@@ -689,11 +689,11 @@ export class SettingsPane {
     return changed.some(c => SettingsPane.touches(gate, c));
   }
 
-  /** Задела ли запись путь, который спрашивает чей-то `visible` или `disabled`. */
+  /** Задела ли запись путь, который спрашивает чей-то `visible`. */
   private predicateDepsTouched(changed: readonly string[]): boolean {
     for (const group of this.view().schema) {
-      for (const it of group.items as ReadonlyArray<{ visible?: { deps: readonly string[] }; disabled?: { deps: readonly string[] } }>) {
-        for (const p of [it.visible, it.disabled]) {
+      for (const it of group.items as ReadonlyArray<{ visible?: { deps: readonly string[] } }>) {
+        for (const p of [it.visible]) {
           if (p && p.deps.some(d => changed.some(c => SettingsPane.touches(d, c)))) return true;
         }
       }

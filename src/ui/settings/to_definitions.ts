@@ -154,10 +154,6 @@ function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
     const themed = themeColorFor(it.path);
     if (themed) control["defaultValue"] = themed;
   }
-  if (it.disabled) {
-    const p = it.disabled;
-    control["disabled"] = () => p.test(w.ctx);
-  }
 
   /* У поля папки та же подсказка в пустом поле, что и у обычного текста. */
   if (it.kind === "folder" && it.placeholder) control["placeholder"] = it.placeholder;
@@ -298,7 +294,6 @@ function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
      * наследует `name`, `desc`, `aliases` и `searchable`, поэтому тексты и
      * глобальный поиск остаются платформенными, а нашего кода — одни кнопки.
      */
-    const off = it.disabled;
     const busy = w.busy;
     common["render"] = (setting: Setting) => {
       for (const b of buttons) {
@@ -308,12 +303,11 @@ function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
           if (b.warning) btn.setWarning();
           /*
            * Кнопка гаснет на время работы (5.6): второе нажатие по `Apply`
-           * запускало бы применение поверх незаконченного первого. Предикат
-           * схемы при этом не теряется — оба условия складываются. Пересборку
+           * запускало бы применение поверх незаконченного первого. Пересборку
            * на смену занятости просит `SettingsPane.run`, поэтому условие
            * считается здесь, при каждой отрисовке.
            */
-          if ((off && off.test(w.ctx)) || (busy && busy(b.action))) btn.setDisabled(true);
+          if (busy && busy(b.action)) btn.setDisabled(true);
           return btn;
         });
       }

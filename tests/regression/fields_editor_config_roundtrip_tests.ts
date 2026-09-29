@@ -545,7 +545,36 @@ function configWithDefaultLabels(): Any {
     "подпись дочки из принесённого файла не доехала: получилось " + JSON.stringify(order.labels),
   );
   assert.equal(order.labels.status, "Work status", "родителю подпись переименование обновило");
-  ok("подпись дочки не доезжает до конфига даже из принесённого файла");
+  ok("автоподпись дочки `<ключ> sub` не доезжает до конфига даже из принесённого файла");
+}
+
+{
+  /*
+   * Имя дочернего Field, заданное человеком (его заказ 2026-09-29, строка
+   * `io-field-short-sub`), переживает `migrateConfig` и доходит до движка
+   * подписью tagWheel. Пустое снимает его, и имя снова выводится.
+   */
+  const helpers = createRequire(import.meta.url)("../../src/core/pkm_rules_runtime_helpers.js");
+  const p = makePanel(configWithDefaultLabels(), "status");
+  assert.equal(p.model().setSubLabel("status_sub", "St kid").ok, true, "запись имени дочки прошла");
+  const placeholderOf = (): string => {
+    const rules: Any = {
+      leftMode: { fields: [
+        { id: "status", prefix: "#", values: [{ token: "#todo" }] },
+        { id: "status_sub", prefix: "#", dependsOn: "status", placeholder: "sub", values: [""] },
+      ] },
+      rightMode: { fields: [] },
+      behavior: { defaultMode: "left", order: {} },
+    };
+    helpers.applyOrderToRules(rules, p.cfg().pkm.fields.order, {});
+    return String(rules.leftMode.fields[1].placeholder || "");
+  };
+  assert.equal(p.cfg().pkm.fields.order.labels.status_sub, "St kid", "имя дочки не пережило migrateConfig");
+  assert.equal(placeholderOf(), "St kid", "имя дочки не дошло до tagWheel");
+  p.model().setSubLabel("status_sub", "");
+  assert.equal(p.cfg().pkm.fields.order.labels.status_sub, undefined, "пустое имя дочки не снялось");
+  assert.notEqual(placeholderOf(), "St kid", "снятое имя дочки осталось в tagWheel");
+  ok("имя дочернего Field из строки io-field-short-sub доходит до tagWheel и снимается пустым");
 }
 
 {

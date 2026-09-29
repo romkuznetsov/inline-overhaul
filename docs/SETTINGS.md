@@ -66,11 +66,11 @@ palette.
 
 Three keys Obsidian already gives you, your own insert commands, and the command reference.
 
-### Global hotkeys → Expanded 'Ctrl+A'
+### Global hotkeys → Smart SelectAll (Ctrl+A)
 
 | Control | Default | What it does |
 |---|---|---|
-| `Expanded 'Ctrl+A'` | off | Changes what `Ctrl/Cmd+A` does: take the line first, then widen |
+| `Smart Ctrl+A` | off | Changes what `Ctrl/Cmd+A` does: take the line first, then widen |
 | `Selection steps` | `line-note` | How much more gets picked up on each press |
 | `Steps to cycle through` | — | Which of the five steps a press stops at, ticked one by one under `Custom` |
 | `Count presses by timer` | off | Decides the next step by how quickly you press rather than by what is selected |
@@ -79,7 +79,7 @@ Three keys Obsidian already gives you, your own insert commands, and the command
 
 This is the one place where the plugin takes over a key Obsidian already owns.
 
-See it in motion: [Expanded Ctrl+A](SHOWCASE.md#enhanced-ctrla).
+See it in motion: [Smart Ctrl+A](SHOWCASE.md#enhanced-ctrla).
 
 ### Global hotkeys → Smart Delete\Backspace
 
@@ -101,9 +101,9 @@ nothing but a Prefix goes whole.
 | `Where it works` | `line` | How much of the line counts as one record: the whole line, or your own text between the Separators |
 | `Prefix on the new line` | `same` | What the new line starts with: the same marker, nothing, or nothing unless the line is numbered |
 
-On a line without a Separator of yours the key stays Obsidian’s own.
+A line without a Separator of yours is text from end to end. In code, in a table, on an empty line and on an empty list item the key stays Obsidian’s own.
 
-### Global hotkeys → Smart paste
+### Global hotkeys → Smart Paste (Ctrl+V)
 
 | Control | Default | What it does |
 |---|---|---|

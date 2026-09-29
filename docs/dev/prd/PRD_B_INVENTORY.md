@@ -222,15 +222,15 @@ _Intro:_ Four keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <co
 _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The sections below are independent: switch on the one you want and the others stay as they were
 
 - **`select-all-sub`** — свой блок, рендерер `?`
-- **Expanded 'Ctrl+A'** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
+- **Smart Ctrl+A** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
   - desc: Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen
   - tip: On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started
-  - старые названия для поиска: «Enhanced Mod+A», «Expanded select all»
+  - старые названия для поиска: «Enhanced Mod+A», «Expanded select all», «Expanded 'Ctrl+A'»
 - **Selection steps** — `select-all-steps`, `dropdown`, path `editor.selectAll.mode`, default `line-note`
   - desc: How much more gets picked up on each press
   - tip: <b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you actually use — every extra step is one more press before you reach the whole note
   - варианты: `line-note` Line, note · `line-tree-note` Line, tree, note · `line-tree-header-note` Line, tree, heading, note · `word-line-tree-header-note` Word, line, tree, heading, note · `custom` Custom
-  - выключена если: `editor.selectAll.enabled`
+  - видна если: `editor.selectAll.enabled`
   - старые названия для поиска: «Select-all mode»
 - **Steps to cycle through** — `select-all-custom-head`, `note`
   - desc: Which of the five a press stops at
@@ -240,19 +240,18 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
 - **Count presses by timer** — `select-all-timer`, `toggle`, path `editor.selectAll.useDelay`, default `false`
   - desc: Decide the next step by how quickly you press, rather than by what is selected
   - tip: Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line — handy if you often select something, walk away, and come back
-  - выключена если: `editor.selectAll.enabled`
+  - видна если: `editor.selectAll.enabled`
   - старые названия для поиска: «Use multi-press delay»
 - **Time between presses** — `select-all-delay`, `slider`, path `editor.selectAll.delayMs`, default `700`
   - desc: How long you can pause and still be in the middle of a sequence
   - tip: Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place
   - диапазон: 250–2000, шаг 50, ед. ms
-  - видна если: `editor.selectAll.useDelay`
-  - выключена если: `editor.selectAll.enabled`
+  - видна если: `editor.selectAll.enabled, editor.selectAll.useDelay`
   - старые названия для поиска: «Multi-press delay»
 - **Last press clears highlighting** — `select-all-clear`, `toggle`, path `editor.selectAll.clearOnLast`, default `false`
   - desc: After the last step, pressing again drops the selection and returns the cursor
   - tip: Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect
-  - выключена если: `editor.selectAll.enabled`
+  - видна если: `editor.selectAll.enabled`
   - старые названия для поиска: «Last press clears selection», «One more press clears it»
 - **`smart-delete-sub`** — свой блок, рендерер `?`
 - **Smart Delete** — `smart-delete-enabled`, `toggle`, path `editor.smartDelete.enabled`, default `false`
@@ -266,12 +265,12 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
 - **Drop the line Prefix** — `smart-delete-prefix`, `toggle`, path `editor.smartDelete.dropPrefix`, default `true`
   - desc: Take the bullet, checkbox, number or quote mark off the arriving line, not only its indent
   - tip: On, <code>- [ ] read the docs</code> arrives as <code>read the docs</code>. Off, only the indent goes and the line keeps its Prefix, which is what you want when the two lines are meant to stay two list items. This one answers to both keys above
-  - выключена если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
+  - видна если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
   - старые названия для поиска: «Drop the bullet»
 - **Join with a space** — `smart-delete-space`, `toggle`, path `editor.smartDelete.joinWithSpace`, default `true`
   - desc: Put one space between your text and the text that arrives, so the two do not run together
   - tip: Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above
-  - выключена если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
+  - видна если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
   - старые названия для поиска: «Add a space»
 - **`smart-enter-sub`** — свой блок, рендерер `?`
 - **Smart Enter** — `smart-enter-enabled`, `toggle`, path `editor.smartEnter.enabled`, default `false`
@@ -282,13 +281,13 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
   - desc: How much of the line the key treats as one record
   - tip: <b>Whole line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Text only</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second
   - варианты: `line` Whole line · `text` Text only
-  - выключена если: `editor.smartEnter.enabled`
+  - видна если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Smart Enter scope», «Only in your text»
 - **Prefix on the new line** — `smart-enter-prefix`, `dropdown`, path `editor.smartEnter.newLinePrefix`, default `same`
   - desc: What the line <code>Smart Enter</code> adds starts with
   - tip: <b>Same as above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>Numbered lines only</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin
   - варианты: `same` Same as above · `none` None · `number-only` Numbered lines only
-  - выключена если: `editor.smartEnter.enabled`
+  - видна если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Keep the bullet», «New line Prefix», «Carry the Prefix over»
 - **`smart-paste-sub`** — свой блок, рендерер `?`
 - **Smart paste** — `smart-paste-enabled`, `toggle`, path `editor.smartPaste.enabled`, default `false`
@@ -330,40 +329,38 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
   - desc: Whether the tree under the line travels with it
   - tip: Say a line has three lines indented under it. <b>Line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>Whole tree</b> keeps the four together and moves them as one block
   - варианты: `line-only` Line only · `with-children` Whole tree
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «No-selection mode»
 - **Jump over neighbor trees** — `move-lines-jump-trees`, `toggle`, path `navigation.moveLine.jumpNeighborTrees`, default `false`
   - desc: Move the tree past the whole tree next to it instead of into its lines
   - tip: Off, the tree moves one line per press, so it can pass into the lines indented under its neighbor and take them along. On, one press puts it above or below the whole neighbor at its own level, and the neighbor keeps its own lines
-  - видна если: `navigation.moveLine.noSelectionMode`
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled, navigation.moveLine.noSelectionMode`
 - **Moving headings** — `move-lines-heading`, `dropdown`, path `navigation.moveLine.headerMode`, default `move-as-line`
   - desc: If you are moving a heading, this decides whether the whole section moves or just the heading line
   - tip: With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings
   - варианты: `move-as-line` Heading only · `move-with-section` Whole section
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Header mode»
 - **Cross heading boundaries** — `move-lines-cross`, `toggle`, path `navigation.moveLine.crossSectionAllowed`, default `true`
   - desc: Let a line travel past a heading into the part of the note below it
   - tip: Leave it on and a line keeps going wherever you push it. Turn it off and it stops at the heading, which is what you want in a note where each heading has to keep its own contents
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Cross-section allowed»
 - **Highlight after moving** — `move-lines-select`, `toggle`, path `navigation.moveLine.highlightMovedLines`, default `false`
   - desc: Keep the lines highlighted once they land, so you can see what moved
   - tip: Useful when you move a tree of several lines and want to be sure the whole thing came along
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Highlight moved lines», «Select after moving»
 - **Follow the moved line** — `move-lines-view`, `toggle`, path `navigation.moveLine.keepInView`, default `true`
   - desc: Scroll the note to the line you moved instead of leaving the view where it was
   - tip: Off, the note does not scroll at all: what you see stays exactly where it was, and a line pushed past the edge goes on moving out of sight. On, the view follows the line and puts it where the setting below says
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Scroll on move», «Keep in view», «Screen jumps»
 - **Where the line lands** — `move-lines-view-position`, `dropdown`, path `navigation.moveLine.viewPosition`, default `center`
   - desc: The place on screen the moved line is scrolled to
   - tip: The same place every time, so the note does not jump: one press does not center the line while the next throws it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
   - варианты: `center` Center · `top` Top · `bottom` Bottom
-  - видна если: `navigation.moveLine.keepInView`
-  - выключена если: `navigation.moveLine.enabled`
+  - видна если: `navigation.moveLine.enabled, navigation.moveLine.keepInView`
   - старые названия для поиска: «Scroll position», «Center on move»
 
 #### Move lines (left/right) — `left-right` (вкладка `navigation`)
@@ -382,18 +379,17 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - desc: How far the highlighted text goes on each press
   - tip: <b>Auto</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way
   - варианты: `auto` Auto · `char` Character · `word` Word · `disabled` Off
-  - выключена если: `navigation.moveSelection.inlineEnabled`
+  - видна если: `navigation.moveSelection.inlineEnabled`
   - старые названия для поиска: «Inline move mode»
 - **Step out of the word** — `move-text-word-escape`, `toggle`, path `navigation.moveSelection.inlineWordEscape`, default `false`
   - desc: Let a highlighted part of a word carry on past the word it came from
   - tip: Only <code>Auto</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Auto</code> moves them letter by letter — but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point — the highlighted piece goes wherever you press. Off is the way it has always worked
-  - видна если: `navigation.moveSelection.inlineMoveMode`
-  - выключена если: `navigation.moveSelection.inlineEnabled`
+  - видна если: `navigation.moveSelection.inlineEnabled, navigation.moveSelection.inlineMoveMode`
   - старые названия для поиска: «Leave the word», «Word escape»
 - **Continue past Separators** — `move-text-cross`, `toggle`, path `navigation.moveSelection.inlineBoundaryJump`, default `true`
   - desc: Let the highlighted text leave your text and move into the tags at either end
   - tip: Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other
-  - выключена если: `navigation.moveSelection.inlineEnabled`
+  - видна если: `navigation.moveSelection.inlineEnabled`
   - см. также: `in-line-cross` — The cursor has the same setting of its own
 - **`move-line-sub`** — свой блок, рендерер `?`
 - **Cycle line Prefixes** — `prefix-cycle-enabled`, `toggle`, path `navigation.moveSelection.prefixCyclerEnabled`, default `true`
@@ -430,18 +426,18 @@ _Tip:_ A tagged line has three parts: what comes before your text, your text, an
   - desc: How big a hop the cursor makes each time
   - tip: <b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Start or end</b> skips the middle entirely and lands at one end of your text
   - варианты: `word` Word · `sentence` Sentence · `begin-end` Start or end
-  - выключена если: `navigation.navigateInline.enabled`
+  - видна если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «Step mode»
 - **Continue past Separators** — `in-line-cross`, `toggle`, path `navigation.navigateInline.boundaryJump`, default `false`
   - desc: Let the cursor leave your text and walk into the tags at either end
   - tip: Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse
-  - выключена если: `navigation.navigateInline.enabled`
+  - видна если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «Allow crossing Separators», «Continue past Separators»
 - **What to do at the end** — `in-line-boundary`, `dropdown`, path `navigation.navigateInline.onBoundary`, default `wrap`
   - desc: When there is nowhere further to go in the line
   - tip: Say the cursor is on the last word before the closing Separator and you press again. <b>Stop</b> does nothing. <b>Wrap around</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely
   - варианты: `stay` Stop · `wrap` Wrap around · `next-line` Next line
-  - выключена если: `navigation.navigateInline.enabled`
+  - видна если: `navigation.navigateInline.enabled`
   - старые названия для поиска: «On boundary», «At the far end»
 
 #### Jump inside a note (up/down) — `heading-jumps` (вкладка `navigation`)
@@ -458,33 +454,31 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - desc: Hop between headings, or crawl from one written line to the next
   - tip: <b>Headings</b> is for finding your way around a long note. <b>Lines</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be
   - варианты: `edge` Headings · `line` Lines
-  - выключена если: `navigation.jumpToHeader.enabled`
+  - видна если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Jump mode»
 - **Where in the section** — `heading-jumps-edge`, `dropdown`, path `navigation.jumpToHeader.edgeMode`, default `start-end`
   - desc: Land at the start of the part you jump to, or at its end
   - tip: <b>Start and end</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting
   - варианты: `start-end` Start and end · `start` Start only · `end` End only
-  - видна если: `navigation.jumpToHeader.jumpMode`
-  - выключена если: `navigation.jumpToHeader.enabled`
+  - видна если: `navigation.jumpToHeader.enabled, navigation.jumpToHeader.jumpMode`
   - старые названия для поиска: «Edge behavior»
 - **Cursor position after jumping** — `heading-jumps-cursor`, `dropdown`, path `navigation.jumpToHeader.jumpCursorPosition`, default `section-end`
   - desc: Where on that line the cursor ends up
   - tip: <b>Text end</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them. <b>Text start</b> is the same place at the other end, just after the tags. This row also decides where <code>Jump right</code> drops you when you step in from the tags
   - варианты: `start` Line start · `end` Line end · `section-start` Text start · `section-end` Text end
-  - выключена если: `navigation.jumpToHeader.enabled`
+  - видна если: `navigation.jumpToHeader.enabled`
   - см. также: `separator-2` — Where your text ends is set by the second Separator
   - старые названия для поиска: «Jump cursor position», «Cursor on arrival»
 - **Follow the jump target** — `heading-jumps-center`, `toggle`, path `navigation.jumpToHeader.centerCursor`, default `true`
   - desc: After a jump, scroll the note so the line you landed on is on screen
   - tip: Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below — so you have to scroll anyway. With it on, you can read straight away, and the row below says where on the screen you land
-  - выключена если: `navigation.jumpToHeader.enabled`
+  - видна если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Center the target», «Center the screen on target», «Scroll on jump»
 - **Where the target lands** — `heading-jumps-view-position`, `dropdown`, path `navigation.jumpToHeader.viewPosition`, default `center`
   - desc: The place on screen the line you jump to is scrolled to
   - tip: The same place every time, and the same three choices as the matching row of <code>Move lines</code>. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows
   - варианты: `center` Center · `top` Top · `bottom` Bottom
-  - видна если: `navigation.jumpToHeader.centerCursor`
-  - выключена если: `navigation.jumpToHeader.enabled`
+  - видна если: `navigation.jumpToHeader.enabled, navigation.jumpToHeader.centerCursor`
   - старые названия для поиска: «Scroll position», «Center on jump»
 
 #### Before you start — `pkm-intro` (вкладка `pkm`)

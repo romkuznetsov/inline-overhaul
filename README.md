@@ -70,7 +70,7 @@ markdown.
 
 ### Keyboard — the keys you press all day, made smarter
 
-- **Expanded `Ctrl+A`** widens the selection a step at a time: word, line, block, note.
+- **Smart `Ctrl+A`** widens the selection a step at a time: word, line, block, note.
 - **Smart Enter** adds a line below instead of splitting yours; **Delete** and **Backspace** step over the indent and the Prefix.
 - **Binder** puts any snippet on a hotkey; `Smart bracket` ships with it.
 

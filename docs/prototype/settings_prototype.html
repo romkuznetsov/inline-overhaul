@@ -354,8 +354,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-item__desc { margin-top: 2px; max-width: 60ch; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .io-item__control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding-top: 1px; }
 
-.io-item--disabled { opacity: 0.55; }
-.io-item--disabled .io-item__control { pointer-events: none; }
 
 .io-item--flash { animation: io-flash 1.4s ease-out; }
 @keyframes io-flash {
@@ -1904,11 +1902,12 @@ const TAB_MODULE = {
 const on  = (path) => ({ deps: [path], test: c => c.get(path) === true });
 const not = (path) => ({ deps: [path], test: c => !c.get(path) });
 const eq  = (path, value) => ({ deps: [path], test: c => c.get(path) === value });
-/* У настройки бывает два хозяина. `Smart Delete` и `Smart Backspace` включаются
-   врозь (заказчик 2026-09-05, замечание G1.2), а `Drop the line Prefix` и
-   `Join with a space` относятся к обеим клавишам: гасить их надо, только когда
-   не включена ни одна. */
-const neither = (a, b) => ({ deps: [a, b], test: c => !c.get(a) && !c.get(b) });
+/* Неприменимая строка прячется, а не гаснет (его пункт «Новое» 2026-09-29:
+   «хочу, чтобы не применимые контролы прятались, а не становились
+   неактивными»). `either` — видна, пока включена хоть одна из двух клавиш;
+   `both` — оба условия сразу, когда у строки уже было своё `visible`. */
+const either = (a, b) => ({ deps: [a, b], test: c => c.get(a) === true || c.get(b) === true });
+const both = (p, q) => ({ deps: p.deps.concat(q.deps), test: c => p.test(c) && q.test(c) });
 
 const SCHEMA = [
 
@@ -1998,15 +1997,15 @@ const SCHEMA = [
   intro: "Four keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, <code>Enter</code> and <code>Ctrl/Cmd + V</code> — taught to do the obvious thing inside a line of yours",
   tip: "Nothing here rebinds a key: all four stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The sections below are independent: switch on the one you want and the others stay as they were",
   items: [
-    { kind:"custom", id:"select-all-sub", render: renderSubheader("Expanded 'Ctrl+A' ('⌘+A')",
+    { kind:"custom", id:"select-all-sub", render: renderSubheader("Smart SelectAll (Ctrl+A)",
         "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection. Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it") },
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
-      name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-      searchTerms:["Enhanced Mod+A","Expanded select all"],
+      name:"Smart Ctrl+A", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+      searchTerms:["Enhanced Mod+A","Expanded select all","Expanded 'Ctrl+A'"],
       tip:"On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started" },
     { kind:"dropdown", id:"select-all-steps", path:"editor.selectAll.mode", default:"line-note",
       name:"Selection steps", desc:"How much more gets picked up on each press",
-      searchTerms:["Select-all mode"], disabled: not("editor.selectAll.enabled"),
+      searchTerms:["Select-all mode"], visible: on("editor.selectAll.enabled"),
       options:[
         { value:"line-note", label:"Line, note" },
         { value:"line-tree-note", label:"Line, tree, note" },
@@ -2027,18 +2026,18 @@ const SCHEMA = [
       visible: eq("editor.selectAll.mode","custom") },
     { kind:"toggle", id:"select-all-timer", path:"editor.selectAll.useDelay", default:false,
       name:"Count presses by timer", desc:"Decide the next step by how quickly you press, rather than by what is selected",
-      searchTerms:["Use multi-press delay"], disabled: not("editor.selectAll.enabled"),
+      searchTerms:["Use multi-press delay"], visible: on("editor.selectAll.enabled"),
       tip:"Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back" },
     { kind:"slider", id:"select-all-delay", path:"editor.selectAll.delayMs", default:700,
       min:250, max:2000, step:50, unit:"ms",
       name:"Time between presses", desc:"How long you can pause and still be in the middle of a sequence",
       tip:"Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
       searchTerms:["Multi-press delay"],
-      visible: on("editor.selectAll.useDelay"), disabled: not("editor.selectAll.enabled") },
+      visible: both(on("editor.selectAll.enabled"), on("editor.selectAll.useDelay")) },
     { kind:"toggle", id:"select-all-clear", path:"editor.selectAll.clearOnLast", default:false,
       name:"Last press clears highlighting", desc:"After the last step, pressing again drops the selection and returns the cursor",
       tip:"Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") },
+      searchTerms:["Last press clears selection", "One more press clears it"], visible: on("editor.selectAll.enabled") },
 
     /* Заказ заказчика 2026-09-05, вечер (PRD 10.13.32). Стоит после `Ctrl+A` и
        перед `Smart Enter`, как он и просил. Умолчания выключены по той же
@@ -2047,7 +2046,7 @@ const SCHEMA = [
        Заказчик 2026-09-05, поздний вечер (замечания G1.1–G1.5): подпись
        называет обе клавиши, `Backspace` стоит вторым и включается сам по себе,
        а два нижних тумблера относятся к обеим клавишам сразу — отсюда
-       `neither`. */
+       `either`: видны, пока включена хоть одна. */
     { kind:"custom", id:"smart-delete-sub", render: renderSubheader("Smart Delete\\Backspace",
         "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind. Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did") },
     { kind:"toggle", id:"smart-delete-enabled", path:"editor.smartDelete.enabled", default:false,
@@ -2065,11 +2064,11 @@ const SCHEMA = [
       tip:"The same thing from the other side, and it stands on its own: <code>Smart Delete</code> above can stay off and this still works. <code>Backspace</code> at the start of a line joins it to the line above, and by default it takes the indent and the bullet along. On, they stay behind and only the words go up. A line with nothing on it disappears, which is the quickest way to close a gap" },
     { kind:"toggle", id:"smart-delete-prefix", path:"editor.smartDelete.dropPrefix", default:true,
       name:"Drop the line Prefix", desc:"Take the bullet, checkbox, number or quote mark off the arriving line, not only its indent",
-      searchTerms:["Drop the bullet"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+      searchTerms:["Drop the bullet"], visible: either("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
       tip:"On, <code>- [ ] read the docs</code> arrives as <code>read the docs</code>. Off, only the indent goes and the line keeps its Prefix, which is what you want when the two lines are meant to stay two list items. This one answers to both keys above" },
     { kind:"toggle", id:"smart-delete-space", path:"editor.smartDelete.joinWithSpace", default:true,
       name:"Join with a space", desc:"Put one space between your text and the text that arrives, so the two do not run together",
-      searchTerms:["Add a space"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+      searchTerms:["Add a space"], visible: either("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
       tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" },
 
     /* Smart Enter: заказ заказчика 2026-09-12. Его словами: «команда smart enter,
@@ -2082,7 +2081,7 @@ const SCHEMA = [
        выключено, как у обеих соседних: клавиша принадлежит Obsidian, и менять
        её поведение всем без спроса нельзя. */
     { kind:"custom", id:"smart-enter-sub", render: renderSubheader("Smart Enter",
-        "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone. A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has") },
+        "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone. A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. A line with no Separator of yours counts as text from end to end. The key stays Obsidian’s own in code and in tables, and on an empty line or an empty list item, where it takes you out of the list") },
     { kind:"toggle", id:"smart-enter-enabled", path:"editor.smartEnter.enabled", default:false,
       name:"Smart Enter", desc:"Let <code>Enter</code> add a line instead of splitting the one you are on",
       searchTerms:["Smart Enter","Do not split the line"],
@@ -2094,7 +2093,7 @@ const SCHEMA = [
     { kind:"dropdown", id:"smart-enter-scope", path:"editor.smartEnter.scope", default:"line",
       name:"Where it works", desc:"How much of the line the key treats as one record",
       searchTerms:["Smart Enter scope","Only in your text"],
-      disabled: not("editor.smartEnter.enabled"),
+      visible: on("editor.smartEnter.enabled"),
       options:[ {value:"line",label:"Whole line"},
                 {value:"text",label:"Text only"} ],
       tip:"<b>Whole line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Text only</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second" },
@@ -2106,7 +2105,7 @@ const SCHEMA = [
     { kind:"dropdown", id:"smart-enter-prefix", path:"editor.smartEnter.newLinePrefix", default:"same",
       name:"Prefix on the new line", desc:"What the line <code>Smart Enter</code> adds starts with",
       searchTerms:["Keep the bullet","New line Prefix","Carry the Prefix over"],
-      disabled: not("editor.smartEnter.enabled"),
+      visible: on("editor.smartEnter.enabled"),
       options:[ {value:"same",label:"Same as above"},
                 {value:"none",label:"None"},
                 {value:"number-only",label:"Numbered lines only"} ],
@@ -2120,7 +2119,7 @@ const SCHEMA = [
        настоящим фильтром нумерации из `app.js` (`tools/renumber_bench.js`),
        и текст подсказки говорит о том, что человек увидит, а не о том, кто
        это сделал. */
-    { kind:"custom", id:"smart-paste-sub", render: renderSubheader("Smart paste",
+    { kind:"custom", id:"smart-paste-sub", render: renderSubheader("Smart Paste (Ctrl+V)",
         "Paste a numbered list you cut from somewhere else and it arrives carrying the numbers it had there: a list that started at nine goes on starting at nine. With this on, a pasted list is counted from one, and pasting it right under a list you already have carries that list's count on instead. The other half is the single item: paste <code>1. text</code> into a line that already starts with a number and you get <code>2. 1. text</code>, two markers in a row. With this on the pasted marker is dropped and only the text lands. Everything else you paste — plain text, a link, a table — arrives exactly as it always did") },
     { kind:"toggle", id:"smart-paste-enabled", path:"editor.smartPaste.enabled", default:false,
       name:"Smart paste", desc:"Count a pasted numbered list from one, and drop a pasted marker where the line has one",
@@ -2179,39 +2178,39 @@ const SCHEMA = [
       searchTerms:["Enable Move Line"] },
     { kind:"dropdown", id:"move-lines-no-selection", path:"navigation.moveLine.noSelectionMode", default:"line-only",
       name:"Moving behavior", desc:"Whether the tree under the line travels with it",
-      searchTerms:["No-selection mode"], disabled: not("navigation.moveLine.enabled"),
+      searchTerms:["No-selection mode"], visible: on("navigation.moveLine.enabled"),
       options:[ {value:"line-only",label:"Line only"}, {value:"with-children",label:"Whole tree"} ],
       tip:"Say a line has three lines indented under it. <b>Line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>Whole tree</b> keeps the four together and moves them as one block" },
     /* Дерево перескакивает соседнее дерево целиком — его заказ 2026-09-25
        (PRD 10.13.275); только при `Whole tree` — его ответ. */
     { kind:"toggle", id:"move-lines-jump-trees", path:"navigation.moveLine.jumpNeighborTrees", default:false,
       name:"Jump over neighbor trees", desc:"Move the tree past the whole tree next to it instead of into its lines",
-      visible: eq("navigation.moveLine.noSelectionMode","with-children"), disabled: not("navigation.moveLine.enabled"),
+      visible: both(on("navigation.moveLine.enabled"), eq("navigation.moveLine.noSelectionMode","with-children")),
       tip:"Off, the tree moves one line per press, so it can pass into the lines indented under its neighbor and take them along. On, one press puts it above or below the whole neighbor at its own level, and the neighbor keeps its own lines" },
     { kind:"dropdown", id:"move-lines-heading", path:"navigation.moveLine.headerMode", default:"move-as-line",
       name:"Moving headings", desc:"If you are moving a heading, this decides whether the whole section moves or just the heading line",
-      searchTerms:["Header mode"], disabled: not("navigation.moveLine.enabled"),
+      searchTerms:["Header mode"], visible: on("navigation.moveLine.enabled"),
       options:[ {value:"move-as-line",label:"Heading only"}, {value:"move-with-section",label:"Whole section"} ],
       tip:"With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only reordering the headings" },
     { kind:"toggle", id:"move-lines-cross", path:"navigation.moveLine.crossSectionAllowed", default:true,
       name:"Cross heading boundaries", desc:"Let a line travel past a heading into the part of the note below it",
-      searchTerms:["Cross-section allowed"], disabled: not("navigation.moveLine.enabled"),
+      searchTerms:["Cross-section allowed"], visible: on("navigation.moveLine.enabled"),
       tip:"Leave it on and a line keeps going wherever you push it. Turn it off and it stops at the heading, which is what you want in a note where each heading has to keep its own contents" },
     { kind:"toggle", id:"move-lines-select", path:"navigation.moveLine.highlightMovedLines", default:false,
       name:"Highlight after moving", desc:"Keep the lines highlighted once they land, so you can see what moved",
       tip:"Useful when you move a tree of several lines and want to be sure the whole thing came along",
-      searchTerms:["Highlight moved lines", "Select after moving"], disabled: not("navigation.moveLine.enabled") },
+      searchTerms:["Highlight moved lines", "Select after moving"], visible: on("navigation.moveLine.enabled") },
     /* Прокрутка при перемещении строки: заказ заказчика 2026-09-05, поздний
        вечер (PRD 10.13.36). До этого прокруткой распоряжалась платформа, и
        выбора не было вовсе — свой код до неё не доезжал. */
     { kind:"toggle", id:"move-lines-view", path:"navigation.moveLine.keepInView", default:true,
       name:"Follow the moved line", desc:"Scroll the note to the line you moved instead of leaving the view where it was",
-      searchTerms:["Scroll on move","Keep in view","Screen jumps"], disabled: not("navigation.moveLine.enabled"),
+      searchTerms:["Scroll on move","Keep in view","Screen jumps"], visible: on("navigation.moveLine.enabled"),
       tip:"Off, the note does not scroll at all: what you see stays exactly where it was, and a line pushed past the edge goes on moving out of sight. On, the view follows the line and puts it where the setting below says" },
     { kind:"dropdown", id:"move-lines-view-position", path:"navigation.moveLine.viewPosition", default:"center",
       name:"Where the line lands", desc:"The place on screen the moved line is scrolled to",
       searchTerms:["Scroll position","Center on move"],
-      visible: on("navigation.moveLine.keepInView"), disabled: not("navigation.moveLine.enabled"),
+      visible: both(on("navigation.moveLine.enabled"), on("navigation.moveLine.keepInView")),
       options:[ {value:"center",label:"Center"},
                 {value:"top",label:"Top"},
                 {value:"bottom",label:"Bottom"} ],
@@ -2233,19 +2232,18 @@ const SCHEMA = [
       tip:"Highlight two words in the middle of a sentence and press <code>Move right</code>: they trade places with the word after them, and stay highlighted, so you can keep pressing until they are where you want" },
     { kind:"dropdown", id:"move-text-step", path:"navigation.moveSelection.inlineMoveMode", default:"auto",
       name:"Movement step", desc:"How far the highlighted text goes on each press",
-      searchTerms:["Inline move mode"], disabled: not("navigation.moveSelection.inlineEnabled"),
+      searchTerms:["Inline move mode"], visible: on("navigation.moveSelection.inlineEnabled"),
       options:[ {value:"auto",label:"Auto"}, {value:"char",label:"Character"},
                 {value:"word",label:"Word"}, {value:"disabled",label:"Off"} ],
       tip:"<b>Auto</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way" },
     { kind:"toggle", id:"move-text-word-escape", path:"navigation.moveSelection.inlineWordEscape", default:false,
       name:"Step out of the word", desc:"Let a highlighted part of a word carry on past the word it came from",
       searchTerms:["Leave the word","Word escape"],
-      visible: eq("navigation.moveSelection.inlineMoveMode","auto"),
-      disabled: not("navigation.moveSelection.inlineEnabled"),
+      visible: both(on("navigation.moveSelection.inlineEnabled"), eq("navigation.moveSelection.inlineMoveMode","auto")),
       tip:"Only <code>Auto</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Auto</code> moves them letter by letter \u2014 but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point \u2014 the highlighted piece goes wherever you press. Off is the way it has always worked" },
     { kind:"toggle", id:"move-text-cross", path:"navigation.moveSelection.inlineBoundaryJump", default:true,
       name:"Continue past Separators", desc:"Let the highlighted text leave your text and move into the tags at either end",
-      disabled: not("navigation.moveSelection.inlineEnabled"),
+      visible: on("navigation.moveSelection.inlineEnabled"),
       tip:"Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other",
       seeAlso:{ id:"in-line-cross", label:"The cursor has the same setting of its own" } },
 
@@ -2292,19 +2290,19 @@ const SCHEMA = [
       searchTerms:["Enable Jump To Header"] },
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",
       name:"Jump target", desc:"Hop between headings, or crawl from one written line to the next",
-      searchTerms:["Jump mode"], disabled: not("navigation.jumpToHeader.enabled"),
+      searchTerms:["Jump mode"], visible: on("navigation.jumpToHeader.enabled"),
       options:[ {value:"edge",label:"Headings"}, {value:"line",label:"Lines"} ],
       tip:"<b>Headings</b> is for finding your way around a long note. <b>Lines</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be" },
     { kind:"dropdown", id:"heading-jumps-edge", path:"navigation.jumpToHeader.edgeMode", default:"start-end",
       name:"Where in the section", desc:"Land at the start of the part you jump to, or at its end",
       tip:"<b>Start and end</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
       searchTerms:["Edge behavior"],
-      visible: eq("navigation.jumpToHeader.jumpMode","edge"), disabled: not("navigation.jumpToHeader.enabled"),
+      visible: both(on("navigation.jumpToHeader.enabled"), eq("navigation.jumpToHeader.jumpMode","edge")),
       options:[ {value:"start-end",label:"Start and end"},
                 {value:"start",label:"Start only"}, {value:"end",label:"End only"} ] },
     { kind:"dropdown", id:"heading-jumps-cursor", path:"navigation.jumpToHeader.jumpCursorPosition", default:"section-end",
       name:"Cursor position after jumping", desc:"Where on that line the cursor ends up",
-      searchTerms:["Jump cursor position", "Cursor on arrival"], disabled: not("navigation.jumpToHeader.enabled"),
+      searchTerms:["Jump cursor position", "Cursor on arrival"], visible: on("navigation.jumpToHeader.enabled"),
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
                 {value:"section-start",label:"Text start"},
                 {value:"section-end",label:"Text end"} ],
@@ -2318,11 +2316,11 @@ const SCHEMA = [
       name:"Follow the jump target", desc:"After a jump, scroll the note so the line you landed on is on screen",
       searchTerms:["Center the target","Center the screen on target","Scroll on jump"],
       tip:"Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away, and the row below says where on the screen you land",
-      disabled: not("navigation.jumpToHeader.enabled") },
+      visible: on("navigation.jumpToHeader.enabled") },
     { kind:"dropdown", id:"heading-jumps-view-position", path:"navigation.jumpToHeader.viewPosition", default:"center",
       name:"Where the target lands", desc:"The place on screen the line you jump to is scrolled to",
       searchTerms:["Scroll position","Center on jump"],
-      visible: on("navigation.jumpToHeader.centerCursor"), disabled: not("navigation.jumpToHeader.enabled"),
+      visible: both(on("navigation.jumpToHeader.enabled"), on("navigation.jumpToHeader.centerCursor")),
       options:[ {value:"center",label:"Center"},
                 {value:"top",label:"Top"},
                 {value:"bottom",label:"Bottom"} ],
@@ -2342,16 +2340,16 @@ const SCHEMA = [
     { kind:"dropdown", id:"in-line-step", path:"navigation.navigateInline.stepMode", default:"word",
       name:"Step size", desc:"How big a hop the cursor makes each time",
       tip:"<b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Start or end</b> skips the middle entirely and lands at one end of your text",
-      searchTerms:["Step mode"], disabled: not("navigation.navigateInline.enabled"),
+      searchTerms:["Step mode"], visible: on("navigation.navigateInline.enabled"),
       options:[ {value:"word",label:"Word"}, {value:"sentence",label:"Sentence"},
                 {value:"begin-end",label:"Start or end"} ] },
     { kind:"toggle", id:"in-line-cross", path:"navigation.navigateInline.boundaryJump", default:false,
       name:"Continue past Separators", desc:"Let the cursor leave your text and walk into the tags at either end",
-      searchTerms:["Allow crossing Separators", "Continue past Separators"], disabled: not("navigation.navigateInline.enabled"),
+      searchTerms:["Allow crossing Separators", "Continue past Separators"], visible: on("navigation.navigateInline.enabled"),
       tip:"Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse" },
     { kind:"dropdown", id:"in-line-boundary", path:"navigation.navigateInline.onBoundary", default:"wrap",
       name:"What to do at the end", desc:"When there is nowhere further to go in the line",
-      searchTerms:["On boundary", "At the far end"], disabled: not("navigation.navigateInline.enabled"),
+      searchTerms:["On boundary", "At the far end"], visible: on("navigation.navigateInline.enabled"),
       tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stop</b> does nothing. <b>Wrap around</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
       options:[ {value:"stay",label:"Stop"}, {value:"wrap",label:"Wrap around"},
                 {value:"next-line",label:"Next line"} ] }
@@ -4208,11 +4206,6 @@ function renderItem(parent, item) {
   const control = el("div", "io-item__control", row);
   CONTROLS[item.kind](control, item);
 
-  if (item.disabled) {
-    const apply = () => row.classList.toggle("io-item--disabled", item.disabled.test(ctx));
-    apply();
-    for (const d of item.disabled.deps) bind(d, apply);
-  }
 }
 
 /* ============================================================ Group reset */
@@ -6069,10 +6062,24 @@ function nameInWheelRow(host, f) {
   attachTipItem(nrow, row, { name:"Name in tagWheel",
     tip:"tagWheel puts every Field side by side, so a long name crowds its neighbors. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
   subComment(nrow, info, "field-editor/short-name");
-  el("div", "io-item__desc", info, "A shorter name for the tagWheel row, where there is little room");
+  el("div", "io-item__desc", info, "Shorter name for parent Field in tagWheel panel");
   const ctl = el("div", "io-item__control", row);
   const nin = textEl(ctl, f.short, f.name, "Name in tagWheel for " + f.name, "io-text io-text--prop");
   nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
+  /* Имя дочернего Field — строкой под именем родителя, только когда у Field
+     есть дочерние Values (его заказ 2026-09-29). */
+  if (!(f.values || []).some(v => v.depth)) return;
+  const srow = el("div", "io-item", host);
+  const sinfo = el("div", "io-item__info", srow);
+  const snrow = el("div", "io-item__namerow", sinfo);
+  el("div", "io-item__name", snrow, "Child name in tagWheel");
+  attachTipItem(snrow, srow, { name:"Child name in tagWheel",
+    tip:"The child Field stands right after its parent in tagWheel and is called <b>sub</b> there, or <b>Stat_sub</b> when the parent is written as <b>Stat</b>. Type a name to use it instead; clear the field to go back" });
+  subComment(snrow, sinfo, "field-editor/short-sub");
+  el("div", "io-item__desc", sinfo, "Shorter name for child Field in tagWheel panel");
+  const sctl = el("div", "io-item__control", srow);
+  const sin = textEl(sctl, f.shortSub || "", f.short && f.short !== f.name ? f.short + "_sub" : "sub", "Child name in tagWheel for " + f.name, "io-text io-text--prop");
+  sin.addEventListener("input", () => { f.shortSub = sin.value; refreshPreviews(); });
 }
 
 

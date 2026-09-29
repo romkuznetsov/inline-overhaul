@@ -86,11 +86,21 @@ function apply(line, result) {
   assert.strictEqual(plan(line, 12, { enabled: false }), null,
     "выключенная функция обязана отдать клавишу платформе");
 
-  /* Обычная заметка: ни одного разделителя плагина, слота текста нет. */
+  /*
+   * Строка без разделителей — целиком слот текста (его пункт «Новое»
+   * 2026-09-29: «smart enter не работает на plain text и списке без values»).
+   * Прежде здесь стояло обратное утверждение — «в обычной заметке клавиша не
+   * наша»; его слово его сняло.
+   */
   const plain = "просто строка без наших разделителей";
-  assert.strictEqual(bounds(plain), null, "у обычной строки не должно быть слота текста");
-  assert.strictEqual(plan(plain, 5), null, "в обычной заметке клавиша не наша");
-  ok("два условия тихого отказа: выключено и не наша строка");
+  assert.strictEqual(bounds(plain), null, "контроль: у обычной строки слота текста нет");
+  assert.deepStrictEqual(plan(plain, 5), { newLineText: "", cursorCh: 0 }, "на обычной строке Enter рвёт её, а не добавляет строку");
+  assert.deepStrictEqual(plan("  - [x] пункт", 6), { newLineText: "  - [ ] ", cursorCh: 8 }, "список без values: не та новая строка");
+  assert.deepStrictEqual(plan("- [ ] пункт", 7, { scope: "text" }), { newLineText: "- [ ] ", cursorCh: 6 }, "Text only на строке без разделителей отдал клавишу");
+  /* Пустая строка и пустой пункт — платформе: `Enter` на них выходит из списка. */
+  assert.strictEqual(plan("", 0), null, "пустая строка забрана у платформы");
+  assert.strictEqual(plan("  - ", 4), null, "пустой пункт списка забран у платформы: из списка не выйти");
+  ok("отказы: выключено, пустая строка и пустой пункт; строка без разделителей — наша");
 }
 
 /*
@@ -399,10 +409,11 @@ function apply(line, result) {
   ed4.selections = [{}, {}];
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, ed4)), false, "при двух курсорах клавиша не наша");
 
+  /* Строка без наших разделителей — тоже наша (его пункт «Новое» 2026-09-29). */
   const ed5 = makeEditor(["обычная строка заметки"], { line: 0, ch: 5 });
-  assert.strictEqual(handleSmartEnterKeymap(plugin(on, ed5)), false,
-    "в заметке без наших разделителей клавиша остаётся обычной");
-  assert.deepStrictEqual(ed5.lines, ["обычная строка заметки"], "обычная заметка тронута");
+  assert.strictEqual(handleSmartEnterKeymap(plugin(on, ed5)), true,
+    "на строке без наших разделителей клавиша ушла платформе");
+  assert.deepStrictEqual(ed5.lines, ["обычная строка заметки", ""], "строка без разделителей разорвана");
 
   /* Разделителей в настройках нет — движок обязан молчать, а не гадать. */
   const noSeps = { editor: { smartEnter: { enabled: true, newLinePrefix: "same" } }, pkm: { lineFormat: {} } };
@@ -412,6 +423,16 @@ function apply(line, result) {
 
   assert.strictEqual(handleSmartEnterKeymap({}), false, "без конфига обработчик упал");
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, null)), false, "без редактора обработчик упал");
+  /* Код и таблица — не запись: клавиша платформе (R4). Контроль — та же
+     строка вне ограды клавишу берёт. */
+  const fence = ["```", "код строкой", "```", "| a | b |", "код строкой"];
+  const inCode = makeEditor(fence.slice(), { line: 1, ch: 3 });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(on, inCode)), false, "Enter в блоке кода забран у платформы");
+  assert.deepStrictEqual(inCode.lines, fence, "в блок кода записана строка");
+  const inTable = makeEditor(fence.slice(), { line: 3, ch: 2 });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(on, inTable)), false, "Enter в таблице забран у платформы");
+  const outside = makeEditor(fence.slice(), { line: 4, ch: 3 });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(on, outside)), true, "контроль: та же строка вне ограды клавишу не берёт");
   ok("обработчик берёт клавишу только в своём случае и не падает без окружения");
 }
 
