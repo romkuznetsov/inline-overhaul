@@ -7,6 +7,7 @@
 
 | № | id | Фича (группа SETTINGS.md) | Ключевые контролы | Состояние |
 |---|---|---|---|---|
+| 0 | `readme-hero` | Шапка README: строка за пять секунд через tagWheel (его слово 2026-09-29) | tagWheel Left, tagWheel Right | сценарий, не прогнан |
 | 1 | `move-lines-before` | «До»: встроенная Move line up Obsidian | — | сценарий |
 | 1 | `move-lines` | Navigation → Move lines (up/down) | Moving behavior, Moving headings, Cross heading boundaries, новая «перескакивать чужие деревья» | **ждёт новую настройку** |
 | 1 | `move-lines-2` | Navigation → Move lines (up/down), вторая часть | Move lines, Highlight after moving, Follow the moved line, Where the line lands | сценарий |
