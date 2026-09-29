@@ -678,6 +678,53 @@ const SCENARIOS = {
    * чекбоксов в его теме, а в окне `Add a Field` строка добавления под фишками.
    * `IO_SHOTS` — снимок выбиралки Prefix.
    */
+  /*
+   * Снимок блока Values Element-списка на его конфиге (тест 1 цикла 105):
+   * первый Field, у которого редактор рисует список, закрытая и открытая
+   * подсказка. Снимки — в `IO_SHOTS`, по умолчанию во временную папку.
+   */
+  async "elist-shot"(win, browser) {
+    const out = process.env.IO_SHOTS || path.join(os.tmpdir(), "io-elist-shot");
+    fs.mkdirSync(out, { recursive: true });
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    const name = await host.evaluate(async () => {
+      for (const n of [...document.querySelectorAll(".io-fields__name")]) {
+        n.click();
+        await new Promise((r) => setTimeout(r, 500));
+        if (document.querySelector(".io-elist")) return n.textContent.trim();
+      }
+      return "";
+    });
+    if (!name) { console.log("РАСХОДИТСЯ: ни у одного Field нет списка Values"); return false; }
+    const stack = await host.$(".io-item--stack");
+    if (!stack) { console.log("РАСХОДИТСЯ: у " + name + " Values не над строками"); return false; }
+    await stack.scrollIntoViewIfNeeded();
+    await stack.screenshot({ path: path.join(out, "elist.png") });
+    const help = await stack.$(".io-help");
+    if (help) { await help.click(); await host.waitForTimeout(300); await stack.screenshot({ path: path.join(out, "elist-tip.png") }); }
+    /* Контроль рамки: её рисует `.io-vals`, и у темы свои правила на тот же узел. */
+    const frame = await host.evaluate(() => {
+      const b = document.querySelector(".io-elist");
+      const cs = getComputedStyle(b);
+      const rules = [];
+      for (const sh of document.styleSheets) {
+        let list = [];
+        try { list = [...sh.cssRules]; } catch (_) { /* проба: чужой лист без доступа */ }
+        for (const r of list) if (r.selectorText && b.matches(r.selectorText) && /border/.test(r.cssText)) rules.push((sh.href || "inline").slice(-30) + " " + r.cssText.slice(0, 160));
+      }
+      return { top: cs.borderTopWidth + " " + cs.borderTopStyle + " " + cs.borderTopColor, left: cs.borderLeftWidth + " " + cs.borderLeftStyle, cls: b.className, rules };
+    });
+    console.log("рамка:", JSON.stringify(frame, null, 1));
+    console.log("ok: " + name + ", снимки в " + out);
+    return true;
+  },
+
   async "values-extras"(win, browser) {
     await win.evaluate(async () => {
       const a = window.app;

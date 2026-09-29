@@ -2003,6 +2003,16 @@ function heightBtn(host: StubNode): StubNode {
   first.dispatch("change");
   assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F4A1}idea", "\u{1F921}"], "правка в строке пишет свой Value");
   ok("В-247, тест 4 цикла 104: Values списка — строками, с Add Value и выбиралкой Binder");
+
+  /* Тест 1 цикла 105: имя над строками, рамка таблицы Values, ⠿ переставляет. */
+  const stack = one(v.host, "io-item--stack");
+  assert.ok(one(stack, "io-elist").classList.contains("io-vals"), "строки Values не в рамке таблицы Values");
+  assert.equal(all(stack, "io-item__control").length, 0, "у Values осталась колонка контрола справа от имени");
+  const ev = { preventDefault() {}, stopPropagation() {}, dataTransfer: null };
+  one(rowsNow()[1]!, "io-grip").dispatch("dragstart", ev);
+  rowsNow()[0]!.dispatch("drop", ev);
+  assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F921}", "\u{1F4A1}idea"], "⠿ не переставил Value");
+  ok("тест 1 цикла 105: Values списка — имя над строками, рамка и ⠿");
 }
 {
   const v = makeView();

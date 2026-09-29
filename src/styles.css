@@ -2108,12 +2108,15 @@
 }
 .io-vals__foot .io-note { margin: 0; }
 /*
- * Values Element-списка (его замечание к тесту 4 цикла 104): строка на Value и
- * поле с `Add Value` внизу, как у таблицы Values тега. Выбиралка встаёт
- * последним ребёнком строки и переносится на свою строчку.
+ * Values Element-списка (его замечания к тесту 4 цикла 104 и тесту 1 цикла
+ * 105): имя и описание над строками, строки в рамке таблицы Values тега, у
+ * каждой ручка, поле и удаление, строка `Add Value` отделена полоской.
+ * Выбиралка встаёт последним ребёнком строки и переносится на свою строчку.
  */
-.io-elist { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.io-item--stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.io-item--stack > .io-item__desc { margin-top: 0; }
+.io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; }
+.io-elist__row + .io-elist__row { border-top: 1px solid var(--background-modifier-border); }
 .io-elist__row > .io-text { flex: 1 1 0; min-width: 0; }
 .io-colin {
   width: 22px;

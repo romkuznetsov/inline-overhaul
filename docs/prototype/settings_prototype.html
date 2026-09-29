@@ -807,12 +807,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-vals__foot .io-note { margin: 0; }
 /*
- * Values Element-списка (его замечание к тесту 4 цикла 104): строка на Value и
- * поле с `Add Value` внизу, как у таблицы Values тега. Выбиралка встаёт
- * последним ребёнком строки и переносится на свою строчку.
+ * Values Element-списка (его замечания к тесту 4 цикла 104 и тесту 1 цикла
+ * 105): имя и описание над строками, строки в рамке таблицы Values тега, у
+ * каждой ручка, поле и удаление, строка `Add Value` отделена полоской.
+ * Выбиралка встаёт последним ребёнком строки и переносится на свою строчку.
  */
-.io-elist { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.io-item--stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.io-item--stack > .io-item__desc { margin-top: 0; }
+.io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; }
+.io-elist__row + .io-elist__row { border-top: 1px solid var(--background-modifier-border); }
 .io-elist__row > .io-text { flex: 1 1 0; min-width: 0; }
 .io-colin {
   width: 22px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border);
@@ -5917,7 +5920,43 @@ function elementRows(host, f) {
   el("span", null, vhe, "Value");
   attachTipItem(vhe, host, { name:"Value", tip:"An element Field holds one Value: a date, a time, a counter, or one of the Values you write for <code>List of Values</code>. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along" });
 
+  /*
+   * Values списка: имя и описание над строками, подсказка под именем во всю
+   * ширину, строки в рамке таблицы Values тега с ручкой, строка `Add Value`
+   * отделена полоской (его замечание к тесту 1 цикла 105).
+   */
+  const listRow = (r) => {
+    const item = el("div", "io-item io-item--stack", host);
+    const nrow = el("div", "io-item__namerow", item);
+    el("div", "io-item__name", nrow, r.name);
+    attachTip(nrow, r.tip, r.name, null);
+    subComment(nrow, item, "element/" + r.key);
+    rich(el("div", "io-item__desc", item), r.desc);
+    const values = f.values || (f.values = []);
+    const box = el("div", "io-vals io-elist", item);
+    values.forEach((v, i) => {
+      const line = el("div", "io-elist__row", box);
+      dragHandle(el("div", "io-grip", line, "\u283F"), line, (from, to) => moveIn(values, from, to), i);
+      const input = textEl(line, v.token, "", r.name + " for " + f.name, "io-text io-text--mono");
+      input.addEventListener("change", () => { v.token = input.value.trim(); if (!v.token) values.splice(i, 1); renderContent(); });
+      const del = iconBtn(line, "\u2715", "Remove " + v.token);
+      del.classList.add("io-icon--danger");
+      del.addEventListener("click", () => { values.splice(i, 1); renderContent(); });
+      attachEmojiPicker(input, line, () => { v.token = input.value; renderContent(); });
+    });
+    const foot = el("div", "io-elist__row io-elist__foot", box);
+    const add = textEl(foot, "", "\u{1F642}\u200D\u2195\uFE0Fyes / \u{1F4A1}", "New Value for " + f.name, "io-text io-text--mono");
+    const btnAdd = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add Value");
+    btnAdd.type = "button";
+    btnAdd.addEventListener("click", () => {
+      const t = add.value.trim();
+      if (t && !values.some(v => v.token === t)) { values.push({ token: t }); renderContent(); }
+    });
+    attachEmojiPicker(add, foot, () => {});
+  };
+
   const row = (r, value, apply) => {
+    if (r.list) return listRow(r);
     const item = el("div", "io-item", host);
     const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
@@ -5933,29 +5972,6 @@ function elementRows(host, f) {
     if (r.options) {
       const s = selectEl(ctl, r.options, value, r.name + " for " + f.name);
       s.addEventListener("change", () => { apply(s.value); renderContent(); });
-      return;
-    }
-    if (r.list) {
-      const values = f.values || (f.values = []);
-      const box = el("div", "io-elist", ctl);
-      values.forEach((v, i) => {
-        const line = el("div", "io-elist__row", box);
-        const input = textEl(line, v.token, "", r.name + " for " + f.name, "io-text io-text--mono");
-        input.addEventListener("change", () => { v.token = input.value.trim(); if (!v.token) values.splice(i, 1); renderContent(); });
-        const del = iconBtn(line, "✕", "Remove " + v.token);
-        del.classList.add("io-icon--danger");
-        del.addEventListener("click", () => { values.splice(i, 1); renderContent(); });
-        attachEmojiPicker(input, line, () => { v.token = input.value; renderContent(); });
-      });
-      const foot = el("div", "io-elist__row io-elist__foot", box);
-      const add = textEl(foot, "", "🙂‍↕️yes / 💡", "New Value for " + f.name, "io-text io-text--mono");
-      const btnAdd = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add Value");
-      btnAdd.type = "button";
-      btnAdd.addEventListener("click", () => {
-        const t = add.value.trim();
-        if (t && !values.some(v => v.token === t)) { values.push({ token: t }); renderContent(); }
-      });
-      attachEmojiPicker(add, foot, () => {});
       return;
     }
     const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono",

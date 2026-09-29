@@ -2195,14 +2195,20 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       ed.setCommand(pick.value);
     }) as never);
   } else if (listMode) {
-    const own = itemRow(sec, {
-      name: say("ELEMENT_LIST_NAME"),
-      desc: say("ELEMENT_LIST_DESC"),
-      tip: say("ELEMENT_LIST_TIP"),
-      tipId: "io-element-list-tip",
+    /*
+     * Имя и описание — над строками, а не колонкой слева: подсказка
+     * раскрывается под именем во всю ширину, строки Value лежат в рамке, как
+     * таблица Values тега (его замечание к тесту 1 цикла 105).
+     */
+    const own = el(sec, "div", "io-item io-item--stack");
+    const nameRow = el(own, "div", "io-item__namerow");
+    el(nameRow, "div", "io-item__name", say("ELEMENT_LIST_NAME"));
+    closers.push(tipBelow({
+      head: nameRow, host: own, afterHead: true,
+      text: say("ELEMENT_LIST_TIP"), label: say("ELEMENT_LIST_NAME"), id: "io-element-list-tip",
       showTips: o.showTips, showIds: o.showIds,
-    });
-    closers.push(own.closeTip);
+    }));
+    rich(el(own, "div", "io-item__desc"), say("ELEMENT_LIST_DESC"));
     /*
      * Строка на Value и `Add Value` внизу, как у таблицы Values тега; у
      * каждого поля выбиралка Binder — символ, эмодзи и рожица (его замечание к
@@ -2228,9 +2234,37 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       });
       closers.push(picker.close);
     };
-    const box = el(own.control, "div", "io-elist");
+    const box = el(own, "div", "io-vals io-elist");
+    /* Что тянут: номер строки переживает перерисовку, узел — нет. */
+    let dragged = -1;
     values.forEach((token, i) => {
       const item = el(box, "div", "io-elist__row");
+      const grip = el(item, "div", "io-grip", "⠿");
+      grip.setAttribute("role", "button");
+      grip.setAttribute("aria-label", say("VALUE_DRAG", token));
+      grip.draggable = o.enabled;
+      grip.addEventListener("dragstart", ((ev: DragEv) => {
+        dragged = i;
+        item.classList.add("io-dragging");
+        try { ev.dataTransfer?.setData("text/plain", token); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
+      }) as never);
+      grip.addEventListener("dragend", (() => {
+        item.classList.remove("io-dragging");
+        dragged = -1;
+      }) as never);
+      item.addEventListener("dragover", ((ev: DragEv) => {
+        ev.preventDefault();
+        item.classList.add("io-dragover");
+      }) as never);
+      item.addEventListener("dragleave", (() => item.classList.remove("io-dragover")) as never);
+      item.addEventListener("drop", ((ev: DragEv) => {
+        ev.preventDefault();
+        item.classList.remove("io-dragover");
+        if (dragged < 0 || dragged === i || !o.enabled) return;
+        /* Встаёт на место той строки, на которую бросили: как у таблицы тега. */
+        values.splice(i, 0, ...values.splice(dragged, 1));
+        save();
+      }) as never);
       const input = textInput(item, "io-text io-text--mono", { value: token, label: say("ELEMENT_LIST_FOR", row.strictName) });
       input.disabled = !o.enabled;
       const put = (): void => {
