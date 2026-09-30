@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (88)
+### Пути, которых не было в описи v1.0 (89)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -958,6 +958,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Jump inside a note (up/down) |
 | `pkm.behavior.doneMarker.token` | Mark ticked line (`done-marker`) | Writing rules |
 | `pkm.behavior.doneMarker.panel` | Where the tick mark goes (`done-marker-position`) | Writing rules |
+| `pkm.behavior.doneMarker.strike` | Strike through ticked line (`done-strike`) | Writing rules |
 | `pkm.behavior.doneMarker.visual.enabled` | Dim ticked line (`done-dim`) | Writing rules |
 | `pkm.behavior.doneMarker.visual.opacity` | Opacity of ticked line (`done-dim-opacity`) | Writing rules |
 | `pkm.behavior.doneMarker.visual.color` | Color of ticked line (`done-dim-color`) | Writing rules |

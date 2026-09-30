@@ -80,6 +80,7 @@ const V2_ONLY: Record<string, string> = {
   "editor.smartEnter.scope": "где клавиша работает: вся строка или только слот текста — заказ 2026-09-13 (10.13.91); читает planSmartEnter",
   "pkm.behavior.doneMarker.token": "метка отмеченной строки — его заказ 2026-09-30 («Новое пишите сюда»); читает lineAfterToggle в checkbox_done_marker.js",
   "pkm.behavior.doneMarker.panel": "Block метки, не являющейся Value какого-то Field — там же; читает withMarkField",
+  "pkm.behavior.doneMarker.strike": "зачёркивание отмеченной строки — его 💬 к тесту 1 цикла 108 (10.13.292); читает getSourceMarksFromConfig",
   "pkm.behavior.doneMarker.visual.enabled": "затемнение отмеченной строки — там же, по аналогии с source-dim; читает getSourceMarksFromConfig",
   "pkm.behavior.doneMarker.visual.opacity": "насколько её погасить — там же",
   "pkm.behavior.doneMarker.visual.color": "её цвет — там же",

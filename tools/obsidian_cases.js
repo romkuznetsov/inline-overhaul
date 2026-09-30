@@ -297,4 +297,31 @@ module.exports = [
     at: { file: "t-DM7.md", line: 1 }, steps: [], settle: 600,
     cfg: { pkm: { behavior: { doneMarker: { token: "✅", panel: "right", visual: { enabled: true, opacity: 40 } } } } },
     check: "const rows = [...a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.cm-line')]; const r = rows.find((l) => l.textContent.includes('купить')); const o = rows.find((l) => l.textContent.includes('другая')); return (r && r.classList.contains('io-ticked-line') && getComputedStyle(r).opacity === '0.4' && !o.classList.contains('io-ticked-line')) || (r ? r.className + ' ' + getComputedStyle(r).opacity : 'нет строки');" },
+  /* BUGHUNT 2026-09-30, корень Q1: «это не строка текста» — frontmatter,
+     горизонтальная линия, строка `|| …`, которую плагин пишет сам. */
+  one("A1.a", "Status next в frontmatter ничего не пишет", "---\ntitle: a\n---\nbody",
+    ["status-next"], "---\ntitle: a\n---\nbody", { at: { file: "t.md", line: 1, ch: 3, source: true } }),
+  one("A1.b", "Due next на закрывающей черте frontmatter ничего не пишет", "---\ntitle: a\n---\nbody",
+    ["due-next"], "---\ntitle: a\n---\nbody", { at: { file: "t.md", line: 2, ch: 3, source: true } }),
+  one("A20", "Status next на горизонтальной линии ничего не пишет", "text\n\n---\n\nmore",
+    ["status-next"], "text\n\n---\n\nmore", { at: { file: "t.md", line: 2, ch: 3 } }),
+  one("A3", "Строка `|| …`, написанная плагином, отвечает командам", "",
+    ["due-next", "status-next"], "", { expect: {}, check: "const l = a.workspace.activeEditor.editor.getLine(0); return (/#todo/.test(l) && /📅/.test(l)) || l;" }),
+  one("B11", "Smart Backspace под frontmatter не ломает его", "---\nk: v\n---\npara",
+    [{ key: "Backspace" }], "", { at: { file: "t.md", line: 3, ch: 0, source: true }, expect: {}, cfg: { editor: { smartDelete: { onBackspace: true } } },
+      check: "const e = a.workspace.activeEditor.editor; return (e.getLine(0) === '---' && e.getLine(1) === 'k: v' && e.getLine(2) === '---') || JSON.stringify(e.getValue());" }),
+  one("B12.a", "Smart Delete внутри кода — родная клавиша", "```yaml\nkey:\n  - item\n```",
+    [{ key: "Delete" }], "```yaml\nkey:  - item\n```", { at: { file: "t.md", line: 1, ch: 4 }, cfg: { editor: { smartDelete: { enabled: true } } } }),
+  one("B12.b", "Smart Backspace под оградой кода не склеивает с ней", "```\ncode\n```\n- a",
+    [{ key: "Backspace" }], "", { at: { file: "t.md", line: 3, ch: 2 }, expect: {}, cfg: { editor: { smartDelete: { onBackspace: true } } },
+      check: "const e = a.workspace.activeEditor.editor; return e.getLine(2) === '```' || JSON.stringify(e.getValue());" }),
+  /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
+     строки с маркером, включая пузырь тега, и ни на одном узле соседней. В чистом
+     vault строка без галочки: `[x]` зачёркивает сам Obsidian (`app.css`,
+     `--checklist-done-decoration`), у его Minimal — нет, и пузырь там пуст. */
+  ...[["DM8", false], ["MDM7", true]].map(([id, mine]) => ({ id, mine, title: "Strike through ticked line зачёркивает строку с маркером" + (mine ? " (его конфиг)" : ""),
+    files: { ["t-" + id + ".md"]: (mine ? "- [x] #high :: купить хлеб :: ✅" : "- [ ] #todo || купить хлеб || ✅") + "\n- другая #high\n" },
+    at: { file: "t-" + id + ".md", line: 1, ch: 0 }, steps: [], settle: 600,
+    cfg: { pkm: { behavior: { doneMarker: { token: "✅", panel: "right", strike: true } } } },
+    check: "const rows = [...a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.cm-line')]; const r = rows.find((l) => l.textContent.includes('купить')); const o = rows.find((l) => l.textContent.includes('другая')); const struck = (e) => getComputedStyle(e).textDecorationLine.includes('line-through'); const vis = (l) => [l, ...l.querySelectorAll('*')].filter((e) => e.textContent.trim() && getComputedStyle(e).display !== 'none'); const bad = r ? vis(r).filter((e) => !struck(e)) : null; const tag = r && vis(r).some((e) => /tag|hashtag/.test(e.className)); return (r && bad.length === 0" + (mine ? "" : " && tag") + " && !vis(o).some(struck)) || JSON.stringify({ r: !!r, tag, bad: bad && bad.map((e) => e.tagName + '.' + e.className), other: vis(o).filter(struck).map((e) => e.className) });" })),
 ];

@@ -2492,9 +2492,11 @@ function getSourceMarksFromConfig(cfg) {
   const dmVisual = isObj(dm.visual) ? dm.visual : {};
   const doneToken = String(dm.token || "").trim();
   const donePct = Number(dmVisual.opacity);
+  const pkmOn = readCfgPath(cfg, "features.pkm.enabled") === true && !!doneToken;
   return {
     doneToken,
-    doneHighlight: readCfgPath(cfg, "features.pkm.enabled") === true && !!doneToken && dmVisual.enabled === true,
+    doneHighlight: pkmOn && dmVisual.enabled === true,
+    doneStrike: pkmOn && dm.strike === true,
     doneColor: normalizeHexColorInput(dmVisual.color),
     doneOpacity: Number.isFinite(donePct) ? Math.max(0, Math.min(100, Math.trunc(donePct))) / 100 : 0.65,
     moduleOn,

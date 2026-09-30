@@ -2431,6 +2431,15 @@ const SCHEMA = [
       visible:{ deps:["pkm.behavior.doneMarker.token"],
                 test: c => String(c.get("pkm.behavior.doneMarker.token") || "").trim() !== "" },
       options:[ {value:"left",label:"Left Block"}, {value:"right",label:"Right Block"} ] },
+    /* Зачёркивание — его 💬 к тесту 1 цикла 108: «контрол под
+       done-marker-position, при ON которого весь текст строки с маркером
+       зачёркнут». Только вид, как `done-dim`. */
+    { kind:"toggle", id:"done-strike", path:"pkm.behavior.doneMarker.strike", default:false,
+      name:"Strike through ticked line", desc:"Cross out the whole line once it carries the tick mark",
+      searchTerms:["Cross out done lines"],
+      visible:{ deps:["pkm.behavior.doneMarker.token"],
+                test: c => String(c.get("pkm.behavior.doneMarker.token") || "").trim() !== "" },
+      tip:"Only the look changes: nothing is written into the note, and taking the mark off a line takes the line off it too" },
     { kind:"toggle", id:"done-dim", path:"pkm.behavior.doneMarker.visual.enabled", default:false,
       name:"Dim ticked line", desc:"Fade a line once it carries the tick mark, so your eye skips it",
       searchTerms:["Dim the lines already done"],

@@ -914,6 +914,7 @@ function normalizeConfigV2(cfg) {
      0…80, хранится «сколько осталось», то есть 20…100. */
   text("pkm.behavior.doneMarker.token");
   oneOf("pkm.behavior.doneMarker.panel", ["left", "right"]);
+  bool("pkm.behavior.doneMarker.strike");
   bool("pkm.behavior.doneMarker.visual.enabled");
   int("pkm.behavior.doneMarker.visual.opacity", 20, 100);
   hex("pkm.behavior.doneMarker.visual.color");

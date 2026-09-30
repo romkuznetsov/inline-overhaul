@@ -2836,7 +2836,7 @@ class FloatingTransformButtonWidget extends cmView.WidgetType {
 function buildSourceMarkDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const marks = getSourceMarksFromConfig(cfg);
-  if (!marks.highlight && !marks.button && !marks.doneHighlight) return cmView.Decoration.none;
+  if (!marks.highlight && !marks.button && !marks.doneHighlight && !marks.doneStrike) return cmView.Decoration.none;
 
   /* На какой строке стоит кнопка — одно правило на два места (У-32): её же
      спрашивает подложка правого блока, чтобы не заехать кнопке за спину. */
@@ -2847,11 +2847,18 @@ function buildSourceMarkDecorations(view, plugin) {
   ].filter(Boolean).join(" ");
   const lineDeco = cmView.Decoration.line({ attributes: { style, class: "io-done-line" } });
   /* Отмеченная строка (`done-dim`) — свой вид и свой класс: `io-done-line`
-     уже значит «строка ушла в заметку» (правило 31). */
+     уже значит «строка ушла в заметку» (правило 31). Зачёркивание
+     (`done-strike`) — свой класс: оно не зависит от затемнения. Черта самой
+     строки — в `style`: у `[x]` её снимает правило платформы
+     `.HyperMD-task-line[data-task="x"]` (`app.css` 1.13.7), если тема
+     сделала `--checklist-done-decoration` пустым, как Minimal. */
   const tickedDeco = cmView.Decoration.line({ attributes: {
-    style: ["opacity: " + marks.doneOpacity + ";", marks.doneColor ? "color: " + marks.doneColor + ";" : ""]
-      .filter(Boolean).join(" "),
-    class: "io-ticked-line",
+    style: [
+      marks.doneHighlight ? "opacity: " + marks.doneOpacity + ";" : "",
+      marks.doneHighlight && marks.doneColor ? "color: " + marks.doneColor + ";" : "",
+      marks.doneStrike ? "text-decoration-line: line-through;" : "",
+    ].filter(Boolean).join(" "),
+    class: [marks.doneHighlight ? "io-ticked-line" : "", marks.doneStrike ? "io-ticked-strike" : ""].filter(Boolean).join(" "),
   } });
 
   const ranges = [];
@@ -2861,7 +2868,7 @@ function buildSourceMarkDecorations(view, plugin) {
       const text = String(line.text || "");
       if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
         ranges.push({ from: line.from, to: line.from, deco: lineDeco, side: -1 });
-      } else if (marks.doneHighlight && lineHasProcessedToken(text, marks.doneToken)) {
+      } else if ((marks.doneHighlight || marks.doneStrike) && lineHasProcessedToken(text, marks.doneToken)) {
         ranges.push({ from: line.from, to: line.from, deco: tickedDeco, side: -1 });
       }
       /* Пустую строку и выключенный тумблер отсеяло само правило выше. */

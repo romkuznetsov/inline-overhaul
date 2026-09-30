@@ -87,6 +87,22 @@ if (!global.window) global.window = { __tagWheelState: { active: false }, addEve
     ok("Value маркера узнаётся по написанию в строке");
   }
 
+  /* Зачёркивание (`done-strike`) доходит через нормализацию и не зависит от
+     затемнения; пустой маркер выключает и его. */
+  {
+    const marks = (token, dmExtra) => {
+      const cfg = cfgWith(token, "right");
+      Object.assign(cfg.pkm.behavior.doneMarker, dmExtra);
+      return require("../../src/core/editor_visuals_config.js").getSourceMarksFromConfig(normalize.migrateConfig(cfg));
+    };
+    const on = marks("✅", { strike: true });
+    assert.strictEqual(on.doneStrike, true, "зачёркивание не дошло");
+    assert.strictEqual(on.doneHighlight, false, "зачёркивание включило затемнение");
+    assert.strictEqual(marks("✅", {}).doneStrike, false, "умолчание зачёркивает");
+    assert.strictEqual(marks("", { strike: true }).doneStrike, false, "пустой маркер зачёркивает");
+    ok("зачёркивание отмеченной строки читается отдельно от затемнения");
+  }
+
   /* Пустой маркер — функция выключена. */
   assert.strictEqual(await dm.lineAfterToggle(rt, cfgWith("", "right"), "- [x] text", true), null);
   ok("пустой маркер ничего не пишет");

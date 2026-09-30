@@ -21,7 +21,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **A mark for a ticked line.** `Mark ticked line`, in `Writing rules`, adds a tag or emoji such as `#done` or `✅` when you tick `- [ ]` into `- [x]` and takes it off when you untick; `Where the tick mark goes` picks the Block, a mark that is a Value of one of your Fields goes where that Field stands, and `Dim ticked line` fades the line.
+1. ✨ **A mark for a ticked line.** `Mark ticked line`, in `Writing rules`, adds a tag or emoji such as `#done` or `✅` when you tick `- [ ]` into `- [x]` and takes it off when you untick; `Where the tick mark goes` picks the Block, a mark that is a Value of one of your Fields goes where that Field stands, and `Dim ticked line` fades the line, and `Strike through ticked line` crosses it out.
 
 ## 0.12.0
 

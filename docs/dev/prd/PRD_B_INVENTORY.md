@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 15 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
@@ -544,6 +544,11 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
   - варианты: `left` Left Block · `right` Right Block
   - видна если: `pkm.behavior.doneMarker.token`
   - старые названия для поиска: «Done marker panel»
+- **Strike through ticked line** — `done-strike`, `toggle`, path `pkm.behavior.doneMarker.strike`, default `false`
+  - desc: Cross out the whole line once it carries the tick mark
+  - tip: Only the look changes: nothing is written into the note, and taking the mark off a line takes the line off it too
+  - видна если: `pkm.behavior.doneMarker.token`
+  - старые названия для поиска: «Cross out done lines»
 - **Dim ticked line** — `done-dim`, `toggle`, path `pkm.behavior.doneMarker.visual.enabled`, default `false`
   - desc: Fade a line once it carries the tick mark, so your eye skips it
   - tip: A list you have worked through fills up with ticked lines, and they still read as loudly as the rest. Faded, they stay where they are and search still finds them. Only the look changes: nothing is written into the note, and taking the mark off a line brings it back to full strength
@@ -1276,6 +1281,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.behavior.cursorPolicy` | dropdown | `text_end` |
 | `pkm.behavior.cycleEndBehavior` | dropdown | `keep-bullet` |
 | `pkm.behavior.doneMarker.panel` | dropdown | `right` |
+| `pkm.behavior.doneMarker.strike` | toggle | `false` |
 | `pkm.behavior.doneMarker.token` | text | `""` |
 | `pkm.behavior.doneMarker.visual.color` | color | `""` |
 | `pkm.behavior.doneMarker.visual.enabled` | toggle | `false` |

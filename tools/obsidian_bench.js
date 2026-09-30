@@ -247,8 +247,9 @@ async function runCase(win, c) {
     if (!window.__ioBenchCfg) window.__ioBenchCfg = JSON.parse(JSON.stringify(plugin.getConfig()));
     const log = [];
     const ed = () => a.workspace.activeEditor && a.workspace.activeEditor.editor;
-    const open = async (file) => {
-      await a.workspace.getLeaf(false).openFile(a.vault.getAbstractFileByPath(file), { state: { mode: "source", source: false } });
+    /* `at.source` — режим исходника: в Live Preview каретка в frontmatter не встаёт (виджет свойств). */
+    const open = async (file, source) => {
+      await a.workspace.getLeaf(false).openFile(a.vault.getAbstractFileByPath(file), { state: { mode: "source", source: !!source } });
       await sleep(400);
     };
     try {
@@ -260,7 +261,7 @@ async function runCase(win, c) {
       }
       if (c.cfg) { plugin.setConfigPatch(c.cfg, "bench"); plugin.registerPkmCommands(); plugin.registerBinderCommands(); await sleep(200); }
       if (c.at) {
-        await open(c.at.file);
+        await open(c.at.file, c.at.source);
         const e = ed();
         const line = typeof c.at.line === "number" ? c.at.line : e.getValue().split("\n").indexOf(c.at.line);
         const text = e.getLine(line);
