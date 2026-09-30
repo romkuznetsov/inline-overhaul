@@ -46,6 +46,9 @@ project link, an estimate. You define them; the plugin ships no methodology.
 - **A Value shown as your own text.** The `Show` column draws a Value as an emoji, as
   anything you type, or as nothing. A shown link still opens the note when clicked.
 - **YAML property.** Each Field says which property of a transformed note it becomes.
+- **A mark for a ticked line.** Tick `- [ ]` into `- [x]` and a tag or emoji of your choice,
+  such as `#done` or `✅`, lands on the line; untick it and the mark comes off. A mark that is
+  a Value of one of your Fields goes where that Field stands, and a ticked line can be faded.
 - **Live preview** of the line you are building, above the editor.
 - **Two heights for the editor**, switched by the chevron in the group header.
 

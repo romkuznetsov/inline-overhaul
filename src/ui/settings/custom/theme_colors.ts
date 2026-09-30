@@ -88,6 +88,8 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
    * вовсе, и строка остаётся обычного цвета текста.
    */
   "transform.inline2note.sourceProcessing.visual.color": "--text-normal",
+  /* Отмеченная строка (`done-dim`) — тот же случай: пусто — цвет текста. */
+  "pkm.behavior.doneMarker.visual.color": "--text-normal",
 };
 
 /** Переменная темы для настройки; пусто — у настройки её нет. */

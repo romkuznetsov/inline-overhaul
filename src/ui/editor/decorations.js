@@ -2836,7 +2836,7 @@ class FloatingTransformButtonWidget extends cmView.WidgetType {
 function buildSourceMarkDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const marks = getSourceMarksFromConfig(cfg);
-  if (!marks.highlight && !marks.button) return cmView.Decoration.none;
+  if (!marks.highlight && !marks.button && !marks.doneHighlight) return cmView.Decoration.none;
 
   /* На какой строке стоит кнопка — одно правило на два места (У-32): её же
      спрашивает подложка правого блока, чтобы не заехать кнопке за спину. */
@@ -2846,6 +2846,13 @@ function buildSourceMarkDecorations(view, plugin) {
     marks.color ? "color: " + marks.color + ";" : "",
   ].filter(Boolean).join(" ");
   const lineDeco = cmView.Decoration.line({ attributes: { style, class: "io-done-line" } });
+  /* Отмеченная строка (`done-dim`) — свой вид и свой класс: `io-done-line`
+     уже значит «строка ушла в заметку» (правило 31). */
+  const tickedDeco = cmView.Decoration.line({ attributes: {
+    style: ["opacity: " + marks.doneOpacity + ";", marks.doneColor ? "color: " + marks.doneColor + ";" : ""]
+      .filter(Boolean).join(" "),
+    class: "io-ticked-line",
+  } });
 
   const ranges = [];
   for (const lineNo of visibleLineNumbers(view)) {
@@ -2854,6 +2861,8 @@ function buildSourceMarkDecorations(view, plugin) {
       const text = String(line.text || "");
       if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
         ranges.push({ from: line.from, to: line.from, deco: lineDeco, side: -1 });
+      } else if (marks.doneHighlight && lineHasProcessedToken(text, marks.doneToken)) {
+        ranges.push({ from: line.from, to: line.from, deco: tickedDeco, side: -1 });
       }
       /* Пустую строку и выключенный тумблер отсеяло само правило выше. */
       if (lineNo === cursorLine) {

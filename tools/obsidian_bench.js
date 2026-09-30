@@ -346,7 +346,7 @@ async function runCases(win, filter, mine) {
     const chunks = [];
     let cur = [];
     for (const s of c.steps || []) {
-      if (typeof s === "object" && (s.key || s.type || s.click)) { chunks.push(cur); chunks.push(s); cur = []; } else cur.push(s);
+      if (typeof s === "object" && (s.key || s.type || s.click || s.clickBox)) { chunks.push(cur); chunks.push(s); cur = []; } else cur.push(s);
     }
     chunks.push(cur);
     let log = [];
@@ -368,6 +368,17 @@ async function runCases(win, filter, mine) {
             return { x: r.x + r.width - 4, y: r.y + r.height / 2 };
           }, ch.click);
           if (box) await win.mouse.click(box.x, box.y); else log.push("нет строки для щелчка: " + ch.click);
+        }
+        /* Щелчок по самой галочке — виджету Live Preview, а не по тексту строки. */
+        if (ch.clickBox) {
+          const box = await win.evaluate((t) => {
+            const row = [...window.app.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll(".cm-line")].filter((l) => l.textContent.includes(t)).pop();
+            const input = row && row.querySelector("input.task-list-item-checkbox");
+            if (!input) return null;
+            const r = input.getBoundingClientRect();
+            return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+          }, ch.clickBox);
+          if (box) await win.mouse.click(box.x, box.y); else log.push("нет галочки для щелчка: " + ch.clickBox);
         }
         await win.waitForTimeout(ch.wait || 350);
       }

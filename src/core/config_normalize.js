@@ -910,6 +910,13 @@ function normalizeConfigV2(cfg) {
   writeCfgPath(cfg, "pkm.behavior.cycleEndBehavior",
     normalizeCycleEndBehaviorLegacy(readCfgPath(cfg, "pkm.behavior.cycleEndBehavior")));
   oneOf("pkm.behavior.cursorPolicy", ["text_end", "current_position", "line_end"]);
+  /* Метка отмеченной строки (`done-marker`): шкала панели — «насколько погасить»
+     0…80, хранится «сколько осталось», то есть 20…100. */
+  text("pkm.behavior.doneMarker.token");
+  oneOf("pkm.behavior.doneMarker.panel", ["left", "right"]);
+  bool("pkm.behavior.doneMarker.visual.enabled");
+  int("pkm.behavior.doneMarker.visual.opacity", 20, 100);
+  hex("pkm.behavior.doneMarker.visual.color");
   bool("pkm.placement.keepPrefixInsertOnly");
   bool("pkm.placement.fieldPrefixInsertOnly");
   bool("pkm.placement.bulletInStrict");

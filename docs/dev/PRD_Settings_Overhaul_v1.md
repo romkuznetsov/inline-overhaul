@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (83)
+### Пути, которых не было в описи v1.0 (88)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -956,6 +956,11 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past Separators (`move-text-cross`) | Move lines (left/right) |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move lines (left/right) |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Jump inside a note (up/down) |
+| `pkm.behavior.doneMarker.token` | Mark ticked line (`done-marker`) | Writing rules |
+| `pkm.behavior.doneMarker.panel` | Where the tick mark goes (`done-marker-position`) | Writing rules |
+| `pkm.behavior.doneMarker.visual.enabled` | Dim ticked line (`done-dim`) | Writing rules |
+| `pkm.behavior.doneMarker.visual.opacity` | Opacity of ticked line (`done-dim-opacity`) | Writing rules |
+| `pkm.behavior.doneMarker.visual.color` | Color of ticked line (`done-dim-color`) | Writing rules |
 | `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | tagWheel behavior |
 | `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | tagWheel behavior |
 | `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | tagWheel behavior |

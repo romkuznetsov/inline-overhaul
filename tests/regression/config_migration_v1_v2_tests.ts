@@ -391,8 +391,9 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
     ["behavior", "fields", "lineFormat", "placement", "prefixPriority", "prefixRules"],
     "у pkm остались только ветки v2");
   assert.deepEqual(Object.keys(getIn(v2, "pkm.behavior") as Any).sort(),
-    ["childTagFormat", "cursorPolicy", "cycleEndBehavior"],
-    "в pkm.behavior остались три настройки, которые 8.1 оставила на месте");
+    ["childTagFormat", "cursorPolicy", "cycleEndBehavior", "doneMarker"],
+    "в pkm.behavior остались три настройки, которые 8.1 оставила на месте, и `doneMarker` — "
+      + "новая ветка версии 2 (его заказ 2026-09-30, метка отмеченной строки), досыпанная схемой");
   ok("ветки-источники удалены целиком, а не наполовину");
 }
 

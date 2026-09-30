@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. ✨ **A mark for a ticked line.** `Mark ticked line`, in `Writing rules`, adds a tag or emoji such as `#done` or `✅` when you tick `- [ ]` into `- [x]` and takes it off when you untick; `Where the tick mark goes` picks the Block, a mark that is a Value of one of your Fields goes where that Field stands, and `Dim ticked line` fades the line.
+
 ## 0.12.0
 
 _2026-09-30 · [all changes since 0.11.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.11.0...0.12.0)_

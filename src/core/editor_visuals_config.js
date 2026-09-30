@@ -21,6 +21,7 @@ const __rulesShape = require("./pkm_rules_shape.js");
 const __rulesHelpers = require("./pkm_rules_runtime_helpers.js");
 const __linePipeline = require("./line_pipeline.js");
 const __pkmOrderConfig = require("./pkm_order_config.js");
+const __doneMarker = require("./done_marker_config.js");
 
 /* Те же однострочные обёртки, что были в `main.js`: тела переехавших функций
    зовут их этими именами, и переписывать тела ради переезда нельзя (У-11). */
@@ -1851,6 +1852,13 @@ function buildBlockKindsFromConfig(cfg) {
       .trim().toLowerCase() === "left" ? "left" : "right";
     own[side].add(markToken);
   }
+  /* Метка отмеченной строки, не являющаяся Value какого-то Field, встаёт
+     временным Field в свой Block (`checkbox_done_marker.js`) — и принадлежит
+     ему по имени, как метка Transform (правило 141). */
+  const doneToken = String(marks && marks.doneToken || "").trim();
+  if (doneToken && !__doneMarker.fieldOfMarker(cfg, doneToken)) {
+    own[__doneMarker.readDoneMarker(cfg).panel].add(doneToken);
+  }
   return { left: kindsOf(order.left), right: kindsOf(order.right), own: own };
 }
 
@@ -2478,7 +2486,17 @@ function getSourceMarksFromConfig(cfg) {
   const moduleOn = readCfgPath(cfg, "features.transform.enabled") === true
     && readCfgPath(cfg, "transform.inline2note.enabled") === true;
   const pct = Number(visual.opacity);
+  /* Метка отмеченной строки (`done-marker`) — тот же род отметки: признак
+     строки — токен в ней, вид — прозрачность и цвет. Живёт в Tags & PKM. */
+  const dm = isObj(readCfgPath(cfg, "pkm.behavior.doneMarker")) ? readCfgPath(cfg, "pkm.behavior.doneMarker") : {};
+  const dmVisual = isObj(dm.visual) ? dm.visual : {};
+  const doneToken = String(dm.token || "").trim();
+  const donePct = Number(dmVisual.opacity);
   return {
+    doneToken,
+    doneHighlight: readCfgPath(cfg, "features.pkm.enabled") === true && !!doneToken && dmVisual.enabled === true,
+    doneColor: normalizeHexColorInput(dmVisual.color),
+    doneOpacity: Number.isFinite(donePct) ? Math.max(0, Math.min(100, Math.trunc(donePct))) / 100 : 0.65,
     moduleOn,
     /* Метка — единственный признак обработанной строки (Н2). Нет метки —
        нечего искать, и подсветка не рисуется вовсе (Н3). */

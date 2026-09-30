@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 15 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 18 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
@@ -534,6 +534,32 @@ _Tip:_ These are the settings you set once and forget. They do not decide which 
   - tip: Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you usually have to move it from
   - варианты: `text_end` Text end · `current_position` Don't move · `line_end` Line end
   - старые названия для поиска: «Cursor behavior»
+- **Mark ticked line** — `done-marker`, `text`, path `pkm.behavior.doneMarker.token`, default `""`
+  - desc: A tag or emoji added when you tick a checkbox and taken off when you untick it
+  - tip: Type something like <code>#done</code> or <code>✅</code>. Tick <code>- [ ]</code> into <code>- [x]</code> and the mark lands on the line; untick it and the mark comes off. If the mark is a Value of one of your Fields — say <code>#done</code> under <code>Status</code> — it goes where that Field stands and takes the place of the Value the Field had. Leave the box empty and ticking changes nothing
+  - старые названия для поиска: «Done marker», «Checkbox marker», «Mark the line as done»
+- **Where the tick mark goes** — `done-marker-position`, `dropdown`, path `pkm.behavior.doneMarker.panel`, default `right`
+  - desc: Before your text, or after it
+  - tip: The Left Block puts the mark with the tags, the Right Block keeps your sentence first. A mark that is a Value of one of your Fields does not look here: it goes where that Field stands
+  - варианты: `left` Left Block · `right` Right Block
+  - видна если: `pkm.behavior.doneMarker.token`
+  - старые названия для поиска: «Done marker panel»
+- **Dim ticked line** — `done-dim`, `toggle`, path `pkm.behavior.doneMarker.visual.enabled`, default `false`
+  - desc: Fade a line once it carries the tick mark, so your eye skips it
+  - tip: A list you have worked through fills up with ticked lines, and they still read as loudly as the rest. Faded, they stay where they are and search still finds them. Only the look changes: nothing is written into the note, and taking the mark off a line brings it back to full strength
+  - видна если: `pkm.behavior.doneMarker.token`
+  - старые названия для поиска: «Dim the lines already done»
+- **Opacity of ticked line** — `done-dim-opacity`, `slider`, path `pkm.behavior.doneMarker.visual.opacity`, default `65`
+  - desc: Zero leaves the line as it is, eighty makes it barely readable
+  - tip: How far a ticked line fades. It is only a look: the text stays whole and search still finds it
+  - диапазон: 0–80, шаг 5, ед. %
+  - видна если: `pkm.behavior.doneMarker.token, pkm.behavior.doneMarker.visual.enabled`
+  - старые названия для поиска: «How much of a ticked line is left»
+- **Color of ticked line** — `done-dim-color`, `color`, path `pkm.behavior.doneMarker.visual.color`, default `""`
+  - desc: Leave it unset to keep the color your theme gives the text
+  - tip: Set this only if fading alone is not enough to tell a ticked line at a glance. A color of your own is read instead of the theme one, and the fade above still applies to it
+  - видна если: `pkm.behavior.doneMarker.token, pkm.behavior.doneMarker.visual.enabled`
+  - старые названия для поиска: «Color of a done line»
 
 #### tagWheel behavior — `tagwheel-behavior` (вкладка `pkm`)
 
@@ -1249,6 +1275,11 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.behavior.childTagFormat` | dropdown | `separate` |
 | `pkm.behavior.cursorPolicy` | dropdown | `text_end` |
 | `pkm.behavior.cycleEndBehavior` | dropdown | `keep-bullet` |
+| `pkm.behavior.doneMarker.panel` | dropdown | `right` |
+| `pkm.behavior.doneMarker.token` | text | `""` |
+| `pkm.behavior.doneMarker.visual.color` | color | `""` |
+| `pkm.behavior.doneMarker.visual.enabled` | toggle | `false` |
+| `pkm.behavior.doneMarker.visual.opacity` | slider | `65` |
 | `pkm.lineFormat.separator1` | text | `||` |
 | `pkm.lineFormat.separator2` | text | `||` |
 | `pkm.placement.bulletInStrict` | toggle | `false` |

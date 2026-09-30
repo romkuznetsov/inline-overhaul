@@ -285,6 +285,11 @@ and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
 | `Child tag format` | `separate` | Whether a Value under another one is written as two tags or one |
 | `When a line empties out` | `keep-bullet` | What is left behind when cycling removes the last Value |
 | `Cursor after an action` | `text_end` | Where the cursor waits once a tag or date has been set |
+| `Mark ticked line` | empty | A tag or emoji added when you tick a checkbox and taken off when you untick it. A mark that is a Value of one of your Fields goes where that Field stands. Empty — ticking changes nothing |
+| `Where the tick mark goes` | `right` | The Block the mark lands in: before your text or after it. Shown once there is a mark |
+| `Dim ticked line` | off | Fade a line once it carries the tick mark. Shown once there is a mark |
+| `Opacity of ticked line` | `65` | How far a ticked line fades. Shown with `Dim ticked line` on |
+| `Color of ticked line` | unset | A color of your own for a ticked line; unset keeps the theme text color |
 
 ### tagWheel behavior
 

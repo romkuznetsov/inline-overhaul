@@ -32,6 +32,7 @@ const __sharedUtils = require("../../core/shared_utils.js");
 const __editorDecorations = require("./decorations.js");
 const __stripDebugApi = require("../../features/strip_debug_api.js");
 const __panelMask = require("./panel_mask.js");
+const __doneMarker = require("../../features/checkbox_done_marker.js");
 
 const createBlockFillLayerExtension = __editorDecorations.createBlockFillLayerExtension;
 const createCaretLayerExtension = __editorDecorations.createCaretLayerExtension;
@@ -134,6 +135,9 @@ function mountExtensions(plugin) {
    * нужно: отрезки приезжают ступенью состояния, а не настройкой.
    */
   plugin.registerEditorExtension(__panelMask.createPanelMaskExtension());
+  /* Метка отмеченной строки (`done-marker`). Компартмента нет и не нужно:
+     слушатель спрашивает настройку на каждом изменении документа. */
+  plugin.registerEditorExtension(__doneMarker.createDoneMarkerExtension(plugin));
   __stripDebugApi.publish(plugin);
 }
 
