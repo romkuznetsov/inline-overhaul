@@ -19,7 +19,18 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.12.0
+
+_2026-09-30 · [all changes since 0.11.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.11.0...0.12.0)_
+
+> [!NOTE]
+> 🐛 **5** bug fixes · 🎨 **3** changes you can see · ✨ **4** new things
+>
+> **New in this release**
+> - **An Element can be a list of your own Values**
+> - **Name the child Field in tagWheel**
+> - **Smart Enter works on every line**
+> - **`Shift+Enter` can be the usual `Enter`**
 
 1. 🐛 **A tag or link you type in your text stays your word.** Field commands, tagWheel and `Inline to note` no longer read `- buy #todo milk` as a Value, copy it into a Block or remove it; a Value at the start of a line is still a Value. `Keep typed tags in text` in `Placement modes` turns this off.
 2. ✨ **An Element can be a list of your own Values.** `Steps by` → `List of Values` (or `Writes` → `List` in `Add Field`) cycles Values that each carry their own emoji, such as `🙂‍↕️yes` and `🙂‍↔️no`, or an emoji alone — by command and in tagWheel, like a tag.
