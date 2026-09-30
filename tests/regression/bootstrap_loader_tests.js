@@ -871,6 +871,7 @@ async function run() {
   assertTrue(/async function ensureDirectoryForFilePath\(adapter, filePath\)/.test(devLogSrc), "папки под запись создаются до записи");
   assertTrue(/try \{\s*await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);\s*\} catch \(e\)/.test(bootstrapSrc), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);/.test(bootstrapSrc), "onload initializes dev log session rotation");
+  assertTrue(/plugin\.register\(__configWrite\.followDevLogOnStore\(plugin\)\);/.test(bootstrapSrc), "переходы журнала подписаны на хранилище при загрузке (D3)");
   assertTrue(/session\.start/.test(devLogSrc) && /session\.end/.test(devLogSrc), "модуль журнала пишет начало и конец сессии");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(configWriteSrc), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(configWriteSrc), "setConfigPatch closes dev log session on dev_mode OFF transition");

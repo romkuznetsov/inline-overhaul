@@ -122,6 +122,17 @@ async function run(): Promise<void> {
   assert.equal(refreshes, 1, "принятая снаружи правка доезжает до открытых заметок");
   ok("внешняя правка доходит до заметок наравне с патчем своего блока");
 
+  /* ---- журнал разработчика включается с любой дороги записи (D3) ------------ */
+  let sessions = 0;
+  plugin.initializeDevLogSession = async (): Promise<void> => { sessions++; };
+  const stop = configWrite.followDevLogOnStore(plugin);
+  await adapter.set("advanced.devMode.enabled", true);
+  assert.equal(sessions, 1, "D3: журнал, включённый в панели, не завёл сессию: " + sessions);
+  configWrite.applyPatch(plugin, { advanced: { devMode: { enabled: true } } }, "settings");
+  assert.equal(sessions, 1, "повторная запись того же значения завела вторую сессию");
+  stop();
+  ok("журнал разработчика включается записью панели, без перезапуска");
+
   console.log("Settings refresh road tests: OK (" + passed + " checks)");
 }
 

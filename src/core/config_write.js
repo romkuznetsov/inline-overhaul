@@ -55,7 +55,6 @@ function applyPatch(plugin, patchObj, reason) {
   const changed = plugin.store.patch(patchObj, reason || "settings") === true;
   if (!changed) return;
   const after = plugin.getConfig();
-  followDevLogTransitions(plugin, before, after);
   const debugLine = !!(readCfgPath(after, "advanced.devMode.enabled") === true && readCfgPath(after, "advanced.devMode.traceTagVisualLine") === true);
   if (debugLine) {
     __devLog.traceQuietly(plugin, after, "strip.config.patch", {
@@ -76,9 +75,10 @@ function applyPatch(plugin, patchObj, reason) {
  * Три перехода журнала разработчика: включили, выключили, сменили путь или
  * машинную запись при включённом.
  *
- * Объявлено один раз на обоих, кто меняет конфиг: запись из панели и приём
- * внешней правки (Р-2). Второе объявление разошлось бы с первым молча — и
- * разошлось бы именно там, где журнал единственный способ узнать причину.
+ * Слушают хранилище, а не дорогу записи (`followDevLogOnStore`): панель пишет
+ * через `store.update` мимо `applyPatch`, и включённый ею журнал молчал до
+ * перезапуска (BUGHUNT 2026-09-30, D3). Подписка одна на все дороги — патч,
+ * панель, отмену, команду модуля и приём внешней правки (Р-2).
  */
 function followDevLogTransitions(plugin, before, after) {
   const wasEnabled = readCfgPath(before, "advanced.devMode.enabled") === true;
@@ -169,11 +169,7 @@ async function applyExternalChange(plugin, preloaded) {
     return false;
   }
 
-  const before = plugin.getConfig();
   if (plugin.store.adoptExternal(raw) !== true) return false;
-  const after = plugin.getConfig();
-
-  followDevLogTransitions(plugin, before, after);
   refreshEditorsFor(plugin, "external");
   /*
    * Набор команд PKM строится из Fields конфига и заводится один раз (У-79).
@@ -275,8 +271,20 @@ async function prepareFileForV2(plugin) {
   }
 }
 
+/** Подписка переходов журнала на хранилище; отдаёт отписку. */
+function followDevLogOnStore(plugin) {
+  let prev = plugin.getConfig();
+  return plugin.store.subscribe((payload) => {
+    const next = payload && payload.snapshot ? payload.snapshot : plugin.getConfig();
+    const was = prev;
+    prev = next;
+    followDevLogTransitions(plugin, was, next);
+  });
+}
+
 module.exports = {
   applyPatch,
+  followDevLogOnStore,
   applyExternalChange,
   adoptIfDiskChanged,
   isUiOnlyReason,

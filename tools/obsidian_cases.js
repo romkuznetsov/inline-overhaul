@@ -86,7 +86,9 @@ module.exports = [
   /* R4 — код и таблица */
   one("F8.a", "Status next не пишет внутрь блока кода", "```", ["status-next"], "```\n- код\n```",
     { files: { "t.md": "```\n- код\n```\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "```\n- код\n```\n" } }),
-  one("F8.b", "Status next не пишет в таблицу", "| 1 | 2 |", ["status-next"], "| 1 | 2 |"),
+  /* Таблица — с рядом-разделителем: одиночный ряд Obsidian рисует текстом (Q1). */
+  /* Ячейки — как их выравнивает редактор таблиц Obsidian, иначе он правит их сам. */
+  one("F8.b", "Status next не пишет в таблицу", "| a   | b   |\n| --- | --- |\n| 1   | 2   |", ["status-next"], "| a   | b   |\n| --- | --- |\n| 1   | 2   |", { at: { file: "t.md", line: 2, ch: 3 } }),
   one("N8", "Move down не заезжает в блок кода", "- a", ["move-line-down"], "",
     { files: { "t.md": "- a\n```js\nlet x=1;\n```\n- b\n" }, expect: { "t.md": "```js\nlet x=1;\n```\n- a\n- b\n" } }),
 
@@ -104,10 +106,12 @@ module.exports = [
     check: "const vals = plugin.getConfig().pkm.fields.links.fields.find((f) => f.id === 'Project').values.map((v) => v.token); const l = a.workspace.activeEditor.editor.getLine(0); return (vals.includes('Project Alpha') && !vals.includes('Project A') && (l.match(/\\[\\[/g) || []).length === 1) || JSON.stringify({ vals, l });" },
 
   /* F17, F9, F10, F11 */
-  one("F17.a", "`||` в тексте человека не стирается", "- if (x || y) return", ["status-next"], "- #todo || if (x || y) return"),
+  /* Его ответ `В-246` (2026-09-28): «как принято» — `В-163`, разделитель в тексте строки без значений снимается. */
+  one("F17.a", "`||` в тексте строки без значений — как принято (В-246)", "- if (x || y) return", ["status-next"], "- #todo || if (x y) return"),
   /* `В-243` спрошен заново 2026-09-28: «узнавать обе, писать как сейчас» — без пробела. */
   one("F9", "Дата с пробелом узнаётся", "- [ ] задача 📅 2026-09-30", ["due-next"], "- [ ] задача || 📅2026-10-01"),
-  one("F10", "Status next на двух значениях одного Field", "- #todo #done || x", ["status-next"], "- #doing || x"),
+  /* Разобрано в цикле 99, не дефект: текущее — последнее Value строки, после последнего — пусто. */
+  one("F10", "Status next на двух значениях одного Field — после последнего пусто", "- #todo #done || x", ["status-next"], "- x"),
   one("F11", "Пустая строка без хвостового пробела", "- ", ["status-next"], "- #todo || "),
 
   /* R6, F2 — ссылка и тег посреди текста — слово человека (В-235) */

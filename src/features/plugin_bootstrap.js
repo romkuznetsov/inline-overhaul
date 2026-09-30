@@ -224,6 +224,7 @@ async function load(plugin) {
   __editorStyles.ensureBlockFill(plugin);
   __editorMount.mountExtensions(plugin);
   followConfigWithCommands(plugin);
+  plugin.register(__configWrite.followDevLogOnStore(plugin));
   /* Value-ссылка идёт за переименованной заметкой (`В-238`). */
   __linkValueRename.followNoteRenames(plugin);
 
