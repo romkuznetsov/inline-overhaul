@@ -21,7 +21,7 @@ import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
-import { attachPicker } from "./char_picker.ts";
+import { attachPicker, PICK_ALL } from "./char_picker.ts";
 import { attachNoteSuggest } from "./new_field_dialog.ts";
 import { attachPrefixPicker } from "./prefix_picker.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
@@ -2250,7 +2250,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     const withPicker = (input: ElInput, host: El, picked: () => void): void => {
       if (!o.enabled) return;
       const picker = attachPicker(input, host, {
-        kinds: ["symbols", "emoji", "faces"],
+        kinds: PICK_ALL,
         say,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
         onPick: char => {

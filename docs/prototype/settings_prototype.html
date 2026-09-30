@@ -2110,6 +2110,14 @@ const SCHEMA = [
                 {value:"none",label:"None"},
                 {value:"number-only",label:"Numbered lines only"} ],
       tip:"<b>Same as above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>Numbered lines only</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" },
+    /* Shift+Enter — обычный Enter: его слово 2026-09-30, сперва «при on
+       shift+enter работал как обычный enter», следом — «не так радикально…
+       сделай контрол». Выключен — Shift+Enter остаётся платформенным. */
+    { kind:"toggle", id:"smart-enter-shift", path:"editor.smartEnter.shiftPlainEnter", default:false,
+      name:"Shift+Enter as usual Enter", desc:"Let <code>Shift+Enter</code> split the line the way <code>Enter</code> does without <code>Smart Enter</code>",
+      searchTerms:["Shift+Enter","Plain Enter"],
+      visible: on("editor.smartEnter.enabled"),
+      tip:"On, <code>Shift+Enter</code> does what Obsidian’s own <code>Enter</code> does: it splits the line at the cursor and continues the list. Off, <code>Shift+Enter</code> keeps Obsidian’s own behavior" },
     /* Smart paste (`З-31`, `З-32`). Имя его, и оно поменялось 2026-09-21:
        «сразу хочу изменить название на Smart paste». Свой раздел, как у трёх
        соседних, и умолчание выключено по той же причине: клавиша принадлежит

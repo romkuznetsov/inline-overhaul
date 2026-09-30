@@ -30,6 +30,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 7. ✨ **Smart Enter works on every line.** A plain paragraph or a list item without Separators gets a new line below instead of being split; code, tables, an empty line and an empty list item keep the usual `Enter`.
 8. 🐛 **Smart Delete no longer moves the next line into the Block.** `Del` at the end of `#high :: 123` over `💭 123` joins the text: `#high :: 123 💭 123`.
 9. 🎨 **Clearer names on the Keyboard tab:** `Smart SelectAll (Ctrl+A)`, `Smart Ctrl+A`, `Smart Paste (Ctrl+V)`. Values of an Element list sit in a frame with a drag handle each.
+10. ✨ **`Shift+Enter` can be the usual `Enter`.** `Shift+Enter as usual Enter`, under Smart Enter, makes it split the line and continue the list; off, `Shift+Enter` stays Obsidian’s own.
+11. 🐛 **A custom block Value at the start of a line goes after the list marker.** With the cursor before `- ` the command or tagWheel wrote `🤡 - note`; now it is `- 🤡 note`, and the same for a checkbox, a quote and a heading.
+12. 🎨 **The symbol picker opens on `Emoji`.** Tabs go `Emoji`, `Symbol`, `Kaomoji` in Binder, in the Values of an Element list and in `Add a Field`.
 
 ## 0.11.0
 

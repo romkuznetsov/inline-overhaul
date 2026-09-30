@@ -136,6 +136,7 @@ function planSmartEnter(opts) {
  * в чистой функции выше.
  */
 function handleSmartEnterKeymap(plugin) {
+  if (plainEnter) return false;
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const se = cfg && cfg.editor && cfg.editor.smartEnter ? cfg.editor.smartEnter : null;
   if (!se || se.enabled !== true) return false;
@@ -192,8 +193,30 @@ function handleSmartEnterKeymap(plugin) {
   }
 }
 
+/* Идёт проход обычного `Enter` за `Shift+Enter` — Smart Enter в нём не участвует. */
+let plainEnter = false;
+
+/**
+ * `Shift+Enter` — обычный `Enter` платформы, когда включены Smart Enter и
+ * `Shift+Enter as usual Enter` (его слово 2026-09-30: сперва «всегда», следом
+ * «сделай контрол»). `runEnter` прогоняет обработчики `Enter` без Shift; в
+ * остальных случаях клавиша не наша, и `Shift+Enter` остаётся платформенным.
+ */
+function handlePlainEnterKeymap(plugin, runEnter) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const se = cfg && cfg.editor && cfg.editor.smartEnter ? cfg.editor.smartEnter : null;
+  if (!se || se.enabled !== true || se.shiftPlainEnter !== true || typeof runEnter !== "function") return false;
+  plainEnter = true;
+  try {
+    return runEnter() === true;
+  } finally {
+    plainEnter = false;
+  }
+}
+
 module.exports = {
   nextMarkerFor,
   planSmartEnter,
   handleSmartEnterKeymap,
+  handlePlainEnterKeymap,
 };

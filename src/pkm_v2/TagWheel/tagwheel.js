@@ -1931,6 +1931,11 @@ async function runTagWheel(input, quickAddSettings) {
     /* Выделение — каретка на его конце, выделенный текст не трогается. */
     var cursor_ = o.editor.getCursor('to')
     var line = String(o.editor.getLine(cursor_.line) || '')
+    /* Каретка в начале строки — отступ, цитата, знак списка, чекбокс,
+       заголовок — встаёт за него: значение не встаёт перед `- ` (находка
+       цикла 106, `🤡 - заметка`). Команда и панель берут каретку отсюда. */
+    var lead = __sharedUtils.lineStartOf(line).at
+    if (cursor_.ch < lead) cursor_ = { line: cursor_.line, ch: lead }
     if (input_.customCycle) { runCustomCycle(o, line, cursor_); return }
 
     var blockId = String(input_.customBlock || '')

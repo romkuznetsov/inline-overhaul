@@ -100,6 +100,7 @@ nothing but a Prefix goes whole.
 | `Smart Enter` | off | `Enter` adds a line instead of splitting the one you are on |
 | `Where it works` | `line` | How much of the line counts as one record: the whole line, or your own text between the Separators |
 | `Prefix on the new line` | `same` | What the new line starts with: the same marker, nothing, or nothing unless the line is numbered |
+| `Shift+Enter as usual Enter` | off | `Shift+Enter` splits the line the way `Enter` does without `Smart Enter` |
 
 A line without a Separator of yours is text from end to end. In code, in a table, on an empty line and on an empty list item the key stays Obsidian’s own.
 

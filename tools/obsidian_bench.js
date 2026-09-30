@@ -203,6 +203,7 @@ function runCommand(win, id) {
 const README_LINE = "- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15";
 
 const PREPARE = {
+  "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   /* Заметка строки README и заметка ссылки: ссылка без заметки рисуется неразрешённой. */
   "clean-readme-shot"(vault) {
     fs.writeFileSync(path.join(vault, "readme.md"), README_LINE + "\n\n");
@@ -418,6 +419,45 @@ async function clickIn(pg, text) {
 }
 
 const SCENARIOS = {
+  /*
+   * Shift+Enter при включённых Smart Enter и `Shift+Enter as usual Enter`
+   * (его `💬` к тесту 3 цикла 106 и его слово 2026-09-30 «сделай контрол»).
+   * Настоящая клавиатура на его конфиге. Эталон — `Enter` при выключенном
+   * Smart Enter; контроль — `Enter` при включённом обязан дать другое.
+   */
+  async "shift-enter"(win) {
+    const line = "- позвонить в банк, завтра в налоговую";
+    const at = line.indexOf(",");
+    const run = async (enabled, key, shiftPlainEnter = true) => {
+      await win.evaluate(async ({ enabled, shiftPlainEnter, line, at }) => {
+        const p = window.app.plugins.plugins["inline-overhaul"];
+        p.setConfigPatch({ editor: { smartEnter: { enabled, shiftPlainEnter } } }, "bench:shift-enter");
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(line);
+        ed.setCursor({ line: 0, ch: at });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { enabled, shiftPlainEnter, line, at });
+      await win.keyboard.press(key);
+      await win.waitForTimeout(400);
+      return win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    };
+    const plain = await run(false, "Enter");
+    const shift = await run(true, "Shift+Enter");
+    const smart = await run(true, "Enter");
+    const own = await run(true, "Shift+Enter", false);
+    const base = await run(false, "Shift+Enter", false);
+    console.log("Smart Enter выключен, Enter:      " + JSON.stringify(plain));
+    console.log("Smart Enter включён, Shift+Enter: " + JSON.stringify(shift));
+    console.log("Smart Enter включён, Enter:       " + JSON.stringify(smart));
+    console.log("тумблер выключен, Shift+Enter:     " + JSON.stringify(own) + " (Obsidian без Smart Enter: " + JSON.stringify(base) + ")");
+    const ok = shift === plain && smart !== plain && plain !== line && own === base && own !== plain;
+    console.log(ok ? "ok: Shift+Enter — обычный Enter" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /*
    * Снимок строки README настоящим Obsidian (его пункт «Новое» 2026-09-29:
    * «изображение инлайн строки выглядит некрасиво… без всех фишек плагина»).

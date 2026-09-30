@@ -15,7 +15,7 @@
  */
 
 import { el, btn, textInput, tipBelow, paintNeeded, type El, type ElInput } from "./dom.ts";
-import { attachPicker, pickName } from "./char_picker.ts";
+import { attachPicker, pickName, PICK_ALL } from "./char_picker.ts";
 import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
@@ -305,8 +305,7 @@ export function renderAddForm(box: El, o: {
   };
 
   const picker = attachPicker(insert.input, insert.row, {
-    /* Порядок вкладок — его слово 2026-09-23: `Symbol`, `Emoji`, `Kaomoji`. */
-    kinds: ["symbols", "emoji", "faces"],
+    kinds: PICK_ALL,
     say,
     ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
     onPick: char => {

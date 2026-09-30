@@ -145,6 +145,67 @@ test("пересборка переживает редактор, который
   assert.equal(good.dispatches, 2, "вторая заметка осталась без пересборки");
 });
 
+/*
+ * Shift+Enter при включённом Smart Enter — обычный `Enter` платформы (его слово
+ * 2026-09-30). Keymap настоящий: наши привязки, как их ставит `mountExtensions`,
+ * под ними — `Enter` платформы, и нажатие проходит через `runScopeHandlers`
+ * CodeMirror тем же путём, что в редакторе.
+ */
+test("Shift+Enter при включённом `Shift+Enter as usual Enter` — обычный Enter платформы", () => {
+  const cmView = require(path.join(root, "node_modules", "@codemirror", "view"));
+  const engine = require(path.join(root, "src", "features", "smart_enter_engine.js"));
+  const configNormalize = require(path.join(root, "src", "core", "config_normalize.js"));
+  const text = "- позвонить в банк, завтра в налоговую";
+  let enabled = true;
+  let shift = true;
+  const smart = [];
+  const plugin = makePlugin();
+  plugin.getConfig = () => configNormalize.migrateConfig({
+    schemaVersion: 2,
+    editor: { smartEnter: { enabled, shiftPlainEnter: shift, newLinePrefix: "same" } },
+    pkm: { lineFormat: { separator1: "||", separator2: "::" } },
+  });
+  plugin.getActiveEditor = () => ({
+    getLine: () => text, getCursor: () => ({ line: 0, ch: 17 }),
+    somethingSelected: () => false, listSelections: () => [{}],
+    replaceRange: (t) => { smart.push(t); }, setCursor: () => {},
+  });
+  plugin.handleSmartEnterKeymap = function () { return engine.handleSmartEnterKeymap(this); };
+  plugin.handlePlainEnterKeymap = function (run) { return engine.handlePlainEnterKeymap(this, run); };
+  mount.mountExtensions(plugin);
+  const platform = [];
+  const view = {
+    state: cmState.EditorState.create({
+      doc: text,
+      extensions: [plugin.registered.slice(), cmView.keymap.of([{
+        key: "Enter",
+        run: () => { platform.push("Enter"); return true; },
+        shift: () => { platform.push("Shift-Enter"); return true; },
+      }])],
+    }),
+  };
+  const press = (shiftKey) => cmView.runScopeHandlers(view, {
+    type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
+    preventDefault() {}, stopPropagation() {},
+  }, "editor");
+
+  assert.equal(press(true), true, "Shift+Enter никто не взял");
+  assert.deepEqual(platform, ["Enter"], "Shift+Enter не дошёл до обычного Enter платформы");
+  assert.deepEqual(smart, [], "Smart Enter взял Shift+Enter");
+  assert.equal(press(false), true);
+  assert.deepEqual(smart.length, 1, "контроль: Enter без Shift обязан остаться Smart Enter");
+  assert.deepEqual(platform, ["Enter"], "Enter без Shift ушёл платформе");
+  shift = false;
+  press(true);
+  assert.deepEqual(platform, ["Enter", "Shift-Enter"], "выключенный тумблер обязан оставить Shift+Enter платформе");
+  shift = true;
+  enabled = false;
+  press(true);
+  assert.deepEqual(platform, ["Enter", "Shift-Enter", "Shift-Enter"], "выключенный Smart Enter обязан оставить Shift+Enter платформе");
+  /* Умолчание — выключен: Shift+Enter как у Obsidian. */
+  assert.equal(configNormalize.migrateConfig({ schemaVersion: 2 }).editor.smartEnter.shiftPlainEnter, false, "умолчание тумблера не «выключен»");
+});
+
 let failed = 0;
 for (const t of tests) {
   try {

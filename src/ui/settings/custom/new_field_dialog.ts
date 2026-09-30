@@ -31,7 +31,7 @@ import { el, btn, cssVar, rich, textInput, themePair, tipBelow } from "./dom.ts"
 import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink } from "./previews.ts";
-import { attachPicker } from "./char_picker.ts";
+import { attachPicker, PICK_ALL } from "./char_picker.ts";
 import { toHexColor } from "./contrast.ts";
 import { propertyPicker, vaultProperties } from "./yaml_property.ts";
 import { attachRowDrag, type DragHold } from "./row_drag.ts";
@@ -656,7 +656,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* Эмодзи набирать неудобно — у поля Value списка выбиралка Binder (символ, эмодзи, рожица; тест 4 цикла 104); знак встаёт в поле, слово человек допечатывает. */
     if (isList) {
       const picker = attachPicker(input, addRow, {
-        kinds: ["symbols", "emoji", "faces"], say,
+        kinds: PICK_ALL, say,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
         onPick: char => { input.value = String(input.value || "") + char; focusValue(); },
       });

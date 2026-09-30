@@ -124,6 +124,12 @@ export function escapeScope(Scope: unknown, app: unknown, parent?: unknown): Pic
   };
 }
 
+/**
+ * Вкладки выбиралки знака — одни на Binder, Value списка и окно `Add a Field`.
+ * Порядок — его слово 2026-09-30: `Emoji`, `Symbol`, `Kaomoji`, открывается первая.
+ */
+export const PICK_ALL: readonly PickKind[] = ["emoji", "symbols", "faces"];
+
 const TAB_TEXT: Readonly<Record<PickKind, string>> = {
   emoji: "PICK_EMOJI",
   symbols: "PICK_SYMBOLS",

@@ -1990,7 +1990,7 @@ function heightBtn(host: StubNode): StubNode {
   assert.deepEqual(rowsNow().map(r => String(one(r, "io-text").value)), ["\u{1F642}‍↕️yes", "\u{1F4A1}"],
     "у каждого Value своя строка, в порядке списка");
   assert.equal(all(v.host, "io-textarea").length, 0, "одного длинного поля на все Values больше нет");
-  assert.deepEqual(all(rowsNow()[0]!, "io-pick__tab").map(t => String(t.getAttribute("aria-label") || "")), ["Symbol", "Emoji", "Kaomoji"],
+  assert.deepEqual(all(rowsNow()[0]!, "io-pick__tab").map(t => String(t.getAttribute("aria-label") || "")), ["Emoji", "Symbol", "Kaomoji"],
     "у поля Value выбиралка с теми же вкладками, что у Binder");
   const foot = one(box, "io-elist__foot");
   one(foot, "io-text").value = "\u{1F921}";

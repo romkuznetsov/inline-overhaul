@@ -158,6 +158,10 @@ class InlineOverhaulPlugin extends Plugin {
     return getSmartEnterEngine().handleSmartEnterKeymap(this);
   }
 
+  handlePlainEnterKeymap(runEnter) {
+    return getSmartEnterEngine().handlePlainEnterKeymap(this, runEnter);
+  }
+
   /*
    * Тот же шов, но вход у него не клавиша, а событие платформы
    * (`editor-paste`): `Ctrl+V` до keymap не доходит, вставку Obsidian отдаёт

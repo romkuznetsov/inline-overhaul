@@ -243,6 +243,8 @@ Separator or in your text — the key adds a line below. `Text only` narrows it 
 the text slot, the part between your Separators, so `Enter` inside a Block goes back to
 being Obsidian’s own. If a line carries only one Separator, the text slot is whatever
 lies after the first or before the second, and a line with none is text from end to end.
+
+`Shift+Enter as usual Enter` makes `Shift+Enter` the usual `Enter` of Obsidian: it splits the line and continues the list. Off, `Shift+Enter` stays Obsidian’s own.
 In code, in a table, on an empty line and on an empty list item `Enter` stays Obsidian’s
 own, so it still takes you out of a list.
 

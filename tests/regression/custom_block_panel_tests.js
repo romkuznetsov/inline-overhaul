@@ -220,6 +220,24 @@ async function run() {
     ok("next/previous на значении меняют одну копию, вне значения ставят первое и последнее");
   }
 
+  /* ---- каретка в начале строки — вставка за её началом ----------------- */
+  {
+    /* Находка цикла 106: `🤡 - заметка` — значение вставало перед знаком списка. */
+    const cfg = config();
+    const nextId = defs(cfg).find((d) => d.orderKey === "Mood" && d.direction === "increase").id;
+    for (const [line, want] of [
+      ["- ab", "- #calm ab"],
+      ["- [ ] ab", "- [ ] #calm ab"],
+      ["  > - ab", "  > - #calm ab"],
+      ["## ab", "## #calm ab"],
+      ["ab", "#calm ab"],
+    ]) {
+      assert.equal((await drive(cfg, line, 0, [{ run: nextId }])).line, want, "команда при каретке 0 в «" + line + "»");
+      assert.equal((await drive(cfg, line, 0, [OPEN, UP, ENTER])).line, want, "панель при каретке 0 в «" + line + "»");
+    }
+    ok("каретка левее начала строки — команда и панель ставят значение за знаком списка, чекбоксом, цитатой, заголовком");
+  }
+
   /* ---- Tab: выключен — ничего, включён — следующий блок, по кругу ------ */
   {
     const off = await drive(config(), "abc", 3, [OPEN, UP, { key: "Tab" }, ENTER]);

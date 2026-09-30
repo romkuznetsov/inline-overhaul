@@ -141,11 +141,11 @@ function form(showTips = false): { box: StubNode; insert: StubNode; name: StubNo
   f.insert.dispatch("focus");
   assert.equal(shut(f.panel()), false, "нажатие в поле выбиралку не раскрыло");
   assert.deepEqual(all(f.box, "io-pick__tab").map(t => t.getAttribute("aria-label")),
-    ["Symbol", "Emoji", "Kaomoji"], "его имена и порядок вкладок, 2026-09-23");
+    ["Emoji", "Symbol", "Kaomoji"], "его имена и порядок вкладок, 2026-09-30");
   assert.equal((f.insert as unknown as { placeholder?: string }).placeholder, "Type anything or choose below",
     "в пустом поле — его слова, а не знак");
-  assert.ok(all(f.box, "io-pick__head").some(h => h.textContent === "Arrows"),
-    "первая вкладка — символы, и у неё рубрики");
+  assert.deepEqual(all(f.box, "io-pick__head").map(h => h.textContent), PICK_SETS.emoji.map(g => g.title),
+    "открыта первая вкладка — эмодзи, и у неё рубрики");
 
   (byLabel(f.box, "Symbol") as StubNode).dispatch("click");
   const arrow = byLabel(f.box, "Arrow right");

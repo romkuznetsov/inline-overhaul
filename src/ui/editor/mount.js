@@ -43,6 +43,14 @@ const createTagwheelHeaderDecorationExtension = __editorDecorations.createTagwhe
 
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
+/* Нажатие `Enter` без модификаторов — всё, что `runScopeHandlers` у него спрашивает. */
+const PLAIN_ENTER = {
+  type: "keydown", key: "Enter", keyCode: 13,
+  shiftKey: false, ctrlKey: false, altKey: false, metaKey: false,
+  preventDefault() { /* уборка: настоящее нажатие гасит внешний keymap */ },
+  stopPropagation() { /* уборка: то же */ },
+};
+
 function mountExtensions(plugin) {
   plugin.registerEditorExtension(cmState.Prec.highest(cmView.keymap.of([
     {
@@ -72,6 +80,16 @@ function mountExtensions(plugin) {
     {
       key: "Enter",
       run: () => plugin.handleSmartEnterKeymap(),
+    },
+    /*
+     * Shift+Enter — обычный `Enter`, когда включён `Shift+Enter as usual
+     * Enter` (его слово 2026-09-30). Обычный `Enter` — то, что делают обработчики
+     * платформы на это нажатие, поэтому они и зовутся: тем же keymap, что
+     * прошёл бы `Enter` без Shift, а Smart Enter на этот проход отступает.
+     */
+    {
+      key: "Shift-Enter",
+      run: (view) => plugin.handlePlainEnterKeymap(() => cmView.runScopeHandlers(view, PLAIN_ENTER, "editor")),
     },
   ])));
   /*
