@@ -2715,22 +2715,22 @@ function createBlockFillLayerExtension(plugin) {
  * со всем, что Obsidian оформляет сам (B2, 2026-09-02).
  */
 class TagwheelTokenWidget extends cmView.WidgetType {
-  constructor(text, style) {
+  constructor(text, color) {
     super();
     this.text = String(text || "");
     /* Цвет своей ячейки: пометку над собой виджет не наследует (D6). */
-    this.style = String(style || "");
+    this.color = String(color || "");
   }
 
   eq(other) {
-    return !!(other && other.text === this.text && other.style === this.style);
+    return !!(other && other.text === this.text && other.color === this.color);
   }
 
   toDOM() {
     const node = document.createElement("span");
     node.className = "inline-overhaul-tw-token";
     node.textContent = this.text;
-    if (this.style) node.setAttribute("style", this.style);
+    if (this.color) node.style.setProperty("--io-tw-token-color", this.color);
     return node;
   }
 }
@@ -2775,7 +2775,7 @@ function buildTagwheelHeaderDecorations(view, plugin) {
         const to = line.from + span.end;
         if (to <= from) continue;
         const deco = span.kind === "replace"
-          ? cmView.Decoration.replace({ widget: new TagwheelTokenWidget(span.text, span.style), inclusive: false })
+          ? cmView.Decoration.replace({ widget: new TagwheelTokenWidget(span.text, span.color), inclusive: false })
           : cmView.Decoration.mark({ attributes: { style: span.style } });
         ranges.push({ from, to, rank: TAGWHEEL_SPAN_RANK[span.kind] || 0, deco });
       }

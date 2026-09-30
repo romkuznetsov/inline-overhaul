@@ -1178,7 +1178,7 @@ function formatTagwheelDisplayToken(token, showPrefix) {
 const TAGWHEEL_FILL_STYLE_CSS = [
   ".markdown-source-view.mod-cm6 .inline-overhaul-tw-token {",
   "  font: inherit;",
-  "  color: inherit;",
+  "  color: var(--io-tw-token-color, inherit);",
   "  background: transparent;",
   "}",
 ].join("\n");
@@ -2404,7 +2404,8 @@ function tagwheelPanelSpans(text, colors, placeholders) {
          внутренней цветной пометки, накрывающей его (BUGHUNT 2026-09-30, D6). */
       const cover = out.filter((s) => s.kind !== "line" && s.style && s.start <= start && s.end >= end)
         .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
-      out.push({ kind: "replace", start, end, text: shown, style: cover ? cover.style : "" });
+      const color = cover ? (/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "" : "";
+      out.push({ kind: "replace", start, end, text: shown, color: String(color).trim() });
     }
   }
 

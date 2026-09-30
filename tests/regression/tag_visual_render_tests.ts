@@ -1394,10 +1394,10 @@ const filled = (el: Any): boolean =>
      активной ячейки красится её цветом, а неактивный — цветом ячеек. */
   const line = "- ==**[#todo]** #low `Priority`== || x";
   const colors = { showPrefix: false, defaultTextColor: "#112233", activeTextColor: "#ff0000" };
-  const spans = I.tagwheelPanelSpans(line, colors as never, new Set()) as Array<{ kind: string; start: number; end: number; style?: string }>;
+  const spans = I.tagwheelPanelSpans(line, colors as never, new Set()) as Array<{ kind: string; start: number; end: number; color?: string }>;
   const rep = (tok: string) => spans.find((x) => x.kind === "replace" && line.slice(x.start, x.end) === tok);
-  assert.ok(/#ff0000/.test(String(rep("#todo")?.style || "")), "D6: активная ячейка без решётки не красится своим цветом: " + JSON.stringify(rep("#todo")));
-  assert.ok(/#112233/.test(String(rep("#low")?.style || "")), "D6: неактивная ячейка без решётки не красится цветом ячеек: " + JSON.stringify(rep("#low")));
+  assert.ok(rep("#todo")?.color === "#ff0000", "D6: активная ячейка без решётки не красится своим цветом: " + JSON.stringify(rep("#todo")));
+  assert.ok(rep("#low")?.color === "#112233", "D6: неактивная ячейка без решётки не красится цветом ячеек: " + JSON.stringify(rep("#low")));
   ok("D6: подменённый токен несёт цвет своей ячейки");
 }
 
