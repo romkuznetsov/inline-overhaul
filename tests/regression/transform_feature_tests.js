@@ -249,6 +249,11 @@ function makeConfig() {
   /* Кавычек у значений больше нет: их ставят только там, где без них YAML
      прочитается иначе (1.3.2.4). */
   assertDeepEq(lines, ["tags: [todo]", "summary: new", "keep: yes"], "multiline YAML value replaced as block");
+  /* BUGHUNT 2026-09-30, C11: пустой frontmatter шаблона — frontmatter, а не тело. */
+  const empty = transform.parseFrontmatter("---\n---\n# {{title}}\n");
+  assertDeepEq(empty.yamlLines, [], "C11: у пустого frontmatter появились строки");
+  assertEq(empty.body, "# {{title}}\n", "C11: черты пустого frontmatter уехали в тело");
+  assertEq(transform.parseFrontmatter("---\nk: v\n---\nB").body, "B", "контроль: непустой frontmatter как прежде");
 })();
 
 (function testYamlMergeAppendsTokenOverrideOutsidePropertiesByField() {

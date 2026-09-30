@@ -1722,11 +1722,13 @@ function withNavigatorRows(rows, cfg) {
 function parseFrontmatter(md) {
   const text = String(md || "");
   const newline = text.includes("\r\n") ? "\r\n" : "\n";
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/);
+  /* Пустой frontmatter `---`/`---` — тоже frontmatter: прежде он уезжал в
+     тело двумя лишними чертами (BUGHUNT 2026-09-30, C11). */
+  const m = text.match(/^---\r?\n(?:([\s\S]*?)\r?\n)?---(?:\r?\n)?/);
   if (!m) return { yamlLines: [], body: text, newline };
   const rawYaml = String(m[1] || "");
   const body = String(text.slice(m[0].length) || "");
-  const yamlLines = rawYaml.split(/\r?\n/);
+  const yamlLines = rawYaml ? rawYaml.split(/\r?\n/) : [];
   return { yamlLines, body, newline };
 }
 
