@@ -2217,14 +2217,26 @@ function sanitizeResolvedTitle(raw) {
  * ссылке заголовком и блоком, `[` и `]` её рвут — в имени их нет, как и
  * знаков, которых не пускает файловая система.
  */
+/* Имя длиннее — и путь на Windows упирается в предел 260 знаков: запись падала
+   ENOENT с полным путём на диске (BUGHUNT 2026-09-30, C6). */
+/* ponytail: предел в знаках имени, а не во всём пути; мерить путь целиком, если упрётся глубокая папка. */
+const TITLE_MAX_CHARS = 100;
 function slugSafeTitle(raw) {
-  return String(raw || "")
+  const flat = String(raw || "")
     .trim()
     .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target, alias) => alias || String(target).split("/").pop())
     .replace(new RegExp(__sharedUtils.MARKDOWN_LINK_SRC, "g"), "$1")
     .replace(/[\\/:*?"<>|#^[\]]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  /* Точка в начале — скрытый файл, которого Obsidian не видит (C7); точка и
+     пробел в конце Windows снимает сам, и ссылка перестаёт совпадать с файлом. */
+  const chars = Array.from(flat.replace(/^[.\s]+/, ""));
+  if (chars.length <= TITLE_MAX_CHARS) return chars.join("").replace(/[.\s]+$/, "");
+  /* Режется по слову, если от имени остаётся хотя бы половина. */
+  const hard = chars.slice(0, TITLE_MAX_CHARS).join("");
+  const soft = hard.replace(/\s+\S*$/, "");
+  return (soft.length * 2 >= hard.length ? soft : hard).replace(/[.\s]+$/, "");
 }
 
 /**
