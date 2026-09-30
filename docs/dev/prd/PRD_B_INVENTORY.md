@@ -777,7 +777,7 @@ _Tip:_ The note is written first, and only then is your line touched, so nothing
 - **`source-preview`** — свой блок, рендерер `renderSourcePreview`
 - **Sub-lines (tree) behavior** — `content-sublines`, `dropdown`, path `transform.inline2note.sublines`, default `stay`
   - desc: Leave them where they are, or take them into the note too
-  - tip: Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> moves only the line you pressed on
+  - tip: Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> copies all four into the note and leaves the sub-points where they are
   - варианты: `stay` Keep · `remove` Move
   - видна если: `transform.inline2note.enabled`
   - старые названия для поиска: «Sublines behavior»

@@ -152,7 +152,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
     { kind:"custom", id:"source-preview", render: sourcePreview },
     { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
       name:"Sub-lines (tree) behavior", desc:"Leave them where they are, or take them into the note too",
-      tip:"Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> moves only the line you pressed on",
+      tip:"Say the line has three sub-points under it. <b>Move</b> moves all four into the note and leaves the place they came from empty. <b>Keep</b> copies all four into the note and leaves the sub-points where they are",
       searchTerms:["Sublines behavior"],
       options:[ {value:"stay",label:"Keep"}, {value:"remove",label:"Move"} ],
       visible: on("transform.inline2note.enabled") },

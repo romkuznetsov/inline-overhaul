@@ -27,7 +27,7 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
           "heart of it: you lay out the slots a line can hold — a status, a priority, a due date — and " +
           "afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look " +
           "while you write, and <b>Transform</b> turns a finished line into a note of its own. Three steps to get " +
-          "going: switch off any area you do not want, press <code>Read</code> above for a worked example, then lay " +
+          "going: switch off any of the other four areas you do not want, press <code>Read</code> above for a worked example, then lay " +
           "out your first Field on <b>Tags & PKM</b>. Nothing is written into your notes until you press a key, and " +
           "the one area that creates files stays off until you switch it on"
   },
@@ -70,8 +70,8 @@ export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
     head: "Housekeeping you rarely need",
     tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want " +
          "to look at what the plugin has written into your vault",
-    body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to " +
-          "record a log when something needs reporting"
+    body: "Backups of your settings and how to bring one back, and how to record a log when something needs " +
+          "reporting"
   }
 };
 

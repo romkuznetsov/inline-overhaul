@@ -296,7 +296,7 @@ export const BLOCK_TEXTS = {
     NEW_FIELD_NAME: "Name",
     NEW_FIELD_TYPE: "Type",
     CANCEL: "Cancel",
-    NEW_FIELD_NAME_LABEL: "What this Field is called here and in the config note",
+    NEW_FIELD_NAME_LABEL: "What this Field is called here and in its commands",
     /* `Field name`, а не пример имени: пример читался как уже набранное (его замечание к тесту 3 цикла 99). */
     NEW_FIELD_NAME_HINT: "Field name",
     NEW_FIELD_NAME_ARIA: "Name of the new Field",
@@ -410,14 +410,14 @@ export const BLOCK_TEXTS = {
     RENAME_BLOCK_ARIA: "New name for the block {0}",
     RENAME_TITLE: "Rename Field",
     RENAME_LABEL: "New name",
-    RENAME_HINT: "Lowercase letters, digits, spaces, hyphens and underscores",
+    RENAME_HINT: "Letters, digits, spaces, hyphens and underscores",
     RENAME_ARIA: "New name for the Field {0}",
     RENAME_WARNING: "Two things will not follow the new name:",
     RENAME_WARNING_NOTES: "lines you have already written keep the old tag — the plugin does not edit your notes",
     RENAME_WARNING_HOTKEY: "a hotkey given to this Field’s commands comes loose: Obsidian keeps hotkeys by command id, and the id is built from the name",
     RENAME_CONFIRM: "Rename",
     /* Проверки имён и значений: их человек читает на месте ошибки. */
-    ERR_NAME_CHARS: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores",
+    ERR_NAME_CHARS: "A Field name can only use letters, digits, spaces, hyphens and underscores",
     ERR_NAME_SUB: "Names ending in _sub are reserved for child Fields",
     ERR_NAME_TAKEN: "A Field with this name already exists",
     /* Custom block и повтор Value (PRD 10.13.260, `В-209`). */
