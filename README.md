@@ -27,7 +27,7 @@ You write down a raw thought:
 - call the bank
 ```
 
-A few keystrokes and about five seconds later it reads:
+A few keystrokes and about five seconds later it will be like this:
 
 ```markdown
 - [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15
@@ -51,93 +51,68 @@ A few keystrokes and about five seconds later it reads:
 </picture>
 </details>
 
-Your whole PKM — status, priority, project, dates and so on — lives right in the line.
-You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once
-and it stays that way, which takes a whole class of small decisions off your mind.
+Your whole PKM — status, priority, project, dates and so on — lives right in the line. You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once and it stays that way forever. It reduces decision fatigue and mental exhaustion to almost zero.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/tagwheel-dark.png">
   <img alt="tagWheel open on the line “your text”: the Fields Status and Priority before the text, and the Scroller showing the Values of Status above and below" src="docs/media/readme/tagwheel-light.png" width="316">
 </picture>
 
-And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is
-a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
+And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
 
-That is only the tip of the iceberg — inlineOverhaul makes a lot of everyday work in
-Obsidian smoother.
+That is only the tip of the iceberg — inlineOverhaul makes a lot of everyday work in Obsidian smoother.
 
 ## What you get
 
-Section names match the tabs of the settings panel, so what you read here is where you
-find it later.
+Section names match the tabs of the settings panel, so what you read here is where you find it later.
 
 ### Tags & PKM — a line that carries your own PKM system
 
-- **Fields you design.** A status, a priority, a project, a due date: each is a Field
-  (e.g. `Priority`) with its own Values (e.g. `high`, `low`). The plugin ships no
-  methodology of its own, so GTD, PARA or a system you invented all fit.
-- **A command for every Field.** `Status next` walks `#todo → #doing → #done` in place,
-  without touching the words around it.
-- **Three kinds of Value.** Tags (`#todo`), wikilinks (`[[Project A]]`) and
-  emoji-elements such as `📅2026-09-15`, which step the way you want: by a day, by a
-  counter of your own, or through a list you write.
+- **Fields you design.** A status, a priority, a project, a due date: each is a Field (e.g. `Priority`) with its own Values (e.g. `high`, `low`). The plugin ships no methodology of its own, so GTD, PARA or a system you invented would all fit.
+- **A command for every Field.** `Status next` walks `#todo → #doing → #done` in place, without touching the words around it.
+- **Three kinds of Value.** Tags (`#todo`), wikilinks (`[[Project A]]`) and emoji-elements such as `📅2026-09-15`, which step the way you want: by a day, by a counter of your own, or through a list you write.
 
 <img alt="Cycling a Field on a line" src="docs/media/showcase/pkm-cycle.gif" width="640">
 
 ### tagWheel — choose instead of typing
 
-You do not have to remember every Value or every command: one command holds them all.
-The tagWheel panel shows every Field of the line with its Values — walk them with the
-arrow keys, press `Enter`, and the Values you picked land in the line where they belong.
+You do not have to remember every Value or every command: one command holds them all. The tagWheel panel shows every Field of the line with its Values — walk them with the arrow keys, press `Enter`, and the Values you picked land in the line where they belong.
 
 <img alt="Picking Values with tagWheel" src="docs/media/showcase/tagwheel.gif" width="640">
 
 ### Transform (inline2note) — turn a line into a note in one click
 
-The inline2note floating button takes the line with its Values and the template you
-choose, and creates a note from it. Each Value becomes a YAML property, and you decide
-which one goes where. Smart Rules pick the template, so a line with `#meeting` and a line
-with `#bug` become different kinds of note.
+The inline2note floating button takes the line with its Values and the template you choose, and creates a note from it. Each Value becomes a YAML property, and you decide which one goes where. Smart Rules pick the template, so a line with `#meeting` and a line with `#bug` become different kinds of note.
 
-Because the properties are real frontmatter, a transformed note shows up in Bases and
-Dataview as soon as it exists.
+Because the properties are real frontmatter, a transformed note shows up in Bases and Dataview.
 
 [▸ Watch it in the showcase](docs/SHOWCASE.md#transform-inline2note)
 
 ### Navigation — move a line with everything it carries
 
-- **Move up and down** with the tags, the link, the date and the whole indented tree.
-- **Move left and right** cycles the Prefix (bullet, checkbox, quote, heading), so
-  restructuring a note does not mean retyping it.
-- **Jump** between headings, and through the parts of one line.
+- **Move up and down** the line or the whole tree.
+- **Move left and right** cycles the Prefix (bullet, checkbox, quote, heading), so restructuring a note does not mean retyping it.
+- **Jump** the cursor between headings, and through the parts of one line.
 
 <img alt="Moving lines and trees" src="docs/media/showcase/move-lines.gif" width="640">
 
 ### Keyboard — the keys you press all day, made smarter
 
 - **Smart `Ctrl+A`** widens the selection a step at a time: word, line, block, note.
-- **Smart Enter** adds a line below instead of splitting yours; **Delete** and
-  **Backspace** step over the indent and the Prefix.
+- **Smart Enter** adds a line below instead of splitting yours; **Delete** and **Backspace** step over the indent and the Prefix.
 - **Binder** puts any snippet on a hotkey, and `Smart bracket` ships with it.
 
 ### Visual — see the PKM structure of a line at a glance
 
-Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the margin,
-and a caret you can restyle. This is drawing only: the file on disk stays untouched.
+Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the margin, and a caret you can restyle. This is drawing only: the file on disk stays untouched.
 
 [**More in the showcase →**](docs/SHOWCASE.md) animations, grouped by workflow.
 
 ## First steps
 
-1. **Give the commands keys.** The plugin assigns no hotkeys, so it cannot clash with
-   yours. **Keyboard → Commands & Hotkeys** lists every command; bind the tagWheel and
-   the `next` commands of the Fields you use. Hotkeys set before `0.2.0` may have come
-   loose: the [command id map](docs/COMMAND_IDS_V1_V2.md) shows the old and new names.
-2. **Start from the four Fields you already have.** A fresh install arrives with
-   `Status` and `Priority` before your text, `Due` and `Project` after it. Change them in
-   **Tags & PKM → Fields** once you know what you want.
-3. **Write a line and press your keys.** The [tutorial](docs/TUTORIAL.md) takes about
-   fifteen minutes from here to a line that works.
+1. **Give the commands keys.** The plugin assigns no hotkeys, so it cannot clash with yours. **Keyboard → Commands & Hotkeys** lists every command; bind the tagWheel and the `next` commands of the Fields you use. Hotkeys set before `0.2.0` may have come loose: the [command id map](docs/COMMAND_IDS_V1_V2.md) shows the old and new names.
+2. **Start from the four Fields you already have.** A fresh install arrives with `Status` and `Priority` before your text, `Due` and `Project` after it. Change them in **Tags & PKM → Fields** once you know what you want.
+3. **Write a line and press your keys.** The [tutorial](docs/TUTORIAL.md) takes about fifteen minutes from here to a line that works.
 
 ## Documentation
 
@@ -153,8 +128,7 @@ and a caret you can restyle. This is drawing only: the file on disk stays untouc
 ## Install
 
 > [!WARNING]
-> This is a public beta. Back up your vault before installing or updating, and try
-> important workflows on notes you can afford to lose.
+> This is a public beta. Back up your vault before installing or updating, and try important workflows on notes you can afford to lose.
 
 You need Obsidian desktop **1.13.0** or newer; mobile is not supported.
 
@@ -164,9 +138,7 @@ You need Obsidian desktop **1.13.0** or newer; mobile is not supported.
 2. In BRAT, choose **Add Beta plugin** and enter `romkuznetsov/inline-overhaul`.
 3. Enable **inlineOverhaul** under **Settings → Community plugins**.
 
-**Manually:** copy `main.js`, `manifest.json` and `styles.css` from the
-[latest release](https://github.com/romkuznetsov/inline-overhaul/releases) into
-`<vault>/.obsidian/plugins/inline-overhaul/`, then enable the plugin.
+**Manually:** copy `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/romkuznetsov/inline-overhaul/releases) into `<vault>/.obsidian/plugins/inline-overhaul/`, then enable the plugin.
 
 <details>
 <summary><b>Build from source and contribute</b></summary>
@@ -177,11 +149,9 @@ npm run build      # bundles to dist/main.js
 npm test           # build, then the full suite
 ```
 
-`dist/` is build output and is not in the repository. What ships is attached to the
-GitHub release: `main.js`, `manifest.json`, `styles.css`.
+`dist/` is build output and is not in the repository. What ships is attached to the GitHub release: `main.js`, `manifest.json`, `styles.css`.
 
-Bug reports and ideas are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Security
-issues go through [SECURITY.md](SECURITY.md) instead of a public issue.
+Bug reports and ideas are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go through [SECURITY.md](SECURITY.md) instead of a public issue.
 
 </details>
 
