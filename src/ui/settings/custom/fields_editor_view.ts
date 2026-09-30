@@ -1742,8 +1742,10 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     });
     token.disabled = !o.enabled;
     const applyName = (name: string): void => {
-      ve.saveTree(ve.editRow(ve.tree, at, { token: name }),
+      const res = ve.saveTree(ve.editRow(ve.tree, at, { token: name }),
         "pkm:behavior:order:deep:rename:" + row.key);
+      /* Отказ говорит словами: прежде поле молча возвращало старое имя (BUGHUNT 2026-09-30, A11). */
+      if (!res.ok && res.error) o.notice(res.error);
       o.redraw();
     };
     /* Окно цены открыто с первой буквы — `change` от ухода фокуса в окно

@@ -2115,6 +2115,22 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       for (const tok of treeTokens(nextTree)) if (!before.has(tok) && takenElsewhere.has(myRodPrefix + tok)) return tok;
       return "";
     };
+    /*
+     * Написание Value (BUGHUNT 2026-09-30, Q3): тег — одно слово, иначе строка
+     * читает его двумя (A4); в своём Field — один раз без учёта регистра (A12).
+     * Спрашивается только новое против прежнего дерева: повтор, который уже
+     * лежит в конфиге, не запирает остальные правки.
+     */
+    const treeList = (t: Loose[]): string[] => (Array.isArray(t) ? t : [])
+      .flatMap((p: Loose) => [p && p.token].concat((p && Array.isArray(p.children) ? p.children : []).map((c: Loose) => c && c.token)))
+      .map((x: unknown) => String(x == null ? "" : x).trim()).filter(Boolean);
+    const repeats = (list: string[]): number => list.length - new Set(list.map(bareOf)).size;
+    const spellingError = (nextList: string[]): string => {
+      const was = treeList(tree);
+      if (kind === "tag" && nextList.some(tok => !was.includes(tok) && /\s/.test(tok))) return SAY.ERR_VALUE_SPACE;
+      if (repeats(nextList) > repeats(was)) return SAY.ERR_VALUE_TWICE;
+      return "";
+    };
 
     const reorder = (
       srcLevel: number, srcParentToken: string, srcToken: string,
@@ -2218,6 +2234,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
     const saveTree = (nextTree: Loose[], reason: string): WriteResult => {
       if (newTakenToken(nextTree)) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
+      const misspelt = spellingError(treeList(nextTree));
+      if (misspelt) return { ok: false, error: misspelt };
       if (kind === "wikilink") {
         /*
          * Сохранение дерева значений ссылки.
@@ -2460,6 +2478,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const token = normToken(raw, kind);
       if (!token) return { ok: false, changed: false };
       if (takenElsewhere.has(myRodPrefix + bareOf(token))) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
+      const misspelt = spellingError(treeList(tree).concat([token]));
+      if (misspelt) return { ok: false, error: misspelt };
       if (kind === "wikilink") {
         const behaviorNow = behaviorOf(plugin.getConfig());
         const leftNow = modeFields(behaviorNow, "leftMode");

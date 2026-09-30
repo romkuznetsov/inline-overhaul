@@ -3538,6 +3538,41 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   ok("Value-ссылка с написанием тега заводится: роды не спорят");
 }
 
+{
+  /* BUGHUNT 2026-09-30, Q3: написание Value проверяется при заведении и при
+     переименовании — пробел в теге (A4) и повтор внутри Field (A12). */
+  const v = makeView();
+  const own = v.model.valuesEditor("status");
+  const tree: Any[] = own.cloneTree();
+  const first = String(tree[0].token);
+  const second = String(tree[1].token);
+  const writes = v.writes.length;
+  const spaced = own.addToken("at work");
+  assert.equal(spaced.ok, false, "A4: тег с пробелом записался");
+  assert.ok(String(spaced.error || "").length > 0, "A4: отказ без слов");
+  const twice = own.addToken(first.replace(/^#/, "").toUpperCase());
+  assert.equal(twice.ok, false, "A12: повтор Value в своём Field записался: " + first);
+  assert.equal(v.writes.length, writes, "отказ всё равно записал");
+  const renamed = own.saveTree(own.editRow(own.cloneTree(), { level: 0, token: second, parentToken: "" }, { token: first }), "rename");
+  assert.equal(renamed.ok, false, "A12: переименование в соседнее Value своего Field прошло");
+  const renamedSpace = own.saveTree(own.editRow(own.cloneTree(), { level: 0, token: first, parentToken: "" }, { token: "#at work" }), "rename");
+  assert.equal(renamedSpace.ok, false, "A4: переименование в тег с пробелом прошло");
+  assert.equal(own.addToken("fresh-one").ok, true, "отрицательный контроль: законное Value");
+  ok("Value с пробелом в теге и повтор в своём Field не заводятся ни добавлением, ни переименованием");
+}
+{
+  /* A11: отказ переименования в поле Value говорит словами, а не молчит. */
+  const v = makeView();
+  const first = String((v.model.valuesEditor("status").cloneTree() as Any[])[0].token);
+  const input = all(v.host, "io-text").find(n => String(n.getAttribute("aria-label") || "") === "Value " + first + " of status") as StubNode;
+  assert.ok(input, "контроль: поле Value " + first + " найдено");
+  const before = v.notices.length;
+  input.value = "at work";
+  input.dispatch("change");
+  assert.equal(v.notices.length, before + 1, "A11: отказ переименования прошёл молча");
+  ok("отказ переименования Value сказан вслух");
+}
+
 console.log("");
 
 console.log("\n" + passed + " проверок пройдено");

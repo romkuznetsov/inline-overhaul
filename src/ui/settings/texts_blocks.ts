@@ -423,6 +423,9 @@ export const BLOCK_TEXTS = {
     /* Custom block и повтор Value (PRD 10.13.260, `В-209`). */
     ERR_BLOCK_NAME_TAKEN: "A block with this name already exists",
     ERR_VALUE_TAKEN: "Another Field already has a Value written this way",
+    /* Написание Value (BUGHUNT 2026-09-30, Q3). */
+    ERR_VALUE_SPACE: "A tag Value is one word: join the words with - or _",
+    ERR_VALUE_TWICE: "This Field already has this Value",
     ERR_CHILD_TAKEN: "The child Field for this name already exists",
     ERR_NO_FIELD: "No Field named {0}",
     ERR_YAML_FORM: "A Value is written either raw or clean, nothing else",
