@@ -1138,10 +1138,45 @@ function isInsideFence(getLine, lineNo) {
   for (let l = 0; l < lineNo; l++) if (isFenceLine(getLine(l))) depth++;
   return depth % 2 === 1;
 }
-/** Строку нельзя трогать как строку текста: ограда, код или таблица. */
+/* Строка за концом документа: `Editor.getLine` отвечает `undefined`, а
+   `doc.line` CodeMirror бросает — оба ответа значат «строки нет». */
+function lineOrNull(getLine, n) {
+  if (n < 0) return null;
+  try { const t = getLine(n); return t === undefined || t === null ? null : String(t); } catch (_) { return null; /* проба: строки нет */ }
+}
+/** Горизонтальная линия: три и больше `-`, `*` или `_`, пробелы между ними допускаются. */
+const RULE_LINE_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+/** Строка `lineNo` — frontmatter (свойства заметки) вместе с обеими чертами. */
+/* ponytail: обход до закрывающей черты на каждый вопрос, как у `isInsideFence`. */
+function isFrontmatterLine(getLine, lineNo) {
+  if (!/^---[ \t]*$/.test(lineOrNull(getLine, 0) || "")) return false;
+  for (let l = 1; ; l++) {
+    const t = lineOrNull(getLine, l);
+    if (t === null) return false;
+    if (/^(---|\.\.\.)[ \t]*$/.test(t)) return lineNo <= l;
+  }
+}
+/**
+ * Строка таблицы: начинается с `|`, и у её сплошного куска второй ряд —
+ * разделитель `|---|---|`. Без разделителя Obsidian таблицы не рисует, а
+ * строку `|| …` плагин пишет сам на пустой строке (BUGHUNT 2026-09-30, A3).
+ */
+const TABLE_ROW_RE = /^[ \t]*\|/;
+const TABLE_DELIM_RE = /^[ \t]*\|?(?:[ \t]*:?-+:?[ \t]*\|)+(?:[ \t]*:?-+:?[ \t]*)?$/;
+function isTableLine(getLine, lineNo) {
+  if (!TABLE_ROW_RE.test(lineOrNull(getLine, lineNo) || "")) return false;
+  let top = lineNo;
+  while (TABLE_ROW_RE.test(lineOrNull(getLine, top - 1) || "")) top--;
+  return TABLE_DELIM_RE.test(lineOrNull(getLine, top + 1) || "");
+}
+/**
+ * Строку нельзя трогать как строку текста: ограда, код, таблица, frontmatter
+ * или горизонтальная линия (BUGHUNT 2026-09-30, корень Q1).
+ */
 function isCodeOrTableLine(getLine, lineNo) {
   const text = String(nz(getLine(lineNo), ""));
-  if (/^[ \t]*\|/.test(text) || isFenceLine(text)) return true;
+  if (isFenceLine(text) || RULE_LINE_RE.test(text)) return true;
+  if (isTableLine(getLine, lineNo) || isFrontmatterLine(getLine, lineNo)) return true;
   return isInsideFence(getLine, lineNo);
 }
 

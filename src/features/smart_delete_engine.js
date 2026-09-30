@@ -246,9 +246,14 @@ function handleSmartKeymap(plugin, back) {
     let rules = null;
     try { rules = __rulesShape.buildRulesForEngines(cfg); } catch (_) { rules = null; /* проба: полуготовый конфиг — склейка обычная */ }
     const plans = [];
+    const getLine = (n) => editor.getLine(n);
     for (const h of heads) {
       const line = h.line;
       if (back ? line <= 0 : line >= editor.lastLine()) return false;
+      /* Код, ограда, таблица, frontmatter, линия — не строки текста: клавиша
+         родная, иначе строка прилипает к `---` или ` ``` ` (BUGHUNT 2026-09-30, B11, B12). */
+      const upperNo = back ? line - 1 : line;
+      if (__sharedUtils.isCodeOrTableLine(getLine, upperNo) || __sharedUtils.isCodeOrTableLine(getLine, upperNo + 1)) return false;
       const common = {
         enabled: true,
         lineText: String(editor.getLine(line) || ""),

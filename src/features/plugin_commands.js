@@ -392,7 +392,7 @@ async function runInlineToNote(plugin) {
   /* Ограда кода, код и таблица в заметку не превращаются (BUGHUNT T20). */
   const ed = plugin.getActiveEditor();
   if (ed && onCodeOrTableLine(ed)) {
-    plugin.notice(__say(__noticeKey("transform", "code-line"), "Transform does not work inside a code block or a table"));
+    plugin.notice(__say(__noticeKey("transform", "code-line"), "Transform does not work in a code block, a table, note properties or a divider line"));
     return;
   }
   try {
@@ -510,7 +510,7 @@ async function runPkmGuard(plugin, action) {
   }
   /* Блок кода и таблица — не строка текста: значения туда не пишутся (BUGHUNT F8). */
   if (onCodeOrTableLine(ed)) {
-    new Notice(__say(__noticeKey("pkm", "code-line"), "Tags & PKM does not work inside a code block or a table"));
+    new Notice(__say(__noticeKey("pkm", "code-line"), "Tags & PKM does not work in a code block, a table, note properties or a divider line"));
     return;
   }
   try {

@@ -425,13 +425,14 @@ function apply(line, result) {
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, null)), false, "без редактора обработчик упал");
   /* Код и таблица — не запись: клавиша платформе (R4). Контроль — та же
      строка вне ограды клавишу берёт. */
-  const fence = ["```", "код строкой", "```", "| a | b |", "код строкой"];
+  /* Таблица — с рядом-разделителем: без него Obsidian таблицы не рисует (Q1). */
+  const fence = ["```", "код строкой", "```", "| a | b |", "|---|---|", "код строкой"];
   const inCode = makeEditor(fence.slice(), { line: 1, ch: 3 });
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, inCode)), false, "Enter в блоке кода забран у платформы");
   assert.deepStrictEqual(inCode.lines, fence, "в блок кода записана строка");
   const inTable = makeEditor(fence.slice(), { line: 3, ch: 2 });
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, inTable)), false, "Enter в таблице забран у платформы");
-  const outside = makeEditor(fence.slice(), { line: 4, ch: 3 });
+  const outside = makeEditor(fence.slice(), { line: 5, ch: 3 });
   assert.strictEqual(handleSmartEnterKeymap(plugin(on, outside)), true, "контроль: та же строка вне ограды клавишу не берёт");
   ok("обработчик берёт клавишу только в своём случае и не падает без окружения");
 }

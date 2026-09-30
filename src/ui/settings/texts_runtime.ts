@@ -92,7 +92,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
        самом документе, и команда правила бы картинку, а не строку человека. */
     "tagwheel-open": "tagWheel is open on this line: finish it with Enter or close it with Escape first",
     /* Блок кода и таблица — не строка текста (BUGHUNT F8). */
-    "code-line": "Tags & PKM does not work inside a code block or a table",
+    "code-line": "Tags & PKM does not work in a code block, a table, note properties or a divider line",
     error: "Tags & PKM error: {0}",
   },
 
@@ -100,7 +100,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "module-off": "Transform is switched off",
     "no-editor": "Open a note first",
     cancelled: "Transform cancelled",
-    "code-line": "Transform does not work inside a code block or a table",
+    "code-line": "Transform does not work in a code block, a table, note properties or a divider line",
     "inline-off": "Inline to note is switched off: turn it on in the Transform tab of the settings",
     created: "Note created: {0}",
     error: "Transform error: {0}",

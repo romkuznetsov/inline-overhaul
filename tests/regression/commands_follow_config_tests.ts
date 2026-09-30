@@ -144,7 +144,8 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
 {
   const cfg = config([]);
   cfg.transform.inline2note.enabled = true;
-  const lines = ["- текст", "```js", "let x=1;", "```", "| 1 | 2 |"];
+  /* Таблица — с рядом-разделителем, как её рисует Obsidian (Q1). */
+  const lines = ["- текст", "```js", "let x=1;", "```", "| a | b |", "|---|---|"];
   const said: string[] = [];
   const at = (line: number): Any => ({
     getConfig: () => cfg,
@@ -154,13 +155,13 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   });
   const ran: number[] = [];
   const before = notices.length;
-  for (const line of [0, 1, 2, 3, 4]) await I.runPkmGuard(at(line), async () => { ran.push(line); });
+  for (const line of [0, 1, 2, 3, 4, 5]) await I.runPkmGuard(at(line), async () => { ran.push(line); });
   said.push(...notices.slice(before));
   assert.deepEqual(ran, [0], "F8: команда PKM прошла на строку кода или таблицы: " + ran.join(","));
-  assert.ok(said.some((m) => /code block or a table/.test(m)), "F8: отказ молчит");
+  assert.ok(said.some((m) => /code block, a table/.test(m)), "F8: отказ молчит");
   said.length = 0;
   await I.runInlineToNote(at(1));
-  assert.ok(said.some((m) => /code block or a table/.test(m)), "T20: Transform не отказал на ограде кода: " + said.join(" | "));
+  assert.ok(said.some((m) => /code block, a table/.test(m)), "T20: Transform не отказал на ограде кода: " + said.join(" | "));
   ok("PKM и Transform не трогают строку кода и таблицы, отрицательный контроль — строка текста");
 }
 

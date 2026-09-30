@@ -307,9 +307,10 @@ module.exports = [
     ["status-next"], "text\n\n---\n\nmore", { at: { file: "t.md", line: 2, ch: 3 } }),
   one("A3", "Строка `|| …`, написанная плагином, отвечает командам", "",
     ["due-next", "status-next"], "", { expect: {}, check: "const l = a.workspace.activeEditor.editor.getLine(0); return (/#todo/.test(l) && /📅/.test(l)) || l;" }),
-  one("B11", "Smart Backspace под frontmatter не ломает его", "---\nk: v\n---\npara",
-    [{ key: "Backspace" }], "", { at: { file: "t.md", line: 3, ch: 0, source: true }, expect: {}, cfg: { editor: { smartDelete: { onBackspace: true } } },
-      check: "const e = a.workspace.activeEditor.editor; return (e.getLine(0) === '---' && e.getLine(1) === 'k: v' && e.getLine(2) === '---') || JSON.stringify(e.getValue());" }),
+  /* Ожидание — родной Backspace: он склеивает строку с чертой сам, без плагина;
+     дефект был в нашем — пробел между ними и снятый `# ` (B11). */
+  one("B11", "Smart Backspace под frontmatter — родная клавиша", "---\nk: v\n---\n# para",
+    [{ key: "Backspace" }], "---\nk: v\n---# para", { at: { file: "t.md", line: 3, ch: 0, source: true }, cfg: { editor: { smartDelete: { onBackspace: true } } } }),
   one("B12.a", "Smart Delete внутри кода — родная клавиша", "```yaml\nkey:\n  - item\n```",
     [{ key: "Delete" }], "```yaml\nkey:  - item\n```", { at: { file: "t.md", line: 1, ch: 4 }, cfg: { editor: { smartDelete: { enabled: true } } } }),
   one("B12.b", "Smart Backspace под оградой кода не склеивает с ней", "```\ncode\n```\n- a",
