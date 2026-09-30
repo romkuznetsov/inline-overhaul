@@ -183,14 +183,18 @@ function rulesCanOverlap(a, b) {
   const ca = a && a.conditions ? a.conditions : {};
   const cb = b && b.conditions ? b.conditions : {};
   const dims = RULE_CONDITION_DIMS;
+  /* Спор — только при общем значении: правило по тегу и правило по ссылке,
+     не делящие ни одного, выключали друг друга (BUGHUNT 2026-09-30, C8). */
+  let shared = false;
   for (let i = 0; i < dims.length; i++) {
     const d = dims[i];
     const va = Array.isArray(ca[d]) ? ca[d] : [];
     const vb = Array.isArray(cb[d]) ? cb[d] : [];
     if (!va.length || !vb.length) continue;
     if (!intersects(va, vb)) return false;
+    shared = true;
   }
-  return true;
+  return shared;
 }
 
 function validateSmartRules(rules) {

@@ -207,6 +207,16 @@ function makeConfig() {
   assertEq(rules[1].enabled, true, "active rule remains enabled");
 })();
 
+(function testRulesWithoutSharedValueDoNotConflict() {
+  /* BUGHUNT 2026-09-30, C8: правило по тегу и правило по ссылке не делят ни
+     одного значения — спора нет, строку с обоими решает порядок правил. */
+  const rules = transform.validateSmartRules([
+    { id: "tag", enabled: true, conditions: { tags: ["#home"] }, targetTemplate: "m.md" },
+    { id: "link", enabled: true, conditions: { wikilinks: ["Project A"] }, targetTemplate: "b.md" },
+  ]);
+  assertDeepEq(rules.map((r) => r.validation.isConflict), [false, false], "C8: правила без общего значения выключили друг друга");
+})();
+
 (function testConflictValidationUsesFullOverlapGraph() {
   const chain = transform.validateSmartRules([
     { id: "a", enabled: true, conditions: { tags: ["#x"], emojiFields: ["@a"] } },
