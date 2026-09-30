@@ -349,7 +349,9 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
       if (!cfg.crossSectionAllowed) return null;
       return prevNonBlank(editor, sameLevel - 1, yamlEnd);
     }
-    return sameLevel - 1;
+    /* Через родителя вверх — последним ребёнком соседа, за всем его деревом:
+       одно нажатие — один шаг (`В-241`, BUGHUNT 2026-09-30, B2). */
+    return treeEndOf(editor, sameLevel, total);
   }
   return prev - 1;
 }
@@ -1158,7 +1160,10 @@ function indentLine(editor, direction, rules) {
   const line = editor.getLine(lineNo);
   const currentIndent = getIndent(line);
   const indentWidth = rules.indentWidth || 4;
-  const INDENT = getIndentStr(rules);
+  /* Отступ той же природы, что у строки: к пробелам — пробелы, а не таб перед
+     ними (BUGHUNT 2026-09-30, B5). */
+  const ownIndent = (line.match(/^[ \t]*/) || [""])[0];
+  const INDENT = ownIndent && !ownIndent.includes("\t") ? " ".repeat(indentWidth) : getIndentStr(rules);
 
   if (direction === "left") {
     if (currentIndent > 0) {

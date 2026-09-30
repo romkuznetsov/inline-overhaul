@@ -338,6 +338,12 @@ module.exports = [
     { at: { file: "t.md", line: 2, ch: 3 }, cfg: { navigation: { moveLine: { headerMode: "move-with-section" } } } }),
   one("B1", "Move down перескакивает таблицу целиком", "- a\n| p | q |\n|---|---|\n| 1 | 2 |\n- z",
     ["move-line-down"], "| p | q |\n|---|---|\n| 1 | 2 |\n- a\n- z", { at: { file: "t.md", line: 0, ch: 3 } }),
+  /* B2: ребёнок через родителя вверх — последним ребёнком соседа (`В-241`). */
+  one("B2", "Дочерняя строка через родителя вверх встаёт последним ребёнком", "- a\n\t- a1\n\t- a2\n- b\n\t- b1",
+    ["move-line-up"], "- a\n\t- a1\n\t- a2\n\t- b1\n- b", { at: { file: "t.md", line: 4, ch: 4 } }),
+  /* B5: отступ той же природы — пробелы к пробелам. */
+  one("B5", "Move right у списка с отступом пробелами добавляет пробелы", "- a\n    - c",
+    ["move-right"], "- a\n        - c", { at: { file: "t.md", line: 1, ch: 7 } }),
   /* C1: `Keep first words` на строке без Fields не оставляет имя в скобках. */
   one("C1", "Keep first words снимает имя в скобках и не считает его словами", "- [Trip plan] pack bags early morning",
     [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }], "",
