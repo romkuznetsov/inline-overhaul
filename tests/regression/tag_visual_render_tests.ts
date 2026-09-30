@@ -1389,4 +1389,16 @@ const filled = (el: Any): boolean =>
   ok("Д-7: подмена решётки в активной ячейке кончается на теге");
 }
 
+{
+  /* BUGHUNT 2026-09-30, D6: при спрятанных решётках подменённый токен
+     активной ячейки красится её цветом, а неактивный — цветом ячеек. */
+  const line = "- ==**[#todo]** #low `Priority`== || x";
+  const colors = { showPrefix: false, defaultTextColor: "#112233", activeTextColor: "#ff0000" };
+  const spans = I.tagwheelPanelSpans(line, colors as never, new Set()) as Array<{ kind: string; start: number; end: number; style?: string }>;
+  const rep = (tok: string) => spans.find((x) => x.kind === "replace" && line.slice(x.start, x.end) === tok);
+  assert.ok(/#ff0000/.test(String(rep("#todo")?.style || "")), "D6: активная ячейка без решётки не красится своим цветом: " + JSON.stringify(rep("#todo")));
+  assert.ok(/#112233/.test(String(rep("#low")?.style || "")), "D6: неактивная ячейка без решётки не красится цветом ячеек: " + JSON.stringify(rep("#low")));
+  ok("D6: подменённый токен несёт цвет своей ячейки");
+}
+
 console.log("\n" + passed + " проверок пройдено");

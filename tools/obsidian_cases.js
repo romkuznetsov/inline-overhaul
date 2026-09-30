@@ -344,6 +344,11 @@ module.exports = [
       { js: "ed.setCursor({ line: 0, ch: 3 }); a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }],
     "", { cfg: I2N, expect: {}, settle: 800,
       check: "const f = a.vault.getFiles().find((x) => /^repeat me twice/.test(x.basename)); if (!f) return 'заметки нет'; const t = await a.vault.read(f); return t.split('repeat me twice').length === 2 || JSON.stringify(t);" }),
+  /* D6: при выключенных знаках активное поле tagWheel красится своим цветом. */
+  { id: "D6", title: "tagWheel без знаков: активное поле цветом Active Field", files: { "t-D6.md": "- #todo || позвонить\n" },
+    at: { file: "t-D6.md", line: 0 }, steps: ["open-tagwheel-left"], settle: 600,
+    cfg: { visual: { tagWheel: { showMarkers: false, textColor: "#112233", activeTextColor: "#ff0000" } } },
+    check: "const w = [...a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.inline-overhaul-tw-token')]; const red = w.filter((n) => getComputedStyle(n).color === 'rgb(255, 0, 0)'); a.commands.executeCommandById('editor:focus'); return (w.length > 0 && red.length === 1) || JSON.stringify(w.map((n) => n.textContent + ':' + getComputedStyle(n).color));" },
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

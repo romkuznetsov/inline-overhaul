@@ -2399,7 +2399,12 @@ function tagwheelPanelSpans(text, colors, placeholders) {
       if (!shown || shown === raw) continue;
       const start = innerAt + m.index + String(m[0] || "").indexOf(raw);
       const end = start + raw.length;
-      if (end > start) out.push({ kind: "replace", start, end, text: shown });
+      if (end <= start) continue;
+      /* Виджет подмены цвет пометки не наследует: он несёт стиль самой
+         внутренней цветной пометки, накрывающей его (BUGHUNT 2026-09-30, D6). */
+      const cover = out.filter((s) => s.kind !== "line" && s.style && s.start <= start && s.end >= end)
+        .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
+      out.push({ kind: "replace", start, end, text: shown, style: cover ? cover.style : "" });
     }
   }
 
