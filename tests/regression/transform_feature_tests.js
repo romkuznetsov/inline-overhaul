@@ -207,6 +207,17 @@ function makeConfig() {
   assertEq(rules[1].enabled, true, "active rule remains enabled");
 })();
 
+(function testSmartRuleAsksValuesNotWords() {
+  /* BUGHUNT 2026-09-30, C9: тег в тексте человека — его слово: Smart Rule он не
+     включает, как не попадает и в свойства заметки. */
+  const cfg = makeConfig();
+  const rules = [{ id: "r", enabled: true, conditions: { tags: ["#todo"] }, targetTemplate: "t.md" }];
+  const inText = transform.parseInlineLine("- #next :: позвонить #todo маме", cfg);
+  assertEq(transform.selectSmartRule(inText, rules, cfg), null, "C9: тег в тексте включил правило");
+  const inBlock = transform.parseInlineLine("- #todo :: позвонить маме", cfg);
+  assertEq((transform.selectSmartRule(inBlock, rules, cfg) || {}).id, "r", "контроль: тег в Block включает правило");
+})();
+
 (function testRulesWithoutSharedValueDoNotConflict() {
   /* BUGHUNT 2026-09-30, C8: правило по тегу и правило по ссылке не делят ни
      одного значения — спора нет, строку с обоими решает порядок правил. */

@@ -858,9 +858,16 @@ function fieldsOnLine(cfg, present) {
  */
 function selectSmartRule(parsed, smartRules, cfg) {
   const p = isObj(parsed) ? parsed : {};
+  /* Value — то же, что для YAML: вхождение вне текста человека. Тег посреди
+     текста — его слово (`В-235`): правило он не включал бы, как не попадает и
+     в свойства заметки (BUGHUNT 2026-09-30, C9). */
+  const outsideText = (list, key) => (Array.isArray(list) ? list : [])
+    .filter((o) => o && o.panel !== "payload").map((o) => o[key]);
+  const tagsOnLine = Array.isArray(p.tagOccurrences) ? outsideText(p.tagOccurrences, "token") : p.tags;
+  const linksOnLine = Array.isArray(p.wikilinkOccurrences) ? outsideText(p.wikilinkOccurrences, "target") : p.wikilinks;
   const present = {
-    tags: new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []),
-    wikilinks: new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []),
+    tags: new Set(Array.isArray(tagsOnLine) ? tagsOnLine.map((x) => String(x || "").trim()).filter(Boolean) : []),
+    wikilinks: new Set(Array.isArray(linksOnLine) ? linksOnLine.map(normalizeRuleWikilink).filter(Boolean) : []),
     emojiMarkers: new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean)),
   };
   addNavigatorsOfChildren(cfg, present);
