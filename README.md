@@ -34,7 +34,7 @@ A few keystrokes and about five seconds later it will be like this:
 ```
 
 <details>
-<summary><b>This is how it looks in your note</b></summary>
+<summary><b>This is how it will look in your note</b></summary>
 <br>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/line-dark.png">
@@ -51,7 +51,9 @@ A few keystrokes and about five seconds later it will be like this:
 </picture>
 </details>
 
-Your whole PKM — status, priority, project, dates and so on — lives right in the line. You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once and it stays that way forever. It reduces decision fatigue and mental exhaustion to almost zero.
+Your whole PKM — status, priority, project, dates and so on — lives right in the line.
+You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once and it stays that way forever.
+It reduces decision fatigue and mental exhaustion to almost zero.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/tagwheel-dark.png">
@@ -60,7 +62,7 @@ Your whole PKM — status, priority, project, dates and so on — lives right in
 
 And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
 
-That is only the tip of the iceberg — inlineOverhaul makes a lot of everyday work in Obsidian smoother.
+That is only the tip of the iceberg — inlineOverhaul makes a lot of things in Obsidian MUCH smoother.
 
 ## What you get
 
@@ -72,13 +74,13 @@ Section names match the tabs of the settings panel, so what you read here is whe
 - **A command for every Field.** `Status next` walks `#todo → #doing → #done` in place, without touching the words around it.
 - **Three kinds of Value.** Tags (`#todo`), wikilinks (`[[Project A]]`) and emoji-elements such as `📅2026-09-15`, which step the way you want: by a day, by a counter of your own, or through a list you write.
 
-<img alt="Cycling a Field on a line" src="docs/media/showcase/pkm-cycle.gif" width="640">
+<!-- GIF: cycling a Field on a line -->
 
 ### tagWheel — choose instead of typing
 
 You do not have to remember every Value or every command: one command holds them all. The tagWheel panel shows every Field of the line with its Values — walk them with the arrow keys, press `Enter`, and the Values you picked land in the line where they belong.
 
-<img alt="Picking Values with tagWheel" src="docs/media/showcase/tagwheel.gif" width="640">
+<!-- GIF: picking Values with tagWheel -->
 
 ### Transform (inline2note) — turn a line into a note in one click
 
@@ -86,7 +88,7 @@ The inline2note floating button takes the line with its Values and the template 
 
 Because the properties are real frontmatter, a transformed note shows up in Bases and Dataview.
 
-[▸ Watch it in the showcase](docs/SHOWCASE.md#transform-inline2note)
+<!-- GIF: turning a line into a note with inline2note -->
 
 ### Navigation — move a line with everything it carries
 
@@ -94,7 +96,7 @@ Because the properties are real frontmatter, a transformed note shows up in Base
 - **Move left and right** cycles the Prefix (bullet, checkbox, quote, heading), so restructuring a note does not mean retyping it.
 - **Jump** the cursor between headings, and through the parts of one line.
 
-<img alt="Moving lines and trees" src="docs/media/showcase/move-lines.gif" width="640">
+<!-- GIF: moving lines and trees -->
 
 ### Keyboard — the keys you press all day, made smarter
 
@@ -106,11 +108,11 @@ Because the properties are real frontmatter, a transformed note shows up in Base
 
 Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the margin, and a caret you can restyle. This is drawing only: the file on disk stays untouched.
 
-[**More in the showcase →**](docs/SHOWCASE.md) animations, grouped by workflow.
+<!-- GIF: the Visual tab — bubbles, Stripe, Tag Bars, caret -->
 
 ## First steps
 
-1. **Give the commands keys.** The plugin assigns no hotkeys, so it cannot clash with yours. **Keyboard → Commands & Hotkeys** lists every command; bind the tagWheel and the `next` commands of the Fields you use. Hotkeys set before `0.2.0` may have come loose: the [command id map](docs/COMMAND_IDS_V1_V2.md) shows the old and new names.
+1. **Give the commands keys.** The plugin assigns no hotkeys, so it cannot clash with yours. **Keyboard → Commands & Hotkeys** lists every command; bind the tagWheel and the `next` commands of the Fields you use.
 2. **Start from the four Fields you already have.** A fresh install arrives with `Status` and `Priority` before your text, `Due` and `Project` after it. Change them in **Tags & PKM → Fields** once you know what you want.
 3. **Write a line and press your keys.** The [tutorial](docs/TUTORIAL.md) takes about fifteen minutes from here to a line that works.
 

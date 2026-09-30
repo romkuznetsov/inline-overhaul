@@ -109,9 +109,6 @@ Each module also has an exact command-palette toggle:
 
 The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian’s Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move up`. The list below repeats it for reading offline, by the part that says what the command does.
 
-> [!WARNING]
-> **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/COMMAND_IDS_V1_V2.md`](docs/COMMAND_IDS_V1_V2.md), and the plugin prints it once to the developer console.
-
 ### Navigation
 
 - **Move up**
@@ -954,9 +951,7 @@ Transform stops before target mutation when a selected template cannot be read o
 
 ### Implemented but still beta
 
-- The one-off cases still need checking by hand on a real Obsidian: the first start on
-  a clean vault, the move of an older config to the new form, and the notice about
-  renamed commands.
+- The one-off cases still need checking by hand on a real Obsidian: the first start on a clean vault and the move of an older config to the new form.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
 - General Visual features are implemented: tag bubbles, the Stripe behind each Block, Tag Bars, Separator colors, and the tagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
 - The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbors, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.

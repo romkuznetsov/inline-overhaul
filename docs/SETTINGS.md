@@ -139,12 +139,6 @@ A command with no key reads as an empty slot: a dashed outline and faint `not se
 Commands are named after the area they belong to — `Navigation: Move up`,
 `Tags & PKM: Category next` — which is what makes that filter exact.
 
-> [!IMPORTANT]
-> Command identifiers changed in `0.2.0`. Obsidian binds hotkeys to identifiers rather than
-> names, so keys assigned to inlineOverhaul commands before that release stopped working.
-> The old-to-new map is in [`COMMAND_IDS_V1_V2.md`](COMMAND_IDS_V1_V2.md), and the plugin
-> says so once on first load.
-
 ## Navigation
 
 Moving lines, text and the cursor without reaching for the mouse.

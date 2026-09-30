@@ -26,19 +26,6 @@ See the [full setup and user guide](../INSTRUCTIONS.md) for installation, config
 **Runtime behavior did not change** — moving lines, cycling Values, tagWheel.
 What changed is the settings pane and the names of commands.
 
-**Every command was renamed**, and its identifier with it, so a caption naming a
-command by its old name is wrong: `Navigation: Move Up` is now
-`Navigation: Move up`,
-`Transform: inline2note` is now `Transform inline to note`, `PKM: <field>
-increase` is now `<Field> next`. The full map is in
-[`docs/COMMAND_IDS_V1_V2.md`](COMMAND_IDS_V1_V2.md).
-
-### Captions still worth a second look
-
-Two entries keep their picture and have a stale caption: `navigation-header-jump`
-and `pkm-cycle` name commands by their old names. The pictures hold — the
-behavior they show did not change.
-
 ### Headings are link targets
 
 Headings here are link targets from `README.md`. Renaming one breaks a link, so
