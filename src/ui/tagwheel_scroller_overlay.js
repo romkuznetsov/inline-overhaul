@@ -1,5 +1,7 @@
 "use strict";
 
+const __editorVisualsConfig = require("../core/editor_visuals_config.js");
+
 /*
  * Имена классов коробки — **одно объявление на код и стили** (правило
  * каталога Р7, 2026-09-09). Правила лежат в `styles.css`, разделом
@@ -52,7 +54,9 @@ function getAnchorRect(editor, lineNumber, controlLine) {
     if (!editor || typeof editor.posToOffset !== "function") return null;
     let cm = editor.cm;
     if (!cm || typeof cm.coordsAtPos !== "function") return null;
-    let activeTokenMatch = String(controlLine || "").match(/\*\*\[([^\]]+)\]\*\*/);
+    /* Активная ячейка панели — общего дома: свой образец обрывался на первой `]`
+       и промахивался по ячейке со ссылкой (найдено сторожем чекбокса, 2026-10-01). */
+    let activeTokenMatch = String(controlLine || "").match(__editorVisualsConfig.TAGWHEEL_ACTIVE_CELL_RE);
     let activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
     let cmDom = cm && cm.dom ? cm.dom : null;
     if (cmDom && typeof cmDom.querySelectorAll === "function") {

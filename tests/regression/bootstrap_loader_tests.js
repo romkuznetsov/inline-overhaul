@@ -3906,6 +3906,10 @@ async function run() {
     const BS = String.fromCharCode(92);
     const WIDE_PLUS = BS + "[[^" + BS + "]]+" + BS + "]";
     const WIDE_STAR = BS + "[[^" + BS + "]]*" + BS + "]";
+    /* Та же форма с группой захвата — её сторож не видел, и широкий чекбокс
+       прожил в разборе приставки Transform до BUGHUNT 2026-09-30 C1. */
+    const WIDE_PLUS_CAP = BS + "[([^" + BS + "]]+)" + BS + "]";
+    const WIDE_STAR_CAP = BS + "[([^" + BS + "]]*)" + BS + "]";
     const NARROW = BS + "[[^" + BS + "]]" + BS + "]";
     const WIKI_PRE = BS + "[";
     const WIKI_POST = BS + "]";
@@ -3951,7 +3955,8 @@ async function run() {
     const offenders = [];
     for (const abs of walked) {
       const text = fs.readFileSync(abs, "utf8");
-      const wide = countOutsideWikilink(text, WIDE_PLUS) + countOutsideWikilink(text, WIDE_STAR);
+      const wide = countOutsideWikilink(text, WIDE_PLUS) + countOutsideWikilink(text, WIDE_STAR)
+        + countOutsideWikilink(text, WIDE_PLUS_CAP) + countOutsideWikilink(text, WIDE_STAR_CAP);
       if (wide) offenders.push(path.relative(path.join(__dirname, "..", ".."), abs) + " x" + wide);
       narrow += countOutsideWikilink(text, NARROW);
     }
@@ -3975,6 +3980,8 @@ async function run() {
       "положительный контроль считалки: узкое написание на образце одно");
     assertEq(countOutsideWikilink(SAMPLE, WIDE_PLUS), 1,
       "положительный контроль считалки: широкое написание на образце одно");
+    assertEq(countOutsideWikilink("/(?:" + BS + "[([^" + BS + "]]*)" + BS + "])/", WIDE_STAR_CAP), 1,
+      "положительный контроль считалки: широкое написание с группой захвата на образце одно");
     assertTrue(narrow > 0,
       "в исходниках ещё есть узкое написание, и обход его видит (" + narrow + ")");
     assertEq(offenders.join("; "), "",

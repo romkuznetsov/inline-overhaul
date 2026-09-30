@@ -338,6 +338,11 @@ module.exports = [
     { at: { file: "t.md", line: 2, ch: 3 }, cfg: { navigation: { moveLine: { headerMode: "move-with-section" } } } }),
   one("B1", "Move down перескакивает таблицу целиком", "- a\n| p | q |\n|---|---|\n| 1 | 2 |\n- z",
     ["move-line-down"], "| p | q |\n|---|---|\n| 1 | 2 |\n- a\n- z", { at: { file: "t.md", line: 0, ch: 3 } }),
+  /* C1: `Keep first words` на строке без Fields не оставляет имя в скобках. */
+  one("C1", "Keep first words снимает имя в скобках и не считает его словами", "- [Trip plan] pack bags early morning",
+    [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }], "",
+    { cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, sourceProcessing: { text: "words", keepWords: 3 } } } }, expect: {}, settle: 800,
+      check: "const l = a.workspace.activeEditor.editor.getLine(0); return (/\\[\\[[^\\]]*Trip plan\\]\\] pack bags early/.test(l) && !/\\[Trip plan\\] /.test(l)) || l;" }),
   /* Q4, C4: повторный Transform на обработанной строке ничего не дописывает. */
   one("C4", "Повторный Transform на обработанной строке не дописывает её в заметку", "- repeat me twice",
     [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 },

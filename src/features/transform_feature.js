@@ -2987,7 +2987,9 @@ function applySourceCleanupByFieldIds(line, transformContext, cleanupFieldIds, s
 
 function applySourcePrefixResolution(line, originalLine, transformContext, preservedFieldIds, cfg, lineFinalize) {
   const original = String(originalLine || "");
-  const prefixMatch = original.match(/^([\t ]*)([-*+]\s+)(?:\[([^\]]*)\]\s+)?/);
+  /* Чекбокс — ровно один знак в скобках, как у Obsidian (правило 24): имя
+     `[Trip plan]` читалось чекбоксом и удваивалось на строке (BUGHUNT 2026-09-30, C1). */
+  const prefixMatch = original.match(/^([\t ]*)([-*+]\s+)(?:\[(.)\]\s+)?/);
   if (!prefixMatch) return String(line || "");
   if (!lineFinalize || typeof lineFinalize.buildPrefixUnified !== "function") {
     throw new Error("shared prefix resolver unavailable");
