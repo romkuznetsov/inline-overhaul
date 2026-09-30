@@ -1966,7 +1966,9 @@ function explicitTitleOf(line, i2n) {
     /* Форма ссылки — общий дом; сверено, расхождений ноль (10.13.141). */
     .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
     /* Ссылка Markdown `[текст](адрес)` — не имя в скобках (BUGHUNT T8). */
-    .replace(new RegExp(__sharedUtils.MARKDOWN_LINK_SRC, "g"), " ");
+    .replace(new RegExp(__sharedUtils.MARKDOWN_LINK_SRC, "g"), " ")
+    /* Сноска `[^1]` — разметка Obsidian, а не имя в скобках (BUGHUNT 2026-09-30, C5). */
+    .replace(/\[\^[^\]\s]+\]/g, " ");
   let m;
   while ((m = re.exec(lineWithoutWikilinks)) !== null) {
     const explicit = String(m[1] || "").trim();

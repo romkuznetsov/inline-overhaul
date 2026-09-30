@@ -1037,6 +1037,8 @@ runElementValueWrittenByPluginIsFoundSuite();
   assertEq(emo.length === 100 && emo[99] === "😀", true, "длинное слово режется по знакам, эмодзи целиком: " + emo.length);
   const i2n = transform.normalizeInline2Note({ enabled: true });
   assertEq(transform.explicitTitleOf("- читать [статью](https://x.y) завтра", i2n), "", "T8: ссылка Markdown принята за имя в скобках");
+  assertEq(transform.explicitTitleOf("- line with footnote[^1] and ^block-id", i2n), "", "C5: сноска принята за имя в скобках");
+  assertEq(transform.explicitTitleOf("- [план] со сноской[^1]", i2n), "план", "контроль: имя в скобках рядом со сноской узнаётся");
   const info = transform.resolveAutoTitleInfo({ line: "- a [[Project A]] b", payloadText: "a [[Project A]] b" }, { noteName: { wordCount: 2 } });
   assertEq(info.title, "a [[Project A]]", "ссылка с пробелом — одно слово названия");
   const files = { "повтор.md": { path: "повтор.md" } };
