@@ -25,6 +25,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 2. ✨ **An Element can be a list of your own Values.** `Steps by` → `List of Values` (or `Writes` → `List` in `Add Field`) cycles Values that each carry their own emoji, such as `🙂‍↕️yes` and `🙂‍↔️no`, or an emoji alone — by command and in tagWheel, like a tag.
 3. 🐛 **A tag typed into your text stays there when tagWheel sets a right Block Field.** Before, choosing a Value of such a Field removed the same tag from your phrase.
 4. 🐛 **A link typed after the only separator is drawn as text.** `- [[Man1]] :: met [[Man1]] yesterday` no longer gives the second link the fill and size of the right Block.
+5. ✨ **Name the child Field in tagWheel.** `Child name in tagWheel`, under `Name in tagWheel`, shows up once a Field has child Values; without a name of its own the child is `sub`.
+6. 🎨 **Settings that do not apply are hidden, not greyed out.** `Smart Enter` off hides `Where it works` and `Prefix on the new line`; the same goes for every section with a main switch.
+7. ✨ **Smart Enter works on every line.** A plain paragraph or a list item without Separators gets a new line below instead of being split; code, tables, an empty line and an empty list item keep the usual `Enter`.
+8. 🐛 **Smart Delete no longer moves the next line into the Block.** `Del` at the end of `#high :: 123` over `💭 123` joins the text: `#high :: 123 💭 123`.
+9. 🎨 **Clearer names on the Keyboard tab:** `Smart SelectAll (Ctrl+A)`, `Smart Ctrl+A`, `Smart Paste (Ctrl+V)`. Values of an Element list sit in a frame with a drag handle each.
 
 ## 0.11.0
 
