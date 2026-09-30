@@ -229,6 +229,16 @@ function baseConfig(rules?: Any[]): Any {
  * ====================================================================== */
 
 {
+  /* BUGHUNT 2026-09-30, C15: кнопки условий второго правила звали его «Rule 1». */
+  const p = makePanel(baseConfig());
+  (byLabel(p.host, "Add rule") as StubNode).click();
+  (byLabel(p.host, "Add rule") as StubNode).click();
+  const labels = all(p.host, "io-icon").map(n => String(n.getAttribute("aria-label") || "")).filter(l => /^Add tag to /.test(l));
+  assert.deepEqual(labels, ["Add tag to Rule 1", "Add tag to Rule 2"], "C15: кнопки условий назвали не своё правило: " + labels.join(" | "));
+  ok("кнопки условий называют своё правило");
+}
+
+{
   const p = makePanel(baseConfig());
   (byLabel(p.host, "Add rule") as StubNode).click();
   assert.equal(all(p.host, "io-rule").length, 1, "правило добавилось");

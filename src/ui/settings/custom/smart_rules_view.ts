@@ -208,7 +208,7 @@ function drawSummaryLine(host: El, row: RuleRow, o: RulesViewOpts): void {
  * Строка условий одного типа: подпись, значения и кнопка `+`. Значения
  * перечислены через `or`, и это подпись, а не контрол.
  */
-function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void {
+function kindRow(host: El, row: RuleRow, index: number, kind: RowKind, o: RulesViewOpts): void {
   const say = o.say || PLAIN;
   /*
    * В строке стоят и значения этого типа, и Fields этого типа целиком —
@@ -232,7 +232,7 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
     const chip = el(chips, "span", "io-vchip", item.shown);
     const drop = btn(chip, "io-icon", {
       text: "✕",
-      label: say("CONDITION_REMOVE", item.shown + " from " + ruleTitle(row, 0)),
+      label: say("CONDITION_REMOVE", item.shown + " from " + ruleTitle(row, index)),
     });
     drop.disabled = !o.enabled;
     drop.addEventListener("click", (() => {
@@ -244,7 +244,7 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
 
   const add = btn(box, "io-icon", {
     text: "+",
-    label: say("ADD_CONDITION", KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0)),
+    label: say("ADD_CONDITION", KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, index)),
   });
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
@@ -481,7 +481,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   ROW_KINDS.forEach((kind, i) => {
     /* Между типами — И, и это сказано словом, а не значком (С-7). */
     if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
-    kindRow(conds, row, kind, o);
+    kindRow(conds, row, index, kind, o);
   });
 
   const out = el(main, "div", "io-rule__out");
