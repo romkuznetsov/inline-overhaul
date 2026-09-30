@@ -22,6 +22,16 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 ## Unreleased
 
 1. ✨ **A mark for a ticked line.** `Mark ticked line`, in `Writing rules`, adds a tag or emoji such as `#done` or `✅` when you tick `- [ ]` into `- [x]` and takes it off when you untick; `Where the tick mark goes` picks the Block, a mark that is a Value of one of your Fields goes where that Field stands, and `Dim ticked line` fades the line, and `Strike through ticked line` crosses it out.
+2. 🐛 **Note properties, divider lines and tables are left alone.** Field commands, tagWheel, `Inline to note`, `Smart Enter`, `Delete` and `Backspace` skip the frontmatter, a `---` line and a table, and a line starting with your separator is an ordinary line again.
+3. 🐛 **Navigation skips code and tables.** A `# comment` inside a code block is not a heading for `Jump up/down` and `Whole section`, `Move up/down` jumps over a table as one piece, and `Move left/right` leaves code and table rows as they are.
+4. 🐛 **A settings change after restoring an old backup stays.** Before, the next change was undone with “Settings changed on disk”; an old backup also shows its real Fields and Values in the list.
+5. 🐛 **`Decide by = Prefix order` lists the Prefixes your Values use,** so there is something to put in order.
+6. 🐛 **A tag Value is one word, and a Field holds a Value once.** Adding or renaming into a Value with a space or one the Field already has is refused with a message.
+7. 🐛 **`Inline to note` does not do a line twice.** A line that already carries the mark is refused with a message, and the same text in another note makes a new note.
+8. 🐛 **Note names from `Inline to note`** no longer start with dots, stay within 100 characters, and ignore footnotes such as `[^1]`; a name in brackets is taken off the line with `Keep first words`.
+9. 🐛 **Smart Rules** conflict only when two rules share a Value, a tag inside your text does not pick a rule, and the buttons of each rule name that rule.
+10. 🐛 **Editing fixes:** `Ctrl+A` on a heading skips the tree step, `Smart Enter` on a callout title continues the quote, tagWheel colors the active Field with `Show tag markers` off, a child line moved up past its parent becomes the last child, and `Move right` adds spaces to a line indented with spaces.
+11. 🐛 **Other fixes:** `Developer logging` starts at once, `Log folder` is a folder, and an empty template frontmatter stays out of the note.
 
 ## 0.12.0
 
