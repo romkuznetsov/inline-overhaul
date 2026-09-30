@@ -62,6 +62,12 @@ function normalizePkmBehaviorShape(cfg, deps) {
         byField[fid][tok] = norm;
       }
     }
+    /* Список `Prefix order` пополняется Prefix, стоящими у Values: другого
+       входа у него нет, а движок решает только по списку (BUGHUNT 2026-09-30,
+       A2). Дописанное идёт в конец — порядок человека не трогается. */
+    const listed = Array.isArray(prefixRules.priorityCheckboxes) ? prefixRules.priorityCheckboxes : [];
+    const used = Object.values(byField).flatMap((/** @type {any} */ row) => (isObj(row) ? Object.values(row) : []));
+    prefixRules.priorityCheckboxes = Array.from(new Set(listed.concat(used)));
   }
 
   /*

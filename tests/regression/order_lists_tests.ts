@@ -315,6 +315,20 @@ const rulesOf = (cfg: Any): Any => cfg.pkm.prefixRules;
   p.cleanup();
 }
 
+{
+  /* BUGHUNT 2026-09-30, A2: список пуст, Prefix стоят у Values — так у
+     человека всегда, пока он не переставил ни одной строки. */
+  const cfg = baseConfig();
+  cfg.pkm.prefixRules = { priorityTargets: [], priorityCheckboxes: [],
+    checkboxByFieldValue: { status: { todo: "[ ]", done: "[x]", urgent: "[!]", late: "[!]" } } };
+  const p = makeBlock(prefixOrderList, cfg);
+  assert.deepEqual(texts(p.host, "io-mono"), ["[ ]", "[x]", "[!]"], "A2: Prefix у Values в список не попали");
+  (byLabel(p.host, "Move [!] up") as StubNode).click();
+  assert.deepEqual(rulesOf(p.cfg()).priorityCheckboxes, ["[ ]", "[!]", "[x]"], "A2: перестановка не записала список целиком");
+  ok("порядок Prefix собирается из Prefix у Values, первая перестановка пишет его целиком");
+  p.cleanup();
+}
+
 /* ======================================================================
  * 6. Списки приоритета не правятся при выключенном модуле.
  * ====================================================================== */
