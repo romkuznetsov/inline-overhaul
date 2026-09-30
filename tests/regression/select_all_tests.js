@@ -308,6 +308,17 @@ function stepPlugin(selectAll) {
  * Тот же пятый режим на пути с задержкой: ветка сборки последовательности там
  * своя, и настройка, которую она не назовёт, до движка не доедет молча (У-56).
  */
+(function testTreeStepSkippedOnHeading() {
+  /* BUGHUNT 2026-09-30, B10: на заголовке ступень tree выделяла строку списка над ним. */
+  const ed = fakeEditor(["# H1", "- a", "## H2"], 2, 3);
+  const plugin = fakePlugin(ed, { enabled: true, mode: "line-tree-note", useDelay: false, delayMs: 700, clearOnLast: false });
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  assertEq(ed._selection().from.line, 2, "первое нажатие — строка заголовка");
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  const s = ed._selection();
+  assertEq([s.from.line, s.to.line].join("-"), "0-2", "B10: второе нажатие на заголовке выделило не заметку");
+})();
+
 (function testDelayPathWalksTheSameSteps() {
   const ed = fakeEditor(STEP_LINES, STEP_CURSOR.line, STEP_CURSOR.ch);
   const plugin = fakePlugin(ed, {

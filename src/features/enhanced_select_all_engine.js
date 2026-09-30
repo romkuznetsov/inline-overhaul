@@ -99,7 +99,9 @@ function headerSectionRange(editor, curLine) {
 function findNearestListItemLine(editor, fromLine) {
   for (let l = fromLine; l >= 0; l--) {
     const t = String(editor.getLine(l) || "");
-    if (isHeaderLineText(t) && l < fromLine) break;
+    /* Заголовок обрывает поиск и на строке каретки: на нём дерева нет, а список
+       над ним — чужая секция (BUGHUNT 2026-09-30, B10). */
+    if (isHeaderLineText(t)) break;
     if (isListItemLineText(t)) return l;
   }
   return -1;
