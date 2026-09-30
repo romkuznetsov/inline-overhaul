@@ -102,6 +102,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     cancelled: "Transform cancelled",
     "code-line": "Transform does not work in a code block, a table, note properties or a divider line",
     "inline-off": "Inline to note is switched off: turn it on in the Transform tab of the settings",
+    "already-note": "This line is already a note: its mark {0} says so",
     created: "Note created: {0}",
     error: "Transform error: {0}",
   },

@@ -24,6 +24,7 @@ const __rulesShape = require("../core/pkm_rules_shape.js");
 const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
 const __domainRegistry = require("../core/pkm_domain_registry.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
+const __editorVisualsConfig = require("../core/editor_visuals_config.js");
 
 function getRulesShapeModule() { return __rulesShape; }
 
@@ -2275,6 +2276,9 @@ function resolveRuleFolder(rule, i2n) {
  * Память второго случая живёт до перезапуска: после него строку и заметку
  * связывает только ссылка, а её на отменённой строке уже нет.
  */
+/* Ключ памяти «заметка, заведённая с этой строки»: заметка-источник и строка. */
+function madeKey(sourcePath, sourceLine) { return String(sourcePath || "") + "\n" + String(sourceLine); }
+
 function sameNoteAgain(plugin, parsed, sourceLine, sourcePath) {
   const app = plugin && plugin.app;
   if (!app || !app.vault) return null;
@@ -2288,7 +2292,8 @@ function sameNoteAgain(plugin, parsed, sourceLine, sourcePath) {
       : app.vault.getAbstractFileByPath(linked + ".md");
     path = file && file.path ? String(file.path) : "";
   } else {
-    const made = plugin._i2nMade ? plugin._i2nMade.get(String(sourceLine)) : "";
+    /* Память знает заметку-источник: та же строка в другой заметке — новая заметка (C3). */
+    const made = plugin._i2nMade ? plugin._i2nMade.get(madeKey(sourcePath, sourceLine)) : "";
     if (made && app.vault.getAbstractFileByPath(made)) path = made;
   }
   return path ? { mode: "add_to_note", path, basePath: path, exists: true } : null;
@@ -3973,6 +3978,13 @@ async function runInline2Note(plugin, runtimeOptions) {
   const sourceLine = String(selectionInfo.rootLine || "");
   const sourceBlockText = String(selectionInfo.blockText || (selectionInfo.blockLines || []).join("\n") || sourceLine);
   const sourceSnapshot = readEditorBlock(ed, selectionInfo);
+  /* Строка с меткой обработки уже стала заметкой: повтор этого не делает, как
+     обещает подсказка метки и как уже ведёт себя кнопка (BUGHUNT 2026-09-30, C4). */
+  const processedToken = String(i2n.sourceProcessing && i2n.sourceProcessing.token || "").trim();
+  if (processedToken && __editorVisualsConfig.lineHasProcessedToken(sourceLine, processedToken)) {
+    plugin.notice(__say(__noticeKey("transform", "already-note"), "This line is already a note: its mark {0} says so", processedToken));
+    return;
+  }
   const parsed = parseInlineLine(sourceLine, cfg);
   if (!String(parsed.payloadText || "").trim()) throw new Error("source payload is empty");
   const transformContext = buildTransformContext(parsed, cfg);
@@ -4030,7 +4042,7 @@ async function runInline2Note(plugin, runtimeOptions) {
   /* Заметка, заведённая с этой строки: повтор после отмены допишет в неё (`В-240`). */
   if (!target.exists) {
     plugin._i2nMade = plugin._i2nMade || new Map();
-    plugin._i2nMade.set(sourceLine, actualTarget.path);
+    plugin._i2nMade.set(madeKey(sourcePath, sourceLine), actualTarget.path);
   }
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
