@@ -1667,6 +1667,7 @@ module.exports = {
   isFenceLine,
   isInsideFence,
   isCodeOrTableLine,
+  isTableLine,
   lineWordsWithSpace,
   listIndentLevel,
   renumberOrderedWindow,

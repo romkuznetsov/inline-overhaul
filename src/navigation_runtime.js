@@ -206,7 +206,7 @@ function moveLine(editor, direction, rawCfg) {
   if (yamlEnd !== -1 && anchorLine <= yamlEnd) return;
   if (isInsideCodeBlock(editor, anchorLine)) return;
 
-  if (isTableLine(editor.getLine(anchorLine))) {
+  if (isTableAt(editor, anchorLine)) {
     tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
     return;
   }
@@ -249,7 +249,7 @@ function treeEndOf(editor, line, total) {
   for (let l = line + 1; l < total; l++) {
     const lt = nz(editor.getLine(l), "");
     if (lt.trim() === "") continue;
-    if (isHeader(lt)) break;
+    if (isHeaderAt(editor, l)) break;
     if (indentOf(lt) <= myIndent) break;
     end = l;
   }
@@ -314,6 +314,8 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
   if (prev === null) return null;
   const overCode = codeBlockEdgeUp(editor, prev);
   if (overCode !== undefined) return overCode;
+  /* Таблица перескакивается целиком, как блок кода (BUGHUNT 2026-09-30, B1). */
+  if (isTableAt(editor, prev)) return tableBounds(editor, prev, total).top - 1;
   const prevText = nz(editor.getLine(prev), "");
   if (isHeader(prevText)) {
     if (!cfg.crossSectionAllowed) return null;
@@ -373,6 +375,7 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   if (next === null) return null;
   const overCode = codeBlockEdgeDown(editor, next, total);
   if (overCode !== undefined) return overCode;
+  if (isTableAt(editor, next)) return tableBounds(editor, next, total).bot;
   const nextText = nz(editor.getLine(next), "");
   if (isHeader(nextText)) {
     if (!cfg.crossSectionAllowed) return null;
@@ -674,21 +677,26 @@ function restoreMovedCursor(editor, cursorRestore, oldStart, oldEnd, newStart, n
 function isTableSep(text) { return /^\|[\s\-:|]+\|/.test(String(nz(text, "")).trim()); }
 function tableBounds(editor, anchorLine, total) {
   let top = anchorLine;
-  while (top > 0 && isTableLine(editor.getLine(top - 1))) top--;
+  while (top > 0 && isTableAt(editor, top - 1)) top--;
   let bot = anchorLine;
-  while (bot < total - 1 && isTableLine(editor.getLine(bot + 1))) bot++;
+  while (bot < total - 1 && isTableAt(editor, bot + 1)) bot++;
   return { top, bot };
 }
 const HEADER_RE = /^(#{1,6})\s/;
 function isHeader(text) { return HEADER_RE.test(String(nz(text, ""))); }
 function getHeaderLevel(text) { const m = String(nz(text, "")).match(HEADER_RE); return m ? m[1].length : 0; }
-function isTableLine(text) { return String(nz(text, "")).trimStart().startsWith("|"); }
+/* Таблица и «не строка текста» — общего дома (BUGHUNT 2026-09-30, Q1): таблица —
+   с рядом-разделителем, как у Obsidian; заголовок — `# …` вне кода и frontmatter. */
+function isTableAt(editor, lineNo) { return __sharedUtils.isTableLine((n) => editor.getLine(n), lineNo); }
+function isHeaderAt(editor, lineNo) { return isHeader(editor.getLine(lineNo)) && !__sharedUtils.isCodeOrTableLine((n) => editor.getLine(n), lineNo); }
 function indentOf(text) { const t = String(nz(text, "")); let i = 0; while (i < t.length && (t[i] === " " || t[i] === "\t")) i++; return i; }
-function sectionEnd(editor, headerLine, level, total) { for (let l = headerLine + 1; l < total; l++) { const lt = nz(editor.getLine(l), ""); if (isHeader(lt) && getHeaderLevel(lt) <= level) return l - 1; } return total - 1; }
+/* Пустая последняя строка — перевод строки в конце файла, а не часть последней
+   секции: иначе он уезжал с секцией в середину заметки (BUGHUNT 2026-09-30, B7). */
+function sectionEnd(editor, headerLine, level, total) { for (let l = headerLine + 1; l < total; l++) { const lt = nz(editor.getLine(l), ""); if (isHeaderAt(editor, l) && getHeaderLevel(lt) <= level) return l - 1; } return total - 1 > headerLine && nz(editor.getLine(total - 1), "") === "" ? total - 2 : total - 1; }
 function prevNonBlank(editor, fromLine, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; if (String(nz(editor.getLine(l), "")).trim() !== "") return l; } return null; }
 function nextNonBlank(editor, fromLine, total) { for (let l = fromLine; l < total; l++) if (String(nz(editor.getLine(l), "")).trim() !== "") return l; return null; }
-function prevNonBlankWithExactIndent(editor, fromLine, exactIndent, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeader(t)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
-function nextNonBlankWithExactIndent(editor, fromLine, exactIndent, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeader(t)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
+function prevNonBlankWithExactIndent(editor, fromLine, exactIndent, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeaderAt(editor, l)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
+function nextNonBlankWithExactIndent(editor, fromLine, exactIndent, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (t.trim() === "") continue; if (isHeaderAt(editor, l)) return null; const ind = indentOf(t); if (ind < exactIndent) return null; if (ind === exactIndent) return l; } return null; }
 function findYamlEnd(editor) { if (String(nz(editor.getLine(0), "")).trim() !== "---") return -1; const max = editor.lastLine(); for (let l = 1; l <= max; l++) { const t = String(nz(editor.getLine(l), "")).trim(); if (t === "---" || t === "...") return l; } return -1; }
 /* Ограда и «внутри блока» — общего дома (BUGHUNT R4). */
 function isInsideCodeBlock(editor, lineNo) { return __sharedUtils.isInsideFence((l) => editor.getLine(l), lineNo); }
@@ -708,8 +716,8 @@ function codeBlockEdgeUp(editor, fenceLine) {
   for (let l = fenceLine - 1; l >= 0; l--) if (__sharedUtils.isFenceLine(editor.getLine(l))) return l - 1;
   return null;
 }
-function prevHeaderOfLevel(editor, fromLine, maxLevel, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
-function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
+function prevHeaderOfLevel(editor, fromLine, maxLevel, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (isHeaderAt(editor, l) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
+function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (isHeaderAt(editor, l) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
 
 /*
  * Границы, за которые перенос выделенного текста не выходит.
@@ -1145,6 +1153,8 @@ function isBullet(line) { return __sharedUtils.hasListPrefix(line); }
 function indentLine(editor, direction, rules) {
   const cur = editor.getCursor();
   const lineNo = cur.line;
+  /* Код, таблица, frontmatter и линия — не строки текста: ни Prefix, ни отступа (BUGHUNT 2026-09-30, B4). */
+  if (__sharedUtils.isCodeOrTableLine((n) => editor.getLine(n), lineNo)) return;
   const line = editor.getLine(lineNo);
   const currentIndent = getIndent(line);
   const indentWidth = rules.indentWidth || 4;
@@ -1529,10 +1539,9 @@ async function setCursorRobustCentered(ed, p, cfg) { const apply = () => { ed.se
 function txt(ed, l) { return String(nz(ed.getLine(l), "")); }
 function len(ed, l) { return txt(ed, l).length; }
 function isBlank(ed, l) { return txt(ed, l).trim().length === 0; }
-function isTableLineText(s) { return String(nz(s, "")).trimStart().startsWith("|"); }
 function isDashSepText(s) { return /^-+$/.test(String(nz(s, "")).trim()); }
-function findPrevHeader(ed, fromLine) { for (let l = Math.min(fromLine, ed.lastLine()); l >= 0; l--) if (isHeader(ed.getLine(l))) return l; return -1; }
-function findNextHeader(ed, fromLine) { const max = ed.lastLine(); for (let l = Math.max(0, fromLine + 1); l <= max; l++) if (isHeader(ed.getLine(l))) return l; return -1; }
+function findPrevHeader(ed, fromLine) { for (let l = Math.min(fromLine, ed.lastLine()); l >= 0; l--) if (isHeaderAt(ed, l)) return l; return -1; }
+function findNextHeader(ed, fromLine) { const max = ed.lastLine(); for (let l = Math.max(0, fromLine + 1); l <= max; l++) if (isHeaderAt(ed, l)) return l; return -1; }
 /*
  * Начало безымянной секции — текста выше первого заголовка.
  *
@@ -1546,13 +1555,13 @@ function unnamedSectionStart(ed) { const yamlEnd = findYamlEnd(ed); return yamlE
  * строки-заголовка, и начинается она сразу после frontmatter.
  */
 function sectionContentRange(ed, headerLine) { const max = ed.lastLine(); const nextH = findNextHeader(ed, headerLine); const a = headerLine < 0 ? unnamedSectionStart(ed) : headerLine + 1; return { a, b: nextH === -1 ? max : nextH - 1, nextH }; }
-function tableBlockInSection(ed, headerLine, curLine) { const { a, b } = sectionContentRange(ed, headerLine); if (curLine < a || curLine > b || !isTableLineText(txt(ed, curLine))) return null; let top = curLine; while (top - 1 >= a && isTableLineText(txt(ed, top - 1)) && !isBlank(ed, top - 1)) top--; let bot = curLine; while (bot + 1 <= b && isTableLineText(txt(ed, bot + 1)) && !isBlank(ed, bot + 1)) bot++; return { top, bot, a, b }; }
-function findAllowedLineUp(ed, startLine, a) { for (let l = startLine; l >= a; l--) { const s = txt(ed, l); if (isTableLineText(s) || isDashSepText(s)) continue; return l; } return -1; }
-function findAllowedLineDown(ed, startLine, b) { for (let l = startLine; l <= b; l++) { const s = txt(ed, l); if (isTableLineText(s) || isDashSepText(s)) continue; return l; } return -1; }
+function tableBlockInSection(ed, headerLine, curLine) { const { a, b } = sectionContentRange(ed, headerLine); if (curLine < a || curLine > b || !isTableAt(ed, curLine)) return null; let top = curLine; while (top - 1 >= a && isTableAt(ed, top - 1) && !isBlank(ed, top - 1)) top--; let bot = curLine; while (bot + 1 <= b && isTableAt(ed, bot + 1) && !isBlank(ed, bot + 1)) bot++; return { top, bot, a, b }; }
+function findAllowedLineUp(ed, startLine, a) { for (let l = startLine; l >= a; l--) { const s = txt(ed, l); if (isTableAt(ed, l) || isDashSepText(s)) continue; return l; } return -1; }
+function findAllowedLineDown(ed, startLine, b) { for (let l = startLine; l <= b; l++) { const s = txt(ed, l); if (isTableAt(ed, l) || isDashSepText(s)) continue; return l; } return -1; }
 function isContentLine(ed, l) {
   const s = txt(ed, l);
   if (!s.trim()) return false;
-  if (isDashSepText(s) || isTableLineText(s)) return false;
+  if (isDashSepText(s) || isTableAt(ed, l)) return false;
   return true;
 }
 function findNextContentLineInRange(ed, fromLine, toLine) {
@@ -1569,8 +1578,8 @@ function sectionAnchorsAvoidTables(ed, headerLine, cfg) {
      строка. Строки с номером -1 не существует, и прыгать туда нельзя. */
   const fallback = headerLine < 0 ? unnamedSectionStart(ed) : headerLine;
   if (a > b) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
-  let startLine = -1; for (let l = a; l <= b; l++) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableLineText(s)) continue; startLine = l; break; }
-  let endLine = -1; for (let l = b; l >= a; l--) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableLineText(s)) continue; endLine = l; break; }
+  let startLine = -1; for (let l = a; l <= b; l++) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableAt(ed, l)) continue; startLine = l; break; }
+  let endLine = -1; for (let l = b; l >= a; l--) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableAt(ed, l)) continue; endLine = l; break; }
   if (startLine === -1 || endLine === -1) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
   return { startPos: targetPosForLine(ed, startLine, cfg), endPos: targetPosForLine(ed, endLine, cfg) };
 }

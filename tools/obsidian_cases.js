@@ -316,6 +316,24 @@ module.exports = [
   one("B12.b", "Smart Backspace под оградой кода не склеивает с ней", "```\ncode\n```\n- a",
     [{ key: "Backspace" }], "", { at: { file: "t.md", line: 3, ch: 2 }, expect: {}, cfg: { editor: { smartDelete: { onBackspace: true } } },
       check: "const e = a.workspace.activeEditor.editor; return e.getLine(2) === '```' || JSON.stringify(e.getValue());" }),
+  /* Q1 в навигации: `# …` в коде — не заголовок, код и таблица — не строки текста. */
+  one("B6", "Jump down не останавливается на `# …` внутри кода", "# H1\ntext\n```\n# c\n```\n# H2",
+    ["jump-next"], "", { at: { file: "t.md", line: 0, ch: 4 }, expect: {},
+      check: "const l = a.workspace.activeEditor.editor.getCursor().line; return l === 4 || l === 5 || 'каретка на строке ' + l;" }),
+  one("B7", "Whole section не рвёт блок кода с `# comment`", "# A\n- a\n# B\n```bash\n# comment\necho 1\n```",
+    ["move-line-up"], "# B\n```bash\n# comment\necho 1\n```\n# A\n- a",
+    { at: { file: "t.md", line: 2, ch: 3 }, cfg: { navigation: { moveLine: { headerMode: "move-with-section" } } } }),
+  one("B4.a", "Move right в коде не ставит Prefix", "```\ncode\n```", ["move-right"], "```\ncode\n```",
+    { at: { file: "t.md", line: 1, ch: 4 }, cfg: { navigation: { moveSelection: { prefixCyclerEnabled: true } } } }),
+  /* Ячейки выравнивает редактор таблиц Obsidian сам — спрашивается только Prefix. */
+  one("B4.b", "Move right в таблице не ставит Prefix", "| p | q |\n|---|---|\n| 1 | 2 |", ["move-right"], "",
+    { at: { file: "t.md", line: 2, ch: 3 }, expect: {}, cfg: { navigation: { moveSelection: { prefixCyclerEnabled: true } } },
+      check: "const l = a.workspace.activeEditor.editor.getLine(2); return /^\\|/.test(l) || l;" }),
+  one("B7.ctl", "Whole section в конце файла без кода — контроль к B7", "# A\n- a\n# B\ntext",
+    ["move-line-up"], "# B\ntext\n# A\n- a",
+    { at: { file: "t.md", line: 2, ch: 3 }, cfg: { navigation: { moveLine: { headerMode: "move-with-section" } } } }),
+  one("B1", "Move down перескакивает таблицу целиком", "- a\n| p | q |\n|---|---|\n| 1 | 2 |\n- z",
+    ["move-line-down"], "| p | q |\n|---|---|\n| 1 | 2 |\n- a\n- z", { at: { file: "t.md", line: 0, ch: 3 } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
      строки с маркером, включая пузырь тега, и ни на одном узле соседней. В чистом
      vault строка без галочки: `[x]` зачёркивает сам Obsidian (`app.css`,
