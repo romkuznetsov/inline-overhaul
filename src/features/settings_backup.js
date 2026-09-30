@@ -1,6 +1,7 @@
 "use strict";
 
 const __sharedUtils = require("../core/shared_utils.js");
+const __configNormalize = require("../core/config_normalize.js");
 
 /**
  * Копия настроек: заметка vault, а не служебный файл (PRD 10.13.2).
@@ -392,7 +393,10 @@ function countValues(map) {
  * файле лежит, а не по схеме: копию мог написать плагин другой версии.
  */
 function summarize(cfg) {
-  const pkm = isObj(cfg) && isObj(cfg.pkm) ? cfg.pkm : {};
+  /* Копия старой версии приносит то, что даст ей переезд: состав считается по
+     нему, а не по форме версии 1, где Fields лежат иначе (BUGHUNT 2026-09-30, D2). */
+  if (isObj(cfg) && !(Number(cfg.schemaVersion) >= 2)) cfg = __configNormalize.migrateConfig(JSON.parse(JSON.stringify(cfg)));
+  const pkm =isObj(cfg) && isObj(cfg.pkm) ? cfg.pkm : {};
   const fields = isObj(pkm.fields) ? pkm.fields : {};
   const order = isObj(fields.order) ? fields.order : {};
   const sides = [];

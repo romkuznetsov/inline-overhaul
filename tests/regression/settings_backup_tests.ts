@@ -1539,4 +1539,14 @@ function sampleConfig(): Record<string, unknown> {
   ok("копия без меток восстанавливает настройки, а не хоткеи; чужой JSON отказывает");
 }
 
+{
+  /* BUGHUNT 2026-09-30, D2: копия старой версии называла «0 Fields, 0 Values»,
+     а приносила четыре поля — состав считался по форме версии 2. */
+  const v1 = requireCjs(path.join(root, "tests", "fixtures", "config_v1_realistic.json"));
+  assert.ok(!(Number(v1.schemaVersion) >= 2), "контроль: фикстура не версии 1");
+  const s = backup.summarize(JSON.parse(JSON.stringify(v1)));
+  assert.ok(s.fields > 0 && s.values > 0, "D2: состав копии версии 1 посчитан пустым: " + JSON.stringify(s));
+  ok("состав копии версии 1 считается после переезда");
+}
+
 console.log("\n" + passed + " проверок пройдено");

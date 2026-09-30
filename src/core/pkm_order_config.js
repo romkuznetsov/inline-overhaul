@@ -521,10 +521,14 @@ function subYamlNavigator(order, subKey) {
 }
 
 /** Новый дочерний Field выключен, пока человек не выбрал положение. */
+/* Заводит дочерний ключ всеми картами, которые `normalizePkmOrder` заводит
+   каждому ключу Order: без `freeRoam` второй проход `migrateConfig` дописывал
+   его сам, и хранилище читало это как чужую правку файла (BUGHUNT 2026-09-30, D1). */
 function seedSubActive(order, subKey) {
   if (Object.prototype.hasOwnProperty.call(order.active, subKey)) return;
   order.active[subKey] = "no";
   order.enabled[subKey] = false;
+  if (!Object.prototype.hasOwnProperty.call(order.freeRoam, subKey)) order.freeRoam[subKey] = "off";
 }
 
 /** Видно ли поле в tagWheel только пока зажат `Alt` (`З-36`). */
