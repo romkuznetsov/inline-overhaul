@@ -127,7 +127,9 @@ function planSmartEnter(opts) {
    * человек выбрал «без знака».
    */
   const marker = nextMarkerFor(text, o.newLinePrefix);
-  const newLineText = p.indent + p.quote + marker;
+  /* Цитата повторяется, имя каллаута нет: второй `[!note]` подряд — новый
+     каллаут, а не продолжение (BUGHUNT 2026-09-30, B14). */
+  const newLineText = p.indent + __sharedUtils.lineStartOf(text).quote + marker;
   return { newLineText, cursorCh: newLineText.length };
 }
 

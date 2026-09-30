@@ -186,6 +186,16 @@ function apply(line, result) {
   ok("строка с одним разделителем: слот текста с той стороны, где текст");
 }
 
+/* ---- заголовок каллаута не повторяется (BUGHUNT 2026-09-30, B14) -------- */
+
+{
+  const head = "> [!note] Title";
+  assert.strictEqual(plan(head, 11).newLineText, "> ", "B14: Enter на заголовке каллаута начал второй каллаут");
+  assert.strictEqual(plan(head, 11, { newLinePrefix: "none" }).newLineText, "> ", "B14: при Prefix = None тоже");
+  assert.strictEqual(plan("> - [x] item", 12).newLineText, "> - [ ] ", "контроль: знак внутри цитаты повторяется");
+  console.log("  ok заголовок каллаута на новую строку не переносится, цитата — да");
+}
+
 /* ---- знак списка на новой строке ---------------------------------------- */
 
 {

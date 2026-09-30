@@ -338,6 +338,8 @@ module.exports = [
     { at: { file: "t.md", line: 2, ch: 3 }, cfg: { navigation: { moveLine: { headerMode: "move-with-section" } } } }),
   one("B1", "Move down перескакивает таблицу целиком", "- a\n| p | q |\n|---|---|\n| 1 | 2 |\n- z",
     ["move-line-down"], "| p | q |\n|---|---|\n| 1 | 2 |\n- a\n- z", { at: { file: "t.md", line: 0, ch: 3 } }),
+  one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
+    [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
      строки с маркером, включая пузырь тега, и ни на одном узле соседней. В чистом
      vault строка без галочки: `[x]` зачёркивает сам Obsidian (`app.css`,
