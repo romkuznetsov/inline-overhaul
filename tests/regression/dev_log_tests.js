@@ -73,7 +73,7 @@ async function testSessionRotatesPreviousRecordAndWritesBoth() {
   const adapter = makeAdapter({
     "logs/InlineOverhaul_DevLog.new.20260101-101010.md": "# InlineOverhaul Dev Log (Human)\nстарое\n",
   });
-  const plugin = makePlugin({ enabled: true, aiLog: true, logPath: "logs/InlineOverhaul_DevLog" }, adapter);
+  const plugin = makePlugin({ enabled: true, aiLog: true, logPath: "logs" }, adapter);
 
   await devLog.startSession(plugin, plugin.getConfig());
 
@@ -120,7 +120,7 @@ async function testDisabledDevModeWritesNothing() {
    * того, что мерить нечего (У-88).
    */
   const adapter = makeAdapter({});
-  const plugin = makePlugin({ enabled: false, aiLog: true, logPath: "logs/InlineOverhaul_DevLog" }, adapter);
+  const plugin = makePlugin({ enabled: false, aiLog: true, logPath: "logs" }, adapter);
   await devLog.startSession(plugin, plugin.getConfig());
   devLog.event(plugin, "pkm.run.result", { command: "tagWheel" }, "info", plugin.getConfig());
   await plugin._devLogWriteQueue;
@@ -224,6 +224,13 @@ function testLogPathShapes() {
   assertEq(asDir.dir, "logs", "путь с косой на конце — это папка");
   assertEq(asDir.baseName, "InlineOverhaul_DevLog", "и имя берётся умолчанием");
   assertEq(asDir.ext, "ndjson", "расширение — машинное");
+
+  /* BUGHUNT 2026-09-30, D4: контрол — `Log folder`, и умолчание без косой —
+     тоже папка, а не имя файла в корне vault. */
+  const asFolder = devLog.logPathParts({ logPath: "InlineOverhaul_DevLog" }, "md");
+  assertEq(asFolder.dir, "InlineOverhaul_DevLog", "D4: путь без расширения — не папка");
+  assertEq(asFolder.baseName, "InlineOverhaul_DevLog", "и имя внутри неё — умолчание");
+  assertEq(devLog.logPathParts({ logPath: "a\\b" }, "md").dir, "a/b", "обратная косая — та же папка");
 
   const withRole = devLog.logPathParts({ logPath: "InlineOverhaul_DevLog.old.20260101-101010.md" }, "md");
   assertEq(withRole.baseName, "InlineOverhaul_DevLog", "роль и время из имени снимаются");

@@ -867,7 +867,7 @@ async function run() {
   assertTrue(/async function listLogFiles\(adapter, parts\) \{/.test(devLogSrc), "и перечисляет прежние записи");
   assertTrue(/function trimAiLogContent\(content, dm\) \{/.test(devLogSrc), "машинная запись обрезается по времени и числу");
   assertTrue(/function trimHumanLogContent\(content, dm\) \{/.test(devLogSrc), "человеческая — тоже");
-  assertTrue(devLogSrc.includes("const maybeDir = /\\/$/.test(asForward);"), "путь, кончающийся косой, читается как папка");
+  assertTrue(devLogSrc.includes("const maybeDir = /\\/$/.test(asForward) || !/\\.(?:ndjson|md)$/i.test(asForward);"), "путь с косой на конце или без расширения журнала читается как папка");
   assertTrue(/async function ensureDirectoryForFilePath\(adapter, filePath\)/.test(devLogSrc), "папки под запись создаются до записи");
   assertTrue(/try \{\s*await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);\s*\} catch \(e\)/.test(bootstrapSrc), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);/.test(bootstrapSrc), "onload initializes dev log session rotation");

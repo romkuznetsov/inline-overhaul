@@ -70,8 +70,10 @@ function logPathParts(dm) {
   const raw = String(dm && dm.logPath ? dm.logPath : DEFAULT_CONFIG.devMode.logPath).trim() || DEFAULT_CONFIG.devMode.logPath;
   const ext = String(extHint || "md").trim().toLowerCase() === "ndjson" ? "ndjson" : "md";
   const asForward = raw.replace(/\\/g, "/");
-  const maybeDir = /\/$/.test(asForward);
-  const withDefault = maybeDir ? `${asForward}InlineOverhaul_DevLog` : asForward;
+  /* Контрол называется `Log folder`: путь без расширения журнала — папка, а не
+     начало имени файла в корне vault (BUGHUNT 2026-09-30, D4). */
+  const maybeDir = /\/$/.test(asForward) || !/\.(?:ndjson|md)$/i.test(asForward);
+  const withDefault = maybeDir ? `${asForward.replace(/\/?$/, "/")}InlineOverhaul_DevLog` : asForward;
   const noExt = withDefault.replace(/\.(?:ndjson|md)$/i, "");
   const noRole = noExt.replace(/\.(?:new|old)(?:\.\d{8}-\d{6})?$/i, "");
   const i = noRole.lastIndexOf("/");
