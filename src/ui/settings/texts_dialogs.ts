@@ -81,7 +81,7 @@ export const DIALOG_TEXTS = {
     ROW_HOTKEYS_OWN: "And {0} on the plugin commands",
     ROW_HOTKEYS_VAULT: "And {0} from this vault",
     /* Объём хоткеев в копии — сказать в окне восстановления прямо. */
-    HOTKEYS_ALL_WARNING: "This backup holds hotkeys of other plugins too, and restoring puts them back",
+    HOTKEYS_ALL_WARNING: "This backup holds hotkeys of other commands too, Obsidian’s own among them, and restoring puts them back",
     /* Конфликты хоткеев (ответ заказчика 2026-09-06). */
     CONFLICT_LABEL: "Free up keys other commands are holding",
     CONFLICT_SUB: "Off by default: this is the one thing here that changes settings outside this plugin",
