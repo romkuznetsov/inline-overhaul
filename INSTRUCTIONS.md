@@ -690,7 +690,7 @@ Target template: Templates/Meeting.md
 **Auto** naming priority:
 
 1. First non-empty text inside configured explicit delimiters, excluding wikilinks and checkbox syntax.
-2. Markdown header title when **prefer header title** is active.
+2. The heading text, when the line is a Markdown heading.
 3. First configured number of payload words.
 
 Example:

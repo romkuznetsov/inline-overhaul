@@ -56,7 +56,7 @@ reference disagreeing.
 ### Modules
 
 Four toggles: `Navigation`, `Tags & PKM`, `Transform`, `Visual`. All on by default. A
-module that is off adds no commands and touches no notes; its settings are hidden until you
+module that is off touches no notes, and its commands only say that it is switched off; its settings are hidden until you
 turn it back on, and nothing you configured is lost. `Visual` off hands the look of your notes
 back to your theme, all but the tagWheel colors, which the panel needs to stay readable.
 
@@ -385,6 +385,7 @@ See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping
 | `What happens with current line` | `remove` | What is left of the line you pressed on |
 | `Words to keep` | `3` | How much of the line stays behind |
 | `Fields to keep` | — | Which Fields stay on the line you pressed on |
+| `Keep sub-fields` | off | A Field you keep keeps its child Values on the line too |
 | `Insert wikilink in current line` | on | Puts a link to the new note on the line you pressed on |
 | `Mark transformed line` | `#processed` | A word or tag added so you can see the line was handled |
 | `Where the mark goes` | `right` | Before your text, or after it |
@@ -399,6 +400,7 @@ See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-se
 | Control | Default | What it does |
 |---|---|---|
 | `Link the notes you mention` | off | Writes a link to the new note into the notes of the link Values on this line (existing notes only); a link Field with `Use as MOC` set to `No` is left out |
+| `Link to Navigator` | off | Also writes the link into the navigator note of a child link |
 | `Add empty line before wikilink` | on | Keeps a blank line between the links written into a note; off writes them one under another |
 | `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
 | `Name of the heading` | unset | The heading the link is filed under |
@@ -423,16 +425,16 @@ How a tagged line looks while you write it. Nothing here changes a character in 
 | `Opacity of the Right Block` | `100` | Dims everything written after your text |
 | `Left Block text size` | `100` | How big everything before your text is written |
 | `Right Block text size` | `100` | How big everything after your text is written |
-
-At `100` a tag is drawn the size your theme gives a tag — the same size it has in reading
-mode — and not the size of the text beside it. Links and dates in a Block keep the size of
-the line.
 | `Color the Block with Stripe` | off | A Stripe behind the Left Block and the Right Block |
 | `Stripe direction` | `both` | Which of the two Blocks gets a Stripe |
 | `Stripe color` | unset | Unset follows your theme |
 | `Stripe opacity` | `12` | How strongly the Stripe shows through |
 | `Stripe height` | `60` | How far the Stripe reaches above and below the writing |
 | `Stripe width` | `50` | How far the Stripe reaches past the Block on both sides |
+
+At `100` a tag is drawn the size your theme gives a tag — the same size it has in reading
+mode — and not the size of the text beside it. Links and dates in a Block keep the size of
+the line.
 
 ### Inline appearance → Tag view
 
@@ -496,8 +498,6 @@ tag Field draws them.
 The picker opens over the line and lays your Fields out across it, with the Values of the
 Field you are on running down.
 
-| Control | Default | What it does |
-|---|---|---|
 The group has two subheadings, `Panel` and `Scroller`, and each folds away with the
 triangle beside it, so the preview at the top stays in view while you work.
 
