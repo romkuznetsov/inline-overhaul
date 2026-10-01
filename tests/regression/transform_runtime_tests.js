@@ -217,6 +217,20 @@ async function testNewNoteRaceUsesActualPathLink() {
   assertEq(editor.text(), "\t- [ ] :: [[Notes/Task-01]]", "source uses actual target path and indent");
 }
 
+/* C18 перечня 2026-09-30: `{{title}}` шаблона — имя заметки, а не текст строки. */
+async function testTemplateTitleIsNoteName() {
+  const editor = makeEditor("- [ ] :: Ask: why? now");
+  const plugin = makePlugin(makeConfig({ defaultTemplate: "Templates/T.md" }), editor,
+    { initialFiles: { "Templates/T.md": "# Meeting {{title}}\n" } });
+  await transform.runInline2Note(plugin, { lineFinalize });
+  const made = [...plugin.files.keys()].filter((k) => k.startsWith("Notes/"));
+  assertEq(made.length, 1, "заметка не создана: " + JSON.stringify(made));
+  const name = made[0].replace(/^Notes\//, "").replace(/\.md$/, "");
+  assertTrue(name !== "Ask: why? now", "фикстура слепа: имя файла совпало с текстом строки");
+  assertTrue(String(plugin.files.get(made[0])).startsWith("# Meeting " + name + "\n"),
+    "{{title}} не равен имени заметки " + JSON.stringify(name) + ": " + JSON.stringify(plugin.files.get(made[0])));
+}
+
 async function testReplacePayloadFalse() {
   const editor = makeEditor("- [ ] :: Keep me");
   const plugin = makePlugin(makeConfig({ sourceProcessing: { cleanupFieldIds: [], token: "#done", panel: "right", replaceWithLink: false } }), editor);
@@ -1222,6 +1236,7 @@ async function runBacklinkSuite() {
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
+  await testTemplateTitleIsNoteName();
   await testSourceFailureRollsBackCreatedTarget();
   await testSourceFailureRestoresOverwrittenTarget();
   await testSourceFailureRestoresAppendedNote();

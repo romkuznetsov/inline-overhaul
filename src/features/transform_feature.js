@@ -4091,7 +4091,10 @@ async function runInline2Note(plugin, runtimeOptions) {
     || String(i2n.defaultTemplate || "").trim();
   const templateContent = target.mode === "add_to_note" && target.exists
     ? ""
-    : fillTemplateVariables(await readTemplateContent(plugin, templatePath), title);
+    /* `{{title}}` — имя заметки, как у шаблонов Obsidian, а не сырой текст
+       строки с тегами и знаками (BUGHUNT 2026-09-30, C18). */
+    : fillTemplateVariables(await readTemplateContent(plugin, templatePath),
+      deriveSourceWikilinkFromTargetPath(target.path).split("/").pop() || title);
   const { yamlLines, body, newline } = parseFrontmatter(templateContent);
   const mergedYaml = renderYamlBlockWithOrder(yamlLines, yamlMap, cfg);
   /*
