@@ -3667,18 +3667,21 @@ function readHeadingLine(line) {
  * Пустые строки в конце секции — отступ перед следующим заголовком, а не её
  * содержимое: блок встаёт до них.
  */
-function findCustomHeaderInsertAt(lines, spec) {
+function findCustomHeaderLine(lines, spec) {
   if (!spec) return -1;
   const wanted = String(spec.text || "").toLowerCase();
-  let at = -1;
   for (let i = 0; i < lines.length; i++) {
     const h = readHeadingLine(lines[i]);
     if (!h) continue;
     if (spec.level && h.level !== spec.level) continue;
     if (h.text.toLowerCase() !== wanted) continue;
-    at = i;
-    break;
+    return i;
   }
+  return -1;
+}
+
+function findCustomHeaderInsertAt(lines, spec) {
+  const at = findCustomHeaderLine(lines, spec);
   if (at === -1) return -1;
   const own = readHeadingLine(lines[at]).level;
   let end = lines.length;
@@ -3700,13 +3703,14 @@ function findCustomHeaderInsertAt(lines, spec) {
  * `null` значит «заголовок не найден»: решение, что делать дальше, принимает
  * вызывающий, потому что запасные положения у двух путей разные.
  */
-function placeBlockUnderHeader(baseBody, block, spec, nl, spaced = true) {
+function placeBlockUnderHeader(baseBody, block, spec, nl, spaced = true, headed = false) {
   const lines = String(baseBody || "").replace(/\r?\n/g, nl).split(nl);
   const at = findCustomHeaderInsertAt(lines, spec);
   if (at === -1) return null;
   const head = lines.slice(0, at);
   const tail = lines.slice(at);
-  const blockLines = String(block || "").split(nl);
+  const section = readHeadingLine(lines[findCustomHeaderLine(lines, spec)]).level;
+  const blockLines = String(headed ? entryUnderSection(block, section, nl) : block || "").split(nl);
   const out = head.slice();
   /*
    * Пустая строка с обеих сторон, и это то же самое, что делает `At the end`:
@@ -3753,10 +3757,28 @@ function headerLineForSpec(spec) {
  * причине, по какой одна на двоих `placeBlockUnderHeader`: в этом файле два
  * объявления правила укладки расходились трижды (У-32).
  */
-function blockWithOwnHeader(block, spec, nl) {
+function blockWithOwnHeader(block, spec, nl, headed = false) {
   const body = String(block || "");
   const header = headerLineForSpec(spec);
-  return header ? `${header}${nl}${body}` : body;
+  if (!header) return body;
+  const entry = headed ? entryUnderSection(body, readHeadingLine(header).level, nl) : body;
+  return `${header}${nl}${entry}`;
+}
+
+/**
+ * Заголовок записи — на уровень ниже заголовка раздела (его ответ `В-254`,
+ * 2026-10-01). Запись того же уровня, что `## Log`, по разметке сама закрывает
+ * раздел, и следующая встаёт перед ней: записи шли в обратном порядке
+ * (BUGHUNT 2026-09-30, C2). Трогается только заголовок, который ставит плагин
+ * (`headed`), — текст человека, даже если он заголовок, остаётся как есть.
+ * Раздел шестого уровня глубже опустить некуда: запись остаётся шестого.
+ */
+function entryUnderSection(block, sectionLevel, nl) {
+  const lines = String(block || "").split(nl);
+  const h = readHeadingLine(lines[0]);
+  if (!h || h.level > sectionLevel || sectionLevel >= 6) return String(block || "");
+  lines[0] = `${"#".repeat(sectionLevel + 1)} ${h.text}`;
+  return lines.join(nl);
 }
 
 /*
@@ -3803,9 +3825,10 @@ function composeBodyWithPlacement(templateBody, inlineLine, i2n, newline) {
    */
   if (pos === "custom-header") {
     const spec = parseTargetHeaderSpec(placement.targetHeader);
-    const placed = placeBlockUnderHeader(base, block, spec, nl);
+    const headed = /^#/.test(header);
+    const placed = placeBlockUnderHeader(base, block, spec, nl, true, headed);
     if (placed !== null) return placed;
-    const own = blockWithOwnHeader(block, spec, nl);
+    const own = blockWithOwnHeader(block, spec, nl, headed);
     if (!base.trim()) return own + nl;
     const fallback = String(placement.fallback || "end").trim().toLowerCase();
     if (fallback === "beginning") return `${own}${nl}${nl}${base}`;
@@ -3854,12 +3877,15 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   const parsed = parseFrontmatter(before);
   const head = before.slice(0, before.length - parsed.body.length);
   const spec = parseTargetHeaderSpec(placement.targetHeader);
-  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl, spaced);
+  /* Первая строка блока — наш заголовок, только если его ставит `Line above
+     the text`; иначе это текст человека (`В-254`). */
+  const headed = /^#/.test(formatHeaderByMode(i2n));
+  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl, spaced, headed);
   if (placed !== null) return `${head}${placed}`;
   /* Заголовка в заметке нет — заводится сам, тем же правилом, что и у новой
      заметки (S4). Второе правило «как выглядит заведённый заголовок»
      разошлось бы с первым молча (У-32). */
-  const own = blockWithOwnHeader(text, spec, nl);
+  const own = blockWithOwnHeader(text, spec, nl, headed);
   const fallback = String(placement.fallback || "end").trim().toLowerCase();
   if (fallback === "beginning") {
     const body = parsed.body.replace(/\r?\n/g, nl);

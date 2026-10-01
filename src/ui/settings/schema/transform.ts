@@ -127,7 +127,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
                 {value:"none",label:"None"} ] },
     { kind:"dropdown", id:"content-header-level", path:"transform.inline2note.placement.headerLevel", default:"3",
       name:"Line above is a heading", desc:"Make that line a heading you can fold, or leave it as plain text",
-      tip:"A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
+      tip:"A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. Filed under a heading of the same depth or deeper, the entry goes one level below it, so entries stay in the order you wrote them. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
       visible:{ deps:["transform.inline2note.placement.headerMode"],
                 test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
       options:[ {value:"0",label:"Plain text"}, {value:"1",label:"1"}, {value:"2",label:"2"},

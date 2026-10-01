@@ -1118,6 +1118,33 @@ runElementValueWrittenByPluginIsFoundSuite();
   console.log("  ok Add empty line before wikilink: Off пишет ссылки без пустых строк, On — как было");
 })();
 
+/* Его ответ В-254 (BUGHUNT 2026-09-30, C2): заголовок записи — на уровень ниже
+   раздела, и записи идут в том порядке, в каком написаны. */
+(function runEntryUnderSectionSuite() {
+  const i2n = { placement: { position: "custom-header", targetHeader: "## Log", fallback: "end",
+    headerMode: "custom", customHeader: "E", headerLevel: "2" } };
+  let note = "# Дневник\n## Log\n\n## Другое\n";
+  for (const w of ["alpha", "beta", "gamma"]) {
+    note = transform.appendBlockIntoNote(note, transform.composeAppendBlock("- " + w, i2n), i2n, "\n");
+  }
+  const order = note.split("\n").filter((l) => /^- /.test(l)).map((l) => l.slice(2));
+  assertEq(order.join(","), "alpha,beta,gamma", "C2: записи под разделом легли не по порядку:\n" + note);
+  assertEq(note.split("\n").filter((l) => l === "### E").length, 3, "C2: заголовок записи не опущен ниже раздела:\n" + note);
+  assertEq(note.split("\n").filter((l) => l === "## Другое").length, 1, "соседний раздел цел");
+  /* Новая заметка: раздел заводится сам, запись — уровнем ниже. */
+  assertEq(transform.composeBodyWithPlacement("", "- alpha", i2n, "\n"), "## Log\n### E\n- alpha\n",
+    "C2: в новой заметке запись того же уровня, что раздел");
+  /* Отрицательный контроль: запись глубже раздела не трогается. */
+  const deep = { placement: { ...i2n.placement, headerLevel: "4" } };
+  assertEq(transform.appendBlockIntoNote("## Log\n", transform.composeAppendBlock("- x", deep), deep, "\n"), "## Log\n\n#### E\n- x\n",
+    "запись глубже раздела опущена ещё раз");
+  /* Отрицательный контроль: без строки над текстом первая строка — текст человека. */
+  const none = { placement: { ...i2n.placement, headerMode: "none" } };
+  assertEq(transform.appendBlockIntoNote("## Log\n", "## сырой", none, "\n"), "## Log\n\n## сырой\n",
+    "текст человека, похожий на заголовок, опущен как наш");
+  console.log("  ok В-254: заголовок записи на уровень ниже раздела, порядок записей сохранён");
+})();
+
 console.log("Transform feature regression tests: OK");
 
 /* Ревизия Г-4: подпуть ссылки не становится именем заметки. */

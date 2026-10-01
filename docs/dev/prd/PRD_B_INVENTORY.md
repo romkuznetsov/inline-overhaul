@@ -755,7 +755,7 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
   - старые названия для поиска: «Inserted block header»
 - **Line above is a heading** — `content-header-level`, `dropdown`, path `transform.inline2note.placement.headerLevel`, default `3`
   - desc: Make that line a heading you can fold, or leave it as plain text
-  - tip: A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself — this row puts them in, so the boxes below hold only the text
+  - tip: A heading folds, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. Filed under a heading of the same depth or deeper, the entry goes one level below it, so entries stay in the order you wrote them. You do not type the hashes yourself — this row puts them in, so the boxes below hold only the text
   - варианты: `0` Plain text · `1` 1 · `2` 2 · `3` 3 · `4` 4 · `5` 5 · `6` 6
   - видна если: `transform.inline2note.placement.headerMode`
 - **Text of the line above** — `content-header-text`, `text`, path `transform.inline2note.placement.customHeader`, default `Captured`
