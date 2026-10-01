@@ -45,6 +45,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 22. 🐛 **Smart Rules speak the panel's words** — `Rule 2`, Tag, Element, Link — and `Custom` starts from your `Note content` values.
 23. 🐛 **A new Element writes its date to YAML without the marker,** as `Due` does.
 24. 🐛 **Backups:** restoring a backup of some tabs says so and counts only what it holds, `Start over` keeps the tab you had open, and the update notes window is not undone by `Undo`.
+25. 🐛 **`Clear line` leaves an emptied line empty everywhere,** keeping only its indent and quote — the same from a command and from tagWheel.
+26. 🎨 **Moving a selected word keeps the punctuation where it was:** `buy bread, [milk]!` moved left becomes `buy [milk], bread!`.
+27. 🎨 **`Name brackets` takes two different characters only,** and says so when it gets something else.
+28. 🐛 **Tag Bars let go of a Field you delete,** and the preview says the Bars need one.
+29. 🎨 **`Machine-readable log` is off for a new install,** and the times in the plain log are marked `UTC`; restoring a backup that matches your settings says nothing changed.
 18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
 19. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
 20. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
