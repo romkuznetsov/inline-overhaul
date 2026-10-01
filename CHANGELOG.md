@@ -38,6 +38,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 15. 🐛 **tagWheel panel fill stays under a tag that shows its `#`, and a Value's own text sits next to it.** With `Custom + default`, `🎯 #todo` is as close as two words.
 16. ✨ **`Move left/right` can take the tree along.** `Indent the whole tree`, under `Change the indent`, gives the lines indented under the line the same step.
 17. 🐛 **`Highlight after moving` colours the lines instead of selecting them.** The next letter you type no longer replaces what you just moved.
+18. 🐛 **tagWheel shows a link Value by its label in the active cell:** `[Shown]`, not `Shown]`.
+19. 🐛 **Undo from the command palette redraws the toggle you just clicked** in the settings.
+20. 🐛 **`Jump right` by sentence past the Separators stops at the end of your last sentence,** and `Smart Delete` on several cursors is undone with one `Ctrl+Z`.
+21. 🐛 **`Inline to note`:** the `Source line` preview keeps the checkbox as the command does, `{{title}}` is the note name, one blank line separates template and text, and `Ask` will not take an empty name.
+22. 🐛 **Smart Rules speak the panel's words** — `Rule 2`, Tag, Element, Link — and `Custom` starts from your `Note content` values.
+23. 🐛 **A new Element writes its date to YAML without the marker,** as `Due` does.
+24. 🐛 **Backups:** restoring a backup of some tabs says so and counts only what it holds, `Start over` keeps the tab you had open, and the update notes window is not undone by `Undo`.
 18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
 19. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
 20. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
