@@ -207,6 +207,10 @@ function runCommand(win, id) {
 const README_LINE = "- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15";
 
 const PREPARE = {
+  /* H1.1 прогона 2026-10-02: пустой пузырь для сценария `panel-write-refresh`. */
+  "panel-write-refresh"(vault) {
+    fs.writeFileSync(path.join(vault, "bubble.md"), "первая строка\n\n- #high :: текст\n\nпоследняя строка\n");
+  },
   /* H3.1 прогона 2026-10-02: заметка со свойствами для сценария `properties-focus`. */
   "properties-focus"(vault) {
     fs.writeFileSync(path.join(vault, "props.md"), "---\ntitle: a\nstatus: b\n---\n- first line\n- second line\n");
@@ -1328,6 +1332,49 @@ const SCENARIOS = {
    * как встроенная `Swap line up`. Контроль: фокус в тексте — та же команда
    * переставляет строку.
    */
+  /*
+   * H1.1 прогона 2026-10-02: контрол панели, который живёт в самой отрисовке
+   * (`Empty tag bubble width`), доезжает до открытой заметки без касания.
+   * Пишется тем же хранилищем, каким пишет контрол, — `pane.deps.store.set`.
+   * Контроль — пузырь пустой и измерен (У-152).
+   */
+  async "panel-write-refresh"(win) {
+    const n = await openAt(win, "bubble.md", "- #high :: текст");
+    if (n < 0) throw new Error("нет строки в bubble.md");
+    const r = await win.evaluate(async (n) => {
+      const a = window.app;
+      const plugin = a.plugins.plugins["inline-overhaul"];
+      const ed = a.workspace.activeEditor.editor;
+      ed.setCursor({ line: 0, ch: 0 });
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+      await sleep(400);
+      const width = () => {
+        const row = ed.cm.contentDOM.querySelectorAll(".cm-line")[n];
+        const b = row && row.querySelector("[data-io-tag-token]");
+        return b ? Math.round(b.getBoundingClientRect().width * 10) / 10 : -1;
+      };
+      const pane = plugin._settingTab && plugin._settingTab.pane;
+      const store = pane && pane.deps && pane.deps.store;
+      if (!store || typeof store.set !== "function") return { error: "нет хранилища панели" };
+      const path = "visual.tags.emptyBubblePct";
+      const was = store.get(path);
+      await store.set(path, 100);
+      await sleep(300);
+      const before = width();
+      await store.set(path, 20);
+      await sleep(400);
+      const after = width();
+      await store.set(path, was === undefined ? 100 : was);
+      return { before, after, text: ed.getLine(n) };
+    }, n);
+    if (r.error) { console.log("КОНТРОЛЬ: " + r.error); return false; }
+    console.log("ширина пустого пузыря: 100% → " + r.before + " px, 20% без касания заметки → " + r.after + " px");
+    if (!(r.before > 0)) { console.log("КОНТРОЛЬ: пустого пузыря на строке нет — мерить нечего"); return false; }
+    const ok = r.after > 0 && r.after < r.before;
+    console.log(ok ? "ok: контрол доехал до заметки сразу" : "РАСХОДИТСЯ: заметка ждёт касания");
+    return ok;
+  },
+
   async "properties-focus"(win) {
     const n = await openAt(win, "props.md", "- second line");
     if (n < 0) throw new Error("нет строки в props.md");

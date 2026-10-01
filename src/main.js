@@ -231,6 +231,11 @@ class InlineOverhaulPlugin extends Plugin {
     return __configWrite.applyPatch(this, patchObj, reason);
   }
 
+  /* Запись контрола панели идёт мимо `setConfigPatch`; пересборку заметок она просит здесь (H3 прогона 2026-10-02, `Ф-4`). */
+  refreshEditorsFor(reason) {
+    return __configWrite.refreshEditorsFor(this, reason);
+  }
+
   /**
    * `data.json` изменён снаружи — синхронизацией, вторым компьютером, правкой
    * руками (Р-2, разбор `docs/dev/AUDIT_2026-09-18.md` 4.2).

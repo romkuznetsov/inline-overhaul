@@ -58,6 +58,8 @@ interface HostPlugin {
    * как работало, а последствия разбирает перезапуск.
    */
   rebuildFromConfig?: () => Promise<void> | void;
+  /* Пересобрать оформление открытых заметок; причины только для вида панели он пропускает сам. */
+  refreshEditorsFor?: (reason: string) => void;
 }
 
 /**
@@ -92,8 +94,14 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
       return store.subscribe(listener);
     },
     update(mutator, reason, opts) {
-      /* ConfigStore ждёт функцию, которая возвращает следующий конфиг. */
-      return store.update(
+      /*
+       * Контрол пишет сюда, а не через `setConfigPatch`, и пересборку
+       * открытых заметок раньше не звал никто (`Ф-4`): то, что живёт в
+       * самой отрисовке, — `Preview on hover`, `Empty tag bubble width`, —
+       * ждало ближайшего касания заметки (прогон 2026-10-02, H1.1). Цвета
+       * доезжали переменными CSS, поэтому разница видна была не везде.
+       */
+      const changed = store.update(
         (cfg: Record<string, unknown>) => {
           mutator(cfg);
           return cfg;
@@ -101,6 +109,9 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
         reason,
         opts,
       );
+      /* `ConfigStore` отвечает `false`, когда менять было нечего: тогда и пересобирать нечего. */
+      if ((changed as unknown) !== false && typeof plugin.refreshEditorsFor === "function") plugin.refreshEditorsFor(String(reason || ""));
+      return changed;
     },
   };
 }
@@ -999,3 +1010,6 @@ export class InlineOverhaulSettings extends PluginSettingTab {
 
 /** Действия кнопок появятся в фазе 5; тип держим рядом, чтобы не разошёлся. */
 export type { ActionId };
+
+/* Обёртка хранилища — наружу ради проверки пересборки заметок после записи контрола (H1.1). */
+export { storeFor };

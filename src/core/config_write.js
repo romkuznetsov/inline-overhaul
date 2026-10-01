@@ -284,6 +284,7 @@ function followDevLogOnStore(plugin) {
 
 module.exports = {
   applyPatch,
+  refreshEditorsFor,
   followDevLogOnStore,
   applyExternalChange,
   adoptIfDiskChanged,
