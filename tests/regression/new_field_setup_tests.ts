@@ -109,6 +109,9 @@ for (const [id, element, mode, extra] of [
   assert.equal(row.format, element.format, id + ": формат не записан");
   assert.equal(row.increment.mode, mode, id + ": способ шага " + JSON.stringify(row.increment));
   for (const [k, v] of Object.entries(extra)) assert.equal(row.increment[k], v, id + ": " + k + " " + JSON.stringify(row.increment));
+  /* C12 перечня 2026-09-30: в YAML без знака, как стартовый Due. */
+  const linkDef = (p.cfg().pkm.fields.links.fields as Any[]).concat(p.cfg().pkm.fields.tags.fields).find((f: Any) => f.id === "when_" + id);
+  assert.equal(linkDef && linkDef.yamlValueRule, "clean", id + ": правило YAML не Clean: " + JSON.stringify(linkDef));
   ok("Element " + id + ": формат " + JSON.stringify(element.format) + ", шаг " + mode + " " + JSON.stringify(extra));
 }
 
@@ -125,6 +128,7 @@ for (const [id, element, mode, extra] of [
   const def = cfg.pkm.fields.tags.fields.find((f: Any) => f.id === "mood");
   assert.ok(def && def.prefix === "" && def.values.map((v: Any) => v.token).join(" ") === "\u{1F642}‍↕️yes \u{1F4A1}", "определение для движков не среди тегов: " + JSON.stringify(def));
   assert.ok(cfg.pkm.fields.order.left.includes("mood"), "Block не записан");
+  assert.equal(def.yamlValueRule, undefined, "у списка знак — само значение, своего правила YAML нет: " + JSON.stringify(def));
   ok("Element-список: без знака, Values строками, определение среди тегов");
 }
 

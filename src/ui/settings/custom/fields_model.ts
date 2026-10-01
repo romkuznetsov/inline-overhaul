@@ -2622,6 +2622,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       else elementEditor(k).setFormat(e.format);
       if (e.mode === "list") { /* Values записаны выше, шага у списка нет. */ } else if (e.mode === "command") elementEditor(k).setCommand(e.command || "now");
       else elementEditor(k).setIncrementBy(Math.max(1, Math.trunc(Number(e.incrementBy) || 1)));
+      /* В YAML без знака, как стартовый Due (BUGHUNT 2026-09-30, C12): `Raw`
+         по Я3 пишет знак, а общее правило — `Raw`. У списка знак — само
+         значение (`💡`), снимать нечего. */
+      if (e.mode !== "list") setYamlValueRule(k, "clean");
     }
     if (kind === "wikilink" && setup.moc === false) setUseAsMoc(k, false);
     if (setup.property) setProperty(k, setup.property);

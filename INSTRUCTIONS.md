@@ -500,12 +500,12 @@ For a matching inline line, Transform updates mapped top-level keys, preserves u
 
 Preservation is intentionally limited. JSON-quoted scalars and inline arrays receive only limited handling; do not assume exact lexical preservation after replacement. Mapped multiline values and their comments may be replaced rather than preserved. Missing token-only keys are appended after keys produced from field Order. This merger is not a full YAML parser or validator; verify complex frontmatter on disposable notes.
 
-Each Value carries its own `Raw` or `Clean` rule, set in the right column of the Fields editor. It controls what reaches YAML:
+Each Field carries its own `Raw` or `Clean` rule, set in the right column of the Fields editor. It controls what reaches YAML:
 
-- `Raw`: retain tag or wikilink syntax, for example `#task` or `[[Project Atlas]]`.
-- `Clean`: store normalized values, for example `task` or `Project Atlas`.
+- `Raw`: retain tag, wikilink or Element syntax, for example `#task`, `[[Project Atlas]]` or `📅2026-10-02`.
+- `Clean`: store normalized values, for example `task`, `Project Atlas` or `2026-10-02`.
 
-Element markers are removed from YAML values in both modes. Clean numeric priority-like tokens are written as numbers when recognized.
+A new Element with a marker starts with `Clean`, as `Due` does. A numeric tag such as `#/1` stays text under `Clean`: it is written as `"1"`, which the `tags` property accepts.
 
 ### Carrying your setup to another vault
 
