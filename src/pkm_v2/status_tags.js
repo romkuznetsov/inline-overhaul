@@ -1649,7 +1649,8 @@ module.exports = {
     prefixState = (freeRoamBehavior.minimalPrefix === false && mixedPolicy.hasMinimalSelected)
       ? { ...state, __prefixIgnoreFieldIds: { ...(mixedPolicy.minimalPrefixIgnoreFieldIds || {}) } }
       : state;
-    if (freeRoamMode === "off") {
+    /* `Insert only` спрашивает те же флаги: иначе чекбокс человека уходил (E2). */
+    if (freeRoamMode === "off" || freeRoamMode === "minimal") {
       const targetHasOwnCheckbox = hasOwnCheckboxForField(rules, state, targetFieldForPrefix, core);
       const targetFieldIdForPrefix = String(targetFieldForPrefix?.id || "").trim();
       const offFlags = lineFinalize.resolveOffPrefixFlagsUnified({

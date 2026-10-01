@@ -481,6 +481,10 @@ module.exports = [
     at: { file: "t-MB21.md", line: 0, ch: 0, source: true }, steps: ["jump-next"], expect: {},
     cfg: { navigation: { jumpToHeader: { jumpMode: "line", jumpCursorPosition: "section-start" } } },
     check: "const c = a.workspace.activeEditor.editor.getCursor(); return (c.line === 1 && c.ch === 2) || JSON.stringify(c);" },
+  /* BUGHUNT 2026-09-30, E1 и E2: `Insert only` оставляет цитату и чекбокс человека. */
+  ...[["E1", "> позвонить", "> #low || позвонить", false], ["E2", "- [ ] позвонить", "- [ ] #low || позвонить", true]].map(([id, line, want, usePrefix]) =>
+    one(id, "Insert only " + (usePrefix ? "с" : "без") + " use Field Prefix оставляет начало строки", line, ["priority-next"], want,
+      { cfg: { pkm: { fields: { order: { freeRoam: { Priority: "minimal" } } }, placement: { fieldPrefixInsertOnly: usePrefix } } } })),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

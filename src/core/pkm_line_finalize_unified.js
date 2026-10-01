@@ -2245,6 +2245,14 @@ function resolveOffPrefixFlagsUnified(options) {
     ? opts.freeRoamBehavior
     : {};
 
+  /*
+   * `Insert only` с `use Field Prefix`: чекбокс человека остаётся, когда у
+   * Value своего нет, — как в `Strict` (BUGHUNT 2026-09-30, E2: `- [ ] купить
+   * хлеб` → `- #high :: …`). Неизменность строки — только у `Strict`.
+   */
+  if (mode === "minimal") {
+    return { preserveCheckboxPrefix: !hasOwnCheckbox && !clearedOwnCheckbox, forceBulletPrefix: false, preserveOffImmutability: false };
+  }
   if (mode !== "off") {
     return { preserveCheckboxPrefix: false, forceBulletPrefix: false, preserveOffImmutability: false };
   }

@@ -2077,7 +2077,8 @@ async function runTagWheel(input, quickAddSettings) {
       prefixState = Object.assign({}, state.session, { __prefixIgnoreFieldIds: ignoreByField })
       }
     var offPrefixFlags = { preserveCheckboxPrefix: false, forceBulletPrefix: false, preserveOffImmutability: false }
-    if (hasOffSelected) {
+    /* `Insert only` спрашивает те же флаги, что `Strict`: иначе чекбокс человека уходил (E2). */
+    if (hasOffSelected || hasMinimalSelected) {
       var activeFieldId = String(state && state.session ? state.session.activeFieldId || '' : '')
       var activeField = activeFieldId ? getFieldByIdAny(state.rules, activeFieldId) : null
       var fieldKey = activeField ? String(activeField.orderKey || activeField.id || '').trim() : ''

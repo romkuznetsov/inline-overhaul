@@ -281,6 +281,35 @@ async function main(): Promise<void> {
   assert.ok(/купить #todo молоко/.test(trPanel.line), "панель стёрла тег из фразы у поля правого Block: " + JSON.stringify(trPanel.line));
   passed++;
   console.log("  ok тег правого Block посреди фразы — слово человека и у панели");
+  /*
+   * `Insert only` (BUGHUNT 2026-09-30, E1, E2): цитата и чекбокс человека
+   * остаются, меняется только тег — командой и панелью, при обоих положениях
+   * `use Field Prefix`. Контроль — ключи доехали до правил движков.
+   */
+  for (const usePrefix of [true, false]) {
+    const io = JSON.parse(JSON.stringify(cfg));
+    io.pkm.fields.order.freeRoam.Priority = "minimal";
+    io.pkm.placement.fieldPrefixInsertOnly = usePrefix;
+    const ioCfg = normalize.migrateConfig(io);
+    assert.equal(rulesShape.buildRulesForEngines(ioCfg).behavior.freeRoam.minimalPrefix, usePrefix, "use Field Prefix не доехал до правил движков");
+    const tag = usePrefix ? "с Prefix" : "без Prefix";
+    const walk: string[] = await bench.fieldWalk(ioCfg, "left", "- x", 3, 12);
+    assert.ok(walk.indexOf("Priority") >= 0, "панель не дошла до Priority");
+    const keys = Array(walk.indexOf("Priority")).fill("ArrowRight").concat(["ArrowDown"]);
+    for (const [line, want, name] of [
+      ["> позвонить", "> #low || позвонить", "E1 цитата"],
+      ["- [ ] позвонить", "- [ ] #low || позвонить", "E2 чекбокс"],
+    ] as const) {
+      const byCmd = await bench.runCommandById(ioCfg, "priority-next", line, line.length);
+      assert.equal(byCmd.line, want, "Insert only " + tag + ", команда, " + name);
+      const byPanel = await bench.runTagWheel(ioCfg, "left", line, line.length, keys);
+      /* Панель шагает в свою сторону круга: спрашивается начало строки, а не какое Value. */
+      assert.ok(byPanel.opened, "панель не открылась");
+      assert.equal(String(byPanel.line).replace(/#(?:high|med|low)\b/, "#low"), want, "Insert only " + tag + ", панель, " + name + ": " + byPanel.line);
+      passed += 2;
+    }
+    console.log("  ok Insert only " + tag + ": цитата и чекбокс остаются — командой и панелью");
+  }
   console.log(passed + " проверок");
 }
 

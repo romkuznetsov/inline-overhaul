@@ -1636,13 +1636,15 @@ function reapplyLineStart(rawLine, nextLine) {
  * Форма начала исходной строки переживает действие.
  *
  * Было начало — возвращается оно; не было — у новой строки снимается то, что
- * приписал плагин, и остаётся отступ человека.
+ * приписал плагин, и остаётся внешнее оформление человека: отступ, цитата,
+ * каллаут (У-184). Прежде оставался один отступ, и `Insert only` терял `> `
+ * (BUGHUNT 2026-09-30, E1).
  */
 function preserveLineStartShape(rawLine, nextLine) {
   const raw = String(nz(rawLine, ""));
   if (isListItemLine(raw) || startsWithBracketPair(raw)) return reapplyLineStart(raw, nextLine);
-  const rawIndent = String(raw.match(LINE_INDENT_RE)[0] || "");
-  return rawIndent + stripLineStart(nextLine).trimStart();
+  const start = lineStartOf(raw);
+  return start.indent + start.quote + start.callout + stripLineStart(nextLine).trimStart();
 }
 
 module.exports = {
