@@ -609,8 +609,65 @@ async function jump(text, line, direction, over) {
     "B20 ①: запятая и восклицательный знак на месте");
   assertEq(moveTextIn("- завтра встреча. Потом отчёт", "завтра", "right", 1), "- встреча завтра. Потом отчёт",
     "B20 ②, первое нажатие: точка на месте");
-  assertEq(moveTextIn("- завтра встреча. Потом отчёт", "завтра", "right", 2), "- встреча. Потом завтра отчёт",
-    "B20 ②, второе нажатие: точка осталась за «встреча»");
+  /*
+   * Второе нажатие — по тому же правилу: точка стоит за вторым словом строки.
+   * Прежнее ожидание `встреча. Потом завтра` было примером интервью, который
+   * другим двум противоречил (его `💬` к тесту 13 цикла 116).
+   */
+  assertEq(moveTextIn("- завтра встреча. Потом отчёт", "завтра", "right", 2), "- встреча Потом. завтра отчёт",
+    "B20 ②, второе нажатие: точка осталась на своём месте");
+  /* Выделенный знак идёт к соседнему слову, а не склеивает слова (было `helloworld ,!`). */
+  assertEq(moveTextIn("- hello, world!", ",", "right", 1), "- hello world,!", "запятая переходит к следующему слову");
+  assertEq(moveTextIn("- hello world,!", ",", "left", 1), "- hello, world!", "и обратно");
+  assertEq(moveTextIn("- hello, world!", ",", "left", 1), "- hello, world!", "слева слова нет — шага нет");
+  /* Выделенный со словом знак едет со словом; фраза — одна единица места. */
+  assertEq(moveTextIn("- купить хлеб, молоко!", "хлеб,", "right", 1), "- купить молоко хлеб,!", "знак в выделении едет");
+  assertEq(moveTextIn("- купить хлеб, молоко!", "хлеб, молоко", "left", 1), "- хлеб, молоко купить!",
+    "знак соседа не встаёт внутрь фразы");
+  /* Всё содержимое кавычек едет с кавычками: прежде выходило `сказал да«»`. */
+  assertEq(moveTextIn("- он сказал «да», а потом", "да", "left", 1), "- он «да» сказал, а потом",
+    "слово в своих кавычках едет вместе с ними");
+  assertEq(moveTextIn("- текст [[a]], хвост.", "a", "right", 1), "- текст хвост, [[a]].", "и ссылка тоже");
+  /*
+   * Свойство, а не примеры (его «оттестируй получше»): каждое слово, знак,
+   * слово со знаком и пара слов, до трёх нажатий в обе стороны — слова не
+   * склеиваются, знаки не теряются, обратное нажатие возвращает строку.
+   */
+  const wordsOf = (s) => (s.match(/[\p{L}\p{N}]+/gu) || []).sort().join("|");
+  const marksOf = (s) => (s.match(/[^\p{L}\p{N}\s]/gu) || []).sort().join("");
+  const SWEEP = ["- купить хлеб, молоко!", "- завтра встреча. Потом отчёт", "- Привет, мир! Как дела? Хорошо.",
+    "- слово1 (слово2, слово3) слово4.", "- он сказал «да», а потом ушёл.", "a, b c", "- да: нет; может…"];
+  let sweepCases = 0;
+  for (const line of SWEEP) {
+    const toks = [...line.matchAll(/\S+/g)].filter((m) => m.index > 1 || !line.startsWith("- "));
+    const sels = new Set();
+    toks.forEach((m, k) => {
+      const w = /[\p{L}\p{N}]+/u.exec(m[0]); if (w) sels.add(w[0]);
+      sels.add(m[0]);
+      const mk = /[,.;:!?…]+$/.exec(m[0]); if (mk && w) sels.add(mk[0]);
+      if (toks[k + 1]) sels.add(line.slice(m.index, toks[k + 1].index + toks[k + 1][0].length));
+    });
+    for (const sel of sels) {
+      if (line.indexOf(sel) !== line.lastIndexOf(sel)) continue;
+      for (const dir of ["left", "right"]) {
+        for (let n = 1; n <= 3; n++) {
+          const got = moveTextIn(line, sel, dir, n);
+          sweepCases++;
+          const where = `«${sel}» ${dir}×${n} в ${JSON.stringify(line)}: ${JSON.stringify(got)}`;
+          if (wordsOf(got) !== wordsOf(line)) throw new Error("слова склеились: " + where);
+          if (marksOf(got) !== marksOf(line)) throw new Error("знаки потерялись: " + where);
+          if (/ [,.;:!?…]| {2}/.test(got)) throw new Error("лишний пробел: " + where);
+          const prev = moveTextIn(line, sel, dir, n - 1);
+          if (got !== prev && got.indexOf(sel) === got.lastIndexOf(sel)
+              && moveTextIn(got, sel, dir === "left" ? "right" : "left", 1) !== prev) {
+            throw new Error("обратное нажатие не вернуло строку: " + where);
+          }
+        }
+      }
+    }
+  }
+  if (sweepCases < 200) throw new Error("обход переноса знаков слишком мал: " + sweepCases);
+  ok("перенос со знаками препинания: " + sweepCases + " случаев — без склеек, обратимо");
   /* Отрицательный контроль: без знаков перенос прежний, скобки — шаг своего права. */
   assertEq(moveTextIn("- один два три", "два", "right", 1), "- один три два", "без знаков перенос прежний");
   assertEq(moveTextIn("(слово1 слово2 слово3)", "слово3", "left", 4), "слово3 (слово1 слово2)",

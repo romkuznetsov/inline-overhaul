@@ -474,7 +474,12 @@ module.exports = [
       { at: { file: "t.md", line: 0, source: true }, cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } })),
   /* B20, его ответ `В-263`: знаки препинания при переносе слова остаются на месте — его примеры. */
   one("B20.1", "Move left: запятая и ! на месте", "- купить хлеб, молоко!", ["move-left"], "- купить молоко, хлеб!", { at: { file: "t.md", line: 0, sel: "молоко" } }),
-  one("B20.2", "Move right ×2: точка на месте", "- завтра встреча. Потом отчёт", [{ js: "const l = ed.getLine(0); ed.setSelection({ line: 0, ch: l.indexOf('завтра') }, { line: 0, ch: l.indexOf('завтра') + 6 });" }, "move-right", "move-right"], "- встреча. Потом завтра отчёт"),
+  one("B20.2", "Move right ×2: точка на своём месте", "- завтра встреча. Потом отчёт", [{ js: "const l = ed.getLine(0); let i = -1; for (let k = 0; k <= 0; k++) i = l.indexOf('завтра', i + 1); ed.setSelection({ line: 0, ch: i }, { line: 0, ch: i + 6 });" }, "move-right", "move-right"], "- встреча Потом. завтра отчёт"),
+  /* Его `💬` к тесту 13 цикла 116: «двигал разные слова, а также запятую — получал склеенный текст». */
+  one("B20.3", "Move right: выделенная запятая к следующему слову", "- купить хлеб, молоко!", [{ js: "const l = ed.getLine(0); let i = -1; for (let k = 0; k <= 0; k++) i = l.indexOf(',', i + 1); ed.setSelection({ line: 0, ch: i }, { line: 0, ch: i + 1 });" }, "move-right"], "- купить хлеб молоко,!"),
+  one("B20.4", "Move right, затем left: запятая вернулась", "- купить хлеб, молоко!", [{ js: "const l = ed.getLine(0); let i = -1; for (let k = 0; k <= 0; k++) i = l.indexOf(',', i + 1); ed.setSelection({ line: 0, ch: i }, { line: 0, ch: i + 1 });" }, "move-right", "move-left"], "- купить хлеб, молоко!"),
+  one("B20.5", "Move left ×2: слово доходит до начала", "- купить хлеб, молоко!", ["move-left", "move-left"], "- молоко купить, хлеб!", { at: { file: "t.md", line: 0, sel: "молоко" } }),
+  one("B20.6", "Move left: слово в кавычках едет с ними", "- он сказал «да», а потом", ["move-left"], "- он «да» сказал, а потом", { at: { file: "t.md", line: 0, sel: "да" } }),
   /* B22: шаг Sentence при `Continue past Separators` останавливается в конце последнего предложения, а не за разделителем. */
   ...[["B22.1", 1, "One two"], ["B22.2", 2, "Three four"], ["B22.3", 3, "|| "]].map(([id, n, before]) => one(id, "Jump right, Sentence, через разделители: " + n + " нажатия", "- #todo || One two. Three four || x", Array(n).fill("move-cursor-right-in-line"), "",
     { at: { file: "t.md", line: 0, after: "|| " }, expect: {}, cfg: { navigation: { navigateInline: { stepMode: "sentence", boundaryJump: true } } },
