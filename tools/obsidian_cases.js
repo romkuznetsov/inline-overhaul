@@ -75,7 +75,8 @@ module.exports = [
 
   /* R5 — начало строки человека */
   one("N1.a", "Move right не стирает чекбокс", "- [ ] b", ["move-right"], "\t- [ ] b", { files: { "t.md": "- a\n- [ ] b\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "- a\n\t- [ ] b\n" } }),
-  one("N1.b", "Move left не стирает [x]: шаг по знакам списка", "- [x] сделано", ["move-left"], "1. [x] сделано"),
+  /* Его ответ `В-255` (2026-10-01): «снимать, как сейчас» — один шаг, один Prefix, чекбокс уходит с ним. */
+  one("N1.b", "Move left на задаче у левого края снимает Prefix вместе с чекбоксом (В-255)", "- [x] сделано", ["move-left"], "сделано"),
   one("F15.a", "Clear line не снимает чекбокс, когда текст остался", "- [ ] #todo || купить", ["status-previous"], "- [ ] купить",
     { cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } }),
   one("F15.b", "Clear line не снимает номер, когда текст остался", "1. #todo || пункт", ["status-previous"], "1. пункт",
