@@ -361,6 +361,13 @@ module.exports = [
     "- bx\n\t- b1\n- a\n- c",
     { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children" } } },
       check: "const w = window.__b8 || {}; const left = a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.cm-line.io-moved-line').length; return (w.sel === false && JSON.stringify(w.rows) === JSON.stringify(['- b', '\\t- b1']) && !!w.bg && w.bg !== 'rgba(0, 0, 0, 0)' && left === 0) || JSON.stringify({ w, left });" }),
+  /* B8.c, его 💬 к тесту 3 цикла 111: подсветку снимает любое действие, и
+     движение курсора внутри перенесённых строк тоже. */
+  one("B8.c", "Highlight after moving гаснет от движения курсора внутри перенесённых строк", "- a\n- b\n\t- b1\n- c",
+    ["move-line-up", { wait: 300 }, { js: "window.__b8c = ed.cm.contentDOM.querySelectorAll('.cm-line.io-moved-line').length;" }, { key: "ArrowLeft" }, { wait: 200 }],
+    "- b\n\t- b1\n- a\n- c",
+    { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children" } } },
+      check: "const left = a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.cm-line.io-moved-line').length; return (window.__b8c === 2 && left === 0) || JSON.stringify({ before: window.__b8c, left });" }),
   one("B8.j", "Highlight after moving: каждое нажатие перескакивает соседнее дерево", "- A\n\t- a1\n- B\n\t- b1\n- C\n\t- c1",
     ["move-line-up", { wait: 300 }, "move-line-up"], "- C\n\t- c1\n- A\n\t- a1\n- B\n\t- b1",
     { at: { file: "t.md", line: 4, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children", jumpNeighborTrees: true } } } }),
