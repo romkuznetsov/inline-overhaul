@@ -52,7 +52,7 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],
       tip:"Leave this off day to day. Turn it on, reproduce the problem once, then turn it off and attach the log to a bug report after checking what is in it" },
-    { kind:"toggle", id:"dev-ai-log", path:"advanced.devMode.aiLog", default:true,
+    { kind:"toggle", id:"dev-ai-log", path:"advanced.devMode.aiLog", default:false,
       name:"Machine-readable log", desc:"Also keep a second, denser log meant for tools rather than people",
       tip:"Only worth turning on if someone has asked you for it. The plain log is the one you can read yourself",
       searchTerms:["Generate log for AI?"], visible: on("advanced.devMode.enabled") },

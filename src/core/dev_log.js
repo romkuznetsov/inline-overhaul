@@ -166,13 +166,14 @@ function trimHumanLogContent(content, dm) {
   const lines = src.split("\n");
   const header = lines.length && /^#\s+InlineOverhaul\s+Dev\s+Log/i.test(lines[0]) ? (lines[0] + "\n") : "";
   const body = header ? src.slice(header.length) : src;
-  const chunks = body.split(/\n(?=###\s+\d{4}-\d{2}-\d{2}T)/g).filter((x) => String(x || "").trim());
+  /* Время записи — ISO с `T` (прежние файлы) или `YYYY-MM-DD HH:MM:SS UTC` (D18). */
+  const chunks = body.split(/\n(?=###\s+\d{4}-\d{2}-\d{2}[T ])/g).filter((x) => String(x || "").trim());
   const now = Date.now();
   const maxAgeMs = Math.max(1, Math.floor(Number(dm.retentionMinutes || 20))) * 60 * 1000;
   const kept = [];
   for (const chunk of chunks) {
-    const m = String(chunk || "").match(/^###\s+(\d{4}-\d{2}-\d{2}T[^\n\r]+)/);
-    const dt = parseIsoDateSafe(m ? m[1] : "");
+    const m = String(chunk || "").match(/^###\s+(\d{4}-\d{2}-\d{2}[T ][^\n\r]+)/);
+    const dt = parseIsoDateSafe(m ? m[1].replace(/ UTC$/, "Z").replace(" ", "T") : "");
     if (dt && now - dt.getTime() > maxAgeMs) continue;
     kept.push(String(chunk || "").replace(/^\n+/, ""));
   }
@@ -211,10 +212,13 @@ async function ensureDirectoryForFilePath(adapter, filePath) {
 }
 
 function buildLine(plugin, ext, eventName, payload) {
-  const ts = new Date().toISOString();
+  const iso = new Date().toISOString();
   const event = String(eventName || "event");
   const p = isObj(payload) ? payload : { value: payload };
   if (String(ext || "md") === "md") {
+    /* Журнал для человека — время с пометкой `UTC`: без неё оно читалось
+       местным и расходилось с часами (его ответ `В-266`, BUGHUNT D18). */
+    const ts = iso.slice(0, 19).replace("T", " ") + " UTC";
     const hp = sanitizeHumanPayload(event, p);
     if (event === "pkm.run.start") {
       return `### ${ts}\n- event: ${event}\n- command: ${hp.command}\n- action: ${hp.actionType || "n/a"}\n- direction: ${hp.direction || "n/a"}\n- line: ${hp.lineNo}\n`;
@@ -231,7 +235,7 @@ function buildLine(plugin, ext, eventName, payload) {
     return "";
   }
   const record = {
-    ts,
+    ts: iso,
     sessionId: plugin._devLogSessionId || "",
     seq: Number(plugin._devLogSeq || 0),
     event,

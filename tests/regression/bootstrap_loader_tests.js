@@ -837,7 +837,7 @@ async function run() {
   assertTrue(/if \(typeof fr\.minimalSeparator !== "boolean"\) fr\.minimalSeparator = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalSeparator;/.test(cfgSrc), "migrateConfig normalizes minimalSeparator toggle");
   assertTrue(/if \(typeof fr\.minimalPrefix !== "boolean"\) fr\.minimalPrefix = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalPrefix;/.test(cfgSrc), "migrateConfig normalizes minimalPrefix toggle");
   assertTrue(/fr\.fullPlacement = \["smart", "left", "right"\]\.includes\(place\)/.test(cfgSrc), "migrateConfig normalizes fullPlacement");
-  assertTrue(/devMode:\s*\{[\s\S]*generateAiLog:\s*true[\s\S]*logPath:\s*"InlineOverhaul_DevLog"/.test(cfgSrc), "default config includes simplified devMode fields with AI log toggle");
+  assertTrue(/devMode:\s*\{[\s\S]*generateAiLog:\s*false[\s\S]*logPath:\s*"InlineOverhaul_DevLog"/.test(cfgSrc), "default config includes simplified devMode fields with AI log toggle (off by default, В-266)");
   assertTrue(/if \(!isObj\(cfg\.devMode\)\) cfg\.devMode = cloneJson\(DEFAULT_CONFIG\.devMode\);/.test(cfgSrc), "migrateConfig initializes devMode block");
   /*
    * Переименования старой формы читают ИСХОДНЫЙ файл, а не слитый с

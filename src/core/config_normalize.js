@@ -337,7 +337,8 @@ const DEFAULT_CONFIG = {
   },
   devMode: {
     enabled: false,
-    generateAiLog: true,
+    /* Выключен по умолчанию — его ответ `В-266` (BUGHUNT D18). */
+    generateAiLog: false,
     traceTagVisualLine: false,
     logPath: "InlineOverhaul_DevLog",
   },

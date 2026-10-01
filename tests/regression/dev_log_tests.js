@@ -201,6 +201,15 @@ function testTrimsByTimeAndCount() {
   assertTrue(trimmedHuman.startsWith("# InlineOverhaul Dev Log (Human)"), "шапка человеческой записи цела");
   assertTrue(!trimmedHuman.includes("старое"), "старый кусок ушёл: " + trimmedHuman);
   assertTrue(trimmedHuman.includes("свежее"), "свежий остался: " + trimmedHuman);
+  /* D18: запись для человека — время с пометкой `UTC`, и обрезка её узнаёт. */
+  const utc = (iso) => iso.slice(0, 19).replace("T", " ") + " UTC";
+  const humanUtc = "# InlineOverhaul Dev Log (Human)\n"
+    + `### ${utc(old)}\n- event: старое\n`
+    + `### ${utc(fresh)}\n- event: свежее\n`;
+  const trimmedUtc = devLog.trimHumanLogContent(humanUtc, { retentionMinutes: 20, maxRecords: 300 });
+  assertTrue(!trimmedUtc.includes("старое") && trimmedUtc.includes("свежее"), "обрезка не узнала время с UTC: " + trimmedUtc);
+  const line = devLog.buildLine({ _devLogSessionId: "s" }, "md", "session.start", {});
+  assertTrue(/^### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\n/.test(line), "время записи без пометки UTC: " + line);
   console.log("  ok обрезка по времени и по числу записей, обе записи");
 }
 

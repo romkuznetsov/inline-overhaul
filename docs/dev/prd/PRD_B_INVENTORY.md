@@ -140,7 +140,7 @@ _Tip:_ Leave the log off unless you are chasing a problem. It is an ordinary not
   - desc: Record what the plugin did, to help track down a problem
   - tip: Leave this off day to day. Turn it on, reproduce the problem once, then turn it off and attach the log to a bug report after checking what is in it
   - старые названия для поиска: «Enable Dev Mode»
-- **Machine-readable log** — `dev-ai-log`, `toggle`, path `advanced.devMode.aiLog`, default `true`
+- **Machine-readable log** — `dev-ai-log`, `toggle`, path `advanced.devMode.aiLog`, default `false`
   - desc: Also keep a second, denser log meant for tools rather than people
   - tip: Only worth turning on if someone has asked you for it. The plain log is the one you can read yourself
   - видна если: `advanced.devMode.enabled`
@@ -1230,7 +1230,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `advanced.backups.autosave` | toggle | `false` |
 | `advanced.backups.beforeRestore` | toggle | `true` |
 | `advanced.backups.folder` | text | `inlineOverhaul/Backups` |
-| `advanced.devMode.aiLog` | toggle | `true` |
+| `advanced.devMode.aiLog` | toggle | `false` |
 | `advanced.devMode.enabled` | toggle | `false` |
 | `advanced.devMode.logPath` | text | `InlineOverhaul_DevLog` |
 | `advanced.showSettingIds` | toggle | `false` |
