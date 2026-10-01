@@ -18,6 +18,8 @@ import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { cycleOrder, fieldOrderList, prefixOrderList } from "../../src/ui/settings/custom/order_lists.ts";
+import { createFieldsModel } from "../../src/ui/settings/custom/fields_model.ts";
+import { ConfigStoreAdapter } from "../../src/ui/settings/store.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 import type { SettingsCtx } from "../../src/ui/settings/types.ts";
 
@@ -68,6 +70,7 @@ interface Panel {
   cfg: () => Any;
   writes: Array<{ reason: string }>;
   cleanup: () => void;
+  patch: (patch: Any, reason: string) => void;
 }
 
 function makeBlock(
@@ -87,6 +90,11 @@ function makeBlock(
       Notice: class StubNotice { },
     },
   );
+  const adapter = new ConfigStoreAdapter({
+    getConfig: () => store.getSnapshot(),
+    update: () => {},
+    subscribe: (listener: (payload: unknown) => void) => store.subscribe(listener),
+  });
   const writes: Array<{ reason: string }> = [];
   const plugin: Any = {
     app: {},
@@ -105,7 +113,10 @@ function makeBlock(
     get: (p: string) => values[p],
     set: async () => {},
     run: async () => {},
-    watch: () => () => {},
+    /* Подписка — настоящим хранилищем, сравнение путей — как у `SettingsPane.touches`. */
+    watch: (paths: readonly string[], fn: () => void) => adapter.subscribe((changed: readonly string[]) => {
+      if (paths.some(w => changed.some(c => w === c || c.startsWith(w + ".") || w.startsWith(c + ".")))) fn();
+    }),
     platform: {
       Setting,
       Notice,
@@ -119,7 +130,7 @@ function makeBlock(
   } as unknown as SettingsCtx;
 
   const cleanup = render(host as unknown as El, ctx);
-  return { host, cfg: () => store.getSnapshot(), writes, cleanup };
+  return { host, cfg: () => store.getSnapshot(), writes, cleanup, patch: plugin.setConfigPatch };
 }
 
 function baseConfig(over?: Any): Any {
@@ -292,6 +303,24 @@ const rulesOf = (cfg: Any): Any => cfg.pkm.prefixRules;
   assert.deepEqual(texts(p.host, "io-sortrow__label"), ["Project", "Status"],
     "и виден в новом порядке");
   ok("порядок Fields: имена на экране, ключи в конфиге");
+  p.cleanup();
+}
+
+{
+  /* BUGHUNT A15: удалённый Field уходит из списка сразу, а не после перехода по вкладкам. */
+  const p = makeBlock(fieldOrderList, baseConfig());
+  assert.deepEqual(texts(p.host, "io-sortrow__label"), ["Status", "Project"], "контроль: оба Field в списке");
+  const model = createFieldsModel({
+    plugin: { app: {}, getConfig: () => p.cfg(), setConfigPatch: p.patch } as never,
+    normalizePkmOrder: internals.normalizePkmOrder as never,
+    pkmOrderFields: [],
+    cfg: p.cfg() as never,
+    deepState: requireCjs(path.join(root, "src", "core", "order_deep_editor_state.js")) as never,
+  });
+  model.deleteField("project");
+  assert.ok(!JSON.stringify(p.cfg().pkm.fields.order.right || []).includes("project"), "контроль: Field удалён из конфига");
+  assert.deepEqual(texts(p.host, "io-sortrow__label"), ["Status"], "A15: удалённый Field ушёл из списка");
+  ok("порядок Fields следует за удалением Field");
   p.cleanup();
 }
 

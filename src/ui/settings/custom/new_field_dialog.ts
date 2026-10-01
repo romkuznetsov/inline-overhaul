@@ -59,6 +59,8 @@ export interface NewFieldFormOpts {
   /** Пути заметок vault для подсказки Link; нет платформы — пусто. */
   notes?: () => readonly string[];
   noteExists?: (target: string) => boolean;
+  /** Это написание уже у другого Field (`В-209`); нет шва — не спрашиваем. */
+  valueTaken?: (token: string, kind: FieldKind) => boolean;
   holdKeys?: (onEscape: () => void) => () => void;
   done: (answer: NewFieldAnswer | null) => void;
 }
@@ -120,8 +122,18 @@ function bare(token: string, kind: FieldKind): string {
   return sharedUtils.wikilinkTargetOf(t) || t;
 }
 
+/**
+ * Ссылка так, как её запишет Field: подпись после `|` остаётся
+ * (`normalizeToken` её хранит; BUGHUNT A14 — чип показывал `[[Alias Target]]`).
+ */
+function linkText(token: string): string {
+  const t = String(token || "").trim();
+  return t.startsWith("[[") && t.endsWith("]]") ? t : "[[" + t + "]]";
+}
+
 /** Готово ли к `Add`: имя и знак Element — без них Field не работает. */
-export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string, say: Say): string {
+export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string, say: Say,
+  taken?: (token: string, kind: FieldKind) => boolean): string {
   if (!d.name.trim()) return say("NF_NEED_NAME");
   const bad = checkName(d.name);
   if (bad) return bad;
@@ -129,6 +141,8 @@ export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string,
   /* Value тега и списка — одно слово: строку делят по пробелам (BUGHUNT 2026-09-30, A4, A5). */
   if (d.kind === "tag" && d.values.some(v => /\s/.test(bare(v.token, "tag")))) return say("ERR_VALUE_SPACE");
   if (d.kind === "element" && d.value === "list" && d.values.some(v => /\s/.test(v.token.trim()))) return say("ERR_LIST_VALUE_SPACE");
+  /* Занятое другим Field при создании молча выпадало (BUGHUNT A13). */
+  if (taken && d.kind !== "element" && d.values.some(v => taken(v.token, d.kind))) return say("ERR_VALUE_TAKEN");
   return "";
 }
 
@@ -196,7 +210,7 @@ const SERIES = 5;
  */
 export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string; fill?: string; color?: string }> {
   if (d.kind === "tag") return d.values.map(v => ({ text: "#" + bare(v.token, "tag"), ...(v.fill ? { fill: v.fill } : {}), ...(v.text ? { color: v.text } : {}) }));
-  if (d.kind === "wikilink") return d.values.map(v => ({ text: "[[" + bare(v.token, "wikilink") + "]]" }));
+  if (d.kind === "wikilink") return d.values.map(v => ({ text: linkText(v.token) }));
   /* Element-список: Value пишется как есть, знак в нём самом. */
   if (d.value === "list") return d.values.map(v => ({ text: v.token.trim() }));
   const fmt = d.format.trim();
@@ -469,7 +483,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   const refresh = (): void => {
     series = previewValues(d, now());
     paint();
-    const why = draftProblem(d, o.checkName, say);
+    const why = draftProblem(d, o.checkName, say, o.valueTaken);
     add.disabled = !!why;
     /* Ошибку имени видно сразу — но не пустоту, пока человек ещё не начал. */
     problem.textContent = d.name.trim() ? why : "";
@@ -485,7 +499,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   }
 
   const confirm = (): void => {
-    if (draftProblem(d, o.checkName, say)) return;
+    if (draftProblem(d, o.checkName, say, o.valueTaken)) return;
     finish(answerOf(d));
   };
   cancel.addEventListener("click", (() => finish(null)) as never);
@@ -622,7 +636,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
         dot("io-nf__dot--text", say("NF_VALUE_TEXT_COLOR", v.token), v.text, toHexColor(theme.text), c => { v.text = c; });
       }
       label = el(chip, "span", "io-nf__chiptext" + (isLink || isList ? "" : " io-nf__chiptext--tag"),
-        isLink ? "[[" + bare(v.token, "wikilink") + "]]" : isList ? v.token.trim() : "#" + bare(v.token, "tag"));
+        isLink ? linkText(v.token) : isList ? v.token.trim() : "#" + bare(v.token, "tag"));
       paintChip();
       /* Есть заметка — молчим: `note` у каждой ссылки он назвал лишним (тест 3
          цикла 99). Говорится только то, чего не видно, — заметки ещё нет. */

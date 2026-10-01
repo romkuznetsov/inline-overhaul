@@ -12,7 +12,7 @@
  * общие — модель одна, — и разойтись им не на чем.
  */
 
-import type { CustomRender, SettingsCtx } from "../types.ts";
+import type { CustomRender, FieldKind, SettingsCtx } from "../types.ts";
 import { el, rich, type El } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
@@ -107,6 +107,7 @@ export function askNewFieldModal(
     ctx: SettingsCtx;
     blocks: ReadonlyArray<{ id: string; name: string }>;
     checkName: (name: string) => string;
+    valueTaken?: (token: string, kind: FieldKind) => boolean;
     holdKeys?: (onEscape: () => void) => () => void;
   },
 ): void {
@@ -126,6 +127,7 @@ export function askNewFieldModal(
     override onOpen(): void {
       this.drop = renderNewFieldForm(this.contentEl, {
         say, ctx: o.ctx, showTips: o.showTips, showIds: o.showIds, blocks: o.blocks, checkName: o.checkName,
+        ...(o.valueTaken ? { valueTaken: o.valueTaken } : {}),
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
         notes: () => files().filter(f => /\.md$/i.test(f.path)).map(f => f.path),
         noteExists: t => !!(cache && typeof cache.getFirstLinkpathDest === "function" && cache.getFirstLinkpathDest(t, "")),
@@ -497,6 +499,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
           ctx,
           blocks: model.listBlocks().map(b => ({ id: b.id, name: b.name })),
           checkName: n => model.fieldNameError(n),
+          valueTaken: (t, k) => model.valueTaken(t, k),
           ...(() => {
             const holdKeys = escapeScope(p.Scope, app, app && (app as { scope?: unknown }).scope);
             return holdKeys ? { holdKeys } : {};

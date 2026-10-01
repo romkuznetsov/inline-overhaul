@@ -394,6 +394,39 @@ function idOf(row: unknown): string {
   return String(asObject(row)["id"] || "").trim();
 }
 
+/*
+ * **Одно написание Value — у одного Field** (`В-209`, его ответ 2026-09-24).
+ * По написанию значение узнают и Left/Right, и custom block (пункт 13
+ * постановки): два Field с одним `#todo` делали бы вопрос «чьё это»
+ * неразрешимым. Сравнивается голое написание без регистра — так тег видит
+ * Obsidian. Запрещается **новое** написание: уже стоящий повтор не
+ * запирает правку остальных значений. Спрашивают редактор Values и окно
+ * `Add a Field` (BUGHUNT A13: окно принимало занятое и теряло его молча).
+ */
+function valueBareOf(raw: unknown): string {
+  return String(raw == null ? "" : raw).trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "").trim().toLowerCase();
+}
+
+/*
+ * Сравнивается написание **в своём роде**: `#home` и `[[Home]]` в строке
+ * пишутся по-разному, и вопроса «чьё это» между ними нет (BUGHUNT S5).
+ * Прежде голое слово сравнивалось без рода, и Value-ссылку `Home` нельзя
+ * было завести рядом с тегом `#home`. Ключ — `L:` или `T:` плюс написание.
+ */
+function takenValues(fields: unknown[], skipIds: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const f of fields) {
+    const fid = idOf(f);
+    if (!fid || skipIds.has(fid)) continue;
+    const rod = String(asObject(f)["source"] || "").trim().startsWith("wikilinks:") ? "L:" : "T:";
+    for (const v of asArray(asObject(f)["values"])) {
+      const tok = valueBareOf(asObject(v)["token"]);
+      if (tok) out.add(rod + tok);
+    }
+  }
+  return out;
+}
+
 /* ---- модель ------------------------------------------------------------ */
 
 export function createFieldsModel(deps: FieldsModelDeps) {
@@ -2077,38 +2110,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const cloneTree = (): Loose[] =>
       tree.map((p: Loose) => ({ ...p, children: (p.children || []).map((c: Loose) => ({ ...c })) }));
 
-    /*
-     * **Одно написание Value — у одного Field** (`В-209`, его ответ 2026-09-24).
-     * По написанию значение узнают и Left/Right, и custom block (пункт 13
-     * постановки): два Field с одним `#todo` делали бы вопрос «чьё это»
-     * неразрешимым. Сравнивается голое написание без регистра — так тег видит
-     * Obsidian. Запрещается **новое** написание: уже стоящий повтор не
-     * запирает правку остальных значений.
-     */
-    const bareOf = (raw: unknown): string =>
-      String(raw == null ? "" : raw).trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "").trim().toLowerCase();
-    /*
-     * Сравнивается написание **в своём роде**: `#home` и `[[Home]]` в строке
-     * пишутся по-разному, и вопроса «чьё это» между ними нет (BUGHUNT S5).
-     * Прежде голое слово сравнивалось без рода, и Value-ссылку `Home` нельзя
-     * было завести рядом с тегом `#home`.
-     */
-    const isLinkField = (f: Loose): boolean => String(asObject(f)["source"] || "").trim().startsWith("wikilinks:");
+    const bareOf = valueBareOf;
     const myRodPrefix = kind === "wikilink" ? "L:" : "T:";
-    const takenElsewhere = (() => {
-      const mine = new Set([parentFieldId, subFieldId].filter(Boolean));
-      const out = new Set<string>();
-      for (const f of leftMode.concat(rightMode)) {
-        const fid = idOf(f);
-        if (!fid || mine.has(fid)) continue;
-        const rod = isLinkField(f) ? "L:" : "T:";
-        for (const v of asArray(asObject(f)["values"])) {
-          const tok = bareOf(asObject(v)["token"]);
-          if (tok) out.add(rod + tok);
-        }
-      }
-      return out;
-    })();
+    const takenElsewhere = takenValues(leftMode.concat(rightMode), new Set([parentFieldId, subFieldId].filter(Boolean)));
     const treeTokens = (t: Loose[]): Set<string> => {
       const out = new Set<string>();
       for (const p of Array.isArray(t) ? t : []) {
@@ -2626,6 +2630,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /** Законно ли имя нового Field: то же правило, что у `addField` (ревизия Д-5). */
   const fieldNameError = (name: string): string => nameError(String(name || "").replace(/\s+/g, " ").trim(), "");
+  /** Нового Field ещё нет: занято всё, что стоит у любого Field того же рода. */
+  const valueTaken = (token: string, kind: FieldKind): boolean => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const all = modeFields(behavior, "leftMode").concat(modeFields(behavior, "rightMode"));
+    return takenValues(all, new Set()).has((kind === "wikilink" ? "L:" : "T:") + valueBareOf(token));
+  };
 
   ensureAllKeys();
 
@@ -2658,6 +2668,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     getUseAsMoc,
     setUseAsMoc,
     fieldNameError,
+    valueTaken,
     deleteField,
     setStrictName,
     setLabel,

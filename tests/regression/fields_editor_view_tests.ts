@@ -3392,6 +3392,42 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   (walk(f3, "io-btn--cta")[0] as StubNode).click();
   assert.deepEqual(answer3, { name: "mood", kind: "element", setup: { side: "right", element: { mode: "list", format: "", list: ["\u{1F642}‍↕️yes", "\u{1F4A1}"] } } },
     "ответ окна для списка не тот");
+  /* BUGHUNT A14: ссылка с подписью — фишка показывает то, что запишется, с подписью. */
+  let answer4: Any = "не звали";
+  askNewFieldModal(FakeModal as never, {}, a => { answer4 = a; }, say, opts(true));
+  const f4 = opened[opened.length - 1]!;
+  walk(f4, "io-nf__type")[1]!.click();
+  const name4 = walk(f4, "io-text").find(x => x.getAttribute("aria-label") === "Name of the new Field") as StubNode;
+  name4.value = "client";
+  name4.dispatch("input");
+  const vi4 = walk(f4, "io-text").find(x => x.getAttribute("aria-label") === "New Value") as StubNode;
+  vi4.value = "[[Alias Target|Shown]]";
+  vi4.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+  assert.deepEqual(walk(f4, "io-nf__chiptext").map(n => String(n.textContent)), ["[[Alias Target|Shown]]"], "A14: фишка ссылки прячет подпись");
+  (walk(f4, "io-btn--cta")[0] as StubNode).click();
+  assert.equal(String(answer4?.kind), "wikilink", "контроль: окно ответило ссылкой");
+  assert.ok(JSON.stringify(answer4).includes("Alias Target|Shown"), "контроль: в ответе ссылка с подписью: " + JSON.stringify(answer4));
+  /* BUGHUNT A13: Value-ссылка, занятая другим Field, — отказ вслух до `Add`, а не молчаливая потеря. */
+  const lv = makeLinkView();
+  const lm = createFieldsModel({ plugin: { getConfig: () => lv.cfg, setConfigPatch: () => {} } as never, normalizePkmOrder, pkmOrderFields: [], cfg: lv.cfg, deepState: deepState as never });
+  assert.equal(lm.valueTaken("[[clienta]]", "wikilink"), true, "A13: занятое написание без регистра не узнано");
+  assert.equal(lm.valueTaken("#clienta", "tag"), false, "тег того же слова — другой род (S5)");
+  let answer5: Any = "не звали";
+  askNewFieldModal(FakeModal as never, {}, a => { answer5 = a; }, say, { ...opts(true), valueTaken: (t: string, k: Any) => lm.valueTaken(t, k) });
+  const f5 = opened[opened.length - 1]!;
+  walk(f5, "io-nf__type")[1]!.click();
+  const name5 = walk(f5, "io-text").find(x => x.getAttribute("aria-label") === "Name of the new Field") as StubNode;
+  name5.value = "client";
+  name5.dispatch("input");
+  const vi5 = walk(f5, "io-text").find(x => x.getAttribute("aria-label") === "New Value") as StubNode;
+  vi5.value = "CLIENTA";
+  vi5.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+  const add5 = walk(f5, "io-btn--cta")[0] as StubNode;
+  assert.equal(add5.disabled, true, "A13: Add нажимается с занятым Value");
+  assert.ok(JSON.stringify(walk(f5, "io-nf__problem").map(n => String(n.textContent))).includes("Another Field already has"),
+    "A13: окно молчит, почему: " + JSON.stringify(walk(f5, "io-nf__problem").map(n => String(n.textContent))));
+  add5.click();
+  assert.equal(answer5, "не звали", "A13: окно ответило с занятым Value");
   passed++;
   console.log("  ok окно `Add a Field`: тип карточками, Block, Values с Enter, предпросмотр и ответ");
 }

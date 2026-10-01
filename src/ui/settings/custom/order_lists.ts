@@ -263,6 +263,8 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
   /** Строки списка и как их подписать; Fields читаются моделью редактора. */
   rowsOf: (cfg: unknown) => Array<{ value: string; label: string }>;
   cell: (row: El, item: { value: string; label: string }) => void;
+  /** Что ещё перерисовывает список, кроме выключателя модуля. */
+  deps?: readonly string[];
 }): () => void {
   const p = ctx.platform;
   if (!p) {
@@ -270,7 +272,7 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
     return () => { empty.empty(); };
   }
 
-  return block(host, ctx, o.cls, ["features.pkm.enabled"], (mount, commit) => {
+  return block(host, ctx, o.cls, ["features.pkm.enabled", ...(o.deps || [])], (mount, commit) => {
     const cfg = p.getConfig();
     const items = o.rowsOf(cfg);
     const enabled = Boolean(ctx.get("features.pkm.enabled"));
@@ -310,6 +312,9 @@ export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   priorityBlock(host, ctx, {
     cls: "io-fieldorder",
     key: "priorityTargets",
+    /* Fields удаляют, заводят и переименовывают на той же вкладке: без этого
+       список рисовал удалённый Field до перехода по вкладкам (BUGHUNT A15). */
+    deps: ["pkm.fields.order"],
     note: "FIELDS_TIP",
     empty: "FIELDS_EMPTY",
     rowsOf: cfg => {
