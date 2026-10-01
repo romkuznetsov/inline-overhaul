@@ -1171,15 +1171,18 @@ function formatTagwheelDisplayToken(token, showPrefix) {
 }
 
 /*
- * Фон панели рисуется пометкой на самом отрезке, поэтому правила для него
- * здесь больше нет. Осталось одно: токен, у которого спрятана приставка,
- * должен читаться как обычный текст строки.
+ * Токен, подменённый виджетом, должен читаться как обычный текст полосы — и
+ * стоять на её заливке. Заливку полоса получает перекраской подсветки
+ * Obsidian (`span.cm-highlight`, `styles.css`), а виджет подмены в этот узел
+ * не попадает: платформа рисует его рядом, а не внутри (стенд `MD7`, его 💬 к
+ * тесту 1 цикла 110 — «у выбранных тегов пропала цветовая заливка»). Виджет
+ * живёт только на строке `io-twline`, и переменная `--io-twfill` у него та же.
  */
 const TAGWHEEL_FILL_STYLE_CSS = [
   ".markdown-source-view.mod-cm6 .inline-overhaul-tw-token {",
   "  font: inherit;",
   "  color: var(--io-tw-token-color, inherit);",
-  "  background: transparent;",
+  "  background-color: var(--io-twfill, var(--text-highlight-bg));",
   "}",
 ].join("\n");
 

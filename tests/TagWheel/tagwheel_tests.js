@@ -2372,7 +2372,7 @@ function runValueNamesSuite(core, baseRules) {
     'Default name печатает написанное значение')
   assertEq(core.valueLabelInStrip('#todo', { mode: 'custom', customText: map }), PRINTED,
     'Only custom name печатает свой текст')
-  assertEq(core.valueLabelInStrip('#todo', { mode: 'both', customText: map }), PRINTED + ' #todo',
+  assertEq(core.valueLabelInStrip('#todo', { mode: 'both', customText: map }), PRINTED + '\u200A#todo',
     'Custom+Default name печатает оба, свой текст первым')
   assertEq(core.valueLabelInStrip('#low', { mode: 'custom', customText: map }), '#low',
     'значение без своего текста печатается написанным и при Only custom name')
@@ -2395,8 +2395,8 @@ function runValueNamesSuite(core, baseRules) {
    * решётки. На равных сторонах перевёрнутые аргументы выглядели бы верно
    * (У-147).
    */
-  assertEq(core.joinValueLabel(PRINTED, 'todo', 'both'), PRINTED + ' todo',
-    'дом ставит свой текст первым, а написанное — вторым')
+  assertEq(core.joinValueLabel(PRINTED, 'todo', 'both'), PRINTED + '\u200Atodo',
+    'дом ставит свой текст первым, а написанное — вторым, через волосяной пробел (его 💬 к тесту 1 цикла 110)')
   assertEq(core.joinValueLabel(PRINTED, 'todo', 'custom'), PRINTED,
     'при `custom` написанное не печатается вовсе')
   assertEq(core.joinValueLabel(PRINTED, 'todo', 'value'), 'todo',
@@ -2452,7 +2452,7 @@ function runValueNamesSuite(core, baseRules) {
 
   var both = core.renderControlLine(rules, state, parsed,
     { mode: 'both', customText: shown.customText })
-  assertTrue(both.indexOf(PRINTED + ' ' + tagToken) !== -1,
+  assertTrue(both.indexOf(PRINTED + '\u200A' + tagToken) !== -1,
     'Custom+Default name показывает оба подряд — ' + JSON.stringify(both))
 
   /*

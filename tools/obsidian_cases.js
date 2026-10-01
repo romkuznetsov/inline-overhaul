@@ -379,6 +379,21 @@ module.exports = [
     at: { file: "t-MD6.md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }, { key: "ArrowRight" }, { wait: 400 }, { key: "ArrowRight" }], settle: 600,
     cfg: { visual: { tagWheel: { showMarkers: true } } },
     check: "const e = a.workspace.activeEditor.editor; const row = [...e.cm.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('Type')); const doc = e.getLine(0); a.commands.executeCommandById('editor:focus'); return (!!row && doc.includes('**[Type]**') && row.textContent.includes(' #high ')) || JSON.stringify({ shown: row && row.textContent, doc });" },
+  /* Его 💬 к тесту 1 цикла 110: решётка вернулась, а заливка панели у тегов
+     пропала. Каждый видимый узел полосы с текстом обязан стоять на заливке
+     панели — своей или предка внутри строки. */
+  { mine: true, id: "MD7", title: "tagWheel со знаками: теги полосы на заливке панели", files: { "t-MD7.md": "- [ ] #high #todo [[Man1]] :: позвонить в банк\n" },
+    at: { file: "t-MD7.md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }], settle: 600,
+    cfg: { visual: { tagWheel: { showMarkers: true } } },
+    check: "const e = a.workspace.activeEditor.editor; const row = e.cm.contentDOM.querySelector('.cm-line.io-twline'); a.commands.executeCommandById('editor:focus'); if (!row) return 'нет полосы'; const fill = getComputedStyle(row).getPropertyValue('--io-twfill').trim(); const bg = (n) => { for (let x = n; x && x !== row; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c; } return 'нет'; }; const leaves = [...row.querySelectorAll('*')].filter((x) => !x.children.length && x.textContent.trim() && /#/.test(x.textContent)); const bad = leaves.filter((x) => bg(x) === 'нет').map((x) => x.className + ':' + x.textContent); const tw = row.querySelectorAll('.inline-overhaul-tw-token').length; return (tw > 0 && bad.length === 0) || JSON.stringify({ fill, tw, bad, html: row.innerHTML.slice(0, 1500) });" },
+  /* Его 💬 к тесту 1 цикла 110: между своим текстом 🎯 и #todo «слишком
+     большое расстояние». Пустое поле справа в коробке эмодзи (3 px) плюс
+     обычный пробел давали 7.3 px; от края рисунка знака до решётки обязано
+     быть не больше обычного пробела с запасом в 1 px. */
+  { mine: true, id: "MD8", title: "tagWheel Custom + default: свой текст вплотную к написанному", files: { "t-MD8.md": "- [ ] #high #todo [[Man1]] :: позвонить в банк\n" },
+    at: { file: "t-MD8.md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }], settle: 600,
+    cfg: { visual: { tagWheel: { showMarkers: true, valueNames: "both" } } },
+    check: "const e = a.workspace.activeEditor.editor; const row = e.cm.contentDOM.querySelector('.cm-line.io-twline'); a.commands.executeCommandById('editor:focus'); if (!row) return 'нет полосы'; const icon = String.fromCodePoint(0x1F3AF); const w = document.createTreeWalker(row, NodeFilter.SHOW_TEXT); let n, at = null; while ((n = w.nextNode())) { const i = n.data.indexOf(icon); if (i >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + icon.length); at = r.getBoundingClientRect().left; break; } } const tag = [...row.querySelectorAll('.inline-overhaul-tw-token')].find((x) => x.textContent === '#todo'); if (at == null || !tag) return JSON.stringify({ icon: at, tag: !!tag, text: row.textContent }); const cs = getComputedStyle(row); const ctx = document.createElement('canvas').getContext('2d'); ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; const ink = ctx.measureText(icon).actualBoundingBoxRight; const space = ctx.measureText(' ').width; const gap = tag.getBoundingClientRect().left - (at + ink); return (gap <= space + 1) || JSON.stringify({ gap, space, ink });" },
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

@@ -479,10 +479,10 @@ function realConfig(): Any {
   assert.ok(base.cells.includes("State"), "первая неактивная ячейка — имя Field: " + JSON.stringify(base.cells));
   assert.ok(base.cells.includes("#x"), "по умолчанию ячейка печатает написанное: " + JSON.stringify(base.cells));
   assert.ok(look("custom", "value").cells.includes("★"), "Custom печатает свой текст: " + JSON.stringify(look("custom", "value").cells));
-  assert.ok(look("both", "value").cells.includes("★ #x"), "Custom + default — оба, свой первым: " + JSON.stringify(look("both", "value").cells));
+  assert.ok(look("both", "value").cells.includes("★\u200A#x"), "Custom + default — оба, свой первым: " + JSON.stringify(look("both", "value").cells));
   assert.deepEqual(base.box, ["#now"], "коробка по умолчанию — написанное: " + JSON.stringify(base.box));
   assert.deepEqual(look("default", "custom").box, ["!"], "коробка Custom — свой текст");
-  assert.deepEqual(look("default", "both").box, ["! #now"], "коробка Custom + default — оба");
+  assert.deepEqual(look("default", "both").box, ["!\u200A#now"], "коробка Custom + default — оба");
   ok("tagWheel Value names и Scroller Value names меняют вид предпросмотра");
 }
 

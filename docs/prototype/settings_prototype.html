@@ -5083,7 +5083,8 @@ function renderWheelPreview(host) {
       const written = (markers ? "#" : "") + v.token;
       const own = printed(v);
       if (!own) return written;
-      return mode === "both" ? own + " " + written : mode === "custom" ? own : written;
+      /* Волосяной пробел, как в доме: у эмодзи своё поле в коробке знака. */
+      return mode === "both" ? own + "\u200A" + written : mode === "custom" ? own : written;
     };
     const shownTop = top(shown);
     const n = values.length;

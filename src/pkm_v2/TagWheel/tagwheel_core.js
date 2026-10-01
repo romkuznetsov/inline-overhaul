@@ -2641,11 +2641,20 @@ function getDisplayTokenByFieldId(rules, state, fieldId) {
  * передаётся уже посчитанное написанное, а не токен.
  *
  * Своего текста нет — печатается написанное, при любом положении (У-188).
+ *
+ * **Соединяет их волосяной пробел (U+200A), а не обычный** — его 💬 к тесту 1
+ * цикла 110: «слишком большое расстояние между custom и default (как-будто
+ * есть лишний пробел)». Лишнего пробела не было: у эмодзи в коробке знака
+ * своё пустое поле — у `🎯` справа 3 px при кегле 16 px, — и вместе с обычным
+ * пробелом (4.4 px) зазор выходил 7.4 px. Волосяной (2 px) даёт ~5 px, как
+ * между словами (стенд настоящего Obsidian, его конфиг).
  */
+var VALUE_LABEL_JOINER = '\u200A'
+
 function joinValueLabel(printed, written, mode) {
   var custom = String(printed == null ? '' : printed).trim()
   if (!custom) return written
-  if (mode === 'both') return custom + ' ' + written
+  if (mode === 'both') return custom + VALUE_LABEL_JOINER + written
   if (mode === 'custom') return custom
   return written
 }

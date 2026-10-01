@@ -176,7 +176,7 @@ const PANEL_INJECTIONS = {
    */
   "scroller-both-drops-written": {
     file: "src/pkm_v2/TagWheel/tagwheel_core.js",
-    find: "  if (mode === 'both') return custom + ' ' + written",
+    find: "  if (mode === 'both') return custom + VALUE_LABEL_JOINER + written",
     replace: "  if (mode === 'both') return custom",
   },
   /*
