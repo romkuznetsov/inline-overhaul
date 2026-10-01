@@ -51,6 +51,8 @@ export interface PluginInternals {
   joinSpacedElementValues: (plugin: Any, cfg: Any) => void;
   registerPkm: (plugin: Any) => void;
   registerBinder: (plugin: Any) => void;
+  registerNavigation: (plugin: Any) => void;
+  registerTransform: (plugin: Any) => void;
   followConfigWithCommands: (plugin: Any) => void;
   /** Открытая сессия панели или `null` — один ответ на вопрос «панель жива?». */
   openTagWheelSession: () => Any;
@@ -283,6 +285,9 @@ export function loadPluginInternals(): PluginInternals {
     /* Регистрация Binder и подписка, которой набор команд идёт за конфигом
        (BUGHUNT R3, ревизия Д-1). */
     registerBinder: commands.registerBinder,
+    /* Навигация и Transform — ради правила фокуса у команд текста (H3.1). */
+    registerNavigation: commands.registerNavigation,
+    registerTransform: commands.registerTransform,
     followConfigWithCommands: bootstrap.followConfigWithCommands,
     openTagWheelSession: commands.openTagWheelSession,
     closeTagWheelSession: commands.closeTagWheelSession,

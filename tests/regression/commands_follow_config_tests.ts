@@ -226,4 +226,56 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   ok("команда Field без Value говорит, что Value нет");
 }
 
+/*
+ * 6. Фокус в свойствах заметки или в её заголовке — команды текста молчат, как
+ * у платформы (`addCommand` в `app.js` 1.13.7; прогон 2026-10-02, H3.1). Без
+ * правки хоткей в поле свойства правил текст по невидимой каретке.
+ * Контроль «команда дошла бы до дела»: при фокусе в тексте каждая доходит до
+ * своего отказа на подделке и говорит его вслух.
+ */
+{
+  const cfg = config([{ rowId: "r1", insertText: "XX", commandName: "Insert XX", commandId: "" }]);
+  cfg.transform.inline2note.enabled = true;
+  const callbacks = new Map<string, () => Promise<void>>();
+  const plugin: Any = {
+    getConfig: () => cfg,
+    addCommand: (c: Any) => { callbacks.set(c.id, c.callback); },
+    removeCommand: () => {},
+    notice: (m: string) => { notices.push(m); },
+    getActiveEditor: () => null,
+    devLogEvent: () => {},
+    _registeredBinderCommandIds: new Set(), _registeredBinderCommandNames: new Map(),
+  };
+  I.registerNavigation(plugin);
+  I.registerPkm(plugin);
+  I.registerBinder(plugin);
+  I.registerTransform(plugin);
+  const ids = ["move-line-up", "status-next", "insert-xx", "transform-inline-to-note"];
+  for (const id of ids) assert.ok(callbacks.has(id), "нет команды " + id + ": " + Array.from(callbacks.keys()).join(", "));
+  const g = globalThis as Any;
+  const saved = g.activeDocument;
+  const focusIn = (sel: string | null): void => {
+    g.activeDocument = { activeElement: { closest: (q: string) => (sel && q.includes(sel) ? {} : null) } };
+  };
+  try {
+    for (const where of [".metadata-container", ".inline-title", ".view-header-title"]) {
+      focusIn(where);
+      for (const id of ids) {
+        const mark = notices.length;
+        await callbacks.get(id)!();
+        assert.deepEqual(notices.slice(mark), [], id + " при фокусе в " + where + " исполнилась: " + notices.slice(mark).join(" | "));
+      }
+    }
+    focusIn(null);
+    for (const id of ids) {
+      const mark = notices.length;
+      await callbacks.get(id)!();
+      assert.ok(notices.length > mark, "контроль: " + id + " при фокусе в тексте не дошла до дела");
+    }
+  } finally {
+    g.activeDocument = saved;
+  }
+  ok("фокус в свойствах и заголовке — команды текста молчат, в тексте — исполняются");
+}
+
 console.log(passed + " проверок пройдено");

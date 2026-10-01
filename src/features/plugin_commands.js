@@ -213,6 +213,25 @@ function ownCommandList(plugin) {
   return buildOwnCommandList(plugin);
 }
 
+/**
+ * Фокус стоит в свойствах заметки или в её заголовке, а не в тексте.
+ *
+ * Команде редактора платформа в этом случае исполниться не даёт: `addCommand`
+ * в `app.js` 1.13.7 оборачивает `editorCallback` проверкой
+ * `inlineTitleEl.isActiveElement()`, `titleEl.isActiveElement()` и
+ * `activeElement.closest(".metadata-container")`. Наши команды заведены через
+ * `callback`, и правило до них не доходило (прогон 2026-10-02, H3.1): хоткей
+ * в поле свойства переставлял строки, ставил Value и превращал строку в
+ * заметку по невидимой каретке редактора. Ответ тот же, что у платформы, —
+ * команда не исполняется и молчит, как встроенная `Swap line up`.
+ */
+function focusOutsideNoteText() {
+  /* `activeDocument` — документ окна, где фокус (у вынесенного окна свой). */
+  const doc = globalThis.activeDocument || globalThis.document || null;
+  const el = doc ? doc.activeElement : null;
+  return !!(el && typeof el.closest === "function" && el.closest(".metadata-container, .inline-title, .view-header-title"));
+}
+
 function registerAll(plugin) {
   const registry = getCommandRegistry();
   const coreDefs = registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META);
@@ -249,6 +268,7 @@ function registerNavigation(plugin) {
       id: d.id,
       name: __commandIds.commandDisplayName(COMMAND_AREAS.navigation, d.name),
       callback: async () => {
+        if (focusOutsideNoteText()) return;
         await runNavigationGuard(plugin, "navigation", d.run, d.jump);
       },
     });
@@ -302,6 +322,7 @@ function registerPkm(plugin) {
       id,
       name,
       callback: async () => {
+        if (focusOutsideNoteText()) return;
         await runPkmGuard(plugin, async (cfg) => {
           /*
            * Определение спрашивается у **нынешнего** конфига: Field мог
@@ -362,6 +383,7 @@ function registerBinder(plugin) {
       id,
       name,
       callback: async () => {
+        if (focusOutsideNoteText()) return;
         const fresh = registry.buildBinderCommandDefs(plugin.getConfig()).find((x) => x && x.id === id);
         if (fresh) await Promise.resolve(fresh.run(plugin));
       },
@@ -376,7 +398,7 @@ function registerTransform(plugin) {
     id: "transform-inline-to-note",
     name: __commandIds.commandDisplayName(COMMAND_AREAS.transform,
       __commandIds.commandName("transform-inline-to-note")),
-    callback: async () => { await runInlineToNote(plugin); },
+    callback: async () => { if (focusOutsideNoteText()) return; await runInlineToNote(plugin); },
   });
 }
 
@@ -654,6 +676,7 @@ function closeTagWheelSession() {
 }
 
 module.exports = {
+  focusOutsideNoteText,
   closeTagWheelSession,
   openTagWheelSession,
   navigationRuntime,

@@ -1224,7 +1224,8 @@ async function run() {
   assertTrue(/__editorMount\.mountExtensions\(plugin\);/.test(bootstrapSrc), "и загрузка зовёт постановку один раз");
   assertTrue(/__editorMount\.refreshOpenEditors\(plugin\);/.test(configWriteSrc), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
-  assertTrue(/callback: async \(\) => \{ await runInlineToNote\(plugin\); \},/.test(commandsSrc), "the transform command delegates to the shared method");
+  /* Охрана фокуса (H3.1, правило платформы) телом команды не является. */
+  assertTrue(/callback: async \(\) => \{ (?:if \(focusOutsideNoteText\(\)\) return; )?await runInlineToNote\(plugin\); \},/.test(commandsSrc), "the transform command delegates to the shared method");
   assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
 
   {

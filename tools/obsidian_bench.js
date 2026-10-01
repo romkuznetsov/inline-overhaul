@@ -207,6 +207,10 @@ function runCommand(win, id) {
 const README_LINE = "- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15";
 
 const PREPARE = {
+  /* H3.1 прогона 2026-10-02: заметка со свойствами для сценария `properties-focus`. */
+  "properties-focus"(vault) {
+    fs.writeFileSync(path.join(vault, "props.md"), "---\ntitle: a\nstatus: b\n---\n- first line\n- second line\n");
+  },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   /* Заметка строки README и заметка ссылки: ссылка без заметки рисуется неразрешённой. */
   "clean-readme-shot"(vault) {
@@ -1319,6 +1323,45 @@ const SCENARIOS = {
   /* A10 перечня 2026-09-30: ссылка с подписью в полосе tagWheel видна как `Ex]`.
      Обходит ячейки полосы стрелкой вправо, в каждой листает Value вниз и
      спрашивает экран: подпись `Shown` видна целиком, без скобок и цели. */
+  /*
+   * H3.1 прогона 2026-10-02: фокус в поле свойства — команда текста молчит,
+   * как встроенная `Swap line up`. Контроль: фокус в тексте — та же команда
+   * переставляет строку.
+   */
+  async "properties-focus"(win) {
+    const n = await openAt(win, "props.md", "- second line");
+    if (n < 0) throw new Error("нет строки в props.md");
+    const step = (inProps) => win.evaluate(async ({ n, inProps }) => {
+      const a = window.app;
+      const ed = a.workspace.activeEditor.editor;
+      ed.setCursor({ line: n, ch: 3 });
+      ed.focus();
+      await new Promise((r) => setTimeout(r, 200));
+      if (inProps) {
+        const input = document.querySelector(".workspace-leaf.mod-active .metadata-container .metadata-property-value [contenteditable], .workspace-leaf.mod-active .metadata-container .metadata-property-value input");
+        if (!input) return { error: "нет поля свойства" };
+        input.focus();
+        await new Promise((r) => setTimeout(r, 200));
+        if (!document.activeElement || !document.activeElement.closest(".metadata-container")) return { error: "фокус не встал в свойство" };
+      }
+      const before = ed.getValue();
+      await a.commands.executeCommandById("inline-overhaul:move-line-up");
+      await new Promise((r) => setTimeout(r, 400));
+      const after = ed.getValue();
+      if (after !== before) ed.setValue(before);
+      return { changed: after !== before, after };
+    }, { n, inProps });
+    const inProps = await step(true);
+    if (inProps.error) { console.log("КОНТРОЛЬ: " + inProps.error); return false; }
+    const inText = await step(false);
+    console.log("фокус в свойстве: " + (inProps.changed ? "строка сменилась — " + JSON.stringify(inProps.after) : "текст не тронут"));
+    console.log("фокус в тексте (контроль): " + (inText.changed ? "строка переставлена" : "ничего не сделала"));
+    if (!inText.changed) { console.log("КОНТРОЛЬ: команда не работает и в тексте — мерить нечего"); return false; }
+    const ok = !inProps.changed;
+    console.log(ok ? "ok: в свойстве команда молчит" : "РАСХОДИТСЯ: команда правит текст из поля свойства");
+    return ok;
+  },
+
   async "panel-link-label-both"(win) { return SCENARIOS["panel-link-label"](win, { "Plain": "PL\u200APlain" }); },
 
   async "panel-link-label"(win, labels) {
