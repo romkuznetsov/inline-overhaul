@@ -467,6 +467,9 @@ module.exports = [
   ...[["B9", 1, 2], ["B9.w", 2, 9]].map(([id, n, ch]) => one(id, "Jump left на цитате: `> ` — начало строки", "> one two", Array(n).fill("move-cursor-left-in-line"), "",
     { at: { file: "t.md", line: 0, ch: 6, source: true }, expect: {},
       check: "const c = a.workspace.activeEditor.editor.getCursor(); return c.ch === " + ch + " || JSON.stringify(c);" })),
+  /* B20, его ответ `В-263`: знаки препинания при переносе слова остаются на месте — его примеры. */
+  one("B20.1", "Move left: запятая и ! на месте", "- купить хлеб, молоко!", ["move-left"], "- купить молоко, хлеб!", { at: { file: "t.md", line: 0, sel: "молоко" } }),
+  one("B20.2", "Move right ×2: точка на месте", "- завтра встреча. Потом отчёт", [{ js: "const l = ed.getLine(0); ed.setSelection({ line: 0, ch: l.indexOf('завтра') }, { line: 0, ch: l.indexOf('завтра') + 6 });" }, "move-right", "move-right"], "- встреча. Потом завтра отчёт"),
   /* B22: шаг Sentence при `Continue past Separators` останавливается в конце последнего предложения, а не за разделителем. */
   ...[["B22.1", 1, "One two"], ["B22.2", 2, "Three four"], ["B22.3", 3, "|| "]].map(([id, n, before]) => one(id, "Jump right, Sentence, через разделители: " + n + " нажатия", "- #todo || One two. Three four || x", Array(n).fill("move-cursor-right-in-line"), "",
     { at: { file: "t.md", line: 0, after: "|| " }, expect: {}, cfg: { navigation: { navigateInline: { stepMode: "sentence", boundaryJump: true } } },

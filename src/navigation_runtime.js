@@ -1110,6 +1110,66 @@ function planGaps(before, gap, after, token, phrase) {
   return [before, gap, after];
 }
 
+/*
+ * Знаки препинания внутри фразы не едут (его ответ `В-263` «знаки на месте»,
+ * BUGHUNT 2026-09-30, B20). Скобки и кавычки по-прежнему шаг своего права (его
+ * пункт 7, 2026-09-22) — ветка ниже их не трогает.
+ */
+const SENTENCE_MARKS = ",.;:!?\u2026";
+function isSentenceMark(ch) { return ch != null && SENTENCE_MARKS.indexOf(ch) >= 0; }
+
+/**
+ * Перенос слова через соседа, у которого или у выделенного рядом стоит знак
+ * препинания. Слова меняются местами, знак остаётся там, где стоял: у соседа —
+ * на месте соседа, а знак сразу за выделенным при шаге вправо остаётся за
+ * словом слева. Так выходят его примеры: `купить хлеб, [молоко]!` влево —
+ * `купить [молоко], хлеб!`; `[завтра] встреча. Потом` вправо — `встреча
+ * [завтра]. Потом`, ещё раз — `встреча. Потом [завтра]`.
+ *
+ * Ответ `null` — ветка не про этот случай (знаков нет, у соседа скобка или
+ * кавычка, ссылка, начало строки), и шаг идёт прежним путём.
+ *
+ * ponytail: правило снято с его трёх примеров и несимметрично (шаг влево не
+ * отдаёт знак выделенного соседу слева); свести к одному правилу, если он
+ * пришлёт пример, где это видно.
+ */
+function swapAroundSentenceMarks(doc, a, b, direction, lo, hi) {
+  const phrase = doc.slice(a, b);
+  const core = (raw) => {
+    let t = raw.length; while (t > 0 && isSentenceMark(raw[t - 1])) t--;
+    return { word: raw.slice(0, t), marks: raw.slice(t) };
+  };
+  const plainWord = (w) => w && !isWholeLinkToken(w) && !isEdgeMark(w[0]) && !isEdgeMark(w[w.length - 1]);
+  if (direction === "left") {
+    let i = a; while (i > lo && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
+    if (!gap) return null;
+    const tEnd = i; while (i > lo && isTokenChar(doc[i - 1])) i--;
+    const tStart = i;
+    const n = core(doc.slice(tStart, tEnd));
+    if (!n.marks || !plainWord(n.word)) return null;
+    let p = tStart; while (p > lo && isHorizSpace(doc[p - 1])) p--;
+    const before = doc.slice(p, tStart);
+    let q = b; while (q < hi && isHorizSpace(doc[q])) q++;
+    const after = doc.slice(b, q);
+    const text = before + phrase + n.marks + gap + n.word + after;
+    return { from: p, to: q, text, at: p + before.length };
+  }
+  let m = b; while (m < hi && isSentenceMark(doc[m])) m++;
+  const own = doc.slice(b, m);
+  let i = m; while (i < hi && isHorizSpace(doc[i])) i++; const gap = doc.slice(m, i);
+  if (!gap) return null;
+  const tStart = i; while (i < hi && isTokenChar(doc[i])) i++;
+  const tEnd = i;
+  const n = core(doc.slice(tStart, tEnd));
+  if (!plainWord(n.word) || (!own && !n.marks)) return null;
+  let p = a; while (p > lo && isHorizSpace(doc[p - 1])) p--;
+  const before = doc.slice(p, a);
+  /* Знаку выделенного нужно слово слева — без него ветка не про этот случай. */
+  if (own && (!before || p <= lo)) return null;
+  const text = own + before + n.word + gap + phrase + n.marks;
+  return { from: p, to: tEnd, text, at: p + own.length + before.length + n.word.length + gap.length };
+}
+
 function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   /* Стена строки: ниже её начала и выше её конца перенос не ходит. */
   const lo = bounds && Number.isFinite(bounds.lo) ? bounds.lo : 0;
@@ -1117,6 +1177,12 @@ function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   while (a < b && isHorizSpace(doc[a])) a++;
   while (b > a && isHorizSpace(doc[b - 1])) b--;
   const phrase = doc.slice(a, b); if (!phrase) return;
+  const marked = swapAroundSentenceMarks(doc, a, b, direction, lo, hi);
+  if (marked) {
+    writeMovedWindow(editor, doc, marked.from, marked.to, marked.text);
+    editor.setSelection(editor.offsetToPos(marked.at), editor.offsetToPos(marked.at + phrase.length));
+    return;
+  }
   if (direction === "left") {
     let i = a; while (i > lo && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
     const tEnd = i; while (i > lo && isTokenChar(doc[i - 1])) i--; let tStart = i;
