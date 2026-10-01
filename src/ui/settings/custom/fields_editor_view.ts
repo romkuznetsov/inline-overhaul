@@ -2248,7 +2248,11 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
      * человек допечатывает.
      */
     const values = ed.list.slice();
-    const save = (): void => { ed.setList(values.join("\n")); o.redraw(); };
+    const save = (): void => {
+      const res = ed.setList(values.join("\n"));
+      if (!res.ok && res.error) o.notice(res.error);
+      o.redraw();
+    };
     const withPicker = (input: ElInput, host: El, picked: () => void): void => {
       if (!o.enabled) return;
       const picker = attachPicker(input, host, {

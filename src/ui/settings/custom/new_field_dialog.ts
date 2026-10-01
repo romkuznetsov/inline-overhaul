@@ -126,6 +126,9 @@ export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string,
   const bad = checkName(d.name);
   if (bad) return bad;
   if (d.kind === "element" && d.value !== "list" && !d.marker.trim()) return say("NF_NEED_EMOJI");
+  /* Value тега и списка — одно слово: строку делят по пробелам (BUGHUNT 2026-09-30, A4, A5). */
+  if (d.kind === "tag" && d.values.some(v => /\s/.test(bare(v.token, "tag")))) return say("ERR_VALUE_SPACE");
+  if (d.kind === "element" && d.value === "list" && d.values.some(v => /\s/.test(v.token.trim()))) return say("ERR_LIST_VALUE_SPACE");
   return "";
 }
 

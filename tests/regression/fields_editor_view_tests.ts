@@ -26,6 +26,7 @@ import {
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
 import { BLOCK_TEXTS, sayIn } from "../../src/ui/settings/texts_blocks.ts";
 import { askNewFieldModal } from "../../src/ui/settings/custom/fields_editor.ts";
+import { draftProblem, freshDraft } from "../../src/ui/settings/custom/new_field_dialog.ts";
 import { CONTRAST_FLOOR, contrastRatio } from "../../src/ui/settings/custom/contrast.ts";
 
 setupGlobals();
@@ -3571,6 +3572,35 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   input.dispatch("change");
   assert.equal(v.notices.length, before + 1, "A11: отказ переименования прошёл молча");
   ok("отказ переименования Value сказан вслух");
+}
+{
+  /* A5: Value Element-списка — одно слово; `✅ done` строка читала двумя, и
+     круг копил половины в тексте. Отказ вслух, уже лежащее правок не запирает. */
+  const v = makeView();
+  const dueKey = (v.model.listFields() as Array<{ key: string; label: string }>).find(f => f.label === "Due")!.key;
+  const ed = () => v.model.elementEditor(dueKey);
+  assert.equal(ed().setList("\u{1F642}\n\u{1F4A1}").ok, true, "контроль: законный список");
+  const writes = v.writes.length;
+  const spaced = ed().setList("\u{1F642}\n✅ done");
+  assert.equal(spaced.ok, false, "A5: Value списка с пробелом записалось");
+  assert.ok(String(spaced.error || "").length > 0, "A5: отказ без слов");
+  assert.equal(v.writes.length, writes, "отказ всё равно записал");
+  v.draw();
+  const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
+  one(due, "io-fields__pick").click();
+  const foot = one(one(v.host, "io-elist"), "io-elist__foot");
+  const before = v.notices.length;
+  one(foot, "io-text").value = "✅ done";
+  one(foot, "io-btn").click();
+  assert.equal(v.notices.length, before + 1, "A5: отказ в панели прошёл молча");
+  assert.deepEqual(ed().list, ["\u{1F642}", "\u{1F4A1}"], "A5: панель записала Value с пробелом");
+  const say = (name: string): string => String((BLOCK_TEXTS["field-editor"] as Record<string, string>)[name] || name);
+  const draft = (kind: string, value: string, tokens: string[]) =>
+    ({ ...freshDraft(), name: "Mood", kind, value, marker: "x", values: tokens.map(token => ({ token })) }) as Any;
+  assert.equal(draftProblem(draft("element", "list", ["✅ done"]), () => "", say), say("ERR_LIST_VALUE_SPACE"), "A5: окно Add Field приняло Value списка с пробелом");
+  assert.equal(draftProblem(draft("tag", "", ["at work"]), () => "", say), say("ERR_VALUE_SPACE"), "A4: окно Add Field приняло тег с пробелом");
+  assert.equal(draftProblem(draft("element", "list", ["✅done"]), () => "", say), "", "отрицательный контроль: слово без пробела");
+  ok("Value Element-списка с пробелом не заводится ни панелью, ни окном Add Field");
 }
 
 console.log("");

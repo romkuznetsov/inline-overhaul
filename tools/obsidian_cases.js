@@ -439,6 +439,9 @@ module.exports = [
     at: { file: "t-" + id + ".md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }], settle: 600,
     cfg: { visual: { tagWheel: { boldFieldNames: on } } },
     check: "const e = a.workspace.activeEditor.editor; const row = e.cm.contentDOM.querySelector('.cm-line.io-twline'); const doc = e.getLine(0); a.commands.executeCommandById('editor:focus'); if (!row) return 'нет полосы'; const names = [...doc.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim()); const w = (name) => { const hit = [...row.querySelectorAll('*')].filter((x) => x.textContent.trim() === name).pop(); return hit ? Number(getComputedStyle(hit).fontWeight) : -1; }; const got = names.map((n) => n + ':' + w(n)); const ok = names.length > 0 && names.every((n) => " + (on ? "w(n) >= 700" : "w(n) >= 0 && w(n) < 600") + "); return ok || JSON.stringify({ got, doc });" })),
+  /* A5: Value Element-списка — одно слово (с пробелом его не заводят панель и окно); круг из знака со словом замыкается. */
+  one("A5", "Element-список: Value с пробелом не копится", "- x", [{ js: "const o = plugin.getConfig().pkm.fields.order; plugin.setConfigPatch({ pkm: { fields: { order: { left: o.left.concat(['Mood']), types: { Mood: 'element' }, active: { Mood: 'yes' } }, elements: { byField: { Mood: { emoji: '', format: '', increment: { mode: 'list' }, list: ['\u{1F642}', '✅done'] } } } } } }, 'bench'); plugin.registerPkmCommands();", wait: 400 },
+    { cursor: { line: 0, ch: 3 } }, "mood-next", "mood-next", "mood-next", "mood-next", "mood-next"], "- ✅done || x"),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

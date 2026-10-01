@@ -426,6 +426,7 @@ export const BLOCK_TEXTS = {
     /* Написание Value (BUGHUNT 2026-09-30, Q3). */
     ERR_VALUE_SPACE: "A tag Value is one word: join the words with - or _",
     ERR_VALUE_TWICE: "This Field already has this Value",
+    ERR_LIST_VALUE_SPACE: "A list Value is one word: write it without spaces, like ✅done",
     ERR_CHILD_TAKEN: "The child Field for this name already exists",
     ERR_NO_FIELD: "No Field named {0}",
     ERR_YAML_FORM: "A Value is written either raw or clean, nothing else",

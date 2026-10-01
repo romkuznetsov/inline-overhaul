@@ -349,7 +349,7 @@ export interface ElementEditor {
   setIncrementBy: (v: number) => void;
   setCommand: (v: string) => void;
   setCustomRaw: (text: string) => void;
-  setList: (text: string) => void;
+  setList: (text: string) => WriteResult;
 }
 
 export interface OrderSnapshot {
@@ -1894,11 +1894,19 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           "pkm:behavior:order:deep:custom:" + k,
         );
       },
-      /* Строки без пустых; повторы снимает нормализация (`ensureBehaviorModesFromOrder`). */
-      setList: text => write(
-        { ...cur, increment: { ...inc, mode: "list" }, list: normalizeCustomRaw(text) },
-        "pkm:behavior:order:deep:list:" + k,
-      ),
+      /*
+       * Строки без пустых; повторы снимает нормализация (`ensureBehaviorModesFromOrder`).
+       * Value списка — одно слово (BUGHUNT 2026-09-30, A5): строку движки делят
+       * по пробелам, и `✅ done` читалось двумя словами — круг копил половины в
+       * тексте человека. Спрашивается только новое: уже лежащее правок не запирает.
+       */
+      setList: text => {
+        const list = normalizeCustomRaw(text);
+        const was = Array.isArray(cur.list) ? cur.list.map((x: Loose) => String(x || "").trim()) : [];
+        if (list.some(v => !was.includes(v) && /\s/.test(v))) return { ok: false, error: SAY.ERR_LIST_VALUE_SPACE };
+        write({ ...cur, increment: { ...inc, mode: "list" }, list }, "pkm:behavior:order:deep:list:" + k);
+        return { ok: true };
+      },
     };
   };
 
