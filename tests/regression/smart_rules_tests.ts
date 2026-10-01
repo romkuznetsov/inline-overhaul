@@ -413,8 +413,9 @@ function baseConfig(rules?: Any[]): Any {
   ]));
   const warns = all(p.host, "io-rule__warn");
   assert.ok(warns.length, "два правила на одну строку — панель предупреждает");
-  assert.ok(warns[0]?.textContent.includes("rule-2") || warns[0]?.textContent.length,
-    "и текст предупреждения от движка: " + warns[0]?.textContent);
+  /* C16 перечня 2026-09-30: сосед назван так, как его видно в панели. */
+  assert.ok(warns[0]?.textContent.includes("Conflicts with Rule 2") && !warns[0]?.textContent.includes("rule-2"),
+    "сосед назван не по-панельному: " + warns[0]?.textContent);
   assert.equal(all(p.host, "io-rule--clash").length, warns.length,
     "спорная карточка помечена");
   assert.deepEqual(p.rules().map((r: Any) => r.enabled), [true, true],
@@ -432,8 +433,8 @@ function baseConfig(rules?: Any[]): Any {
       conditions: { tags: [], emojiFields: [], wikilinks: [] } },
   ]));
   const note = all(empty.host, "io-rule__warn")[0];
-  assert.ok(note && note.textContent.includes("no conditions"),
-    "правило без условий названо словами движка: " + note?.textContent);
+  assert.ok(note && note.textContent.includes("No conditions yet") && note.textContent.includes("Element"),
+    "правило без условий названо не словами панели: " + note?.textContent);
   ok("спор правил и правило без условий — разбор движка, а не панели");
 }
 
@@ -1134,7 +1135,8 @@ function baseConfig(rules?: Any[]): Any {
   /* Условий нет вовсе — сводка говорит это словами, а не пустым местом. */
   const p = makePanel(baseConfig([{ id: "r1", enabled: true }]), { expanded: new Set<string>() });
   const summary = all(p.host, "io-rule__sumpart").map(n => n.textContent);
-  assert.equal(summary[0], "Use when: any line", "правило без условий смотрит на любую строку");
+  /* Такое правило движок выключает — «any line» было неправдой (C16). */
+  assert.equal(summary[0], "Use when: nothing yet, so the rule is not used", "сводка правила без условий");
   assert.equal(summary[1], "Template: None", "шаблона нет — и это сказано словом, а не пустотой");
   assert.equal(summary[2], "Folder: Default", "папка по умолчанию названа словом");
   ok("сводка свёрнутого правила объясняет пустоту, а не молчит");

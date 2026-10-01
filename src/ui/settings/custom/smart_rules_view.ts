@@ -35,6 +35,13 @@ const T = BLOCK_TEXTS["smart-rules-list"];
 export type Say = (name: string, ...args: readonly (string | number)[]) => string;
 const PLAIN: Say = sayIn("smart-rules-list", {});
 
+const CONDITION_TITLE: Record<RuleKind, string> = {
+  tags: "CONDITION_TITLE_TAG",
+  emojiFields: "CONDITION_TITLE_ELEMENT",
+  wikilinks: "CONDITION_TITLE_LINK",
+  fields: "CONDITION_TITLE_FIELD",
+};
+
 const KIND_LABEL: Record<RuleKind, string> = {
   tags: T.KIND_TAG,
   emojiFields: T.KIND_ELEMENT,
@@ -105,6 +112,19 @@ export interface RulesViewOpts {
 /** Номер правила и его имя: по имени человек его и зовёт. */
 function ruleTitle(row: RuleRow, index: number): string {
   return row.name || RULE_FALLBACK + (index + 1);
+}
+
+/**
+ * Жалоба на правило словами панели (BUGHUNT 2026-09-30, C16): движок говорит
+ * `rule-2` и `tag/emoji/wikilink`, а человек видит `Rule 2` и Tag, Element,
+ * Link, Field. Вердикт по-прежнему движка — здесь только слова.
+ */
+function conflictText(row: RuleRow, o: RulesViewOpts): string {
+  if (!row.conflict) return "";
+  const say = o.say || PLAIN;
+  if (!row.conflictWith.length) return say("CONFLICT_EMPTY");
+  const rows = o.model.listRules();
+  return say("CONFLICT_WITH", row.conflictWith.map(i => (rows[i] ? ruleTitle(rows[i], i) : RULE_FALLBACK + (i + 1))).join(", "));
 }
 
 /**
@@ -471,7 +491,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     if (row.conflict) {
       const folded = el(main, "div", "io-rule__warn");
       el(folded, "span", undefined, "\u26a0");
-      el(folded, "span", undefined, row.conflict);
+      el(folded, "span", undefined, conflictText(row, o));
     }
     return;
   }
@@ -577,7 +597,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   if (row.conflict) {
     const warn = el(main, "div", "io-rule__warn");
     el(warn, "span", undefined, "⚠");
-    el(warn, "span", undefined, row.conflict);
+    el(warn, "span", undefined, conflictText(row, o));
   }
 }
 
@@ -684,8 +704,9 @@ export function renderConditionPicker(host: El, o: {
 }
 
 /** Заголовок диалога: он же объясняет, что выбирается. */
-export function conditionDialogTitle(kind: RuleKind): string {
-  return "Add a " + KIND_LABEL[kind].toLowerCase();
+export function conditionDialogTitle(kind: RuleKind, say: Say = PLAIN): string {
+  /* Заголовок целиком в каталоге: склейка «Add a » + слово давала «Add a element» (C16). */
+  return say(CONDITION_TITLE[kind]);
 }
 
 /**

@@ -486,8 +486,16 @@ export const BLOCK_TEXTS = {
     /* ---- свёрнутая карточка правила (З-6) ---------------------------- */
     RULE_COLLAPSE: "Collapse {0}",
     RULE_EXPAND: "Expand {0}",
-    /* Условий нет вовсе: правило смотрит на любую строку. */
-    SUMMARY_ANY_LINE: "any line",
+    /* Условий нет вовсе: такое правило движок выключает (`validateSmartRules`),
+       и «any line» было неправдой (BUGHUNT 2026-09-30, C16). */
+    SUMMARY_ANY_LINE: "nothing yet, so the rule is not used",
+    /* Жалобы на правило: вердикт движка, слова панели (C16). */
+    CONFLICT_WITH: "Conflicts with {0}: a line can match both, so neither is used",
+    CONDITION_TITLE_TAG: "Add a tag",
+    CONDITION_TITLE_ELEMENT: "Add an element",
+    CONDITION_TITLE_LINK: "Add a link",
+    CONDITION_TITLE_FIELD: "Add a Field",
+    CONFLICT_EMPTY: "No conditions yet: add a Tag, Element, Link or Field, or the rule is not used",
     /* Подписи частей сводки. Двоеточие внутри строки нарочно: видимая подпись
        переводится целиком, а где в языке стоит двоеточие и стоит ли перед ним
        пробел — решает тот, кто переводит, а не наша склейка. */

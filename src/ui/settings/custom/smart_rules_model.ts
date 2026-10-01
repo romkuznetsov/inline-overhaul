@@ -136,6 +136,8 @@ export interface RuleRow {
   conditions: Record<RuleKind, string[]>;
   /** Разбор движка: правило спорит с другим или осталось без условий. */
   conflict: string;
+  /** С кем спорит правило: номера соседей в списке. Пусто при споре — условий нет (C16). */
+  conflictWith: number[];
 }
 
 export interface RulesModelDeps {
@@ -201,6 +203,7 @@ export function createRulesModel(deps: RulesModelDeps) {
   const listRules = (): RuleRow[] => {
     const raw = rawRules();
     const checked = validate(raw);
+    const ids = raw.map((rawRule, i) => String(asObject(rawRule)["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1));
     return raw.map((rawRule, i) => {
       const r = asObject(rawRule);
       const conditions = asObject(r["conditions"]);
@@ -230,6 +233,10 @@ export function createRulesModel(deps: RulesModelDeps) {
           fields: uniqueStrings(conditions["fields"]),
         },
         conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : "",
+        conflictWith: validation["isConflict"]
+          ? [...new Set(asArray(validation["details"]).map(d => ids.indexOf(String(asObject(d)["peerRuleId"] || ""))))]
+            .filter(n => n >= 0)
+          : [],
       };
     });
   };
@@ -329,6 +336,7 @@ export function createRulesModel(deps: RulesModelDeps) {
       placement: { ...EMPTY_PLACEMENT },
       conditions: { tags: [], emojiFields: [], wikilinks: [], fields: [] },
       conflict: "",
+      conflictWith: [],
     });
     save(rules, "transform:smart-rules:add");
     return id;
