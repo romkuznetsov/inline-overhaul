@@ -894,13 +894,15 @@ const filled = (el: Any): boolean =>
   const spans = (wheel: Any, line: string = LINE): Any[] =>
     I.tagwheelPanelSpans(line, I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: wheel } }), known);
 
-  /* 1. Заливка задана — панель оформляется, и ни одной подмены. */
+  /* 1. Заливка задана — панель оформляется; пока решётки показаны, подменяется
+        только тег после пробела, и показывает он себя целиком: решётку такого
+        тега внутри `==…==` прячет Obsidian (его 💬 к тесту 3 цикла 109). */
   const painted = spans({ fillColor: "#f0e17f", textColor: "#322b2a", showMarkers: true, highlightLine: true });
   assert.ok(painted.length, "с заданной заливкой панель оформляется: " + painted.length);
   const replaced = painted.filter(x => x.kind === "replace");
-  assert.deepEqual(replaced, [],
-    "пока решётки показаны, слой панели не подменяет ничего: "
-    + JSON.stringify(replaced.map((r: Any) => LINE.slice(r.start, r.end))));
+  assert.deepEqual(replaced.map((r: Any) => [LINE.slice(r.start, r.end), r.text]), [["#todo", "#todo"]],
+    "пока решётки показаны, подменяется только тег после пробела, и целиком: "
+    + JSON.stringify(replaced.map((r: Any) => [LINE.slice(r.start, r.end), r.text])));
 
   /*
    * 2. Фон лежит ровно на панели — **вместе с метками `==`** — и приезжает

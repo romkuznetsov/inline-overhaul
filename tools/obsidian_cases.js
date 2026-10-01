@@ -361,6 +361,12 @@ module.exports = [
     at: { file: "t-D6.md", line: 0 }, steps: ["open-tagwheel-left"], settle: 600,
     cfg: { visual: { tagWheel: { showMarkers: false, textColor: "#112233", activeTextColor: "#ff0000" } } },
     check: "const w = [...a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.inline-overhaul-tw-token')]; const red = w.filter((n) => getComputedStyle(n).color === 'rgb(255, 0, 0)'); a.commands.executeCommandById('editor:focus'); return (w.length > 0 && red.length === 1) || JSON.stringify(w.map((n) => n.textContent + ':' + getComputedStyle(n).color));" },
+  /* Его 💬 к тесту 3 цикла 109: со знаками после перехода к следующему полю
+     значение прошлого поля теряет решётку в панели. */
+  { mine: true, id: "MD6", title: "tagWheel со знаками: прошлое поле держит решётку", files: { "t-MD6.md": "- [ ] #high :: позвонить в банк\n" },
+    at: { file: "t-MD6.md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }, { key: "ArrowRight" }, { wait: 400 }, { key: "ArrowRight" }], settle: 600,
+    cfg: { visual: { tagWheel: { showMarkers: true } } },
+    check: "const e = a.workspace.activeEditor.editor; const row = [...e.cm.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('Type')); const doc = e.getLine(0); a.commands.executeCommandById('editor:focus'); return (!!row && doc.includes('**[Type]**') && row.textContent.includes(' #high ')) || JSON.stringify({ shown: row && row.textContent, doc });" },
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
