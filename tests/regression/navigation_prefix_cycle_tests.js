@@ -162,4 +162,47 @@ function tabEditor(text) {
   assertEq(ed.getCursor().ch, 9, "N3: каретка ушла с места в тексте");
 })();
 
+/*
+ * `Indent the whole tree` (`В-257`, его ответ 2026-10-01): дерево строки
+ * получает тот же шаг отступа. Ключ подаётся через `moveSelection`, то есть
+ * через `pickMoveSelectionCfg`: сборщик перечисляет поля по одному, и
+ * неназванное до движка не доезжает (У-56). Редактор многострочный и без
+ * `cm` — правка идёт запасным путём по отрезкам.
+ */
+function treeEditor(text, cursorLine) {
+  let doc = text;
+  const lines = () => doc.split("\n");
+  const off = (p) => lines().slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.ch;
+  const pos = (o) => { const ls = lines(); let line = 0; while (line < ls.length - 1 && o > ls[line].length) { o -= ls[line].length + 1; line++; } return { line, ch: o }; };
+  let cursor = { line: cursorLine, ch: 3 };
+  return {
+    getSelection: () => "",
+    getCursor: () => ({ ...cursor }),
+    setCursor: (p) => { cursor = { ...p }; },
+    setSelection: () => {},
+    getLine: (n) => lines()[n],
+    lineCount: () => lines().length,
+    setLine: (n, t) => { const ls = lines(); ls[n] = t; doc = ls.join("\n"); },
+    replaceRange: (t, from, to) => { const a = off(from); const b = to ? off(to) : a; doc = doc.slice(0, a) + t + doc.slice(b); },
+    posToOffset: off,
+    offsetToPos: pos,
+    getValue: () => doc,
+  };
+}
+(function testIndentTakesTheTree() {
+  const cfg = (on) => ({ inlineEnabled: true, prefixCyclerEnabled: true, indentFallbackEnabled: true,
+    onCycleEnd: "indent", rightCycles: false, indentWithChildren: on });
+  const doc = "- a\n    - b\n        - b1\n\n        - b2\n    - c";
+  const right = treeEditor(doc, 1);
+  nav.moveSelection(right, "right", cfg(true));
+  assertEq(right.getValue(), "- a\n        - b\n            - b1\n\n            - b2\n    - c",
+    "В-257: Move right не взял дерево (пустая строка внутри — не граница, сосед c — граница)");
+  const left = treeEditor(right.getValue(), 1);
+  nav.moveSelection(left, "left", cfg(true));
+  assertEq(left.getValue(), doc, "В-257: Move left не вернул дерево на шаг");
+  const off = treeEditor(doc, 1);
+  nav.moveSelection(off, "right", cfg(false));
+  assertEq(off.getValue(), "- a\n        - b\n        - b1\n\n        - b2\n    - c", "выключен — шаг у одной строки, как было");
+})();
+
 console.log("Navigation prefix cycle tests: OK");

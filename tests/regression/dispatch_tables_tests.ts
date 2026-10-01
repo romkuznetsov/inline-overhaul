@@ -146,7 +146,8 @@ function indentLineSource(): string {
   /* Срез левой ветки кончается на первом условии правой: комментарий к правой
      стоит перед ним и называет `isBullet` словами. */
   const left = body.slice(body.indexOf('direction === "left"'), body.indexOf("if (currentIndent > 0 ||"));
-  const leftIndentAt = left.indexOf("removeOneIndent");
+  /* Отступ меняет `shiftTree` — с `В-257` одна на три места, где он меняется. */
+  const leftIndentAt = left.indexOf('shiftTree("left")');
   const leftCycleAt = left.indexOf('cycleLineType(editor, lineNo, "left"');
   assert.ok(leftIndentAt > 0 && leftCycleAt > 0, "в ветке left нашлись обе развилки");
   assert.ok(leftIndentAt < leftCycleAt,

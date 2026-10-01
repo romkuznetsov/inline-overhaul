@@ -103,6 +103,8 @@ function pickMoveSelectionCfg(cfg, lineFormat) {
        читался никем: тумблер стоял в панели и ничего не делал. */
     rightCycles: typeof c.rightCycles === "boolean" ? c.rightCycles : true,
     indentFallbackEnabled: typeof c.indentFallbackEnabled === "boolean" ? c.indentFallbackEnabled : true,
+    /* `Indent with the tree` (В-257): шаг отступа получает и дерево строки. */
+    indentWithChildren: c.indentWithChildren === true,
     onCycleEnd: c.onCycleEnd === "wrap" ? "wrap" : "indent",
     leftToRight: cycle,
     rightToLeft: cycle.slice().reverse(),
@@ -1162,12 +1164,46 @@ function indentLine(editor, direction, rules) {
   const indentWidth = rules.indentWidth || 4;
   /* Отступ той же природы, что у строки: к пробелам — пробелы, а не таб перед
      ними (BUGHUNT 2026-09-30, B5). */
-  const ownIndent = (line.match(/^[ \t]*/) || [""])[0];
-  const INDENT = ownIndent && !ownIndent.includes("\t") ? " ".repeat(indentWidth) : getIndentStr(rules);
+  const indentFor = (text) => {
+    const own = (text.match(/^[ \t]*/) || [""])[0];
+    return own && !own.includes("\t") ? " ".repeat(indentWidth) : getIndentStr(rules);
+  };
+  const INDENT = indentFor(line);
+  /*
+   * `Indent with the tree` (`В-257`, его ответ 2026-10-01: «свой тумблер у
+   * Move left/right», умолчание — как было): шаг отступа получают и строки её
+   * дерева — `treeEndOf`, тот же, каким `Move up/down` берёт дерево. Одной
+   * правкой: одна ступень отмены на нажатие.
+   */
+  const shiftTree = (dir) => {
+    const end = rules.indentWithChildren ? treeEndOf(editor, lineNo, editor.lineCount()) : lineNo;
+    if (end === lineNo) {
+      if (dir === "left") removeOneIndent(editor, lineNo, currentIndent, rules);
+      else {
+        editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
+        editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
+      }
+      return;
+    }
+    const changes = [];
+    let delta = 0;
+    for (let l = lineNo; l <= end; l++) {
+      const text = editor.getLine(l);
+      if (l !== lineNo && text.trim() === "") continue;
+      const at = editor.posToOffset({ line: l, ch: 0 });
+      const step = dir === "left" ? -oneIndentLength(text, rules) : indentFor(text).length;
+      if (l === lineNo) delta = step;
+      if (step < 0) changes.push({ from: at, to: at - step, insert: "" });
+      else changes.push({ from: at, to: at, insert: indentFor(text) });
+    }
+    if (editor.cm && typeof editor.cm.dispatch === "function") editor.cm.dispatch({ changes });
+    else for (const c of changes.slice().reverse()) editor.replaceRange(c.insert, editor.offsetToPos(c.from), editor.offsetToPos(c.to));
+    editor.setCursor({ line: lineNo, ch: Math.max(0, cur.ch + delta) });
+  };
 
   if (direction === "left") {
     if (currentIndent > 0) {
-      if (rules.indentFallbackEnabled) removeOneIndent(editor, lineNo, currentIndent, rules);
+      if (rules.indentFallbackEnabled) shiftTree("left");
       return;
     }
     if (rules.prefixCyclerEnabled) {
@@ -1195,10 +1231,7 @@ function indentLine(editor, direction, rules) {
    */
   const rightMayCycle = rules.prefixCyclerEnabled && rules.rightCycles;
   if (currentIndent > 0 || (isBullet(line) && !rightMayCycle)) {
-    if (rules.indentFallbackEnabled) {
-      editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
-      editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
-    }
+    if (rules.indentFallbackEnabled) shiftTree("right");
     return;
   }
 
@@ -1215,10 +1248,7 @@ function indentLine(editor, direction, rules) {
    * Отступ — только пункту списка (BUGHUNT N11): четыре пробела или таб перед
    * абзацем Obsidian читает блоком кода, и абзац переставал быть текстом.
    */
-  if (rules.indentFallbackEnabled && isBullet(line)) {
-    editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
-    editor.setCursor({ line: lineNo, ch: cur.ch + INDENT.length });
-  }
+  if (rules.indentFallbackEnabled && isBullet(line)) shiftTree("right");
 }
 /*
  * Один шаг отступа в знаках: таб — один знак, пробелы — до `tabSize`. Здесь

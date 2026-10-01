@@ -35,6 +35,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 12. 🐛 **tagWheel keeps the `#` of a Value you have already picked.** With `Show tag markers` on, the Field you had just left showed `high` instead of `#high`.
 13. 🎨 **The tagWheel preview follows `tagWheel Value names` and `Scroller Value names`.** A Value with its own text is printed the way the option says, and a list option already called `Default` no longer reads `Default (default)`.
 14. 🐛 **Entries filed under a heading stay in the order you wrote them.** An entry heading as deep as the section heading, or less deep, goes one level below it.
+15. 🐛 **tagWheel panel fill stays under a tag that shows its `#`, and a Value's own text sits next to it.** With `Custom + default`, `🎯 #todo` is as close as two words.
+16. ✨ **`Move left/right` can take the tree along.** `Indent the whole tree`, under `Change the indent`, gives the lines indented under the line the same step.
 
 ## 0.12.0
 

@@ -14,7 +14,7 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 15 | 8 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 26 | 5 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 27 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
@@ -416,6 +416,10 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - desc: <code>Move right</code> indents a list item one step, <code>Move left</code> takes one step off
   - tip: This is what the two keys do to a line when nothing is highlighted, and with <code>Cycle line Prefixes</code> off it is all they do. With it on, <code>Move left</code> takes the indent off first and only then changes the Prefix, and <code>Move right</code> changes the Prefix of a line at the left edge before it indents. Plain text is never indented: four spaces in front of it would turn it into a code block. Off, the keys never touch the indent — pick that if you indent with <code>Tab</code>
   - старые названия для поиска: «Indent fallback»
+- **Indent the whole tree** — `indent-tree`, `toggle`, path `navigation.moveSelection.indentWithChildren`, default `false`
+  - desc: The lines indented under the line take the same step with it
+  - tip: Say a list item has two lines indented under it. Off, <code>Move right</code> indents that one item and the two now sit at its level. On, all three move one step together and stay under it. Changing the Prefix never touches them either way
+  - видна если: `navigation.moveSelection.indentFallbackEnabled`
 
 #### Jump inside a line (left/right) — `in-line` (вкладка `navigation`)
 
@@ -1266,6 +1270,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `navigation.moveLine.noSelectionMode` | dropdown | `line-only` |
 | `navigation.moveLine.viewPosition` | dropdown | `center` |
 | `navigation.moveSelection.indentFallbackEnabled` | toggle | `true` |
+| `navigation.moveSelection.indentWithChildren` | toggle | `false` |
 | `navigation.moveSelection.inlineBoundaryJump` | toggle | `true` |
 | `navigation.moveSelection.inlineEnabled` | toggle | `true` |
 | `navigation.moveSelection.inlineMoveMode` | dropdown | `auto` |

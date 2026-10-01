@@ -176,6 +176,7 @@ top of the group.
 | `Cycle in both directions` | on | `Move right` changes the marker too, but only on a line with no indent |
 | `After the last one` | `indent` | What happens at the bottom of the Prefix list |
 | `Change the indent` | on | When neither job above applies, moves the line right or left instead |
+| `Indent the whole tree` | off | The lines indented under the line take the same step with it |
 
 Commands: `Move left`, `Move right`.
 

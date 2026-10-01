@@ -115,7 +115,11 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       /* \u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043d\u0435 \u0441\u0441\u044b\u043b\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u00ab\u0434\u0432\u0430 \u0434\u0435\u043b\u0430 \u0432\u044b\u0448\u0435\u00bb: \u043f\u0440\u0438 \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u043e\u043c `Cycle line
          Prefixes` \u0441\u0442\u0440\u043e\u043a \u0432\u044b\u0448\u0435 \u043d\u0435 \u0432\u0438\u0434\u043d\u043e \u2014 \u0435\u0433\u043e \u0437\u0430\u043c\u0435\u0447\u0430\u043d\u0438\u0435 \u043a \u0442\u0435\u0441\u0442\u0443 1 \u0446\u0438\u043a\u043b\u0430 98
          (2026-09-28): \u00ab\u0442\u0435\u043a\u0443\u0449\u0435\u0435 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 indent-fallback \u0441\u0435\u0439\u0447\u0430\u0441 \u043d\u0435 \u043b\u043e\u0433\u0438\u0447\u043d\u043e\u0435\u00bb. */
-      tip:"This is what the two keys do to a line when nothing is highlighted, and with <code>Cycle line Prefixes</code> off it is all they do. With it on, <code>Move left</code> takes the indent off first and only then changes the Prefix, and <code>Move right</code> changes the Prefix of a line at the left edge before it indents. Plain text is never indented: four spaces in front of it would turn it into a code block. Off, the keys never touch the indent \u2014 pick that if you indent with <code>Tab</code>" }
+      tip:"This is what the two keys do to a line when nothing is highlighted, and with <code>Cycle line Prefixes</code> off it is all they do. With it on, <code>Move left</code> takes the indent off first and only then changes the Prefix, and <code>Move right</code> changes the Prefix of a line at the left edge before it indents. Plain text is never indented: four spaces in front of it would turn it into a code block. Off, the keys never touch the indent \u2014 pick that if you indent with <code>Tab</code>" },
+    { kind:"toggle", id:"indent-tree", path:"navigation.moveSelection.indentWithChildren", default:false,
+      name:"Indent the whole tree", desc:"The lines indented under the line take the same step with it",
+      visible: on("navigation.moveSelection.indentFallbackEnabled"),
+      tip:"Say a list item has two lines indented under it. Off, <code>Move right</code> indents that one item and the two now sit at its level. On, all three move one step together and stay under it. Changing the Prefix never touches them either way" }
   ]
 },
 {

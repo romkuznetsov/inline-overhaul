@@ -140,6 +140,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveSelection.inlineEnabled"),
   keep("navigation.moveSelection.prefixCyclerEnabled"),
   keep("navigation.moveSelection.indentFallbackEnabled"),
+  /* В-257, пары в версии 1 нет — `keepV2`. */
+  keepV2("navigation.moveSelection.indentWithChildren"),
   keep("navigation.moveSelection.onCycleEnd"),
   keep("navigation.moveSelection.inlineMoveMode"),
   keep("navigation.moveSelection.cycleOrder", true),

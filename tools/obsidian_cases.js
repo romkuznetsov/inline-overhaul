@@ -345,6 +345,15 @@ module.exports = [
   /* B5: отступ той же природы — пробелы к пробелам. */
   one("B5", "Move right у списка с отступом пробелами добавляет пробелы", "- a\n    - c",
     ["move-right"], "- a\n        - c", { at: { file: "t.md", line: 1, ch: 7 } }),
+  /* B3, `В-257`: `Indent the whole tree` — дерево строки идёт с ней; выключен — как было. */
+  one("B3.r", "Indent the whole tree: Move right двигает и детей", "- a\n- b\n\t- b1\n- c",
+    ["move-right"], "- a\n\t- b\n\t\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveSelection: { indentWithChildren: true } } } }),
+  one("B3.l", "Indent the whole tree: Move left снимает шаг и у детей", "- a\n\t- b\n\t\t- b1\n- c",
+    ["move-left"], "- a\n- b\n\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 4 }, cfg: { navigation: { moveSelection: { indentWithChildren: true } } } }),
+  one("B3.u", "Indent the whole tree: одна отмена возвращает всё дерево", "- a\n- b\n\t- b1\n- c",
+    ["move-right", { js: "ed.undo();", wait: 400 }], "- a\n- b\n\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveSelection: { indentWithChildren: true } } } }),
+  one("B3.off", "Indent the whole tree выключен: отступ у одной строки, как было", "- a\n- b\n\t- b1\n- c",
+    ["move-right"], "- a\n\t- b\n\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveSelection: { indentWithChildren: false } } } }),
   /* C1: `Keep first words` на строке без Fields не оставляет имя в скобках. */
   one("C1", "Keep first words снимает имя в скобках и не считает его словами", "- [Trip plan] pack bags early morning",
     [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }], "",

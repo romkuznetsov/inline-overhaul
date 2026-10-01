@@ -193,6 +193,7 @@ const DEFAULT_CONFIG = {
       inlineEnabled: true,
       prefixCyclerEnabled: true,
       indentFallbackEnabled: true,
+      indentWithChildren: false,
       onCycleEnd: "indent",
       cycleOrder: ["#", "##", "###", "####", "#####", "1. ", "", "- "],
       inlineMoveMode: "auto",
@@ -940,6 +941,8 @@ function normalizeConfigV2(cfg) {
   bool("navigation.moveSelection.inlineEnabled");
   bool("navigation.moveSelection.prefixCyclerEnabled");
   bool("navigation.moveSelection.indentFallbackEnabled");
+  /* Move left/right двигает и дерево строки (В-257). */
+  bool("navigation.moveSelection.indentWithChildren");
   oneOf("navigation.moveSelection.onCycleEnd", ["indent", "wrap"]);
   oneOf("navigation.moveSelection.inlineMoveMode", ["auto", "char", "word", "disabled"]);
   bool("navigation.moveSelection.inlineBoundaryJump");
