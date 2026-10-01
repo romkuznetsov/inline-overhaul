@@ -620,9 +620,9 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - tip: Headings are always left alone. This only decides what happens to a plain line: on, it becomes a list item; off, it stays as it is
   - см. также: `field-editor` — Each Field’s Prefix behavior is set under Fields
   - старые названия для поиска: «OFF mode Prefix»
-- **Insert only: keep the Prefix** — `placement-keep-prefix`, `toggle`, path `pkm.placement.keepPrefixInsertOnly`, default `true`
-  - desc: Put the Value where it belongs and do not touch the start of the line
-  - tip: A Value may carry a Prefix of its own — a checkbox, for instance — and normally it replaces what stands at the start of the line. With this on, the line keeps the marker you typed and the Value goes to its place in the Block anyway. Useful when your lists already carry markers you care about
+- **Insert only: keep Separators** — `placement-keep-prefix`, `toggle`, path `pkm.placement.keepPrefixInsertOnly`, default `true`
+  - desc: Put the Value in its Block and keep the Separators between the Blocks and the text
+  - tip: Off, insert only writes no Separators: the Value stands right before the text, and Separators already on the line go too. What happens to the start of the line is the next setting
   - старые названия для поиска: «Minimal mode Separators»
 - **Insert only: use Field Prefix** — `placement-field-prefix`, `toggle`, path `pkm.placement.fieldPrefixInsertOnly`, default `true`
   - desc: Allow a Value to change the start of the line after all, if it has its own
