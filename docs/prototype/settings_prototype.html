@@ -5470,12 +5470,18 @@ function setFieldSide(f, side) {
    and adopt that field's side. */
 function moveFieldBefore(dragged, target) {
   const owner = blockOwner(dragged);
-  if (!owner || owner === blockOwner(target)) return;
+  const there = blockOwner(target);
+  if (!owner || owner === there) return;
+  /* Сверху вниз в своей стороне Field встаёт за строкой, на которую брошен, —
+     как правило Smart Rules и строка Binder (прогон 2026-10-02, H3.5). */
+  const down = owner.position === there.position && FIELDS.indexOf(owner) < FIELDS.indexOf(there);
   const block = fieldBlock(owner);
-  const side = blockOwner(target).position;
+  const side = there.position;
   block.forEach(x => { x.position = side; });
   block.forEach(x => { const i = FIELDS.indexOf(x); if (i >= 0) FIELDS.splice(i, 1); });
-  const at = Math.max(0, FIELDS.indexOf(target));
+  const at = down
+    ? Math.max(...fieldBlock(there).map(x => FIELDS.indexOf(x))) + 1
+    : Math.max(0, FIELDS.indexOf(target));
   FIELDS.splice(at, 0, ...block);
   refreshPreviews();
   renderContent();

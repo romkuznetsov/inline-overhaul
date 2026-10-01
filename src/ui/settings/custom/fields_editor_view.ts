@@ -654,7 +654,22 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
         /* Бросок на дочернюю строку — это бросок перед её родителем (Ф3). */
         const before = ownerOf(row);
         if (before === dragged) return;
-        o.model.moveKey(row.side, dragged, before);
+        /*
+         * Field встаёт на место той строки, на которую брошен, как правило Smart
+         * Rules и строка Binder (прогон 2026-10-02, H3.5): сверху вниз — за
+         * ней, снизу вверх — перед ней. Прежде «перед ней» было всегда, и
+         * бросок на соседа снизу не двигал Field вовсе. Тот же счёт, что у
+         * стрелки (`stepField`).
+         */
+        const peers = mine.filter(r => !r.parent).map(r => r.key);
+        const from = peers.indexOf(dragged);
+        const to = peers.indexOf(before);
+        if (from !== -1 && from < to) {
+          if (peers[to + 1]) o.model.moveKey(row.side, dragged, peers[to + 1]);
+          else o.model.moveKey(row.side, dragged);
+        } else {
+          o.model.moveKey(row.side, dragged, before);
+        }
         o.redraw();
       }) as never);
 

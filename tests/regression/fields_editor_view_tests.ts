@@ -547,6 +547,18 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.deepEqual(layout(v.host), { left: ["Due", "Status"], right: [] },
     "бросок на строку ставит Field перед ней и меняет сторону");
   ok("Ф1: бросок на строку меняет и порядок, и сторону");
+
+  /*
+   * Прогон 2026-10-02, H3.5: в своей стороне Field встаёт на место строки, на
+   * которую брошен, — сверху вниз за ней, как правило Smart Rules и строка
+   * Binder. Прежде бросок на соседа снизу не двигал Field вовсе.
+   */
+  const row = (name: string): StubNode => rowsOf(v.host).find(r => nameIn(r) === name) as StubNode;
+  dragOnto(row("Due"), row("Status"));
+  assert.deepEqual(layout(v.host).left, ["Status", "Due"], "бросок на соседа снизу не сдвинул Field");
+  dragOnto(row("Due"), row("Status"));
+  assert.deepEqual(layout(v.host).left, ["Due", "Status"], "снизу вверх Field встаёт перед строкой");
+  ok("Field встаёт на место строки, на которую брошен, в обе стороны");
 }
 
 /* ---- Бросок на подпись стороны ставит Field первым --------------------- */
