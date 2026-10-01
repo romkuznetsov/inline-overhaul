@@ -2182,10 +2182,16 @@ function promptNoteTitleWithModal(plugin, ModalClass) {
          */
         const input = this.contentEl.createEl("input", { type: "text", cls: "io-i2n-title__input" });
         input.setAttribute("aria-label", "Note title");
+        /* Пустое имя не молчит: подсказка в поле и недоступная `Create`
+           (BUGHUNT 2026-09-30, C24). */
+        input.setAttribute("placeholder", "Type a name for the new note");
         const buttons = this.contentEl.createDiv({ cls: "io-i2n-title__actions" });
         const cancel = buttons.createEl("button", { text: "Cancel" });
         const submit = buttons.createEl("button", { text: "Create" });
         submit.classList.add("mod-cta");
+        const syncSubmit = () => { submit.disabled = !String(input.value || "").trim(); };
+        syncSubmit();
+        input.addEventListener("input", syncSubmit);
         const submitValue = () => {
           const value = String(input.value || "").trim();
           if (!value) {

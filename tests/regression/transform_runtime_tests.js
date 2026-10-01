@@ -359,6 +359,29 @@ async function testManualCancelDoesNotMutate() {
   await transform.runInline2Note(plugin, { Modal: CancelModal, lineFinalize });
   assertEq(plugin.files.size, 0, "manual cancel creates no target");
   assertEq(editor.text(), "- [ ] :: Cancel me", "manual cancel preserves source");
+
+  /* C24 перечня 2026-09-30: пустое имя — подсказка в поле и недоступная `Create`. */
+  const made = [];
+  const node = (tag, opts) => {
+    const n = { tag, text: opts && opts.text, value: "", attrs: {}, on: {}, disabled: false,
+      setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(k, f) { this.on[k] = f; },
+      classList: { add() {} }, focus() {}, empty() {},
+      createEl(t, o) { const c = node(t, o); made.push(c); return c; }, createDiv(o) { return node("div", o); } };
+    return n;
+  };
+  class LookModal {
+    constructor() { this.titleEl = { setText() {} }; this.contentEl = node("div"); }
+    open() { this.onOpen(); this.close(); }
+    close() { this.onClose(); }
+  }
+  await transform.runInline2Note(makePlugin(makeConfig({ noteName: { mode: "manual" } }), makeEditor("- [ ] :: Look"), {}), { Modal: LookModal, lineFinalize });
+  const input = made.find((n) => n.tag === "input");
+  const create = made.find((n) => n.text === "Create");
+  assertTrue(!!(input && input.attrs.placeholder), "у пустого поля нет подсказки");
+  assertEq(create.disabled, true, "Create доступна при пустом имени");
+  input.value = "Name";
+  input.on.input();
+  assertEq(create.disabled, false, "Create не стала доступной с именем");
 }
 
 /**
