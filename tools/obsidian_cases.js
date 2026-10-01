@@ -361,6 +361,18 @@ module.exports = [
     at: { file: "t-D6.md", line: 0 }, steps: ["open-tagwheel-left"], settle: 600,
     cfg: { visual: { tagWheel: { showMarkers: false, textColor: "#112233", activeTextColor: "#ff0000" } } },
     check: "const w = [...a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.inline-overhaul-tw-token')]; const red = w.filter((n) => getComputedStyle(n).color === 'rgb(255, 0, 0)'); a.commands.executeCommandById('editor:focus'); return (w.length > 0 && red.length === 1) || JSON.stringify(w.map((n) => n.textContent + ':' + getComputedStyle(n).color));" },
+  /* Его ответ В-254 (BUGHUNT C2): три записи под `## Log` с уровнем 2 — по порядку,
+     заголовками `###`. Шаги — тест 4 цикла 110 на его настройках. */
+  { mine: true, id: "MC2", title: "Записи под разделом идут по порядку", files: { "t-MC2.md": "- [Журнал] alpha\n- [Журнал] beta\n- [Журнал] gamma\n",
+      /* Его шаблон по умолчанию — копия `test-vault/111/template.md`. */
+      "111/template.md": "---\ntype:\ndate_due:\ntags:\ntag:\nproject:\n---\n" },
+    at: { file: "t-MC2.md", line: 0, ch: 3 },
+    steps: [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1800 }, { open: "t-MC2.md" }, { cursor: { line: 1, ch: 3 } },
+      { js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1800 }, { open: "t-MC2.md" }, { cursor: { line: 2, ch: 3 } },
+      { js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1800 }, { open: "t-MC2.md" }],
+    settle: 600,
+    cfg: { features: { transform: { enabled: true } }, transform: { inline2note: { enabled: true, nameCollision: { mode: "add_to_note" }, placement: { position: "custom-header", targetHeader: "## Log", headerLevel: "2" } } } },
+    check: "const f = a.vault.getMarkdownFiles().find((x) => x.basename === 'Журнал'); const body = f ? await a.vault.read(f) : ''; const src = await a.vault.read(a.vault.getAbstractFileByPath('t-MC2.md')); const order = body.split('\\n').filter((l) => /alpha|beta|gamma/.test(l)).map((l) => (l.match(/alpha|beta|gamma/) || [''])[0]); const heads = body.split('\\n').filter((l) => /^#{1,6} /.test(l)).map((l) => l.split(' ')[0]); return (order.join() === 'alpha,beta,gamma' && heads.join() === '##,###,###,###') || JSON.stringify({ notes: [...document.querySelectorAll('.notice')].map((n) => n.textContent), modal: [...document.querySelectorAll('.modal')].map((n) => n.textContent.slice(0, 200)), body, src, order, heads, files: a.vault.getFiles().map((x) => x.path).filter((x) => !/^(t-|Демо|Проверка)/.test(x)).slice(-15) });" },
   /* Его 💬 к тесту 3 цикла 109: со знаками после перехода к следующему полю
      значение прошлого поля теряет решётку в панели. */
   { mine: true, id: "MD6", title: "tagWheel со знаками: прошлое поле держит решётку", files: { "t-MD6.md": "- [ ] #high :: позвонить в банк\n" },

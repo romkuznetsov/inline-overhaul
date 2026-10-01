@@ -32,6 +32,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 9. 🐛 **Smart Rules** conflict only when two rules share a Value, a tag inside your text does not pick a rule, and the buttons of each rule name that rule.
 10. 🐛 **Editing fixes:** `Ctrl+A` on a heading skips the tree step, `Smart Enter` on a callout title continues the quote, tagWheel colors the active Field with `Show tag markers` off, a child line moved up past its parent becomes the last child, and `Move right` adds spaces to a line indented with spaces.
 11. 🐛 **Other fixes:** `Developer logging` starts at once, `Log folder` is a folder, and an empty template frontmatter stays out of the note.
+12. 🐛 **tagWheel keeps the `#` of a Value you have already picked.** With `Show tag markers` on, the Field you had just left showed `high` instead of `#high`.
+13. 🎨 **The tagWheel preview follows `tagWheel Value names` and `Scroller Value names`.** A Value with its own text is printed the way the option says, and a list option already called `Default` no longer reads `Default (default)`.
+14. 🐛 **Entries filed under a heading stay in the order you wrote them.** An entry heading as deep as the section heading, or less deep, goes one level below it.
 
 ## 0.12.0
 
