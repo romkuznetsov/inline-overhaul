@@ -41,6 +41,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
 19. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
 20. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
+21. 🐛 **A list Value of an Element is one word.** A Value with a space is refused with a message, in the panel and in `Add a Field`, where a tag Value with a space is refused too; before, `✅ done` piled up in the text of the line.
+22. 🐛 **A custom block Value does not split your word.** With the cursor inside a word it goes after the word, and taking it off at the end of the line takes its space too.
+23. 🐛 **`Smart bracket` inside brackets works on those brackets.** Inside `[[Note]]` it takes the link brackets off, inside `[Note]` it makes a link, and a lone `[` no longer copies the rest of the line.
+24. 🐛 **`Jump left` and `Text start` know headings and quotes.** The cursor stops after `> ` and after `# `.
+25. 🐛 **`Field order source = Field order` works.** The Field order decides the Prefix; with `Manual`, the Fields missing from the list come after it, as the panel shows.
+26. 🎨 **`Insert only: keep Separators`** is the name of the toggle that keeps the Separators in insert-only mode; it was called `keep the Prefix`.
+27. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
 
 ## 0.12.0
 
