@@ -311,6 +311,10 @@ function registerPkm(plugin) {
           const fresh = registry.buildPkmCommandDefs(
             serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfg, FEATURE_ORDER
           ).find((x) => x && x.id === id) || d;
+          if (fresh.orderKey && fresh.kind !== "element" && !registry.fieldHasValues(cfg, fresh.orderKey)) {
+            new Notice(__say(__noticeKey("pkm", "no-values"), "{0} has no Values yet: add them in Tags & PKM → Fields", fresh.strictName || fresh.orderKey));
+            return;
+          }
           const macroSettings = fresh.makeSettings(cfg);
           await runPkmRuntime(plugin, fresh.v2Command, cfg, macroSettings);
         });

@@ -93,6 +93,8 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "tagwheel-open": "tagWheel is open on this line: finish it with Enter or close it with Escape first",
     /* Блок кода и таблица — не строка текста (BUGHUNT F8). */
     "code-line": "Tags & PKM does not work in a code block, a table, note properties or a divider line",
+    /* `{0}` — строгое имя Field, как в палитре команд. Молча команда не отказывает (У-41). */
+    "no-values": "{0} has no Values yet: add them in Tags & PKM → Fields",
     error: "Tags & PKM error: {0}",
   },
 

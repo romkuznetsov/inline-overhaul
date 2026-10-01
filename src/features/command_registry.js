@@ -678,7 +678,24 @@ function buildBinderCommandDefs(cfgNow) {
   return defs;
 }
 
+/**
+ * Есть ли у Field хоть одно Value, которое команда может написать.
+ *
+ * Команда Field без Value молча ничего не делала — тихий отказ на пути,
+ * который человек начал нарочно (правило отказов, У-41): Field `AI` у него
+ * заведён и не заполнен. Element своё значение строит сам и сюда не относится.
+ * Спрашиваются правила движков — те же, с которыми команда и пойдёт.
+ */
+function fieldHasValues(cfg, key) {
+  const rules = __rulesShape.buildRulesForEngines(cfg);
+  const fields = [].concat((rules.leftMode || {}).fields || [], (rules.rightMode || {}).fields || []);
+  const field = fields.find((x) => x && x.id === key);
+  if (!field) return true;
+  return (field.values || []).some((v) => String(v && v.token || "").trim() !== "");
+}
+
 module.exports = {
+  fieldHasValues,
   buildCoreCommandDefs,
   buildNavigationCommandDefs,
   buildPkmCommandDefs,

@@ -190,4 +190,40 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   ok("PKM и Transform не трогают строку кода и таблицы, отрицательный контроль — строка текста");
 }
 
+/* 5. Команда Field без Value не молчит (обход line_matrix на его конфиге: Field `AI` с `values: [""]`). */
+{
+  const cfg = I.migrateConfig({
+    schemaVersion: 2,
+    pkm: {
+      fields: {
+        order: { left: ["Status", "Empty"], right: [], strictNames: { Status: "Status", Empty: "Empty" }, types: { Status: "tag", Empty: "tag" } },
+        tags: { fields: [
+          { id: "Status", prefix: "#", values: [{ token: "todo" }] },
+          { id: "Empty", prefix: "#", values: [""] },
+        ] },
+      },
+    },
+  });
+  const callbacks = new Map<string, () => Promise<void>>();
+  const plugin: Any = {
+    getConfig: () => cfg,
+    addCommand: (c: Any) => { callbacks.set(c.id, c.callback); },
+    removeCommand: () => {},
+    getActiveEditor: () => ({ getCursor: () => ({ line: 0, ch: 0 }), getLine: () => "- текст" }),
+    devLogEvent: () => {},
+  };
+  I.registerPkm(plugin);
+  const run = callbacks.get("empty-next");
+  assert.ok(run, "команда Field без Value не заведена: " + Array.from(callbacks.keys()).join(", "));
+  const before = notices.length;
+  await run!();
+  const said = notices.slice(before);
+  assert.ok(said.some((m: string) => /Empty has no Values yet/.test(m)), "команда Field без Value молчит: " + said.join(" | "));
+  /* Отрицательный контроль: у Field с Value этого отказа нет (движок здесь может упасть на подделке — это не предмет). */
+  const mark = notices.length;
+  await callbacks.get("status-next")!();
+  assert.ok(!notices.slice(mark).some((m: string) => /has no Values/.test(m)), "отказ сказан и у Field с Value");
+  ok("команда Field без Value говорит, что Value нет");
+}
+
 console.log(passed + " проверок пройдено");
