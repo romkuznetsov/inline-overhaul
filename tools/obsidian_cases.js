@@ -447,6 +447,10 @@ module.exports = [
     ["A6.tw", ["open-custom-tagwheel", { key: "ArrowDown" }, { key: "Enter" }], "- маме [[Project B]]"]].map(([id, steps, want]) => one(id, "Custom block: Value встаёт на границе слова", "- маме",
     [{ js: "const o = plugin.getConfig().pkm.fields.order; plugin.setConfigPatch({ pkm: { fields: { order: { right: o.right.filter((k) => k !== 'Project'), custom: [{ id: 'b1', name: 'Area', keys: ['Project'] }] } } } }, 'bench'); plugin.registerPkmCommands();", wait: 400 },
       { cursor: { line: 0, ch: 5 } }].concat(steps.map((s) => (s === "open-custom-tagwheel" ? { js: "a.commands.executeCommandById(Object.keys(a.commands.commands).find((k) => /^inline-overhaul:.*b1/.test(k)));", wait: 500 } : s))), want)),
+  /* A9: `Field order source = Field order` решает порядком Fields, `Manual` — своим списком. */
+  ...[["A9", "auto", "- [x] #todo #low || x"], ["A9.m", "manual", "- [!] #todo #low || x"]].map(([id, source, want]) => one(id, "Prefix priority: источник порядка Fields — " + source, "- x",
+    ["status-next", "priority-next"], want,
+    { cfg: { pkm: { prefixRules: { checkboxByFieldValue: { Status: { todo: "[x]" }, Priority: { low: "[!]" } }, priorityTargets: ["Priority", "Status"] }, prefixPriority: { decideBy: "by-section", fieldOrderSource: source } } } })),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

@@ -1256,6 +1256,28 @@ function run() {
     assertEq(normKey(0), "", "ноль ключом не становится");
   }
 
+  /*
+   * BUGHUNT 2026-09-30, A9: `Field order source = Field order` решает порядком
+   * Fields, ручной список не читается; у `Manual` недописанные Fields — за ним.
+   */
+  {
+    const rulesWith = (fieldsOrderMode, priorityTargets) => ({
+      behavior: { prefixRules: { resolver: "priority-first", priorityMode: "by-section", fieldsOrderMode, priorityTargets,
+        checkboxByFieldValue: { Status: { "#todo": "[x]" }, Priority: { "#low": "[!]" }, Mood: { "#calm": "[?]" } } } },
+      leftMode: { fields: [
+        { id: "Status", prefix: "#", values: [{ id: "#todo", token: "#todo" }] },
+        { id: "Priority", prefix: "#", values: [{ id: "#low", token: "#low" }] },
+        { id: "Mood", prefix: "#", values: [{ id: "#calm", token: "#calm" }] },
+      ] },
+    });
+    const pick = (rules, selected) => unified.resolvePrefixCheckboxUnified(rules, { selected }, { getFieldById: (mode, id) => mode.fields.find((f) => f.id === id) || null });
+    const both = { Status: "#todo", Priority: "#low" };
+    assertEq(pick(rulesWith("manual", ["Priority", "Status"]), both), "[!]", "Manual: решает ручной список");
+    assertEq(pick(rulesWith("auto", ["Priority", "Status"]), both), "[x]", "A9: Field order решает порядком Fields, а не ручным списком");
+    assertEq(pick(rulesWith("manual", ["Priority"]), { Status: "#todo", Mood: "#calm" }), "[x]",
+      "A9: Field, которого нет в ручном списке, идёт за ним в порядке Fields");
+  }
+
   console.log("Runtime unified parity tests: OK");
 }
 

@@ -98,7 +98,14 @@ function getPrefixRulesUnified(rules, deps) {
     }
   }
   if (!out.checkboxByFieldValue.type) out.checkboxByFieldValue.type = {};
-  if (!out.priorityTargets.length) {
+  /*
+   * `Field order source = Field order` — решает порядок самих Fields, и
+   * ручной список не читается (BUGHUNT 2026-09-30, A9: ключ писался и не
+   * читался). У `Manual` Fields, которых в списке нет, идут за ним — так их
+   * показывает и панель (`fieldOrderList`).
+   */
+  if (out.fieldsOrderMode === "auto") out.priorityTargets = [];
+  {
     /* Поля обоих видов: теги, затем ссылки — у Value-ссылки чекбокс из Prefix
        не ставился вовсе и в 0.10.0 (`В-248`, его ответ «починить»). */
     const lf = modeFieldsUnified(rules);
