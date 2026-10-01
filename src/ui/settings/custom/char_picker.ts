@@ -226,6 +226,12 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
   return { close };
 }
 
+/** Документ поля: на нём слушается нажатие мыши, пока панель раскрыта. */
+type EventHost = {
+  addEventListener?: (type: string, f: () => void, capture: boolean) => void;
+  removeEventListener?: (type: string, f: () => void, capture: boolean) => void;
+};
+
 /**
  * Поведение раскрывающейся панели под полем — одно на выбиралку знака и
  * выбиралку Prefix: раскрыть по нажатию или фокусу, свернуть, когда фокус ушёл
@@ -242,11 +248,19 @@ export function attachPopup(input: ElInput, panel: El, o: {
     panel.hidden = false;
     o.draw();
     if (o.holdKeys && !release) release = o.holdKeys(close);
+    if (doc && typeof doc.addEventListener === "function") {
+      doc.addEventListener("mousedown", onPress, true);
+      doc.addEventListener("mouseup", onRelease, true);
+    }
   };
   /* Сворачивание отдаёт `Escape` окну всегда, каким бы путём оно ни пришло:
      забытая область глотала бы клавишу и после того, как окна не стало. */
   const close = (): void => {
     panel.hidden = true;
+    if (doc && typeof doc.removeEventListener === "function") {
+      doc.removeEventListener("mousedown", onPress, true);
+      doc.removeEventListener("mouseup", onRelease, true);
+    }
     if (release) {
       const give = release;
       release = null;
@@ -263,8 +277,25 @@ export function attachPopup(input: ElInput, panel: El, o: {
     const probe = panel as unknown as { contains?: (n: unknown) => boolean };
     return Boolean(to) && (to === input || (typeof probe.contains === "function" && probe.contains(to)));
   };
+  /*
+   * Фокус ушёл нажатием мыши — свернуть после щелчка, а не сразу: свёрнутая
+   * панель сжимает окно, и отпускание приходилось мимо кнопки, на которую
+   * нажали (BUGHUNT 2026-09-30, B19: `Cancel` с первого щелчка только
+   * сворачивал выбиралку; стенд `binder-add`). Нажатие слушается, пока
+   * панель раскрыта: `:active` в `focusout` ещё ложен.
+   */
+  const doc = (input as unknown as { ownerDocument?: EventHost }).ownerDocument || null;
+  let pressed = false;
+  const onPress = (): void => { pressed = true; };
+  const onRelease = (): void => {
+    pressed = false;
+    if (waiting) { waiting = false; setTimeout(close, 0); }
+  };
+  let waiting = false;
   const onLeave = (ev: { relatedTarget?: unknown }): void => {
-    if (!inside(ev && ev.relatedTarget)) close();
+    if (inside(ev && ev.relatedTarget)) return;
+    if (pressed) { waiting = true; return; }
+    close();
   };
   input.addEventListener("focusout", onLeave as never);
   panel.addEventListener("focusout", onLeave as never);

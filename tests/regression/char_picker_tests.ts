@@ -215,6 +215,26 @@ function form(showTips = false): { box: StubNode; insert: StubNode; name: StubNo
   ok("поиск отвечает и тогда, когда ответа нет, а уход фокуса сворачивает");
 }
 
+{
+  /* B19: фокус ушёл нажатием мыши на кнопку окна — выбиралка сворачивается
+     после отпускания, иначе окно сжимается и щелчок приходится мимо кнопки. */
+  const f = form();
+  /* Слушатели документа держит `setupGlobals` — те же, что у окна. */
+  const fire = (type: string): void => { for (const fn of ((globalThis as any).window.listeners[type] || []).slice()) fn({}); };
+  f.insert.dispatch("focus");
+  assert.equal(shut(f.panel()), false, "контроль: выбиралка раскрылась");
+  fire("mousedown");
+  f.insert.dispatch("focusout", { relatedTarget: null });
+  assert.equal(shut(f.panel()), false, "B19: выбиралка свернулась на нажатии, до щелчка");
+  fire("mouseup");
+  await new Promise(r => setTimeout(r, 5));
+  assert.equal(shut(f.panel()), true, "B19: после щелчка выбиралка осталась раскрытой");
+  f.insert.dispatch("focus");
+  f.insert.dispatch("focusout", { relatedTarget: null });
+  assert.equal(shut(f.panel()), true, "уход фокуса без нажатия сворачивает сразу");
+  ok("B19: нажатие мимо выбиралки сворачивает её после щелчка, а не до");
+}
+
 /* ---- `Escape` сворачивает выбиралку, а не окно (`В-196`) ---------------- */
 
 {

@@ -432,6 +432,50 @@ async function clickIn(pg, text) {
 
 const SCENARIOS = {
   /*
+   * BUGHUNT 2026-09-30, B19: окно «Add a Binder command». Первый `Esc`
+   * сворачивает выбиралку, второй закрывает окно (`В-196`); при раскрытой
+   * выбиралке `Cancel` закрывает окно с первого щелчка.
+   */
+  async "binder-add"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Keyboard");
+    const state = () => host.evaluate(() => ({
+      modal: [...document.querySelectorAll(".modal-container")].some((m) => m.querySelector(".io-dlg") && m.getBoundingClientRect().width > 0),
+      picker: [...document.querySelectorAll(".io-pick")].some((p) => p.getBoundingClientRect().width > 0),
+    }));
+    const openForm = async () => {
+      await clickIn(host, "Add command");
+      await host.waitForSelector(".modal .io-dlg", { timeout: 5000 });
+      await host.click(".modal .io-dlg input.io-text");
+      await host.waitForTimeout(300);
+    };
+    const log = [];
+    await openForm();
+    log.push(["открыто", await state()]);
+    await host.keyboard.press("Escape");
+    await host.waitForTimeout(300);
+    log.push(["Esc 1", await state()]);
+    await host.keyboard.press("Escape");
+    await host.waitForTimeout(300);
+    log.push(["Esc 2", await state()]);
+    if (log[2][1].modal) { await host.keyboard.press("Escape"); await host.waitForTimeout(300); }
+    if ((await state()).modal) await clickIn(host, "Cancel");
+    await openForm();
+    log.push(["снова открыто", await state()]);
+    await clickIn(host, "Cancel");
+    log.push(["Cancel 1", await state()]);
+    for (const [step, s] of log) console.log(step + ": окно " + (s.modal ? "открыто" : "закрыто") + ", выбиралка " + (s.picker ? "раскрыта" : "свёрнута"));
+    const ok = log[0][1].picker && log[1][1].modal && !log[1][1].picker && !log[2][1].modal && log[3][1].picker && !log[4][1].modal;
+    console.log(ok ? "ok: Esc сворачивает выбиралку, второй закрывает окно; Cancel — с первого щелчка" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
    * Shift+Enter при включённых Smart Enter и `Shift+Enter as usual Enter`
    * (его `💬` к тесту 3 цикла 106 и его слово 2026-09-30 «сделай контрол»).
    * Настоящая клавиатура на его конфиге. Эталон — `Enter` при выключенном
