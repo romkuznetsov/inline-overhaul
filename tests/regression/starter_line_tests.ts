@@ -178,6 +178,28 @@ async function main(): Promise<void> {
     passed += 3;
     console.log("  ok F2.g, F2.h панель не трогает значение посреди текста");
   }
+  /*
+   * H1.3 прогона 2026-10-02: дата в панели вниз — завтра → сегодня → пусто,
+   * как у команды `Due previous`. Прежде стрелка вниз с завтра перепрыгивала
+   * сегодня. Field Due ищется по его значку, а не по месту в полосе.
+   */
+  {
+    const today = new Date();
+    const iso = (d: Date): string => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const to = (n: number): string[] => Array(n).fill("ArrowRight");
+    let hops = -1;
+    for (let n = 0; n < 4 && hops < 0; n++) {
+      const probe = await bench.runTagWheel(cfg, "right", "- купить", 8, to(n).concat(["ArrowUp", "Enter"]));
+      if (probe.line.includes("📅")) hops = n;
+    }
+    assert.ok(hops >= 0, "контроль: Due не нашёлся в правой полосе стартового набора");
+    const r = await bench.runTagWheel(cfg, "right", "- купить", 8, to(hops).concat(["ArrowUp", "ArrowUp", "ArrowDown", "Enter"]));
+    assert.ok(r.line.includes("📅" + iso(today)), "панель вниз с завтра не встала на сегодня: " + JSON.stringify(r.line));
+    const off = await bench.runTagWheel(cfg, "right", "- купить", 8, to(hops).concat(["ArrowUp", "ArrowDown", "Enter"]));
+    assert.ok(!off.line.includes("📅"), "контроль: с сегодня вниз дата не снялась: " + JSON.stringify(off.line));
+    passed += 2;
+    console.log("  ok H1.3 дата в панели: завтра → сегодня → пусто, как у команды");
+  }
   /* T5: Transform на строке без разделителей — Value посреди текста и в конце
      остаётся в имени и значением не заявляется (`В-235`, `В-249`); дата в
      конце, как прежде, в имя не идёт. */

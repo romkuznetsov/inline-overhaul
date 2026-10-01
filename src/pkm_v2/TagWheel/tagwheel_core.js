@@ -1895,13 +1895,18 @@ function mutateDateSelectionByFormat(state, fieldId, format, direction, stepRaw)
     return
   }
 
-  var next = direction > 0
-    ? (Math.max(0, Math.trunc(Number(val || 0))) + step)
-    : Math.max(0, Math.trunc(Number(val || 0)) - step)
-  if (direction < 0 && next <= 0) {
+  /*
+   * Снимается значение, когда стоит «сегодня», а не когда шаг до него дошёл:
+   * завтра → сегодня → пусто, как у команды (`mutateDateOffsetByFormat` в
+   * `status_date.js`). Здесь стояло `next <= 0`, и стрелка вниз с завтра
+   * перепрыгивала сегодня (прогон 2026-10-02, H1.3).
+   */
+  var curNum = Math.max(0, Math.trunc(Number(val || 0)))
+  if (direction < 0 && curNum <= 0) {
     state.selected[fieldId] = ''
     return
   }
+  var next = direction > 0 ? (curNum + step) : Math.max(0, curNum - step)
   state.selected[fieldId] = String(Math.max(0, next))
 }
 
