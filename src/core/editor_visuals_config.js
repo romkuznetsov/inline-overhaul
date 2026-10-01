@@ -2474,17 +2474,25 @@ function tagwheelPanelSpans(text, colors, placeholders) {
     const linkRe = /\[\[[^\[\]]+\]\]/g;
     let m;
     while ((m = linkRe.exec(segment)) !== null) {
-      const at = m.index;
-      const after = at + m[0].length;
-      if (segment.charAt(at - 1) !== "[" || segment.charAt(after) !== "]") continue;
+      const after = m.index + m[0].length;
+      if (segment.charAt(after) !== "]") continue;
+      /*
+       * Ячейка — от своей `[` до `]` за ссылкой. При `tagWheel Value names =
+       * Custom + default` перед ссылкой стоит свой текст (`[PA [[Project A]]]`),
+       * и Obsidian рисовал `[PA [[Project A]` (прогон 2026-10-02, H1.2). Свой
+       * текст остаётся как есть, ссылка — подписью.
+       */
+      const open = segment.lastIndexOf("[", m.index - 1);
+      const label = open >= 0 ? segment.slice(open + 1, m.index) : "";
+      if (open < 0 || /[[\]`*]/.test(label)) continue;
       const shown = __sharedUtils.wikilinkShownOf(m[0]);
       if (!shown) continue;
-      const start = innerAt + at - 1;
+      const start = innerAt + open;
       const end = innerAt + after + 1;
       const cover = out.filter((s) => s.kind !== "line" && s.kind !== "replace" && /(?:^|;)\s*color:/.test(s.style || "") && s.start <= start + 1 && s.end >= end - 1)
         .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
       const color = cover ? (/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "" : "";
-      out.push({ kind: "replace", start, end, text: "[" + shown + "]", color: String(color).trim() });
+      out.push({ kind: "replace", start, end, text: "[" + label + shown + "]", color: String(color).trim() });
     }
   }
 

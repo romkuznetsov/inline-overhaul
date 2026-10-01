@@ -253,6 +253,20 @@ const PREPARE = {
 };
 
 PREPARE["panel-link-label"] = PREPARE["scroller-link-label"];
+/* H1.2 прогона 2026-10-02: `tagWheel Value names = Custom + default` и свой текст у `[[Plain]]`. */
+PREPARE["panel-link-label-both"] = (vault) => {
+  PREPARE["scroller-link-label"](vault);
+  const dataPath = path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json");
+  const cfg = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  const links = cfg.pkm.fields.links.fields;
+  const field = cfg.pkm.fields.order.right.map((id) => links.find((x) => x.id === id)).find(Boolean);
+  cfg.visual.tagWheel.valueNames = "both";
+  cfg.visual.tags.byTag = cfg.visual.tags.byTag || {};
+  cfg.visual.tags.byTag[field.id] = Object.assign({}, cfg.visual.tags.byTag[field.id], {
+    "[[Plain]]": { fillColor: "", textColor: "", borderColor: "", visibility: "custom", customText: "PL" },
+  });
+  fs.writeFileSync(dataPath, JSON.stringify(cfg));
+};
 
 /** Value-ссылки сценария `scroller-link-label`: с подписью, простая, с папкой. */
 const SCROLLER_LINKS = ["Alias Target|Shown", "Plain", "111/Deep"];
@@ -1305,7 +1319,9 @@ const SCENARIOS = {
   /* A10 перечня 2026-09-30: ссылка с подписью в полосе tagWheel видна как `Ex]`.
      Обходит ячейки полосы стрелкой вправо, в каждой листает Value вниз и
      спрашивает экран: подпись `Shown` видна целиком, без скобок и цели. */
-  async "panel-link-label"(win) {
+  async "panel-link-label-both"(win) { return SCENARIOS["panel-link-label"](win, { "Plain": "PL\u200APlain" }); },
+
+  async "panel-link-label"(win, labels) {
     const n = await openAt(win, "bench-scroller.md", "- текст");
     if (n < 0) throw new Error("нет строки в bench-scroller.md");
     await win.evaluate((n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n, ch: ed.getLine(n).length }); ed.focus(); }, n);
@@ -1331,9 +1347,9 @@ const SCENARIOS = {
     await win.waitForTimeout(400);
     if (!seen.length || !seen[0].open) { console.log("КОНТРОЛЬ: панель не открылась — мерить нечего"); return false; }
     /* Активная ячейка-ссылка: `**[[[цель]]]**` в документе, `[подпись]` на экране. */
-    const SHOWN = { "Alias Target|Shown": "Shown", "Plain": "Plain", "111/Deep|Deep": "Deep" };
+    const SHOWN = Object.assign({ "Alias Target|Shown": "Shown", "Plain": "Plain", "111/Deep|Deep": "Deep" }, labels || {});
     const hit = seen.map((s) => {
-      const m = /\*\*\[\[\[([^\]]+)\]\]\]\*\*/.exec(s.doc);
+      const m = /\*\*\[(?:[^\[\]`*]*)\[\[([^\]]+)\]\]\]\*\*/.exec(s.doc);
       return m && SHOWN[m[1]] ? Object.assign({ want: "[" + SHOWN[m[1]] + "]" }, s) : null;
     }).filter(Boolean);
     /* Контроль «активная ячейка-ссылка в полосе побывала» (У-152): без неё мерить нечего. */

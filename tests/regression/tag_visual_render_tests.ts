@@ -1119,6 +1119,13 @@ const filled = (el: Any): boolean =>
   const folder = (I.tagwheelPanelSpans("- ==**[[[111/Deep|Deep]]]**== ", colors, new Set()) as Any[])
     .find((s) => s.kind === "replace");
   assert.equal(folder && folder.text, "[Deep]", "у Value с папкой — имя без неё: " + JSON.stringify(folder));
+  /* H1.2 прогона 2026-10-02: `Custom + default` ставит свой текст перед ссылкой. */
+  const both = "- x :: ==**[PA [[Project A]]]** PA [[Project A]] `Due`== ";
+  const bothLinks = (I.tagwheelPanelSpans(both, colors, new Set(["Due"])) as Any[])
+    .filter((s) => s.kind === "replace" && /\[\[/.test(both.slice(s.start, s.end)));
+  assert.deepEqual(bothLinks.map((s) => [both.slice(s.start, s.end), s.text]),
+    [["[PA [[Project A]]]", "[PA Project A]"]],
+    "свой текст и ссылка в активной ячейке — одним виджетом, неактивная не трогается: " + JSON.stringify(bothLinks));
   ok("A10: ссылка в активной ячейке tagWheel видна подписью в скобках ячейки");
 }
 
