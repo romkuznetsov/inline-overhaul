@@ -29,7 +29,7 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Smart Ctrl+A", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
       searchTerms:["Enhanced Mod+A","Expanded select all","Expanded 'Ctrl+A'"],
-      tip:"On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started" },
+      tip:"With the steps set as they come, the first press takes the line you are on and the second the whole note. Pick a longer list of steps below, and on a task list a press stops at the task and its tree on the way. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started" },
     { kind:"dropdown", id:"select-all-steps", path:"editor.selectAll.mode", default:"line-note",
       name:"Selection steps", desc:"How much more gets picked up on each press",
       searchTerms:["Select-all mode"], visible: on("editor.selectAll.enabled"),

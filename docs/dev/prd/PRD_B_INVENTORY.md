@@ -224,7 +224,7 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
 - **`select-all-sub`** — свой блок, рендерер `?`
 - **Smart Ctrl+A** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
   - desc: Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen
-  - tip: On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started
+  - tip: With the steps set as they come, the first press takes the line you are on and the second the whole note. Pick a longer list of steps below, and on a task list a press stops at the task and its tree on the way. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started
   - старые названия для поиска: «Enhanced Mod+A», «Expanded select all», «Expanded 'Ctrl+A'»
 - **Selection steps** — `select-all-steps`, `dropdown`, path `editor.selectAll.mode`, default `line-note`
   - desc: How much more gets picked up on each press
