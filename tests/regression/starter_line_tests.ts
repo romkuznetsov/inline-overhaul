@@ -310,6 +310,16 @@ async function main(): Promise<void> {
     }
     console.log("  ok Insert only " + tag + ": цитата и чекбокс остаются — командой и панелью");
   }
+  /* C13 перечня 2026-09-30: предпросмотр `Source line` и команда — одна
+     дорога (`composeSourceRoot`); чекбокс человека предпросмотр не снимает (`В-239`). */
+  {
+    const transform = require("../../src/features/transform_feature.js");
+    const preview = transform.buildSourcePreviewLine(cfg.transform.inline2note, cfg);
+    assert.ok(/^- \[ \] /.test(preview.before), "строка предпросмотра без чекбокса — проверять нечего: " + preview.before);
+    assert.equal(preview.after, "- [ ] [[Preview]] || #processed", "предпросмотр After снял чекбокс: " + preview.after);
+    passed++;
+    console.log("  ok C13 предпросмотр Source line оставляет чекбокс, как команда");
+  }
   console.log(passed + " проверок");
 }
 

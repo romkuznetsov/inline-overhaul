@@ -22,6 +22,9 @@ const __noticeKey = __sayModule.noticeKey;
 const __linePipeline = require("../core/line_pipeline.js");
 const __rulesShape = require("../core/pkm_rules_shape.js");
 const __rulesHelpers = require("../core/pkm_rules_runtime_helpers.js");
+/* Сборщик приставок: его же команда получает от `plugin_commands.js`, а
+   предпросмотр `Source line` спрашивает отсюда — дорога у них одна (C13). */
+const __lineFinalize = require("../core/pkm_line_finalize_unified.js");
 const __domainRegistry = require("../core/pkm_domain_registry.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __editorVisualsConfig = require("../core/editor_visuals_config.js");
@@ -3372,32 +3375,50 @@ function buildSourcePreviewLine(i2n, cfg) {
   const separators = resolveIoSeparators(cfg);
   const parsed = parseInlineLine(before, cfg);
   const ctx = buildTransformContext(parsed, cfg);
-  const ids = resolveSourceCleanupFieldIds(i2n, cfg);
-  const plan = planSourceCleanup(before, ctx, ids, separators);
-  const shape = { payloadFirst: plan.payloadFirst };
-  const cleaned = plan.line;
   /* Предпросмотр спрашивает про название **тем же** ходом, что и движок:
      иначе он показывал бы ссылку не там, где её поставит перенос (У-32).
      Ход — один, и это `resolveTitleSwap`; своего ответа здесь больше нет. */
   const titleSwap = resolveTitleSwap(parsed, i2n, null);
-  const linked = applySourceTextFate(cleaned, "Preview", separators, {
-    text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
-    keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
-    link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
-    explicitTitle: titleSwap.explicitTitle,
-    titleWords: titleSwap.titleWords,
+  const processed = composeSourceRoot(before, ctx, cfg, separators, {
+    i2n, noteTitle: "Preview", explicitTitle: titleSwap.explicitTitle, titleWords: titleSwap.titleWords,
+  });
+  const after = normalizePreviewSeparators(normalizeSourceLineAfterCleanup(processed, separators), separators);
+  return { before, after };
+}
+
+/**
+ * Исходная строка после переноса — **одна дорога на команду и предпросмотр**
+ * `Source line` (BUGHUNT 2026-09-30, C13). У предпросмотра была своя копия
+ * без разбора приставки, и чекбокс человека, который команда оставляет
+ * (`В-239`), в предпросмотре пропадал (правило 72).
+ *
+ * Шаги: уборка Fields, приставка, судьба текста со ссылкой, метка
+ * «обработано», знак заголовка — последним (`В-129`).
+ */
+function composeSourceRoot(sourceLine, transformContext, cfg, separators, opts) {
+  const o = isObj(opts) ? opts : {};
+  const i2n = isObj(o.i2n) ? o.i2n : {};
+  const sp = isObj(i2n.sourceProcessing) ? i2n.sourceProcessing : {};
+  const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
+  /* Устройство строки после уборки решается один раз и едет с ней: заново
+     его не вывести (замечание заказчика по T4, 2026-09-07). */
+  const cleanupPlan = planSourceCleanup(sourceLine, transformContext, cleanupFieldIds, separators);
+  const shape = { payloadFirst: cleanupPlan.payloadFirst };
+  let line = applySourcePrefixResolution(cleanupPlan.line, sourceLine, transformContext, cleanupFieldIds, cfg, o.lineFinalize || __lineFinalize);
+  /* Ссылка и судьба текста решаются вместе, одной записью строки. */
+  line = applySourceTextFate(line, o.noteTitle, separators, {
+    text: sp.text,
+    keepWords: sp.keepWords,
+    link: !!sp.replaceWithLink,
+    explicitTitle: o.explicitTitle,
+    titleWords: o.titleWords,
     i2n,
     shape,
   });
-  const processed = insertProcessedToken(
-    linked,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
-    separators,
-    shape
-  );
-  const after = normalizePreviewSeparators(normalizeSourceLineAfterCleanup(processed, separators), separators);
-  return { before, after };
+  line = insertProcessedToken(line, sp.token, sp.panel, separators, shape, cfg);
+  /* Знак заголовка меняется на знак списка последним: до этого шага строка
+     собирается теми же правилами, что и любая другая (В-129). */
+  return headingSourceBecomesBullet(line, sourceLine);
 }
 
 
@@ -4085,27 +4106,13 @@ async function runInline2Note(plugin, runtimeOptions) {
   }
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
-    const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
-    /* Устройство строки после уборки решается один раз и едет с ней: заново
-       его не вывести (замечание заказчика по T4, 2026-09-07). */
-    const cleanupPlan = planSourceCleanup(sourceLine, transformContext, cleanupFieldIds, separators);
-    const shape = { payloadFirst: cleanupPlan.payloadFirst };
-    let nextRoot = cleanupPlan.line;
-    nextRoot = applySourcePrefixResolution(nextRoot, sourceLine, transformContext, cleanupFieldIds, cfg, runtimeOptions && runtimeOptions.lineFinalize);
-    /* Ссылка и судьба текста решаются вместе, одной записью строки. */
-    nextRoot = applySourceTextFate(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators, {
-      text: i2n.sourceProcessing.text,
-      keepWords: i2n.sourceProcessing.keepWords,
-      link: i2n.sourceProcessing.replaceWithLink,
+    const nextRoot = composeSourceRoot(sourceLine, transformContext, cfg, separators, {
+      i2n,
+      noteTitle: deriveSourceWikilinkFromTargetPath(actualTarget.path),
       explicitTitle,
       titleWords,
-      i2n,
-      shape,
+      lineFinalize: runtimeOptions && runtimeOptions.lineFinalize,
     });
-    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators, shape, cfg);
-    /* Знак заголовка меняется на знак списка последним: до этого шага строка
-       собирается теми же правилами, что и любая другая (В-129). */
-    nextRoot = headingSourceBecomesBullet(nextRoot, sourceLine);
     replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines, separators, cfg);
   } catch (sourceError) {
     try {
