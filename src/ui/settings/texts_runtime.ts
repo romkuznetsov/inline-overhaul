@@ -77,7 +77,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   },
 
   navigation: {
-    "module-off": "Navigation is switched off",
+    "module-off": "Navigation is switched off: turn it on in General → Modules",
     "runtime-unavailable": "Navigation could not be loaded",
     "no-editor": "Open a note first",
     /* `{0}` — текст ошибки от движка. Склейка через `+` перевода не переживает:
@@ -86,7 +86,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   },
 
   pkm: {
-    "module-off": "Tags & PKM is switched off",
+    "module-off": "Tags & PKM is switched off: turn it on in General → Modules",
     "no-editor": "Open a note first",
     /* Пока сессия панели открыта, строкой распоряжается она: её вид лежит в
        самом документе, и команда правила бы картинку, а не строку человека. */
@@ -97,7 +97,7 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   },
 
   transform: {
-    "module-off": "Transform is switched off",
+    "module-off": "Transform is switched off: turn it on in General → Modules",
     "no-editor": "Open a note first",
     cancelled: "Transform cancelled",
     "code-line": "Transform does not work in a code block, a table, note properties or a divider line",

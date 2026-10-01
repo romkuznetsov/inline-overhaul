@@ -386,7 +386,7 @@ function registerTransform(plugin) {
 async function runInlineToNote(plugin) {
   const cfg = plugin.getConfig();
   if (!cfg.features.transform.enabled) {
-    plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
+    plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off: turn it on in General → Modules"));
     return;
   }
   /* Ограда кода, код и таблица в заметку не превращаются (BUGHUNT T20). */
@@ -467,7 +467,7 @@ async function flashWhenCursorMoved(plugin, ed, before, jumpKind) {
 async function runNavigationGuard(plugin, moduleKey, action, jumpKind) {
   const cfg = plugin.getConfig();
   if (!cfg.features.navigation.enabled) {
-    new Notice(__say(__noticeKey("navigation", "module-off"), "Navigation is switched off"));
+    new Notice(__say(__noticeKey("navigation", "module-off"), "Navigation is switched off: turn it on in General → Modules"));
     return;
   }
   const rt = await ensureNavigationRuntime(plugin);
@@ -500,7 +500,7 @@ function onCodeOrTableLine(ed) {
 async function runPkmGuard(plugin, action) {
   const cfg = plugin.getConfig();
   if (!cfg.features.pkm.enabled) {
-    new Notice(__say(__noticeKey("pkm", "module-off"), "Tags & PKM is switched off"));
+    new Notice(__say(__noticeKey("pkm", "module-off"), "Tags & PKM is switched off: turn it on in General → Modules"));
     return;
   }
   const ed = plugin.getActiveEditor();

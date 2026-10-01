@@ -103,8 +103,8 @@ export const DIALOG_TEXTS = {
     RESTORE_DONE: "Settings restored. Restart Obsidian so every part of the plugin picks them up",
     RESTORE_SAME: "That backup matches what you already have",
     /** Хоткеи вернулись — сказать отдельно: их человек ищет не там, где настройки. */
-    HOTKEYS_DONE: "hotkeys back on the plugin commands",
-    CONFLICT_CLEARED: "keys taken off other commands",
+    HOTKEYS_DONE: "back on the plugin commands",
+    CONFLICT_CLEARED: "taken off other commands",
     /** В копии хоткеи есть, а вернуть их этой сборкой нечем. */
     HOTKEYS_NO_METHOD: "The hotkeys in that backup could not be put back",
     /* Окно после восстановления (просьба заказчика 2026-09-06). */

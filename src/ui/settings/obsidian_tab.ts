@@ -653,7 +653,9 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
        */
       const wide = opts && opts.scope === "all";
       const wanted = new Set<string>();
-      let touched = 0;
+      /* Ответ — сколько клавиш легло на наши команды: о нём и говорит
+         сообщение (D9: две клавиши одной команды звались «1 hotkey»). */
+      let written = 0;
 
       /*
        * Конфликты снимаются **до** того, как клавиша ляжет на нашу команду:
@@ -680,7 +682,6 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
           const kept = now.filter(binding => !wantedKeys.has(keyOf(binding)));
           if (kept.length === now.length) continue;
           hm.setHotkeys(id, kept);
-          touched++;
         }
       }
 
@@ -689,7 +690,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
         const bindings = Array.isArray(map[id]) ? map[id] : [];
         wanted.add(id);
         hm.setHotkeys(id, bindings);
-        touched++;
+        written += bindings.length;
       }
       /*
        * Своё, чего в копии нет, снимается: копия описывает состояние целиком,
@@ -704,10 +705,9 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       for (const id of Object.keys(custom)) {
         if (!mine(id) || wanted.has(id)) continue;
         hm.removeHotkeys(id);
-        touched++;
       }
       if (typeof hm.save === "function") await Promise.resolve(hm.save());
-      return touched;
+      return written;
     },
   };
 }
