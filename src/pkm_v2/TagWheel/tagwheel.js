@@ -277,6 +277,9 @@ function customInsertPlan(line, from, to, text) {
   if (!body) {
     if (from === to) return null
     if (/\s$/.test(before) && /^\s/.test(after)) to += 1
+    /* В конце строки уходит и пробел перед значением — но не тот, что после
+       знака списка или чекбокса (A6: `- маме ` после снятия). */
+    else if (/\s$/.test(before) && !after && from - 1 > __sharedUtils.lineStartOf(src).at) from -= 1
     return { from: from, to: to, insert: '', caret: from }
   }
   var lead = before && !/\s$/.test(before) ? ' ' : ''
@@ -1936,6 +1939,11 @@ async function runTagWheel(input, quickAddSettings) {
        цикла 106, `🤡 - заметка`). Команда и панель берут каретку отсюда. */
     var lead = __sharedUtils.lineStartOf(line).at
     if (cursor_.ch < lead) cursor_ = { line: cursor_.line, ch: lead }
+    /* Каретка внутри слова встаёт за ним: значение не режет слово человека
+       (BUGHUNT 2026-09-30, A6, `мам¦е` → `мам [[…]] е`). У края слова каретка
+       остаётся — там значение под ней узнаётся (`|aaa`, `aaa|`). */
+    var word = customWordSpan(line, cursor_.ch)
+    if (word && word.from < cursor_.ch && cursor_.ch < word.to) cursor_ = { line: cursor_.line, ch: word.to }
     if (input_.customCycle) { runCustomCycle(o, line, cursor_); return }
 
     var blockId = String(input_.customBlock || '')

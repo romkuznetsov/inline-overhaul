@@ -148,7 +148,17 @@ async function run() {
     assert.deepEqual(p("", 0, 0, "#x"), { from: 0, to: 0, insert: "#x", caret: 2 });
     assert.deepEqual(p("a #x b", 2, 4, ""), { from: 2, to: 5, insert: "", caret: 2 }, "снятое значение оставляет один пробел");
     assert.equal(p("abc", 1, 1, ""), null);
+    /* A6: в конце строки уходит и пробел перед значением, но не за знаком списка. */
+    assert.deepEqual(p("- a #x", 4, 6, ""), { from: 3, to: 6, insert: "", caret: 3 }, "в конце строки остался пробел");
+    assert.deepEqual(p("- #x", 2, 4, ""), { from: 2, to: 4, insert: "", caret: 2 }, "снятие съело пробел знака списка");
     ok("слово под кареткой: |aaa, aa|a, aaa| — да, aaa | — нет; пробелы вокруг вставки");
+  }
+
+  /* ---- A6: каретка внутри слова — значение встаёт за словом ------------- */
+  {
+    const out = await drive(config(), "- abcdef", 5, [OPEN, UP, ENTER]);
+    assert.equal(out.line, "- abcdef #calm", "значение разрезало слово: " + out.line);
+    ok("A6: каретка внутри слова — значение custom block встаёт за ним");
   }
 
   /* ---- вставка у каретки, текст слева и справа на месте ---------------- */

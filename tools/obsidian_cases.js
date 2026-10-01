@@ -442,6 +442,11 @@ module.exports = [
   /* A5: Value Element-списка — одно слово (с пробелом его не заводят панель и окно); круг из знака со словом замыкается. */
   one("A5", "Element-список: Value с пробелом не копится", "- x", [{ js: "const o = plugin.getConfig().pkm.fields.order; plugin.setConfigPatch({ pkm: { fields: { order: { left: o.left.concat(['Mood']), types: { Mood: 'element' }, active: { Mood: 'yes' } }, elements: { byField: { Mood: { emoji: '', format: '', increment: { mode: 'list' }, list: ['\u{1F642}', '✅done'] } } } } } }, 'bench'); plugin.registerPkmCommands();", wait: 400 },
     { cursor: { line: 0, ch: 3 } }, "mood-next", "mood-next", "mood-next", "mood-next", "mood-next"], "- ✅done || x"),
+  /* A6: Field custom block у каретки внутри слова встаёт за словом, а не режет его. */
+  ...[["A6", ["project-next"], "- маме [[Project A]]"], ["A6.b", ["project-next", "project-previous"], "- маме"],
+    ["A6.tw", ["open-custom-tagwheel", { key: "ArrowDown" }, { key: "Enter" }], "- маме [[Project B]]"]].map(([id, steps, want]) => one(id, "Custom block: Value встаёт на границе слова", "- маме",
+    [{ js: "const o = plugin.getConfig().pkm.fields.order; plugin.setConfigPatch({ pkm: { fields: { order: { right: o.right.filter((k) => k !== 'Project'), custom: [{ id: 'b1', name: 'Area', keys: ['Project'] }] } } } }, 'bench'); plugin.registerPkmCommands();", wait: 400 },
+      { cursor: { line: 0, ch: 5 } }].concat(steps.map((s) => (s === "open-custom-tagwheel" ? { js: "a.commands.executeCommandById(Object.keys(a.commands.commands).find((k) => /^inline-overhaul:.*b1/.test(k)));", wait: 500 } : s))), want)),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
