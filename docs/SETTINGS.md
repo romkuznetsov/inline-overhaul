@@ -57,7 +57,8 @@ reference disagreeing.
 
 Four toggles: `Navigation`, `Tags & PKM`, `Transform`, `Visual`. All on by default. A
 module that is off adds no commands and touches no notes; its settings are hidden until you
-turn it back on, and nothing you configured is lost.
+turn it back on, and nothing you configured is lost. `Visual` off hands the look of your notes
+back to your theme, all but the tagWheel colors, which the panel needs to stay readable.
 
 Each module also has a command of its own, so an area can be switched off from the command
 palette.

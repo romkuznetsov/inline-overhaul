@@ -1335,6 +1335,20 @@ function caretBlinkMsFromSpeed(speed) {
 }
 
 /**
+ * Включён ли модуль `Visual` (`В-253`, его ответ 2026-10-01: «гасить всё,
+ * кроме tagWheel»). Выключенный гасит всё, что рисует вкладка Visual, —
+ * пузыри и оформление тегов, Tag Bars, заливку Block, каретку и вспышку
+ * прыжка; цвета панели tagWheel и коробки скроллера остаются: без них панель
+ * не читается. Спрашивают его те места, где вид читается из конфига, — эти
+ * геттеры и входы двух слоёв в `decorations.js`; прежде тумблер не спрашивал
+ * никто (BUGHUNT 2026-09-30, D5). Нет ключа — модуль включён, как у
+ * нормализации.
+ */
+function visualModuleOn(cfg) {
+  return readCfgPath(cfg, "features.visual.enabled") !== false;
+}
+
+/**
  * Вид каретки из конфига. Две половины группы независимы: цвет включает
  * `enabled`, толщину и мерцание — `shapeEnabled` (Ц6). Выключенная половина
  * не объявляет ничего, и тогда своё берёт тема.
@@ -1342,6 +1356,7 @@ function caretBlinkMsFromSpeed(speed) {
 function caretLookFromConfig(cfg) {
   const caret = isObj(readCfgPath(cfg, "visual.caret")) ? readCfgPath(cfg, "visual.caret") : {};
   const look = { color: "", width: NaN, blinkMs: NaN };
+  if (!visualModuleOn(cfg)) return look;
   if (caret.enabled === true) look.color = normalizeHexColorInput(caret.color);
   if (caret.shapeEnabled === true) {
     const width = Number(caret.width);
@@ -1372,7 +1387,7 @@ function jumpFlashLookFromConfig(cfg) {
     return Number.isFinite(n) ? n : dflt;
   };
   return {
-    enabled: flash.enabled === true,
+    enabled: flash.enabled === true && visualModuleOn(cfg),
     inLine: flash.inLine === true,
     color: normalizeHexColorInput(flash.color),
     radius: num(flash.radius, 18),
@@ -1555,7 +1570,7 @@ function blockFillLookFromConfig(cfg) {
     : {};
   const pct = Number(src.opacity);
   return {
-    enabled: src.enabled === true,
+    enabled: src.enabled === true && visualModuleOn(cfg),
     /* Пусто = взять у темы. В значение это не влезает (У-60): смысл живёт на
        шве, а не в цвете, и подставляется он в самом правиле стилей. */
     color: normalizeHexColorInput(src.color),
@@ -2565,6 +2580,7 @@ function collectPkmFieldDefinitions(cfg) {
 }
 
 module.exports = {
+  visualModuleOn,
   normalizeHexColorInput,
   getTagwheelHeaderColorsFromConfig,
   buildTagwheelPlaceholderSetFromConfig,

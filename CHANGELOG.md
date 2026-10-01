@@ -38,6 +38,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 15. 🐛 **tagWheel panel fill stays under a tag that shows its `#`, and a Value's own text sits next to it.** With `Custom + default`, `🎯 #todo` is as close as two words.
 16. ✨ **`Move left/right` can take the tree along.** `Indent the whole tree`, under `Change the indent`, gives the lines indented under the line the same step.
 17. 🐛 **`Highlight after moving` colours the lines instead of selecting them.** The next letter you type no longer replaces what you just moved.
+18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
 
 ## 0.12.0
 

@@ -364,6 +364,17 @@ module.exports = [
   one("B8.j", "Highlight after moving: каждое нажатие перескакивает соседнее дерево", "- A\n\t- a1\n- B\n\t- b1\n- C\n\t- c1",
     ["move-line-up", { wait: 300 }, "move-line-up"], "- C\n\t- c1\n- A\n\t- a1\n- B\n\t- b1",
     { at: { file: "t.md", line: 4, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children", jumpNeighborTrees: true } } } }),
+  /* D5, `В-253`: выключенный модуль Visual гасит всё, что рисует вкладка, —
+     пузыри, приглушение Block, заливку, каретку; включённый — контроль, что
+     на этой строке и этом конфиге всё это и правда нарисовано. */
+  ...[["D5.off", false], ["D5.on", true]].map(([id, on]) => one(id, "Модуль Visual " + (on ? "включён — вид есть (контроль)" : "выключен — вида нет"), "- #todo || позвонить", [{ wait: 400 }], "- #todo || позвонить",
+    { at: { file: "t.md", line: 0, ch: 12 }, settle: 700,
+      cfg: { features: { visual: { enabled: on } }, visual: { tags: { opacityLeft: 50, blockFill: { enabled: true } }, caret: { enabled: true, color: "#ff0000" } } },
+      check: "const cm = a.workspace.activeEditor.editor.cm; const row = [...cm.contentDOM.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('позвонить')); const got = { tags: row ? row.querySelectorAll('.io-tagbubble, .io-blockvalue').length : -1, fill: cm.scrollDOM.querySelectorAll('.io-blockfill-marker').length, caret: getComputedStyle(cm.contentDOM).caretColor, caretLayer: [...cm.scrollDOM.querySelectorAll('.io-editor-caret')].map((x) => getComputedStyle(x).borderLeftColor + '|' + getComputedStyle(x).backgroundColor) }; const red = (s) => /255, 0, 0/.test(s); const drawn = got.tags > 0 && got.fill > 0 && (red(got.caret) || got.caretLayer.some(red)); const none = got.tags === 0 && got.fill === 0 && !red(got.caret) && !got.caretLayer.some(red); return (" + (on ? "drawn" : "none") + ") || JSON.stringify(got);" })),
+  { id: "D5.tw", title: "Модуль Visual выключен — панель tagWheel в своих цветах", files: { "t-D5tw.md": "- #todo || позвонить\n" },
+    at: { file: "t-D5tw.md", line: 0 }, steps: ["open-tagwheel-left", { wait: 600 }], settle: 600,
+    cfg: { features: { visual: { enabled: false } }, visual: { tagWheel: { fillColor: "#00ff00" } } },
+    check: "const row = a.workspace.activeEditor.editor.cm.contentDOM.querySelector('.cm-line.io-twline'); a.commands.executeCommandById('editor:focus'); if (!row) return 'нет полосы'; const hl = row.querySelector('span.cm-highlight'); const bg = hl ? getComputedStyle(hl).backgroundColor : ''; return /0, 255, 0/.test(bg) || JSON.stringify({ bg });" },
   /* C1: `Keep first words` на строке без Fields не оставляет имя в скобках. */
   one("C1", "Keep first words снимает имя в скобках и не считает его словами", "- [Trip plan] pack bags early morning",
     [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }], "",

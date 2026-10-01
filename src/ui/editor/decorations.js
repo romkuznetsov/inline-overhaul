@@ -100,6 +100,7 @@ const {
   caretLayerRangeFor,
   caretShapeActive,
   jumpFlashLookFromConfig,
+  visualModuleOn,
   computeTagVisualStyle,
   getSourceMarksFromConfig,
   getTagVisualsFromConfig,
@@ -811,6 +812,8 @@ function themeTagSizeRaw(view) {
 
 function buildTagVisualLayer(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  /* Выключенный модуль `Visual` — тегов не оформляем вовсе (`В-253`). */
+  if (!visualModuleOn(cfg)) return { decorations: cmView.Decoration.none, atomic: cmView.Decoration.none };
   const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
   const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function"
     ? String(plugin.getLineTraceTxId() || "")
@@ -1287,7 +1290,7 @@ function buildStripDecorations(view, plugin) {
     ? String(plugin.getLineTraceTxId() || "")
     : "";
   const visuals = getTagVisualsFromConfig(cfg);
-  if (!visuals.stripActive) return cmView.Decoration.none;
+  if (!visuals.stripActive || !visualModuleOn(cfg)) return cmView.Decoration.none;
 
   const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
   const sep1 = String(io.separator1 || "").trim();

@@ -101,7 +101,38 @@ function configWithCaret(color, width) {
   };
 }
 
+/*
+ * `В-253`, его ответ 2026-10-01 «гасить всё, кроме tagWheel»: выключенный
+ * модуль Visual гасит каретку, вспышку и заливку Block в самих геттерах, а
+ * цвета панели tagWheel не трогает. Обе стороны на одном конфиге — разница
+ * только в тумблере модуля (У-147). Слои тегов и Tag Bars спрашивают тот же
+ * признак на входе — это мерит стенд настоящего Obsidian (`clean D5`).
+ */
+function visualModuleSide() {
+  const normalize = require(path.join(ROOT, "src", "core", "config_normalize.js"));
+  const cfgWith = (on) => normalize.migrateConfig({
+    schemaVersion: 2,
+    features: { visual: { enabled: on } },
+    visual: {
+      caret: { enabled: true, color: "#ff0000", shapeEnabled: true, width: 3 },
+      jumpFlash: { enabled: true },
+      tags: { blockFill: { enabled: true } },
+      tagWheel: { fillColor: "#00ff00" },
+    },
+  });
+  const on = cfgWith(true);
+  const off = cfgWith(false);
+  if (visuals.caretLookFromConfig(on).color !== "#ff0000") throw new Error("контроль: включённый модуль — каретка своего цвета");
+  const caretOff = visuals.caretLookFromConfig(off);
+  if (caretOff.color !== "" || Number.isFinite(caretOff.width)) throw new Error("В-253: выключенный модуль оставил каретку");
+  if (!visuals.jumpFlashLookFromConfig(on).enabled || visuals.jumpFlashLookFromConfig(off).enabled) throw new Error("В-253: вспышка прыжка не следует модулю");
+  if (!visuals.blockFillLookFromConfig(on).enabled || visuals.blockFillLookFromConfig(off).enabled) throw new Error("В-253: заливка Block не следует модулю");
+  if (visuals.getTagwheelHeaderColorsFromConfig(off).fillColor !== "#00ff00") throw new Error("В-253: цвета tagWheel погасли вместе с модулем");
+  console.log("  ok выключенный модуль Visual гасит каретку, вспышку и заливку, цвета tagWheel остаются");
+}
+
 function run() {
+  visualModuleSide();
   const dom = installDocumentStub();
   try {
     const styles = require(path.join(ROOT, "src", "ui", "editor", "styles.js"));

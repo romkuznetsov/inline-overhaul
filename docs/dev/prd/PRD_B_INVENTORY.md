@@ -209,7 +209,7 @@ _Tip:_ Turning an area off is not the same as leaving it alone. Its commands dis
   - tip: Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files
 - **Visual** — `module-visual`, `toggle`, path `features.visual.enabled`, default `true`
   - desc: Customize and beautify your inline text with tag colors, Bars and much more
-  - tip: Appearance only. Your notes contain exactly the same text either way — this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text
+  - tip: Appearance only. Your notes contain exactly the same text either way — this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text. Off, everything on the Visual tab goes back to how your theme draws it, except the tagWheel colors: the panel needs them to be readable
 
 #### Before you start — `keyboard-intro` (вкладка `keyboard`)
 
