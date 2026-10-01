@@ -37,6 +37,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 14. 🐛 **Entries filed under a heading stay in the order you wrote them.** An entry heading as deep as the section heading, or less deep, goes one level below it.
 15. 🐛 **tagWheel panel fill stays under a tag that shows its `#`, and a Value's own text sits next to it.** With `Custom + default`, `🎯 #todo` is as close as two words.
 16. ✨ **`Move left/right` can take the tree along.** `Indent the whole tree`, under `Change the indent`, gives the lines indented under the line the same step.
+17. 🐛 **`Highlight after moving` colours the lines instead of selecting them.** The next letter you type no longer replaces what you just moved.
 
 ## 0.12.0
 

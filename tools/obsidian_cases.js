@@ -354,6 +354,16 @@ module.exports = [
     ["move-right", { js: "ed.undo();", wait: 400 }], "- a\n- b\n\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveSelection: { indentWithChildren: true } } } }),
   one("B3.off", "Indent the whole tree выключен: отступ у одной строки, как было", "- a\n- b\n\t- b1\n- c",
     ["move-right"], "- a\n\t- b\n\t- b1\n- c", { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveSelection: { indentWithChildren: false } } } }),
+  /* B8, `В-256`: `Highlight after moving` — цветом, без выделения: набранная
+     буква перенесённого не стирает, а подсветка после неё гаснет. */
+  one("B8", "Highlight after moving красит строки и не выделяет их", "- a\n- b\n\t- b1\n- c",
+    ["move-line-up", { wait: 300 }, { js: "const rows = [...ed.cm.contentDOM.querySelectorAll('.cm-line.io-moved-line')]; window.__b8 = { sel: ed.somethingSelected(), rows: rows.map((r) => r.textContent), bg: rows[0] ? getComputedStyle(rows[0]).backgroundColor : '' };" }, { type: "x" }],
+    "- bx\n\t- b1\n- a\n- c",
+    { at: { file: "t.md", line: 1, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children" } } },
+      check: "const w = window.__b8 || {}; const left = a.workspace.activeEditor.editor.cm.contentDOM.querySelectorAll('.cm-line.io-moved-line').length; return (w.sel === false && JSON.stringify(w.rows) === JSON.stringify(['- b', '\\t- b1']) && !!w.bg && w.bg !== 'rgba(0, 0, 0, 0)' && left === 0) || JSON.stringify({ w, left });" }),
+  one("B8.j", "Highlight after moving: каждое нажатие перескакивает соседнее дерево", "- A\n\t- a1\n- B\n\t- b1\n- C\n\t- c1",
+    ["move-line-up", { wait: 300 }, "move-line-up"], "- C\n\t- c1\n- A\n\t- a1\n- B\n\t- b1",
+    { at: { file: "t.md", line: 4, ch: 3 }, cfg: { navigation: { moveLine: { highlightMovedLines: true, noSelectionMode: "with-children", jumpNeighborTrees: true } } } }),
   /* C1: `Keep first words` на строке без Fields не оставляет имя в скобках. */
   one("C1", "Keep first words снимает имя в скобках и не считает его словами", "- [Trip plan] pack bags early morning",
     [{ js: "a.commands.executeCommandById('inline-overhaul:transform-inline-to-note');", wait: 1500 }], "",

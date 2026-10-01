@@ -2921,8 +2921,51 @@ function createTagwheelHeaderDecorationExtension(plugin) {
   });
 }
 
+/**
+ * Строки, перенесённые `Move up/down` при `Highlight after moving` (`В-256`).
+ *
+ * Метку ставит движок (`markMovedLines` в `navigation_runtime.js`) на сам
+ * редактор, вместе с документом, в котором строки перенесены. Слой красит их
+ * декорацией строки, пока документ тот же и курсор среди них; иначе метка
+ * забывается. Своих правок слой не пишет и выделения не ставит: набранная
+ * буква перенесённого не стирает.
+ */
+function movedLinesDecorations(view) {
+  const mark = view.__ioMovedLines;
+  if (!mark) return cmView.Decoration.none;
+  const doc = view.state.doc;
+  const sel = view.state.selection.main;
+  const ok = mark.doc === doc && mark.to < doc.lines;
+  const top = ok ? doc.line(mark.from + 1) : null;
+  const bottom = ok ? doc.line(mark.to + 1) : null;
+  if (!ok || sel.to < top.from || sel.from > bottom.to) {
+    view.__ioMovedLines = null;
+    return cmView.Decoration.none;
+  }
+  const ranges = [];
+  for (let n = mark.from + 1; n <= mark.to + 1; n++) {
+    const at = doc.line(n).from;
+    ranges.push({ from: at, to: at, deco: cmView.Decoration.line({ class: "io-moved-line" }) });
+  }
+  return buildDecorationSet(ranges, "moved-lines");
+}
+
+function createMovedLinesExtension() {
+  return cmView.ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.decorations = movedLinesDecorations(view);
+    }
+    update(update) {
+      this.decorations = movedLinesDecorations(update.view);
+    }
+  }, {
+    decorations: (v) => v.decorations,
+  });
+}
+
 module.exports = {
   traceEvent,
+  createMovedLinesExtension,
   buildDecorationSet,
   visibleLineNumbers,
   TagVisualTokenWidget,

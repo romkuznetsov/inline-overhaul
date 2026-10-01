@@ -123,6 +123,9 @@ function mountExtensions(plugin) {
      нужно: слой ничего не рисует, пока его не позовёт прыжок, а настройки
      читаются в момент прыжка, а не при загрузке. */
   plugin.registerEditorExtension(createJumpFlashExtension(plugin));
+  /* Подсветка перенесённых строк (`В-256`). Компартмента нет и не нужно:
+     слой ничего не рисует, пока перенос не оставил метку. */
+  plugin.registerEditorExtension(__editorDecorations.createMovedLinesExtension());
   /* Заливка Left и Right Block (З-7). Компартмента у неё нет и не нужно по
      той же причине, что у каретки: слой спрашивает тумблер на каждой
      отрисовке, а вид правит блок стилей, который переписывается сразу за

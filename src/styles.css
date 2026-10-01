@@ -3876,3 +3876,12 @@
   font-size: var(--font-ui-smaller);
   color: var(--text-error);
 }
+
+/*
+ * Строки, перенесённые `Move up/down` при `Highlight after moving` (`В-256`):
+ * цвет выделения темы — тот, каким они подсвечивались, пока подсветка была
+ * настоящим выделением. Выделения нет, и набранная буква их не стирает.
+ */
+.markdown-source-view.mod-cm6 .cm-line.io-moved-line {
+  background-color: var(--text-selection);
+}

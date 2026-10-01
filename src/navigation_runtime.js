@@ -217,12 +217,10 @@ function moveLine(editor, direction, rawCfg) {
   if (!body) return;
   const { bStart, bEnd } = body;
   /* С выделением тело — выделение, и перескок к нему не относится (10.13.275).
-     Кроме выделения, которое поставили мы сами: `highlightMovedLines` выделяет
-     перенесённое дерево целиком, и следующее нажатие обязано перескакивать так
-     же, как первое (его `💬` к тесту 7 цикла 95, У-238). */
-  const ownTree = hasSel && cfg.highlightMovedLines && selections.length === 1
-    && isWholeTreeSelection(editor, selections[0], total);
-  const targetCfg = hasSel && !ownTree ? Object.assign({}, cfg, { jumpNeighborTrees: false }) : cfg;
+     Своего выделения после переноса больше нет (`В-256`): `Highlight after
+     moving` красит строки, а курсор остаётся там, где был, — на корне дерева,
+     и следующее нажатие берёт дерево тем же путём, что первое (У-238). */
+  const targetCfg = hasSel ? Object.assign({}, cfg, { jumpNeighborTrees: false }) : cfg;
   const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, targetCfg, total, yamlEnd);
   if (insertAfter === null) return;
   applyMove(editor, bStart, bEnd, insertAfter, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
@@ -256,18 +254,6 @@ function treeEndOf(editor, line, total) {
     end = l;
   }
   return end;
-}
-
-/* Выделение ровно такое, какое ставит `applyMove` дереву: от начала строки до
-   конца последней строки её дерева. */
-function isWholeTreeSelection(editor, sel, total) {
-  const a = sel.anchor;
-  const h = sel.head;
-  const from = a.line < h.line || (a.line === h.line && a.ch <= h.ch) ? a : h;
-  const to = from === a ? h : a;
-  if (from.ch !== 0) return false;
-  if (to.line !== treeEndOf(editor, from.line, total)) return false;
-  return to.ch === nz(editor.getLine(to.line), "").length;
 }
 
 function findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd) {
@@ -471,9 +457,8 @@ function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scro
       { line: to, ch: nz(lines[to], "").length },
     );
   }
-  if (cfg.highlightMovedLines) {
-    editor.setSelection({ line: movedStart, ch: 0 }, { line: movedEnd, ch: nz(finalLines[movedEnd], "").length });
-  } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, movedStart, movedEnd);
+  markMovedLines(editor, cfg, movedStart, movedEnd);
+  if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, movedStart, movedEnd);
   else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, movedStart, movedEnd);
   else editor.setCursor({ line: movedStart, ch: 0 });
   maybeRevealMovedRange(editor, movedStart, movedEnd, direction, scrollBefore, cfg);
@@ -498,9 +483,8 @@ function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, to
     editor.replaceRange(movedLines.join("\n") + "\n" + targetText, { line: targetLine, ch: 0 }, { line: bEnd, ch: editor.getLine(bEnd).length });
     const newStart = targetLine;
     const newEnd = targetLine + numRows - 1;
-    if (cfg.highlightMovedLines) {
-      editor.setSelection({ line: newStart, ch: 0 }, { line: newEnd, ch: editor.getLine(newEnd).length });
-    } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
+    markMovedLines(editor, cfg, newStart, newEnd);
+    if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
     else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
     else editor.setCursor({ line: newStart, ch: 0 });
     maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
@@ -513,9 +497,8 @@ function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, to
     editor.replaceRange(targetText + "\n" + movedLines.join("\n"), { line: bStart, ch: 0 }, { line: targetLine, ch: targetText.length });
     const newStart = bStart + 1;
     const newEnd = newStart + numRows - 1;
-    if (cfg.highlightMovedLines) {
-      editor.setSelection({ line: newStart, ch: 0 }, { line: newEnd, ch: editor.getLine(newEnd).length });
-    } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
+    markMovedLines(editor, cfg, newStart, newEnd);
+    if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
     else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
     else editor.setCursor({ line: newStart, ch: 0 });
     maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
@@ -643,6 +626,22 @@ function revealLineAt(editor, line, position, ch) {
      * будет не то место, а не не то поведение.
      */
   }
+}
+
+/**
+ * `Highlight after moving` — цветом, а не выделением (`В-256`, его ответ
+ * 2026-10-01: «подсвечивать цветом»). Настоящее выделение стирала следующая
+ * набранная буква (BUGHUNT 2026-09-30, B8).
+ *
+ * Строки запоминаются на самом редакторе вместе с документом, в котором они
+ * перенесены; красит их слой `createMovedLinesExtension` (`decorations.js`) и
+ * забывает их сам — при первой правке документа и когда курсор ушёл. Зовётся
+ * до постановки курсора: её обновление и рисует метку.
+ */
+function markMovedLines(editor, cfg, from, to) {
+  const view = editor && editor.cm;
+  if (!view || !view.state) return;
+  view.__ioMovedLines = cfg.highlightMovedLines ? { from, to, doc: view.state.doc } : null;
 }
 
 function restoreMovedSelection(editor, selRestore, oldStart, oldEnd, newStart, newEnd) {
