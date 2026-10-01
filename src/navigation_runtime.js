@@ -2143,7 +2143,13 @@ function navigateInline(editor, direction, navRules, rawCfg) {
        * в списке остановок начало и конец зоны терялись среди них, и разницы
        * между двумя режимами не было вовсе.
        */
-      if (!foundSentenceBoundary) {
+      /*
+       * Края текста — остановки всегда (BUGHUNT 2026-09-30, B22). Без
+       * `Continue past Separators` они совпадают с краями зоны и стоят в
+       * списке и так; с ним зона — вся строка, и у текста с точкой внутри
+       * конец последнего предложения пропадал: шаг уходил сразу за разделитель.
+       */
+      if (!foundSentenceBoundary || cfg.boundaryJump) {
         anchors.push(sentenceStart);
         anchors.push(sentenceEnd);
       }

@@ -242,6 +242,31 @@ async function jump(text, line, direction, over) {
     "с точками шаг влево встаёт на конец предыдущего предложения");
   ok("D3: с концом предложения режим остаётся собой");
 
+  /*
+   * B22 перечня 2026-09-30: с `Continue past Separators` зона — вся строка, и
+   * конец последнего предложения (без точки) остаётся остановкой, а не
+   * перепрыгивается за разделитель. Отрицательный контроль — без ключа
+   * остановки прежние (выше).
+   */
+  {
+    const LINE = "- #todo || One two. Three four || x";
+    const walk = async (from, n) => {
+      let ch = from;
+      for (let i = 0; i < n; i++) {
+        const e = fakeEditor(LINE, { line: 0, ch });
+        nav.navigateInline(e, "right", { delim: "||", trailingMarkers: [] },
+          { stepMode: "sentence", boundaryJump: true, onBoundary: "stay" });
+        await settle();
+        ch = e.at().ch;
+      }
+      return ch;
+    };
+    const textAt = LINE.indexOf("One");
+    assertEq(await walk(textAt, 1), LINE.indexOf("."), "первое нажатие — конец первого предложения");
+    assertEq(await walk(textAt, 2), LINE.indexOf("four") + 4, "второе — конец последнего предложения, а не за разделителем");
+    ok("B22: шаг Sentence через разделители не перепрыгивает последнее предложение");
+  }
+
   /* ---- D1: где перемещение заголовка молчит ---------------------------- */
 
   /*
