@@ -594,6 +594,24 @@ function scanChangelog(text) {
     assert.equal(fresh.patches.length, 1, "а версия всё равно запомнена");
     ok("шов загрузки: окно открывается один раз на версию и записывает состояние");
 
+    /* D8 перечня 2026-09-30: подделка выше запоминает `opts`, а настоящее
+       хранилище их выбрасывало — запись версии попадала в стек отмены. */
+    {
+      const { ConfigStore } = require("../../src/core/config_store.js");
+      const su = require("../../src/core/shared_utils.js");
+      const migrateConfig = require("../../src/core/config_normalize.js").migrateConfig;
+      const base = migrateConfig(null);
+      const store = new ConfigStore({ loadData: async () => base, saveData: async () => {} },
+        { defaults: base, cloneJson: su.cloneJson, isObj: su.isObj, deepMerge: su.deepMerge, migrateConfig, Notice: class {} });
+      const real = { getConfig: () => store.getSnapshot(), store };
+      await notes.showReleaseNotesOnUpdate(real, { version, freshInstall: true });
+      assert.equal(store.getSnapshot().viewState.releaseNotesShownFor, version, "версия не записалась — проверять нечего");
+      assert.equal(store.undoStack.length, 0, "служебная запись версии попала в стек отмены");
+      store.patch({ general: { help: { showTips: false } } }, "human");
+      assert.equal(store.undoStack.length, 1, "правка человека в стек не попала — контроль слеп");
+      ok("D8: запись версии окна «what changed» не отменяется Undo");
+    }
+
     console.log("\n" + (passed) + " проверок пройдено");
   })().catch((e) => {
     console.error(String((e && e.stack) || e));

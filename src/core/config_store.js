@@ -196,10 +196,13 @@ class ConfigStore {
   /**
    * @param {any} patchObj кусок дерева настроек, который надо влить
    * @param {string} [reason]
+   * @param {{undoable?: boolean, coalesceKey?: string}} [opts] те же, что у `update`:
+   *   без них служебная запись плагина (`undoable: false`) попадала в стек
+   *   отмены, и `Undo` отменял её вместо правки человека (BUGHUNT 2026-09-30, D8)
    * @returns {boolean}
    */
-  patch(patchObj, reason) {
-    return this.update((/** @type {any} */ prev) => this.deepMerge(prev, patchObj), reason || "patch");
+  patch(patchObj, reason, opts) {
+    return this.update((/** @type {any} */ prev) => this.deepMerge(prev, patchObj), reason || "patch", opts);
   }
 
   /**
