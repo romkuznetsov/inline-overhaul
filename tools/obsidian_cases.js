@@ -455,6 +455,14 @@ module.exports = [
   one("B15", "Smart bracket внутри [[ссылки]] снимает её скобки", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 5 } }),
   one("B15.b", "Smart bracket внутри [скобок] делает ссылку", "- [Note] x", ["smart-bracket"], "- [[Note]] x", { at: { file: "t.md", line: 0, ch: 4 } }),
   one("B15.c", "Smart bracket у начала [[ссылки]] не ломает её", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 4 } }),
+  /* B21, B9: «начало текста» — за знаками начала строки (заголовок, цитата). */
+  one("B21", "Jump down по строкам, Text start: каретка за `# `", "intro\n# H1", ["jump-next"], "",
+    { at: { file: "t.md", line: 0, ch: 0 }, expect: {}, cfg: { navigation: { jumpToHeader: { jumpMode: "line", jumpCursorPosition: "section-start" } } },
+      check: "const c = a.workspace.activeEditor.editor.getCursor(); return (c.line === 1 && c.ch === 2) || JSON.stringify(c);" }),
+  /* Первое нажатие — за `> `, второе по умолчанию `wrap` — в конец строки, как у списка; прежде второе уходило к `>`. */
+  ...[["B9", 1, 2], ["B9.w", 2, 9]].map(([id, n, ch]) => one(id, "Jump left на цитате: `> ` — начало строки", "> one two", Array(n).fill("move-cursor-left-in-line"), "",
+    { at: { file: "t.md", line: 0, ch: 6, source: true }, expect: {},
+      check: "const c = a.workspace.activeEditor.editor.getCursor(); return c.ch === " + ch + " || JSON.stringify(c);" })),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле

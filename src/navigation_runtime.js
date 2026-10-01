@@ -1558,7 +1558,8 @@ function lineTextStartPos(ed, line, cfg) {
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-function smartLineStartCh(s) { const t = String(s || ""); let i = 0; while (i < t.length && (t[i] === " " || t[i] === "\t")) i++; if (t.slice(i).startsWith("|")) { i += 1; while (i < t.length && t[i] === " ") i++; return i; } let m = t.slice(i).match(/^([-*+])\s+/); if (m) i += m[0].length; else { m = t.slice(i).match(/^(\d+)\.\s+/); if (m) i += m[0].length; } const mCb = t.slice(i).match(/^\[[^\]]\]\s+/); if (mCb) i += mCb[0].length; return i; }
+/* Начало текста строки — за знаками начала у общего дома (B21: за `# ` заголовка); у ряда таблицы — за `| `. */
+function smartLineStartCh(s) { const t = String(s || ""); let i = 0; while (i < t.length && (t[i] === " " || t[i] === "\t")) i++; if (t.slice(i).startsWith("|")) { i += 1; while (i < t.length && t[i] === " ") i++; return i; } return __sharedUtils.linePrefixLength(t, true); }
 /**
  * Прокрутка после перехода по заголовкам (10.13.37).
  *
@@ -1845,18 +1846,10 @@ function navigateInline(editor, direction, navRules, rawCfg) {
    * слот уезжал в «границу строки», ниже которой курсор не опускают, и курсор
    * вставал вплотную к разделителю вместо того места, где слово начнётся.
    */
-  const parsePrefixEnd = (s) => {
-    let i = 0;
-    let m = s.match(/^([-*+])\s/);
-    if (m) i = m[0].length;
-    else {
-      m = s.match(/^(\d+)\.\s/);
-      if (m) i = m[0].length;
-    }
-    m = s.slice(i).match(/^\[([^\]])\]\s/);
-    if (m) i += m[0].length;
-    return i;
-  };
+  /* Цитата, каллаут и заголовок — тоже начало строки (BUGHUNT 2026-09-30,
+     B9: Jump left на `> one` доходил до `>`): правило у общего дома, и пробел
+     за знаком он берёт один. */
+  const parsePrefixEnd = (s) => __sharedUtils.lineStartOf(s).at;
 
   const parseLeadingTagsAndDelim = (s, start, delim_) => {
     let j = start;

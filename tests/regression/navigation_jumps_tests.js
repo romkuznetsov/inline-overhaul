@@ -182,6 +182,24 @@ async function jump(text, line, direction, over) {
     "и на его первой строке переход не двигает курсор");
   ok("D2: режим «строка за строкой» работает в безымянной секции");
 
+  /* ---- B21, B9: начало текста — за знаками начала строки ---------------- */
+  {
+    const ed = fakeEditor("intro\n# H1", { line: 0, ch: 0 });
+    nav.jumpToHeader(ed, "down", Object.assign({}, CFG, { jumpMode: "line", jumpCursorPosition: "section-start" }));
+    await settle();
+    assertEq(JSON.stringify(ed.at()), JSON.stringify({ line: 1, ch: 2 }), "B21: Text start на заголовке — за `# `");
+    const left = async (line, from, onBoundary) => {
+      const e = fakeEditor(line, { line: 0, ch: from });
+      nav.navigateInline(e, "left", { delim: "||", trailingMarkers: [] }, { stepMode: "word", boundaryJump: false, onBoundary });
+      await settle();
+      return e.at().ch;
+    };
+    assertEq(await left("> one two", 2, "stay"), 2, "B9: Jump left на цитате ушёл за `> `");
+    assertEq(await left("## one two", 3, "stay"), 3, "B9: Jump left на заголовке ушёл за `## `");
+    assertEq(await left("- one two", 2, "stay"), 2, "контроль: у списка начало за `- `");
+    ok("B21, B9: начало текста строки — за знаками заголовка и цитаты");
+  }
+
   /* ---- D3: шаг `sentence` без конца предложения ------------------------- */
 
   /*
