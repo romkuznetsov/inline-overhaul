@@ -281,12 +281,26 @@ function handleSmartKeymap(plugin, back) {
       plans.push({ top, plan });
     }
     plans.sort((x, y) => y.top - x.top);
-    for (const { top, plan } of plans) {
-      editor.replaceRange(plan.insert, { line: top, ch: plan.fromCh }, { line: top + 1, ch: plan.toCh });
-    }
     const carets = plans.slice().reverse().map(({ top, plan }, i) => ({ line: top - i, ch: plan.cursorCh }));
-    if (carets.length === 1) editor.setCursor(carets[0]);
-    else editor.setSelections(carets.map((c) => ({ anchor: c, head: c })));
+    if (plans.length === 1) {
+      const { top, plan } = plans[0];
+      editor.replaceRange(plan.insert, { line: top, ch: plan.fromCh }, { line: top + 1, ch: plan.toCh });
+      editor.setCursor(carets[0]);
+      return true;
+    }
+    /*
+     * Несколько кареток — **одной транзакцией**: одно нажатие, одна ступень
+     * отмены (BUGHUNT 2026-09-30, B13). `replaceRange` на каждую каретку давал
+     * столько ступеней, сколько кареток. Изменения транзакции платформа
+     * считает в координатах исходного документа, выделения — в новом
+     * (`transaction` в `app.js` 1.13.7).
+     */
+    editor.transaction({
+      changes: plans.slice().reverse().map(({ top, plan }) => ({
+        from: { line: top, ch: plan.fromCh }, to: { line: top + 1, ch: plan.toCh }, text: plan.insert,
+      })),
+      selections: carets.map((c) => ({ from: c })),
+    });
     return true;
   } catch (e) {
     console.error("[inline-overhaul][smart-delete]", e);

@@ -124,6 +124,9 @@ module.exports = [
     { files: { "t.md": "- #todo || a\n- #low || b\n" }, expect: { "t.md": "- #todo #low || a b\n" }, cfg: { editor: { smartDelete: { enabled: true } } } }),
   one("K15", "Smart Delete при нескольких курсорах", "- a", [{ js: "ed.setSelections([{anchor:{line:0,ch:3}},{anchor:{line:2,ch:3}}]);" }, { key: "Delete" }], "",
     { files: { "t.md": "- a\n- b\n- c\n- d\n" }, expect: { "t.md": "- a b\n- c d\n" }, cfg: { editor: { smartDelete: { enabled: true } } } }),
+  /* B13: то же нажатие отменяется одним Ctrl+Z — одна ступень, а не по каретке. */
+  one("B13", "Smart Delete при нескольких курсорах — одна ступень отмены", "- a", [{ js: "ed.setSelections([{anchor:{line:0,ch:3}},{anchor:{line:2,ch:3}}]);" }, { key: "Delete" }, { js: "ed.undo();", wait: 400 }], "",
+    { files: { "t.md": "- a\n- b\n- c\n- d\n" }, expect: { "t.md": "- a\n- b\n- c\n- d\n" }, cfg: { editor: { smartDelete: { enabled: true } } } }),
 
   /* N2, N11, N3 */
   one("N2", "Move right отступает табом", "- b", ["move-right"], "", { files: { "t.md": "- a\n- b\n\t- b1\n" }, at: { file: "t.md", line: 1 }, expect: { "t.md": "- a\n\t- b\n\t- b1\n" } }),

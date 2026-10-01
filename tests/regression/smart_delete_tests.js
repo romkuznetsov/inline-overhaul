@@ -199,9 +199,22 @@ const ON = { enabled: true, dropPrefix: true, joinWithSpace: true };
     somethingSelected() { return this.selected === true; },
     listSelections() { return this.selections || [{}]; },
     replaceRange(text, from, to) {
+      this.writes = (this.writes || 0) + 1;
       const left = this.lines[from.line].slice(0, from.ch);
       const right = this.lines[to.line].slice(to.ch);
       this.lines.splice(from.line, to.line - from.line + 1, left + text + right);
+    },
+    /* Правило списано с `transaction` в `app.js` 1.13.7: изменения — в
+       координатах исходного документа, выделения — в новом; запись одна. */
+    transaction(tx) {
+      this.writes = (this.writes || 0) + 1;
+      const lines = this.lines;
+      for (const c of (tx.changes || []).slice().sort((x, y) => y.from.line - x.from.line || y.from.ch - x.from.ch)) {
+        const left = lines[c.from.line].slice(0, c.from.ch);
+        const right = lines[c.to.line].slice(c.to.ch);
+        lines.splice(c.from.line, c.to.line - c.from.line + 1, left + c.text + right);
+      }
+      if (tx.selections) this.selections = tx.selections.map((s) => ({ anchor: s.from, head: s.to || s.from }));
     },
   });
 
@@ -235,6 +248,8 @@ const ON = { enabled: true, dropPrefix: true, joinWithSpace: true };
   assert.deepStrictEqual(ed4.lines, ["- a b", "- c d"], "две каретки склеили не то: " + ed4.lines.join(" | "));
   assert.deepStrictEqual(ed4.selections.map((x) => x.head), [{ line: 0, ch: 3 }, { line: 1, ch: 3 }],
     "каретки встали не на места стыков");
+  /* B13 перечня 2026-09-30: одно нажатие — одна запись, то есть одна ступень отмены. */
+  assert.strictEqual(ed4.writes, 1, "две каретки записаны " + ed4.writes + " раза — столько же ступеней отмены");
   const ed4b = makeEditor(["- a", "- b", "- c"], { line: 0, ch: 3 });
   ed4b.selections = [{ head: { line: 0, ch: 3 } }, { head: { line: 1, ch: 1 } }];
   assert.strictEqual(handleSmartDeleteKeymap(plugin(on, ed4b)), false,
