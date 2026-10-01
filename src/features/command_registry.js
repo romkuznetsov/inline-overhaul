@@ -592,6 +592,23 @@ function runInsertBracketsCommand(plugin) {
       ed.setCursor({ line: from.line, ch: Math.max(pair.from, Math.min(pair.from + next.length, from.ch + shift)) });
       return;
     }
+    /*
+     * Каретка внутри слова берёт слово в скобки, как выделение (его замечание
+     * к тесту 3 цикла 113: `Ma¦n1` давало `Ma[]n1`). Слово — отрезок без
+     * пробелов, как у custom block (`customWordSpan`), и без скобок: скобку
+     * у каретки листают ветки ниже. У края слова — по-прежнему пустые скобки.
+     */
+    const text = ed.getLine(from.line);
+    const edge = /[\s[\]]/;
+    let a = from.ch;
+    let b = from.ch;
+    while (a > 0 && !edge.test(text.charAt(a - 1))) a--;
+    while (b < text.length && !edge.test(text.charAt(b))) b++;
+    if (a < from.ch && from.ch < b) {
+      ed.replaceRange("[" + text.slice(a, b) + "]", { line: from.line, ch: a }, { line: from.line, ch: b });
+      ed.setCursor({ line: from.line, ch: from.ch + 1 });
+      return;
+    }
   }
 
   if (sel) {

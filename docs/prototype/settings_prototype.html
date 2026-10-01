@@ -1292,6 +1292,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* the structure diagram: line and labels share one grid, so they cannot drift */
 .io-struct {
   display: inline-grid;
+  /* Много Fields — строка листается внутри карточки, а не вылезает за неё (его замечание, цикл 113). */
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden; /* подпись Separator вынута из потока и выше своей ячейки на пиксель — без этого рядом встала бы вертикальная полоса */
   grid-template-columns: repeat(6, auto);
   grid-template-rows: auto auto;
   align-items: center;

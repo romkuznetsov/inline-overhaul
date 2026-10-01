@@ -455,6 +455,7 @@ module.exports = [
   one("B15", "Smart bracket внутри [[ссылки]] снимает её скобки", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 5 } }),
   one("B15.b", "Smart bracket внутри [скобок] делает ссылку", "- [Note] x", ["smart-bracket"], "- [[Note]] x", { at: { file: "t.md", line: 0, ch: 4 } }),
   one("B15.c", "Smart bracket у начала [[ссылки]] не ломает её", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 4 } }),
+  one("B15.w", "Smart bracket внутри слова берёт слово в скобки", "- No x", ["smart-bracket"], "- [No] x", { at: { file: "t.md", line: 0, ch: 3 } }),
   /* B21, B9: «начало текста» — за знаками начала строки (заголовок, цитата). */
   one("B21", "Jump down по строкам, Text start: каретка за `# `", "intro\n# H1", ["jump-next"], "",
     { at: { file: "t.md", line: 0, ch: 0 }, expect: {}, cfg: { navigation: { jumpToHeader: { jumpMode: "line", jumpCursorPosition: "section-start" } } },
@@ -469,6 +470,10 @@ module.exports = [
   { mine: true, id: "MB15", title: "Тест 3: Smart bracket внутри ссылки", files: { "t-MB15.md": "- встреча с [[Man1]] завтра\n" },
     at: { file: "t-MB15.md", line: 0, ch: 16 }, steps: ["smart-bracket", { js: "ed.setSelection({ line: 0, ch: 12 }, { line: 0, ch: 16 });" }, "smart-bracket", "smart-bracket"],
     expect: { "t-MB15.md": "- встреча с [[Man1]] завтра\n" } },
+  /* Его замечание к тесту 3: снял скобки кареткой посреди `Man1` и там же нажал ещё — ждал `[[Man1]]`, а не `Ma[[]]n1`. */
+  { mine: true, id: "MB15.w", title: "Тест 3: Smart bracket внутри слова берёт слово", files: { "t-MB15w.md": "- встреча с [[Man1]] завтра\n" },
+    at: { file: "t-MB15w.md", line: 0, ch: 16 }, steps: ["smart-bracket", "smart-bracket", "smart-bracket"],
+    expect: { "t-MB15w.md": "- встреча с [[Man1]] завтра\n" } },
   { mine: true, id: "MB9", title: "Тест 5: Jump left на цитате не встаёт перед `>`", files: { "t-MB9.md": "> один два\n# Заголовок\n" },
     at: { file: "t-MB9.md", line: 0, source: true }, steps: ["move-cursor-left-in-line", "move-cursor-left-in-line", { js: "window.__mb9 = ed.getCursor().ch;" }, "move-cursor-left-in-line"], expect: {},
     check: "const c = a.workspace.activeEditor.editor.getCursor(); return (window.__mb9 === 2 && c.ch === 10) || JSON.stringify([window.__mb9, c]);" },

@@ -71,6 +71,10 @@ function prepare(name) {
   if (process.env.IO_MAIN) {
     fs.copyFileSync(path.resolve(process.env.IO_MAIN), path.join(vault, ".obsidian", "plugins", "inline-overhaul", "main.js"));
   }
+  /* `IO_STYLES=<файл>` — то же для стилей: правка вида живёт в `styles.css`, а не в `main.js`. */
+  if (process.env.IO_STYLES) {
+    fs.copyFileSync(path.resolve(process.env.IO_STYLES), path.join(vault, ".obsidian", "plugins", "inline-overhaul", "styles.css"));
+  }
   /* Сценарию бывает нужна своя копия настроек или заметка — только в копии. */
   if (PREPARE[name]) PREPARE[name](vault);
   const asar = fs.readdirSync(PROFILE_SRC).filter((n) => /^obsidian-.*\.asar$/.test(n)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) /* версии числом: 1.9 старше 1.13 (ревизия Г-7) */.pop();
@@ -472,6 +476,33 @@ const SCENARIOS = {
     for (const [step, s] of log) console.log(step + ": окно " + (s.modal ? "открыто" : "закрыто") + ", выбиралка " + (s.picker ? "раскрыта" : "свёрнута"));
     const ok = log[0][1].picker && log[1][1].modal && !log[1][1].picker && !log[2][1].modal && log[3][1].picker && !log[4][1].modal;
     console.log(ok ? "ok: Esc сворачивает выбиралку, второй закрывает окно; Cancel — с первого щелчка" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
+   * Предпросмотр строки на его конфиге (его замечание цикла 113: «когда fields
+   * становится много, preview вылазит за границы поля»). Правый край строки
+   * не дальше края карточки, а строка листается. Контроль — его Fields
+   * обязаны быть шире карточки, иначе мерить нечего.
+   */
+  async "line-preview-scroll"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await host.waitForSelector(".io-struct", { timeout: 5000 });
+    const m = await host.evaluate(() => {
+      const s = document.querySelector(".io-struct");
+      const box = s.closest(".io-preview").getBoundingClientRect();
+      return { right: Math.round(s.getBoundingClientRect().right), boxRight: Math.round(box.right), scroll: s.scrollWidth, client: s.clientWidth, vbar: s.offsetWidth - s.clientWidth };
+    });
+    console.log(JSON.stringify(m));
+    if (m.scroll <= m.client && m.right <= m.boxRight) { console.log("КОНТРОЛЬ: строка уже карточки — мерить нечего"); return false; }
+    const ok = m.right <= m.boxRight && m.scroll > m.client && m.vbar === 0; /* листается вбок, вертикальной полосы нет */
+    console.log(ok ? "ok: строка внутри карточки и листается" : "РАСХОДИТСЯ");
     return ok;
   },
 

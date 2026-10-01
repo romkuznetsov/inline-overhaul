@@ -44,4 +44,14 @@ assert.equal(press("- [ab", 3).text, "- [[ab", "открывающая без п
 assert.equal(press("- [[ab", 4).text, "- [ab", "двойная без пары сжимается, остаток строки не удваивается");
 assert.equal(press("- word x", 2, 6).text, "- [word] x", "выделение — по-прежнему в скобки");
 assert.equal(press("- a b", 3).text, "- a[] b", "каретка вне пары — пустые скобки");
+{
+  // Его замечание к тесту 3 цикла 113: каретка внутри слова берёт слово в скобки, и круг замыкается
+  let s = press("с Man1 x", 4);
+  assert.equal(s.text, "с [Man1] x", "каретка внутри слова — слово в скобки");
+  s = press(s.text, s.ch);
+  assert.equal(s.text, "с [[Man1]] x", "второе нажатие — ссылка");
+  s = press(s.text, s.ch);
+  assert.equal(s.text, "с Man1 x", "третье — скобки сняты, круг замкнулся");
+  assert.equal(press("с Man1 x", 6).text, "с Man1[] x", "у края слова — по-прежнему пустые скобки");
+}
 console.log("ok smart bracket: круг скобок у каретки внутри пары, остаток строки не удваивается");
