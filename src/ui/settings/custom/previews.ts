@@ -42,6 +42,13 @@ import sourceEngine from "../../../features/transform_feature.js";
  * (У-217). Своя копия здесь разошлась бы с заметкой первым же уточнением.
  */
 import visualsConfig from "../../../core/editor_visuals_config.js";
+/* Как своя подпись соединяется с написанной — дом полосы панели и коробки
+   скроллера; предпросмотр спрашивает его же (У-159). */
+import wheelCore from "../../../pkm_v2/TagWheel/tagwheel_core.js";
+
+const joinValueLabel = (wheelCore as unknown as {
+  joinValueLabel(printed: string, written: string, mode: string): string;
+}).joinValueLabel;
 
 /** Значение настройки числом: панель отдаёт его как unknown. */
 function num(ctx: SettingsCtx, path: string): number {
@@ -381,6 +388,9 @@ const WHEEL_PATHS = [
   "visual.tagWheel.activeTextColor",
   /* Цвет ячейки с выбранным значением — его заказ 2026-09-17. */
   "visual.tagWheel.chosenValueColor",
+  /* Чем подписано выбранное значение и соседи в коробке (его пункт 2026-10-01). */
+  "visual.tagWheel.valueNames",
+  "visual.tagWheel.scroller.labels",
   "visual.tagWheel.highlightLine",
   "visual.tags.opacityLeft",
   "visual.tags.opacityRight",
@@ -444,6 +454,20 @@ export const wheelPreview: CustomRender = (host, ctx) => {
         ? [f.name]
         : f.values.filter(v => v.depth === 0).map(v => (markers ? "#" : "") + v.token));
     const values = cellValues(shown);
+    /*
+     * Подписи значений — его пункт 2026-10-01: «разные варианты выбора не
+     * меняют вид io-tip-wheel-preview». Своя подпись есть только у значения с
+     * `custom` и непустым текстом; без неё все три положения печатают
+     * написанное — так же и в заметке (У-188).
+     */
+    const valueNames = readText(ctx, "visual.tagWheel.valueNames", "default");
+    const scrollLabels = readText(ctx, "visual.tagWheel.scroller.labels", "value");
+    const top = (f: PreviewField | null): PreviewValue[] =>
+      (!f || f.kind === "element" ? [] : f.values.filter(v => v.depth === 0));
+    const printed = (v: PreviewValue): string => (v.shown === "custom" ? String(v.custom || "") : "");
+    const labelled = (v: PreviewValue, mode: string): string =>
+      joinValueLabel(printed(v), (markers ? "#" : "") + v.token, mode);
+    const shownTop = top(shown);
 
     const n = values.length;
     const at = n > 2 ? Math.floor(n / 2) : 0;
@@ -502,7 +526,10 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       const p = el(col, "span", "io-wheelpanel io-wheelpanel--" + where);
       if (scrollFill) cssVar(p, "--io-wheel-bg", scrollFill);
       if (scrollText) cssVar(p, "--io-wheel-fg", scrollText);
-      for (const i of idx) el(p, "span", "io-wheelval", values[i] as string);
+      for (const i of idx) {
+        const v = shownTop[i];
+        el(p, "span", "io-wheelval", v ? labelled(v, scrollLabels) : values[i] as string);
+      }
     };
 
     /*
@@ -546,8 +573,14 @@ export const wheelPreview: CustomRender = (host, ctx) => {
        * переименование Field доезжает до предпросмотра.
        */
       if (!isShown) plainCells += 1;
-      const own = !isShown && plainCells === 2 ? cellValues(f) : [];
-      const filled = own.length ? String(own[0] || "") : "";
+      let filled = "";
+      if (!isShown && plainCells === 2) {
+        /* Значение со своей подписью, если оно у Field есть: иначе смену
+           `tagWheel Value names` показать не на чем. */
+        const vals = top(f);
+        const pick = vals.find(v => printed(v).trim()) || vals[0];
+        filled = pick ? labelled(pick, valueNames) : String(cellValues(f)[0] || "");
+      }
       const cell = el(col, "span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""),
         isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {

@@ -27,6 +27,7 @@ import { richParts } from "../../src/ui/settings/describe.ts";
 import { findScrollHost } from "../../src/ui/settings/custom/dom.ts";
 import { tabStripRow } from "../../src/ui/settings/custom/tab_strip.ts";
 import { SHARED_TEXTS, SINGLE_KEYS } from "../../src/ui/settings/texts_custom.ts";
+import { namesItselfDefault } from "../../src/ui/settings/to_definitions.ts";
 
 /** Корень репозитория: одна проверка читает `styles.css` с диска. */
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -3458,6 +3459,7 @@ async function main(): Promise<void> {
 
     const unmarked: string[] = [];
     const extra: string[] = [];
+    const selfNamed: string[] = [];
     for (const group of SCHEMA) {
       for (const it of group.items) {
         const any = it as unknown as Record<string, unknown>;
@@ -3469,14 +3471,26 @@ async function main(): Promise<void> {
         if (Object.keys(options).length < 2) continue;
         const standard = String(any["default"] ?? "");
         const marked = Object.keys(options).filter(v => String(options[v]).endsWith(" " + mark));
+        /* Подпись, которая называет себя стандартной сама, не помечается:
+           «Default (default)» (его пункт 2026-10-01). */
+        const own = ((any["options"] as Array<{ value: string; label: string }> | undefined) || [])
+          .find(o => String(o.value) === standard);
+        const plain = !!own && namesItselfDefault(own.label, mark);
+        if (plain) selfNamed.push(String(any["path"]));
         if (Object.prototype.hasOwnProperty.call(options, standard)) {
-          if (!marked.includes(standard)) unmarked.push(String(any["path"]) + " → «" + standard + "»");
+          if (plain && marked.includes(standard)) extra.push(String(any["path"]) + " → «" + standard + "» называет себя стандартным и помечен ещё раз");
+          if (!plain && !marked.includes(standard)) unmarked.push(String(any["path"]) + " → «" + standard + "»");
         }
         for (const v of marked) {
           if (v !== standard) extra.push(String(any["path"]) + " → «" + v + "» помечено, а умолчание «" + standard + "»");
         }
       }
     }
+    /* Контроль исключения на его предмете: оба списка подписей tagWheel. */
+    assert.ok(selfNamed.includes("visual.tagWheel.valueNames") && selfNamed.includes("visual.tagWheel.scroller.labels"),
+      "исключение «подпись уже Default» не нашло списков tagWheel: " + JSON.stringify(selfNamed));
+    assert.ok(!namesItselfDefault("Defaults off", mark) && namesItselfDefault("Custom + default", mark),
+      "слово приписки ищется словом, а не подстрокой");
     assert.deepEqual(unmarked, [],
       "у этих списков стандартное значение не помечено:\n  " + unmarked.join("\n  "));
     assert.deepEqual(extra, [],

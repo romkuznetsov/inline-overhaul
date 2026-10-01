@@ -4394,6 +4394,11 @@ function templateLabel(folder, path) {
  * только подпись (З1).
  */
 const DEFAULT_OPTION_MARK = "(default)";
+/* Слово приписки среди слов подписи — без скобок и без регистра. */
+function namesItselfDefault(label, mark) {
+  const word = String(mark).replace(/[^\p{L}]+/gu, "").toLowerCase();
+  return !!word && String(label).toLowerCase().split(/[^\p{L}]+/u).includes(word);
+}
 function dropdownOptions(item) {
   const fixed = item.options || [];
   const src = item.optionsFrom ? OPTION_SOURCES[item.optionsFrom] : null;
@@ -4406,6 +4411,9 @@ function dropdownOptions(item) {
     const isObj = typeof o === "object";
     const value = isObj ? o.value : o;
     if (String(value) !== standard) return o;
+    /* Подпись, которая уже называет себя стандартной, второй раз этого не
+       говорит: «Default (default)» (его пункт 2026-10-01). */
+    if (namesItselfDefault(isObj ? o.label : o, DEFAULT_OPTION_MARK)) return o;
     const label = (isObj ? o.label : o) + " " + DEFAULT_OPTION_MARK;
     return { value, label };
   });
@@ -5062,6 +5070,22 @@ function renderWheelPreview(host) {
       ? [f.marker + " " + f.format]
       : (Array.isArray(f.values) ? f.values : []).map(v => (markers ? "#" : "") + v.token));
     const values = cellValues(shown);
+    /* Подписи значений — его пункт 2026-10-01: «разные варианты выбора не
+       меняют вид io-tip-wheel-preview». Своя подпись есть только у значения с
+       `custom` и непустым текстом; без неё все три положения печатают
+       написанное. Соединяет их тем же правилом, что `joinValueLabel` в
+       `tagwheel_core.js`: `both` — своя первой. */
+    const valueNames   = ctx.get("visual.tagWheel.valueNames") || "default";
+    const scrollLabels = ctx.get("visual.tagWheel.scroller.labels") || "value";
+    const top = (f) => (f.type === "element" || !Array.isArray(f.values) ? [] : f.values.filter(v => v.depth === 0));
+    const printed = (v) => (v.shown === "custom" ? String(v.custom || "") : "").trim();
+    const labelled = (v, mode) => {
+      const written = (markers ? "#" : "") + v.token;
+      const own = printed(v);
+      if (!own) return written;
+      return mode === "both" ? own + " " + written : mode === "custom" ? own : written;
+    };
+    const shownTop = top(shown);
     const n = values.length;
     const at = n > 2 ? Math.floor(n / 2) : 0;   /* the middle, so both sides read clearly */
 
@@ -5102,7 +5126,7 @@ function renderWheelPreview(host) {
       const p = el("span", "io-wheelpanel io-wheelpanel--" + where, null);
       if (scrollFill) cssVar(p, "--io-wheel-bg", scrollFill);
       if (scrollText) cssVar(p, "--io-wheel-fg", scrollText);
-      idx.forEach(i => el("span", "io-wheelval", p, values[i]));
+      idx.forEach(i => el("span", "io-wheelval", p, shownTop[i] ? labelled(shownTop[i], scrollLabels) : values[i]));
       return p;
     };
 
@@ -5140,8 +5164,14 @@ function renderWheelPreview(host) {
        * переименование Field доезжает до предпросмотра.
        */
       if (!isShown) plainCells += 1;
-      const own = !isShown && plainCells === 2 ? cellValues(f) : [];
-      const filled = own.length ? String(own[0] || "") : "";
+      let filled = "";
+      if (!isShown && plainCells === 2) {
+        /* Значение со своей подписью, если оно у Field есть: иначе смену
+           `tagWheel Value names` показать не на чем. */
+        const vals = top(f);
+        const pick = vals.find(v => printed(v)) || vals[0];
+        filled = pick ? labelled(pick, valueNames) : String(cellValues(f)[0] || "");
+      }
       const cell = el("span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""), col,
         isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {
@@ -5167,6 +5197,8 @@ function renderWheelPreview(host) {
    "visual.tagWheel.fillColor", "visual.tagWheel.textColor",
    /* Этих двух тут не было, и предпросмотр на них не перерисовывался (Пр3). */
    "visual.tagWheel.activeTextColor", "visual.tagWheel.chosenValueColor",
+   /* Чем подписано выбранное значение и соседи в коробке (его пункт 2026-10-01). */
+   "visual.tagWheel.valueNames", "visual.tagWheel.scroller.labels",
    "visual.tagWheel.highlightLine",
    "pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
 }

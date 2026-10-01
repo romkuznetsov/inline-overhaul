@@ -423,6 +423,69 @@ function realConfig(): Any {
   ok("TagWheel: скроллер показывает настоящие Values");
 }
 
+{
+  /*
+   * Его пункт 2026-10-01: «panel-value-names разные варианты выбора не меняют
+   * вид io-tip-wheel-preview». Подписи спрашиваются у дома полосы панели
+   * (`joinValueLabel`), и у каждого положения своё, видимое отличие.
+   * Коробка скроллера стоит на `urgency`, у `#now` свой текст `!`; ячейка с
+   * выбранным значением — вторая неактивная, `third`, у `#x` свой текст `★`.
+   */
+  const cfg = internals.migrateConfig(JSON.parse(JSON.stringify({
+    pkm: {
+      behavior: {
+        io: { separator1: "||", separator2: "||" },
+        order: {
+          left: ["state", "urgency", "third"],
+          right: [],
+          labels: { state: "State", urgency: "Urgency", third: "Third" },
+          strictNames: { state: "state", urgency: "urgency", third: "third" },
+          types: { state: "tag", urgency: "tag", third: "tag" },
+          active: { state: "yes", urgency: "yes", third: "yes" },
+          enabled: { state: true, urgency: true, third: true },
+        },
+        leftMode: {
+          fields: [
+            { id: "state", prefix: "#", values: [{ token: "open", active: true }] },
+            { id: "urgency", prefix: "#", values: [{ token: "now", active: true }] },
+            { id: "third", prefix: "#", values: [{ token: "plain", active: true }, { token: "x", active: true }] },
+          ],
+        },
+        tagVisuals: {
+          byTag: {
+            urgency: { "#now": { visibility: "custom", customText: "!" } },
+            third: { "#x": { visibility: "custom", customText: "★" } },
+          },
+        },
+      },
+    },
+  })));
+  const look = (names: string, labels: string): { cells: string[]; box: string[] } => {
+    const host = makeNode("div");
+    const close = wheelPreview(host as unknown as El, makeCtx(cfg, {
+      "visual.tagWheel.scroller.enabled": true,
+      "visual.tagWheel.scroller.size": 1,
+      "visual.tagWheel.scroller.direction": "full",
+      "visual.tagWheel.showMarkers": true,
+      "visual.tagWheel.valueNames": names,
+      "visual.tagWheel.scroller.labels": labels,
+    }));
+    const got = { cells: texts(host, "io-wheelcell"), box: Array.from(new Set(texts(host, "io-wheelval"))) };
+    close();
+    return got;
+  };
+  /* Контроль: ячейки нарисованы, первая неактивная — имя Field. */
+  const base = look("default", "value");
+  assert.ok(base.cells.includes("State"), "первая неактивная ячейка — имя Field: " + JSON.stringify(base.cells));
+  assert.ok(base.cells.includes("#x"), "по умолчанию ячейка печатает написанное: " + JSON.stringify(base.cells));
+  assert.ok(look("custom", "value").cells.includes("★"), "Custom печатает свой текст: " + JSON.stringify(look("custom", "value").cells));
+  assert.ok(look("both", "value").cells.includes("★ #x"), "Custom + default — оба, свой первым: " + JSON.stringify(look("both", "value").cells));
+  assert.deepEqual(base.box, ["#now"], "коробка по умолчанию — написанное: " + JSON.stringify(base.box));
+  assert.deepEqual(look("default", "custom").box, ["!"], "коробка Custom — свой текст");
+  assert.deepEqual(look("default", "both").box, ["! #now"], "коробка Custom + default — оба");
+  ok("tagWheel Value names и Scroller Value names меняют вид предпросмотра");
+}
+
 /* ======================================================================
  * 7. Fields не завели — снова пример, а не пустая строка.
  * ====================================================================== */

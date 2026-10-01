@@ -122,6 +122,17 @@ export interface Wiring {
   tabStrip?: () => SettingDefinition | null;
 }
 
+/**
+ * Называет ли подпись себя стандартной сама — тогда приписка «(default)» её
+ * только повторяет: `Default (default)` (его пункт 2026-10-01). Слово приписки
+ * ищется среди слов подписи, без скобок и без регистра: приписка — строка
+ * каталога и на другом языке пишется иначе.
+ */
+export function namesItselfDefault(label: string, mark: string): boolean {
+  const word = String(mark).replace(/[^\p{L}]+/gu, "").toLowerCase();
+  return !!word && String(label).toLowerCase().split(/[^\p{L}]+/u).includes(word);
+}
+
 const CONTROL_TYPE: Record<string, string> = {
   toggle: "toggle",
   dropdown: "dropdown",
@@ -203,7 +214,8 @@ function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
     const mark = w.ctx.t ? w.ctx.t(SINGLE_KEYS.defaultOption, fallback) : fallback;
     const standard = "default" in raw ? String(raw["default"]) : null;
     const single = Object.keys(options).length < 2;
-    if (mark && !single && standard !== null && Object.prototype.hasOwnProperty.call(options, standard)) {
+    if (mark && !single && standard !== null && Object.prototype.hasOwnProperty.call(options, standard)
+      && !namesItselfDefault(String(options[standard]), mark)) {
       options[standard] = String(options[standard]) + " " + mark;
     }
     control["options"] = options;
