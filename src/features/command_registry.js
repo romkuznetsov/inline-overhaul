@@ -550,6 +550,26 @@ function runInsertTextCommand(plugin, insertText) {
   ed.setCursor({ line: from.line, ch: from.ch + text.length });
 }
 
+/**
+ * Пара скобок вокруг каретки: `[[…]]` или `[…]` на этой строке, каретка между
+ * открывающей и закрывающей (у края — тоже).
+ */
+function bracketPairAt(line, ch) {
+  const src = String(line || "");
+  const open2 = src.lastIndexOf("[[", ch);
+  if (open2 !== -1) {
+    const close2 = src.indexOf("]]", open2 + 2);
+    if (close2 !== -1 && close2 + 2 >= ch && src.lastIndexOf("]]", ch - 1) < open2) {
+      return { from: open2, to: close2 + 2, text: src.slice(open2, close2 + 2) };
+    }
+  }
+  const open = src.lastIndexOf("[", ch - 1);
+  if (open === -1 || src[open - 1] === "[") return null;
+  const close = src.indexOf("]", open + 1);
+  if (close === -1 || close < ch - 1 || src.slice(open + 1, close).includes("[") || src[close + 1] === "]") return null;
+  return { from: open, to: close + 1, text: src.slice(open, close + 1) };
+}
+
 function runInsertBracketsCommand(plugin) {
   const ed = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
   if (!ed) return plugin && typeof plugin.notice === "function" ? plugin.notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first")) : null;
@@ -557,6 +577,22 @@ function runInsertBracketsCommand(plugin) {
   const from = ed.getCursor("from");
   const to = ed.getCursor("to");
   const sel = ed.getSelection();
+
+  /*
+   * Каретка внутри пары скобок листает скобки этой пары, как выделение
+   * (BUGHUNT 2026-09-30, B15: `[[No¦te]]` давало `[[No[]te]]`).
+   */
+  if (!sel) {
+    const pair = bracketPairAt(ed.getLine(from.line), from.ch);
+    if (pair) {
+      const at = { line: from.line, ch: pair.from };
+      const next = pair.text.startsWith("[[") ? pair.text.slice(2, -2) : "[" + pair.text + "]";
+      ed.replaceRange(next, at, { line: from.line, ch: pair.to });
+      const shift = (next.length - pair.text.length) / 2;
+      ed.setCursor({ line: from.line, ch: Math.max(pair.from, Math.min(pair.from + next.length, from.ch + shift)) });
+      return;
+    }
+  }
 
   if (sel) {
     if (sel.startsWith("[[") && sel.endsWith("]]")) {
@@ -586,15 +622,13 @@ function runInsertBracketsCommand(plugin) {
     const start = from.ch - 1;
     ed.replaceRange("[[]]", { line: from.line, ch: start }, { line: from.line, ch: from.ch + 1 });
     ed.setCursor({ line: from.line, ch: start + 2 });
-  } else if (before.endsWith("[") && !after.startsWith("]")) {
+  } else if (before.endsWith("[") && !before.endsWith("[[") && !after.startsWith("]")) {
     const start = from.ch - 1;
-    const rest = after;
-    ed.replaceRange("[[" + rest, { line: from.line, ch: start }, { line: from.line, ch: from.ch });
+    ed.replaceRange("[[", { line: from.line, ch: start }, { line: from.line, ch: from.ch });
     ed.setCursor({ line: from.line, ch: start + 2 });
   } else if (before.endsWith("[[") && !after.startsWith("]")) {
     const start = from.ch - 2;
-    const rest = after;
-    ed.replaceRange("[" + rest, { line: from.line, ch: start }, { line: from.line, ch: from.ch });
+    ed.replaceRange("[", { line: from.line, ch: start }, { line: from.line, ch: from.ch });
     ed.setCursor({ line: from.line, ch: start + 1 });
   } else {
     ed.replaceRange("[]", from);

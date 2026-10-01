@@ -451,6 +451,10 @@ module.exports = [
   ...[["A9", "auto", "- [x] #todo #low || x"], ["A9.m", "manual", "- [!] #todo #low || x"]].map(([id, source, want]) => one(id, "Prefix priority: источник порядка Fields — " + source, "- x",
     ["status-next", "priority-next"], want,
     { cfg: { pkm: { prefixRules: { checkboxByFieldValue: { Status: { todo: "[x]" }, Priority: { low: "[!]" } }, priorityTargets: ["Priority", "Status"] }, prefixPriority: { decideBy: "by-section", fieldOrderSource: source } } } })),
+  /* B15: Smart bracket с кареткой внутри ссылки листает скобки этой пары, как выделение. */
+  one("B15", "Smart bracket внутри [[ссылки]] снимает её скобки", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 5 } }),
+  one("B15.b", "Smart bracket внутри [скобок] делает ссылку", "- [Note] x", ["smart-bracket"], "- [[Note]] x", { at: { file: "t.md", line: 0, ch: 4 } }),
+  one("B15.c", "Smart bracket у начала [[ссылки]] не ломает её", "- [[Note]] x", ["smart-bracket"], "- Note x", { at: { file: "t.md", line: 0, ch: 4 } }),
   one("B14", "Smart Enter на заголовке каллаута не начинает второй", "> [!note] Title",
     [{ key: "Enter" }], "> [!note] Title\n> ", { at: { file: "t.md", line: 0, ch: 12, source: true }, cfg: { editor: { smartEnter: { enabled: true } } } }),
   /* Зачёркивание (его 💬 к тесту 1 цикла 108): черта на каждом видимом узле
