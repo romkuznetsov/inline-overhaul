@@ -952,9 +952,11 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           try {
             await deps.announce({
               title: say("RESTORED_TITLE"),
-              body: say("RESTORED_BODY"),
+              /* Копия совпала — менять было нечего, и перезапуск не нужен
+                 (его ответ `В-267`, BUGHUNT D20). */
+              body: say(changed ? "RESTORED_BODY" : "RESTORED_SAME_BODY"),
               rows,
-              note: say("RESTORED_NOTE"),
+              ...(changed ? { note: say("RESTORED_NOTE") } : {}),
               closeLabel: say("RESTORED_CLOSE"),
             });
           } catch (e) {

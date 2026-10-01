@@ -114,6 +114,7 @@ export const DIALOG_TEXTS = {
     RESTORED_TITLE: "Settings restored",
     RESTORED_BODY: "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago",
     RESTORED_NOTE: "Restart Obsidian to be sure every part matches the backup",
+    RESTORED_SAME_BODY: "That backup matches what you already have, so nothing changed",
     RESTORED_CLOSE: "Got it",
   },
 

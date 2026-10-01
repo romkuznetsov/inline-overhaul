@@ -1014,6 +1014,16 @@ function sampleConfig(): Record<string, unknown> {
   assert.ok((shown.rows || []).length > 0, "окно не говорит, что именно вернулось");
   assert.ok(String(shown.closeLabel).length > 0, "у единственной кнопки нет подписи");
   ok("после восстановления открывается окно с советом перезапустить Obsidian");
+
+  /* D20, его ответ `В-267`: копия совпала с нынешним — окно без совета перезапуска. */
+  const same = wire({ hotkeys: { read: () => ({}), write: () => 0 } });
+  same.fake.files.set(saved, note);
+  await same.run("restore-backup");
+  await same.run("restore-backup");
+  const twice = at(same.fake.announced, 1, "окно второго восстановления той же копии");
+  assert.equal(twice.body, ACTION_TEXTS.RESTORED_SAME_BODY, "совпавшая копия: окно говорит не то: " + twice.body);
+  assert.equal(twice.note, undefined, "совпавшая копия: окно всё равно советует перезапуск");
+  ok("D20: совпавшая копия — окно «nothing changed» без совета перезапуска");
 }
 
 {
