@@ -3835,6 +3835,14 @@ function composeBodyWithPlacement(templateBody, inlineLine, i2n, newline) {
   const block = [header, source].filter(Boolean).join(nl);
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const pos = String(placement.position || "end").trim().toLowerCase();
+  /* Ровно одна пустая строка между частями и перевод строки в конце файла,
+     сколько бы переводов ни стояло на краях шаблона (BUGHUNT 2026-09-30, C19:
+     `…## Log\n` давал две пустые строки и файл без `\n` в конце). */
+  const apart = (first, second) => {
+    const out = String(first).replace(/\r?\n/g, nl).replace(/(?:\r?\n)+$/, "")
+      + nl + nl + String(second).replace(/\r?\n/g, nl).replace(/^(?:\r?\n)+/, "");
+    return out.endsWith(nl) ? out : out + nl;
+  };
   /*
    * `At custom header` (З-4): блок ложится **в конец секции** названного
    * заголовка — решение заказчика. Заголовка в заметке нет — заголовок
@@ -3852,12 +3860,12 @@ function composeBodyWithPlacement(templateBody, inlineLine, i2n, newline) {
     const own = blockWithOwnHeader(block, spec, nl, headed);
     if (!base.trim()) return own + nl;
     const fallback = String(placement.fallback || "end").trim().toLowerCase();
-    if (fallback === "beginning") return `${own}${nl}${nl}${base}`;
-    return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${own}`;
+    if (fallback === "beginning") return apart(own, base);
+    return apart(base, own);
   }
   if (!base.trim()) return block + nl;
-  if (pos === "beginning") return `${block}${nl}${nl}${base}`;
-  return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
+  if (pos === "beginning") return apart(block, base);
+  return apart(base, block);
 }
 
 /**

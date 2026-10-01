@@ -822,10 +822,10 @@ function runCustomHeaderPlacementSuite() {
   {
     const noHeader = "intro line\n\n- something";
     const atEnd = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "end"), "\n");
-    assertEq(atEnd, "intro line\n\n- something\n\n## Log\n- new entry",
+    assertEq(atEnd, "intro line\n\n- something\n\n## Log\n- new entry\n",
       "заголовка нет: он заведён в конце, и запись стоит под ним");
     const atStart = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
-    assertEq(atStart, "## Log\n- new entry\n\nintro line\n\n- something",
+    assertEq(atStart, "## Log\n- new entry\n\nintro line\n\n- something\n",
       "то же в начале заметки");
   }
 
@@ -846,10 +846,20 @@ function runCustomHeaderPlacementSuite() {
       "и вторая запись ложится в конец той же секции: " + second);
   }
 
+  /* C19 перечня 2026-09-30: перевод строки в конце шаблона не даёт второй
+     пустой строки, а файл кончается переводом строки — в обе стороны. */
+  {
+    const tpl = "# Meeting\n## Log\n";
+    const end = transform.composeBodyWithPlacement(tpl, "- alpha", { placement: { position: "end", headerMode: "none" } }, "\n");
+    assertEq(end, "# Meeting\n## Log\n\n- alpha\n", "одна пустая строка и перевод строки в конце");
+    const start = transform.composeBodyWithPlacement("\n\n" + tpl, "- alpha", { placement: { position: "beginning", headerMode: "none" } }, "\n");
+    assertEq(start, "- alpha\n\n# Meeting\n## Log\n", "и в начале заметки");
+  }
+
   /* 6б. Решёток в имени нет — уровень первый, ровно как в плейсхолдере. */
   {
     const out = transform.composeBodyWithPlacement("intro", "- one", i2nAtHeader("Log", "end"), "\n");
-    assertEq(out, "intro\n\n# Log\n- one",
+    assertEq(out, "intro\n\n# Log\n- one\n",
       "имя без решёток заводит заголовок первого уровня");
     const again = transform.composeBodyWithPlacement(out, "- two", i2nAtHeader("Log", "end"), "\n");
     assertEq(again.match(/# Log/g).length, 1, "и он же находится в следующий раз: " + again);
@@ -929,10 +939,10 @@ function runCustomHeaderPlacementSuite() {
      действовал только на новых заметках, и пин держал это. */
   {
     const before = "## Log\n- first entry\n";
-    const asBefore = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "beginning" } }, "\n");
+    const asBefore = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "beginning", headerMode: "none" } }, "\n");
     assertEq(asBefore, "- new entry\n\n## Log\n- first entry\n",
       "`At the beginning` при дописывании кладёт в начало тела");
-    const asEnd = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "end" } }, "\n");
+    const asEnd = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "end", headerMode: "none" } }, "\n");
     assertEq(asEnd, "## Log\n- first entry\n\n- new entry\n", "отрицательный контроль: `At the end` — в конец");
   }
 
@@ -1003,8 +1013,8 @@ function runRulePlacementSuite() {
         placementMode: "custom",
         placement: { position: "beginning", headerMode: "none", headerLevel: "0" },
       }), "\n");
-    assertEq(quiet, "intro\n\n- entry", "правило без своей ветки кладёт запись в конец");
-    assertEq(own, "- entry\n\nintro", "правило со своей веткой — в начало");
+    assertEq(quiet, "intro\n\n- entry\n", "правило без своей ветки кладёт запись в конец");
+    assertEq(own, "- entry\n\nintro\n", "правило со своей веткой — в начало");
   }
 
   /* 4. Через настоящую нормализацию конфига: ключи правила переживают патч. */
