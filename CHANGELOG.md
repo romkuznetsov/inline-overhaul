@@ -46,22 +46,23 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 23. 🐛 **A new Element writes its date to YAML without the marker,** as `Due` does.
 24. 🐛 **Backups:** restoring a backup of some tabs says so and counts only what it holds, `Start over` keeps the tab you had open, and the update notes window is not undone by `Undo`.
 25. 🐛 **`Clear line` leaves an emptied line empty everywhere,** keeping only its indent and quote — the same from a command and from tagWheel.
-26. 🎨 **Moving a selected word keeps the punctuation where it was:** `buy bread, [milk]!` moved left becomes `buy [milk], bread!`.
+26. 🎨 **Moving a selected word keeps the punctuation where it was:** `buy bread, [milk]!` moved left becomes `buy [milk], bread!`; a selected comma moves to the next word instead of joining two words, a word alone in quotes or brackets moves with them, and moving back gives the line you had.
 27. 🎨 **`Name brackets` takes two different characters only,** and says so when it gets something else.
 28. 🐛 **Tag Bars let go of a Field you delete,** and the preview says the Bars need one.
 29. 🎨 **`Machine-readable log` is off for a new install,** and the times in the plain log are marked `UTC`; restoring a backup that matches your settings says nothing changed.
-18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
-19. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
-20. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
-21. 🐛 **A list Value of an Element is one word.** A Value with a space is refused with a message, in the panel and in `Add a Field`, where a tag Value with a space is refused too; before, `✅ done` piled up in the text of the line.
-22. 🐛 **A custom block Value does not split your word.** With the cursor inside a word it goes after the word, and taking it off at the end of the line takes its space too.
-23. 🐛 **`Smart bracket` inside brackets works on those brackets.** Inside `[[Note]]` it takes the link brackets off, inside `[Note]` it makes a link, and a lone `[` no longer copies the rest of the line.
-24. 🐛 **`Jump left` and `Text start` know headings and quotes.** The cursor stops after `> ` and after `# `.
-25. 🐛 **`Field order source = Field order` works.** The Field order decides the Prefix; with `Manual`, the Fields missing from the list come after it, as the panel shows.
-26. 🎨 **The toggle `Insert only: keep the Prefix` is gone.** Insert-only mode always writes the Separators between the Blocks and the text.
-27. 🐛 **The tagWheel scroller names a link the way the line shows it.** `[[Alias Target|Shown]]` reads `Shown`, and a Value in a folder reads its name without the folder.
-28. 🐛 **Insert-only mode keeps your quote and your checkbox.** `> ` and `- [ ]` stay at the start of the line; only the tag changes.
-29. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
+30. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
+31. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
+32. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
+33. 🐛 **A list Value of an Element is one word.** A Value with a space is refused with a message, in the panel and in `Add a Field`, where a tag Value with a space is refused too; before, `✅ done` piled up in the text of the line.
+34. 🐛 **A custom block Value does not split your word.** With the cursor inside a word it goes after the word, and taking it off at the end of the line takes its space too.
+35. 🐛 **`Smart bracket` inside brackets works on those brackets.** Inside `[[Note]]` it takes the link brackets off, inside `[Note]` it makes a link, and a lone `[` no longer copies the rest of the line.
+36. 🐛 **`Jump left` and `Text start` know headings and quotes.** The cursor stops after `> ` and after `# `.
+37. 🐛 **`Field order source = Field order` works.** The Field order decides the Prefix; with `Manual`, the Fields missing from the list come after it, as the panel shows.
+38. 🎨 **The toggle `Insert only: keep the Prefix` is gone.** Insert-only mode always writes the Separators between the Blocks and the text.
+39. 🐛 **The tagWheel scroller names a link the way the line shows it.** `[[Alias Target|Shown]]` reads `Shown`, and a Value in a folder reads its name without the folder.
+40. 🐛 **Insert-only mode keeps your quote and your checkbox.** `> ` and `- [ ]` stay at the start of the line; only the tag changes.
+41. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
+42. 🐛 **The command of a Field without Values says so** instead of doing nothing.
 
 ## 0.12.0
 
