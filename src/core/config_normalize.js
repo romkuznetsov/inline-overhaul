@@ -1161,6 +1161,20 @@ function normalizeConfigV2(cfg) {
    */
   cfg = getTransformFeature().normalizeTransformConfig(cfg);
 
+  /*
+   * Tag Bars на Field, которого нет, — выбор снимается (его ответ `В-265`,
+   * BUGHUNT D13). Field удалён в панели или выборочным восстановлением — Bars
+   * молча не рисовались, а список показывал пустоту. Здесь, а не в каждой
+   * дороге удаления: этот шаг идёт на каждом патче (У-13). Ключи Field при
+   * переименовании не меняются — снимается только удалённое.
+   */
+  const barsField = String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim();
+  const tagDefs = readCfgPath(cfg, "pkm.fields.tags.fields");
+  if (barsField && Array.isArray(tagDefs)
+    && !tagDefs.some((f) => isObj(f) && String(f.id || "").trim() === barsField)) {
+    writeCfgPath(cfg, "visual.tagBars.fieldId", "");
+  }
+
   cfg.schemaVersion = getConfigMigrationV2Module().SCHEMA_VERSION_V2;
   return cfg;
 }

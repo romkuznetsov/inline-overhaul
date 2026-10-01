@@ -470,11 +470,14 @@ function firstFieldKey(cfg: Any): string {
   assert.ok(host.textContent.includes("Bars need a Field"),
     "предпросмотр не сказал, почему полос нет: " + host.textContent.slice(0, 160));
 
-  /* Выбран Field, которого больше нет, — причина другая, и слова другие. */
+  /* Выбран Field, которого больше нет, — выбор снимается (его ответ `В-265`,
+     BUGHUNT D13), и предпросмотр говорит то же, что у невыбранного. */
   await p.pane.setControlValue("visual.tagBars.fieldId", "io_field_that_left");
+  assert.equal((p.store.config as Any).visual.tagBars.fieldId, "",
+    "выбор Tag Bars на несуществующем Field не снят");
   const gone = drawBlock(p.pane, "visual", "Tag Bars");
-  assert.ok(gone.textContent.includes("is gone"),
-    "исчезнувший Field назван так же, как невыбранный: " + gone.textContent.slice(0, 160));
+  assert.ok(gone.textContent.includes("Bars need a Field"),
+    "после снятия выбора предпросмотр не объяснил пустоту: " + gone.textContent.slice(0, 160));
 
   /* С настоящим Field полосы появляются, и объяснения больше нет. */
   const first = Object.keys(((p.store.config as Any).pkm.fields.order.strictNames) || {})[0];
