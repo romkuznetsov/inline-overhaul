@@ -175,6 +175,14 @@ function rowsByPath() {
       });
     }
   }
+  /* Ветки, которые пишет свой блок, а не строка схемы: имя — заголовок группы
+     блока (BUGHUNT 2026-09-30, D15: в `# What changed` стоял путь
+     `editor.binder.rows`). */
+  /* ponytail: список руками; вывести из блоков, когда таких веток станет больше одной-двух. */
+  for (const [p, groupId] of [["editor.binder.rows", "binder"]]) {
+    const group = (__schema.SCHEMA || []).find((g) => g && g.id === groupId);
+    if (group && !map.has(p)) map.set(p, { name: String(group.heading || ""), group: String(group.heading || ""), tab: tabs.get(String(group.tab)) || String(group.tab || "") });
+  }
   __rowsByPath = map;
   return map;
 }
@@ -431,7 +439,7 @@ function valueVisualChanges(before, after) {
 /** Путь к строке панели: имя, группа и вкладка — то, что человек видит. */
 function sayPath(path) {
   const row = rowsByPath().get(path);
-  if (row) return "«" + row.name + "» (" + row.tab + " → " + row.group + ")";
+  if (row) return "«" + row.name + "» (" + row.tab + (row.group === row.name ? "" : " → " + row.group) + ")";
   /* Строки в панели нет — говорим путь и **называем** его путём, а не выдаём
      за имя настройки: честнее, чем придуманное слово (У-80). */
   return "setting `" + path + "`";

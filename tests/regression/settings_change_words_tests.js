@@ -241,4 +241,13 @@ function ok(label) { passed++; console.log("  ok " + label); }
   ok("знак списка стоит после отступа, и вложенность читается");
 }
 
+{
+  /* D15: ветку, которую пишет свой блок, называет его группа, а не путь. */
+  const lines = words.describeConfigChange({ editor: { binder: { rows: [{}, {}] } } }, { editor: { binder: { rows: [{}, {}, {}] } } });
+  const heading = (schema.SCHEMA.find((g) => g.id === "binder") || {}).heading;
+  assert.ok(heading, "контроль: у Binder есть группа");
+  assert.deepEqual(lines, ["«" + heading + "» (Keyboard): 2 items → 3 items"], "D15: в `What changed` путь вместо имени: " + JSON.stringify(lines));
+  ok("D15: строки Binder названы группой панели");
+}
+
 console.log("\n" + passed + " проверок пройдено");
