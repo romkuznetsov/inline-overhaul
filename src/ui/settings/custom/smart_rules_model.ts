@@ -148,6 +148,8 @@ export interface RulesModelDeps {
   validate: (rules: unknown[]) => unknown[];
   /** Значения Fields для условий: то же чтение, что у редактора. */
   fieldTokens: () => readonly FieldTokens[];
+  /** Ветка `placement`, которой никто не касался: `normalizePlacement({})` движка (C21). */
+  blankPlacement?: () => unknown;
 }
 
 
@@ -401,7 +403,17 @@ export function createRulesModel(deps: RulesModelDeps) {
    * стоило бы ему всей ветки.
    */
   const setPlacementMode = (id: string, mode: RulePlacementMode): void => {
-    patchRule(id, { placementMode: mode }, "transform:smart-rules:placement-mode:" + id);
+    /*
+     * Ветка, которой человек не касался, открывается значениями `Note content`,
+     * а не умолчаниями (BUGHUNT 2026-09-30, C21: `Plain text` при общем 3).
+     * Настроенная ветка остаётся своей — см. абзац выше.
+     */
+    const rule = listRules().find(r => r.id === id);
+    const blank = deps.blankPlacement ? readPlacement(deps.blankPlacement()) : null;
+    const untouched = !!rule && !!blank && JSON.stringify(rule.placement) === JSON.stringify(blank);
+    const patch: Partial<RuleRow> = { placementMode: mode };
+    if (mode === "custom" && untouched) patch.placement = readPlacement(inline2note(plugin.getConfig())["placement"]);
+    patchRule(id, patch, "transform:smart-rules:placement-mode:" + id);
   };
 
   const setPlacement = (id: string, patch: Partial<RulePlacement>): void => {

@@ -39,6 +39,7 @@ const deepState = deepStateModule as unknown as DeepState;
 interface TransformRulesApi {
   validateSmartRules: (rules: unknown[]) => unknown[];
   collectTemplateOptions: (app: unknown, folder: string) => unknown;
+  normalizePlacement: (raw: unknown) => unknown;
 }
 
 const engine = transformFeature as unknown as TransformRulesApi;
@@ -241,6 +242,7 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
       const model = createRulesModel({
         plugin: p.plugin as never,
         validate: rules => engine.validateSmartRules(rules) as unknown[],
+        blankPlacement: () => engine.normalizePlacement({}),
         fieldTokens: () => createFieldsModel({
           plugin: p.plugin as never,
           normalizePkmOrder: p.normalizePkmOrder as never,

@@ -50,6 +50,7 @@ const engine = requireCjs(path.join(root, "src", "features", "transform_feature.
   selectSmartTemplate: (parsed: Any, rules: Any[], fallback: string, cfg?: Any) => string;
   resolveRuleFolder: (rule: Any, i2n: Any) => string;
   normalizeTransformConfig: (cfg: Any) => Any;
+  normalizePlacement: (raw: Any) => Any;
   parseInlineLine: (line: string, cfg: Any) => Any;
   collectTemplateOptions: (app: Any, folder: string) => string[];
 };
@@ -136,6 +137,7 @@ function makePanel(
     const model = createRulesModel({
       plugin,
       validate: rules => engine.validateSmartRules(rules),
+      blankPlacement: () => engine.normalizePlacement({}),
       fieldTokens: () => createFieldsModel({
         plugin: plugin as never,
         normalizePkmOrder: internals.normalizePkmOrder as never,
@@ -992,6 +994,21 @@ function baseConfig(rules?: Any[]): Any {
     "а настроенное осталось: переключение туда и обратно не стоит человеку ветки");
   assert.equal(all(p.host, "io-rule__plrow").length, 0, "строки при этом снова скрыты");
   ok("Advanced settings у правила пишет свою ветку на настоящем пути записи");
+}
+
+{
+  /* C21 перечня 2026-09-30: нетронутая ветка правила открывается общими
+     значениями `Note content`, а не умолчаниями. */
+  const base = baseConfig([{ id: "r1", enabled: true, targetTemplate: "Templates/task.md" }]);
+  base.transform.inline2note.placement = { position: "beginning", headerMode: "custom", customHeader: "Inbox", headerLevel: "3" };
+  const p = makePanel(base);
+  const adv = all(p.host, "io-select").find(n => String(n.getAttribute("aria-label") || "").startsWith("Advanced settings")) as StubNode;
+  adv.value = "custom";
+  adv.dispatch("change");
+  const pl = p.rules()[0].placement;
+  assert.deepEqual([pl.position, pl.headerMode, pl.customHeader, pl.headerLevel], ["beginning", "custom", "Inbox", "3"],
+    "ветка правила открылась не общими значениями: " + JSON.stringify(pl));
+  ok("C21: Custom у нового правила начинается со значений Note content");
 }
 
 {
