@@ -548,6 +548,31 @@ function sampleConfig(): Record<string, unknown> {
 }
 
 {
+  /* D12: «Newest first» — по дате в шапке копии, а не по времени файла. */
+  const seen: PickRequest[] = [];
+  const w = wire({ choose: (req: PickRequest) => { seen.push(req); return null; } });
+  await w.run("save-backup");
+  await w.run("save-backup");
+  const paths = [...w.fake.files.keys()];
+  const early = at(paths, 0, "первая копия");
+  const late = at(paths, 1, "вторая копия");
+  const dated = (p: string, when: string): void => {
+    const text = String(w.fake.files.get(p));
+    assert.ok(/^saved: .+$/m.test(text), "контроль: в шапке копии есть дата");
+    w.fake.files.set(p, text.replace(/^saved: .+$/m, "saved: " + when));
+  };
+  dated(early, "2026-09-30 10:00");
+  dated(late, "2026-08-01 10:00");
+  /* Время файла говорит обратное: старую копию принесли последней. */
+  w.fake.mtimes.set(early, 10);
+  w.fake.mtimes.set(late, 20);
+  await w.run("restore-backup");
+  const values = at(seen, 0, "запрос выбора").options.map(o => o.value);
+  assert.deepEqual(values, [early, late], "D12: список упорядочен по времени файла, а не по дате копии");
+  ok("D12: новые вверх — по дате в шапке копии");
+}
+
+{
   /*
    * Голый JSON читается тем же кодом, что и заметка (Б13). Пункта переезда в
    * окне выбора больше нет, но само умение никуда не делось: путь сюда

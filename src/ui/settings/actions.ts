@@ -527,7 +527,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       .sort((a, b) => (Number(b.mtime) || 0) - (Number(a.mtime) || 0)
         || String(b.path).localeCompare(String(a.path)));
 
-    const options: PickOption[] = [];
+    /* «Newest first» — по дате в шапке копии, а не по времени файла: копия,
+       перенесённая с другой машины, получает время копирования (BUGHUNT
+       2026-09-30, D12). Без даты — время файла. */
+    const ranked: Array<{ option: PickOption; at: number }> = [];
     for (const file of notes) {
       let about: ReturnType<typeof describeBackup> = {
         savedAt: "", pluginVersion: "", summary: "", hotkeys: 0,
@@ -554,8 +557,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       /* Имя файла показывается, только если первой строкой стоит дата: иначе
          оно там уже и стоит, и повторять его незачем. */
       const note = about.savedAt ? name : "";
-      options.push({ value: file.path, label: about.savedAt || name, sub, note });
+      const at = about.savedAt ? Date.parse(about.savedAt.replace(" ", "T")) : NaN;
+      ranked.push({ option: { value: file.path, label: about.savedAt || name, sub, note }, at: Number.isFinite(at) ? at : Number(file.mtime) || 0 });
     }
+    const options = ranked.sort((a, b) => b.at - a.at).map(r => r.option);
 
     /*
      * Пункта `Before the update to this version` здесь больше нет — снят
