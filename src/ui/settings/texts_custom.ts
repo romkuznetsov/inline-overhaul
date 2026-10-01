@@ -100,6 +100,8 @@ export const FRAME_TEXTS = {
   RESET_ONE: "One setting in this group goes back to its default",
   RESET_MANY: "{0} settings in this group go back to their defaults",
   RESET_MORE: "and {0} more",
+  /* `Name brackets` пишется только двумя разными знаками (C17, `В-264`). */
+  NAME_BRACKETS_TWO: "Name brackets takes two different characters, such as [] or (): the brackets stay as they were",
   RESET_CONFIRM: "Reset the group",
   RESET_NOTE: "Your Fields, Values and rules are not touched",
   RESET_DONE: "{0} settings back to default. Use <code>Undo last settings change</code> to revert",

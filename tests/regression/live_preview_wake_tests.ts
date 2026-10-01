@@ -416,6 +416,27 @@ function firstFieldKey(cfg: Any): string {
   ok("запись через шов панели будит блок ровно один раз, и только нужный");
 }
 
+{
+  /* C17, его ответ `В-264`: `Name brackets` пишется только двумя разными знаками. */
+  const key = "transform.inline2note.noteName.delimiters";
+  const store = new MemoryStore({ transform: { inline2note: { noteName: { delimiters: "[]" } } } });
+  const said: string[] = [];
+  const pane = new SettingsPane({
+    schema: SCHEMA, tabs: TABS, store, actions: {}, fragments: fragments as never,
+    notify: (m: string) => { said.push(m); },
+  } as never);
+  const stored = (): unknown => (store.config as Any).transform.inline2note.noteName.delimiters;
+  await pane.setControlValue(key, "(");
+  assert.equal(stored(), "[]", "один знак записан");
+  assert.equal(said.length, 0, "на одном знаке (ещё печатает) сказано: " + said.join(" | "));
+  await pane.setControlValue(key, "((");
+  assert.equal(stored(), "[]", "одинаковая пара записана");
+  assert.ok(said.join(" | ").includes("two different characters") && !said.join(" | ").includes(" | "), "про неверную пару не сказано один раз: " + said.join(" | "));
+  await pane.setControlValue(key, "()");
+  assert.equal(stored(), "()", "законная пара не записана");
+  ok("C17: Name brackets пишется только двумя разными знаками");
+}
+
 /* ---- 6: список Fields у полос — настоящий (Д-2, Д-3) -------------------- */
 
 {

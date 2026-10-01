@@ -20,6 +20,9 @@ import { templateOptions } from "./templates.ts";
 /* Подсказчик папок и список папок vault — общий дом с блоком Smart Rules. */
 import { attachFolderSuggest } from "./custom/smart_rules.ts";
 import { dialogKey, fill } from "./texts_dialogs.ts";
+
+/** Путь `Name brackets`: у него свой отказ на записи (C17, `В-264`). */
+const NAME_BRACKETS_PATH = "transform.inline2note.noteName.delimiters";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey } from "./texts_custom.ts";
 import { Describer, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
 import type { ConfirmRequest } from "./actions.ts";
@@ -497,6 +500,20 @@ export class SettingsPane {
   }
 
   async setControlValue(key: string, value: unknown): Promise<void> {
+    /*
+     * `Name brackets` — два разных знака, иначе не пишется (его ответ
+     * `В-264`, BUGHUNT C17: `((` и один знак сохранялись и молча не работали).
+     * Текст пишется на каждое нажатие, поэтому один знак — это «ещё печатает»
+     * и молчит; неверная пара или лишние знаки называются сообщением.
+     */
+    if (key === NAME_BRACKETS_PATH) {
+      const chars = Array.from(String(value == null ? "" : value).trim());
+      const pair = chars.length === 2 && chars[0] !== chars[1];
+      if (chars.length && !pair) {
+        if (chars.length >= 2 && this.deps.notify) this.deps.notify(this.frame("NAME_BRACKETS_TWO"));
+        return;
+      }
+    }
     const opts: SetOpts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
     const invert = this.inverted().get(key);
     const shown = Number(value);
