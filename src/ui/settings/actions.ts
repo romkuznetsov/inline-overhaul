@@ -41,7 +41,7 @@ import {
   mergeParts,
   parseBackupHotkeys,
   parseBackupNote,
-  summarize,
+  summaryPieces,
 } from "../../features/settings_backup.js";
 /* Адрес полного рассказа о выпусках: один дом на окно и на кнопку панели. */
 import releaseNotes from "../../features/release_notes.js";
@@ -366,14 +366,18 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
    * файла и обязана остаться английской, а здесь её читает человек. Считает
    * при этом одна функция — `summarize`, — и разойтись двум строкам не на чем.
    */
-  const summaryFor = (cfg: Record<string, unknown>): string => {
-    const s = summarize(cfg) as { fields: number; values: number; binderRows: number };
-    return fill(
-      say("SUMMARY_LINE"),
-      count(s.fields, "WORD_FIELD_ONE", "WORD_FIELD_MANY"),
-      count(s.values, "WORD_VALUE_ONE", "WORD_VALUE_MANY"),
-      count(s.binderRows, "WORD_BINDER_ROW_ONE", "WORD_BINDER_ROW_MANY"),
-    );
+  const summaryFor = (cfg: Record<string, unknown>, partIds?: readonly string[] | null): string => {
+    /* Только то, что копия несёт (D11): какие части — решает `summaryPieces`. */
+    const words: Record<string, [string, string]> = {
+      field: ["WORD_FIELD_ONE", "WORD_FIELD_MANY"],
+      value: ["WORD_VALUE_ONE", "WORD_VALUE_MANY"],
+      binder: ["WORD_BINDER_ROW_ONE", "WORD_BINDER_ROW_MANY"],
+    };
+    const said = (summaryPieces(cfg, partIds || null) as Array<{ n: number; kind: string }>)
+      .map(p => count(p.n, (words[p.kind] as [string, string])[0], (words[p.kind] as [string, string])[1]));
+    if (said.length === 3) return fill(say("SUMMARY_LINE"), said[0] as string, said[1] as string, said[2] as string);
+    if (said.length === 2) return fill(say("SUMMARY_TWO"), said[0] as string, said[1] as string);
+    return said[0] || "";
   };
 
   /**
@@ -809,7 +813,8 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * Второе важнее первого: выборочная копия меняет смысл действия,
          * и человек должен увидеть это до нажатия, а не после (Н3).
          */
-        const rows = [fill(say("ROW_RESTORING"), summaryFor(restored))];
+        const holds = summaryFor(restored, about.parts);
+        const rows = holds ? [fill(say("ROW_RESTORING"), holds)] : [];
         if (about.parts) {
           rows.push(fill(say("ROW_PARTS_BACK"), partLabelsSaid(about.parts).join(", ")));
           const kept = partLabelsFor(about.parts, false);
@@ -862,9 +867,13 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         let clearConflicts = false;
 
         const willBackUp = backupBeforeRestore(config.get());
+        const partial = !!about.parts && partLabelsFor(about.parts, false).length > 0;
         const yes = await ask({
           title: say("RESTORE_TITLE"),
-          body: say(willBackUp ? "RESTORE_BODY" : "RESTORE_BODY_NO_BACKUP"),
+          /* Выборочная копия меняет не всё — и вопрос говорит это (D10). */
+          body: say(partial
+            ? (willBackUp ? "RESTORE_BODY_PARTS" : "RESTORE_BODY_PARTS_NO_BACKUP")
+            : (willBackUp ? "RESTORE_BODY" : "RESTORE_BODY_NO_BACKUP")),
           confirmLabel: say("RESTORE_CONFIRM"),
           danger: true,
           rows,

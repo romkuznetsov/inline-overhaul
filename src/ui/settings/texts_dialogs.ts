@@ -68,6 +68,9 @@ export const DIALOG_TEXTS = {
      * место, где человек ещё может остановиться.
      */
     RESTORE_BODY_NO_BACKUP: "This replaces everything you have set up, on every tab, and what you have now is not saved anywhere first",
+    /* Выборочная копия (D10): меняются только вкладки из списка ниже. */
+    RESTORE_BODY_PARTS: "This replaces the tabs listed below and leaves the others as they are. What you have now is saved as a backup first",
+    RESTORE_BODY_PARTS_NO_BACKUP: "This replaces the tabs listed below and leaves the others as they are, and what you have now is not saved anywhere first",
     RESTORE_CONFIRM: "Replace my settings",
     RESTORE_NOTE: "Your open tab and what you have expanded here stay as they are",
     RESTORE_NOTE_OTHERS: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin",
@@ -153,6 +156,7 @@ export const DIALOG_TEXTS = {
     WORD_BINDER_ROW_MANY: "Binder rows",
     /** Состав копии одной строкой: столько-то Fields, столько-то Values. */
     SUMMARY_LINE: "{0}, {1} and {2}",
+    SUMMARY_TWO: "{0} and {1}",
     PLUGIN_VERSION: "plugin {0}",
     /* Каталог текстов сломан — сказать, а не промолчать (Я1). */
     TEXTS_BROKEN: "inlineOverhaul could not read {0}, so it is using English",

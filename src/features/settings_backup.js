@@ -421,12 +421,26 @@ function missingLabels(partIds) {
     .map(function(part) { return part.label; });
 }
 
-/** Строка состава для заметки и для окна выбора. */
-function summaryLine(cfg) {
+/**
+ * Что из состава копии говорить: Fields и Values живут на `Tags & PKM`, строки
+ * Binder — на `Keyboard`. Выборочная копия без этих вкладок их не несёт, и
+ * «0 Fields» читалось как «сотрёт» (BUGHUNT 2026-09-30, D11). `null` — копия
+ * частей не называет, то есть несёт всё.
+ */
+function summaryPieces(cfg, partIds) {
   const s = summarize(cfg);
-  return plural(s.fields, "Field", "Fields")
-    + ", " + plural(s.values, "Value", "Values")
-    + " and " + plural(s.binderRows, "Binder row", "Binder rows");
+  const has = (id) => !Array.isArray(partIds) || partIds.indexOf(id) !== -1;
+  const out = [];
+  if (has("pkm")) out.push({ n: s.fields, kind: "field" }, { n: s.values, kind: "value" });
+  if (has("keyboard")) out.push({ n: s.binderRows, kind: "binder" });
+  return out;
+}
+
+/** Строка состава для заметки и для окна выбора; пусто — говорить нечего. */
+function summaryLine(cfg, partIds) {
+  const words = { field: ["Field", "Fields"], value: ["Value", "Values"], binder: ["Binder row", "Binder rows"] };
+  const said = summaryPieces(cfg, partIds).map((p) => plural(p.n, words[p.kind][0], words[p.kind][1]));
+  return said.length > 1 ? said.slice(0, -1).join(", ") + " and " + said[said.length - 1] : (said[0] || "");
 }
 
 /* ---- имя файла --------------------------------------------------------- */
@@ -700,7 +714,7 @@ function buildBackupNote(o) {
     "# inlineOverhaul settings backup",
     "",
     "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
-    "Holds " + summaryLine(config) + ".",
+    ...(summaryLine(config, parts) ? ["Holds " + summaryLine(config, parts) + "."] : []),
     "Tabs inside: " + partLabels(parts).join(", ") + ".",
     ...(missingLabels(parts).length
       ? ["Left out, so restoring keeps what you have there: " + missingLabels(parts).join(", ") + "."]
@@ -873,7 +887,7 @@ function describeBackup(text) {
   const commentLine = /^note\s*:\s*(.+)$/m.exec(front);
   let summary = "";
   try {
-    summary = summaryLine(parseBackupNote(raw));
+    summary = summaryLine(parseBackupNote(raw), partsLine ? normalizeParts(partsLine[1]) : null);
   } catch {
     summary = "";
   }
@@ -961,6 +975,7 @@ module.exports = {
   keepDeviceLocal,
   summarize,
   summaryLine,
+  summaryPieces,
   plural,
   stamp,
   backupPath,

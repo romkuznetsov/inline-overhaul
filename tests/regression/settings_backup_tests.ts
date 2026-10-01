@@ -1192,6 +1192,30 @@ function sampleConfig(): Record<string, unknown> {
 }
 
 {
+  /* D10, D11 перечня 2026-09-30: копия только `General` не обещает заменить
+     всё и не говорит о Fields и строках Binder, которых не несёт. */
+  const w = wire({ saveOptions: () => ({ parts: ["general"], comment: "", hotkeyScope: "own" }) });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+  assert.ok(!/^Holds /m.test(note), "заметка копии General говорит о составе, которого не несёт: " + note.slice(0, 600));
+  assert.equal(backup.describeBackup(note).summary, "", "окно выбора покажет «0 Fields» у копии General");
+  const pkmOnly = wire({ saveOptions: () => ({ parts: ["pkm"], comment: "", hotkeyScope: "own" }) });
+  await pkmOnly.run("save-backup");
+  const pkmNote = pkmOnly.fake.files.get(at([...pkmOnly.fake.files.keys()], 0, "копия pkm")) as string;
+  assert.ok(/^Holds \d+ Fields? and \d+ Values?\.$/m.test(pkmNote), "у копии Tags & PKM состав не тот: " + pkmNote.slice(0, 600));
+
+  const back = wire();
+  back.fake.files.set(saved, note);
+  await back.run("restore-backup");
+  const shown = at(back.fake.confirmed, 0, "окно восстановления");
+  assert.equal(shown.body, ACTION_TEXTS.RESTORE_BODY_PARTS, "вопрос выборочной копии обещает заменить всё: " + shown.body);
+  const rows = (shown.rows || []).join(" | ");
+  assert.ok(!/Binder|Field/.test(rows), "окно называет то, чего копия не несёт: " + rows);
+  ok("D10, D11: выборочная копия говорит только о своих вкладках");
+}
+
+{
   /* Копия без частей в шапке — та же замена целиком, что и до 2026-09-06. */
   const w = wire();
   await w.run("save-backup");
