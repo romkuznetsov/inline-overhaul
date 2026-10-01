@@ -300,7 +300,8 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
     const from = Math.max(0, Math.min(pos - Math.floor(WHEEL_WINDOW / 2), n - WHEEL_WINDOW));
     for (let i = from; i < from + shown; i++) {
       const v = values[i] as { text: string };
-      const text = d.kind === "wikilink" ? (bare(v.text, "wikilink").split("/").pop() || v.text) : v.text;
+      /* Как подпишет настоящий скроллер — общий дом (его `💬` к тесту 5 цикла 114). */
+      const text = d.kind === "wikilink" ? (sharedUtils.wikilinkShownOf(v.text) || v.text) : v.text;
       el(panel, "span", "io-wheelval" + (i === pos ? " io-wheelval--on" : ""), text);
     }
   });

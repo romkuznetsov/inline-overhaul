@@ -3404,6 +3404,8 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   vi4.value = "[[Alias Target|Shown]]";
   vi4.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
   assert.deepEqual(walk(f4, "io-nf__chiptext").map(n => String(n.textContent)), ["[[Alias Target|Shown]]"], "A14: фишка ссылки прячет подпись");
+  /* Его `💬` к тесту 5 цикла 114: скроллер предпросмотра подписывает ссылку подписью. */
+  assert.deepEqual(walk(f4, "io-wheelval").map(n => String(n.textContent)), ["Shown"], "скроллер окна показывает цель вместо подписи");
   (walk(f4, "io-btn--cta")[0] as StubNode).click();
   assert.equal(String(answer4?.kind), "wikilink", "контроль: окно ответило ссылкой");
   assert.ok(JSON.stringify(answer4).includes("Alias Target|Shown"), "контроль: в ответе ссылка с подписью: " + JSON.stringify(answer4));

@@ -2415,9 +2415,10 @@ async function runTagWheel(input, quickAddSettings) {
       }
       var t = src.trim()
       if (!t) return src
-      /* Цель ссылки называет общий дом. */
-      var linkTarget = __sharedUtils.wikilinkTargetOf(t)
-      if (linkTarget) return linkTarget
+      /* Ссылка подписывается тем, что покажет строка, — общий дом (его `💬`
+         к тесту 5 цикла 114: цель вместо подписи `Shown`). */
+      var linkShown = __sharedUtils.wikilinkShownOf(t)
+      if (linkShown) return linkShown
       if (showPrefix) return src
       if (/^#\//.test(t)) return t.replace(/^#\//, '')
       if (__sharedUtils.startsWithTagToken(t)) return t.replace(/^#/, '')

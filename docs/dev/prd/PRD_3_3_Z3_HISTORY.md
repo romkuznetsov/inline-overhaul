@@ -2551,3 +2551,9 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 **Что сделано.** В `navigation_runtime.js` правило «где начинается текст строки» было объявлено ещё дважды: `parsePrefixEnd` внутри `navigateInline` (`Jump left/right`) и `smartLineStartCh` (переходы по строкам, `Text start`). Обе знали только знак списка, номер с точкой и чекбокс: на цитате `Jump left` доходил до `>` (B9), а `Text start` на заголовке ставил каретку перед `#` (B21). Тело первой — `lineStartOf(s).at`, второй — `linePrefixLength(t, true)`, ветка ряда таблицы осталась. Пробел за знаком общий дом берёт один — оговорка `parsePrefixEnd` о пустом слоте сохранена.
 
 **Мера.** Стенд настоящего Obsidian `clean B9, B9.w, B21`: на прежней сборке (`IO_MAIN`) `B21` и `B9.w` красные, на новой зелёные; `B9` (одно нажатие) зелёный на обеих — дефект жил на втором. `navigation_jumps_tests.js` — заголовок, цитата и контроль-список; возврат каждой копии роняет своё утверждение. Откат — возврат двух тел.
+
+**Исключение сто восемьдесят первое, разрешение — его `💬` к тесту 5 цикла 114; порядок В-162.**
+
+**Что сделано.** Скроллер tagWheel (`formatVisualToken` в `tagwheel.js`) подписывал Value-ссылку её целью: `[[Alias Target|Shown]]` — `Alias Target`, `111/Deep` — `111/Deep`, хотя строка показывает `Shown` и `Deep`. Подпись теперь спрашивается у общего дома `wikilinkShownOf` в `shared_utils.js`: подпись после `|`, у Value с папкой — имя без неё (`wikilinkLineToken`), иначе цель. Тот же дом спрашивает скроллер предпросмотра окна `Add a Field`. Цена, названная вслух: у Value с папкой скроллер тоже показывает имя без папки — так, как его пишет строка.
+
+**Мера.** Стенд настоящего Obsidian `scroller-link-label`: прежняя сборка — `Plain, Alias Target, 111/Deep`, новая — `Plain, Shown, Deep`. `parent_navigator_tests.js` — три формы дома, `fields_editor_view_tests.ts` — скроллер окна; возврат дома к цели роняет оба. Откат — возврат `wikilinkTargetOf` в `formatVisualToken`.

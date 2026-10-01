@@ -1328,6 +1328,21 @@ function wikilinkLineToken(target) {
 }
 
 /**
+ * Что Obsidian покажет у ссылки, когда её запишет плагин: подпись после `|`,
+ * у Value с папкой — имя без неё (`wikilinkLineToken`), иначе цель. Не
+ * ссылка — пустая строка. Спрашивают скроллер tagWheel и предпросмотр окна
+ * `Add a Field` (его `💬` к тесту 5 цикла 114: «в scroller я вижу Alias
+ * target, ожидал увидеть Shown»).
+ */
+function wikilinkShownOf(text) {
+  const t = String(nz(text, "")).trim();
+  if (!wikilinkTargetOf(t)) return "";
+  const written = wikilinkLineToken(t.slice(2, -2));
+  const bar = written.indexOf("|");
+  return written.slice(bar >= 0 ? bar + 1 : 2, -2).trim();
+}
+
+/**
  * Все формы, в которых Value-ссылка встречается в строке: та, что пишет
  * плагин, и голая `[[папка/имя]]` — написанная раньше или человеком руками.
  * Узнавание спрашивает обе; пишется всегда первая.
@@ -1661,6 +1676,7 @@ module.exports = {
   wikilinkTargetOf,
   wikilinkVisualToken,
   wikilinkLineToken,
+  wikilinkShownOf,
   wikilinkLineForms,
   lineWords,
   MARKDOWN_LINK_SRC,

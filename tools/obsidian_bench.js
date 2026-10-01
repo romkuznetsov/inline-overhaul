@@ -233,7 +233,27 @@ const PREPARE = {
     fs.writeFileSync(dataPath, JSON.stringify(cfg));
     fs.writeFileSync(path.join(vault, "bench-folder.md"), "- текст\n");
   },
+  /* Его `💬` к тесту 5 цикла 114: скроллер подписывает ссылку целью, а он ждёт
+     подпись. Первый Field-ссылка Right получает три Value трёх видов. */
+  "scroller-link-label"(vault) {
+    const dataPath = path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json");
+    const cfg = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    const links = cfg.pkm.fields.links.fields;
+    const field = cfg.pkm.fields.order.right.map((id) => links.find((f) => f.id === id)).find(Boolean);
+    if (!field) throw new Error("в его настройках нет Field-ссылки в Right");
+    field.values = SCROLLER_LINKS.map((token) => Object.assign({}, field.values[0], { token, subtags: [], allowedParentValues: [] }));
+    fs.writeFileSync(dataPath, JSON.stringify(cfg));
+    for (const t of SCROLLER_LINKS) {
+      const p = path.join(vault, t.split("|")[0] + ".md");
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, "");
+    }
+    fs.writeFileSync(path.join(vault, "bench-scroller.md"), "\n\n\n\n\n- текст\n\n\n\n\n");
+  },
 };
+
+/** Value-ссылки сценария `scroller-link-label`: с подписью, простая, с папкой. */
+const SCROLLER_LINKS = ["Alias Target|Shown", "Plain", "111/Deep"];
 
 /**
  * Один случай пакета чистого vault (`tools/obsidian_cases.js`): заметки →
@@ -1194,6 +1214,33 @@ const SCENARIOS = {
     const ok = /\[\[222\/123\|123\]\]/.test(first) && !/222/.test(String(view.screen)) && opened === "222/123.md"
       && /\[\[333\/123\|123\]\]/.test(second) && !/222/.test(second);
     console.log(ok ? "ok: пишется с подписью, видно 123, щелчок ведёт в 222, круг идёт дальше" : "РАСХОДИТСЯ с заказом");
+    return ok;
+  },
+
+  /*
+   * Его `💬` к тесту 5 цикла 114: «в scroller я вижу Alias target, ожидал
+   * увидеть Shown». Скроллер обязан подписывать ссылку тем, что Obsidian
+   * покажет в строке: подписью, а у Value с папкой — именем без неё.
+   */
+  async "scroller-link-label"(win) {
+    const n = await openAt(win, "bench-scroller.md", "- текст");
+    if (n < 0) throw new Error("нет строки в bench-scroller.md");
+    await win.evaluate((n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n, ch: ed.getLine(n).length }); ed.focus(); }, n);
+    await win.waitForTimeout(500);
+    if (!(await runCommand(win, "open-tagwheel-right"))) throw new Error("команда tagWheel Right не выполнилась");
+    await win.waitForTimeout(1200);
+    const seen = await win.evaluate(() => ({
+      open: !!(window.__tagWheelState && window.__tagWheelState.active),
+      rows: [...document.querySelectorAll(".io-twscroller--shown .io-twscroller__row")].map((r) => r.textContent.trim()),
+    }));
+    await win.keyboard.press("Escape");
+    await win.waitForTimeout(400);
+    console.log("панель открылась:", seen.open, "| строки скроллера:", JSON.stringify(seen.rows));
+    /* Контроль «скроллер открылся» (У-152): без строк мерить нечего. */
+    if (!seen.open || !seen.rows.length) { console.log("КОНТРОЛЬ: скроллера нет — мерить нечего"); return false; }
+    const all = seen.rows.join(" ");
+    const ok = /Shown/.test(all) && !/Alias Target/.test(all) && /Deep/.test(all) && !/111\//.test(all);
+    console.log(ok ? "ok: подпись ссылки, имя без папки" : "РАСХОДИТСЯ: скроллер подписывает ссылку не так, как строка");
     return ok;
   },
 

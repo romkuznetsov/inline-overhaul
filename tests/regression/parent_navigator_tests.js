@@ -474,6 +474,11 @@ async function run() {
     assert.equal(su.wikilinkLineToken("grp/client1"), "[[grp/client1|client1]]", "с папкой — подпись без папки");
     assert.equal(su.wikilinkLineToken("grp/client1|своё"), "[[grp/client1|своё]]", "подпись человека не трогается");
     assert.deepEqual(su.wikilinkLineForms("[[grp/client1|client1]]"), ["[[grp/client1|client1]]", "[[grp/client1]]"]);
+    /* Подпись скроллера — то, что покажет строка (его `💬` к тесту 5 цикла 114). */
+    assert.equal(su.wikilinkShownOf("[[Alias Target|Shown]]"), "Shown", "подпись после черты");
+    assert.equal(su.wikilinkShownOf("[[grp/client1]]"), "client1", "Value с папкой — имя без неё");
+    assert.equal(su.wikilinkShownOf("[[client1]]"), "client1", "простая ссылка — цель");
+    assert.equal(su.wikilinkShownOf("#client1"), "", "не ссылка — пусто");
 
     /* `Show always` выключен, как у него: иначе предусловие проходит само и
        поиск Value по ссылке не спрашивается (У-287). */
