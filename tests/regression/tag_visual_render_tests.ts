@@ -1333,6 +1333,34 @@ const filled = (el: Any): boolean =>
   ok("Цвета панели доезжают до заметки: шов не теряет ни одного ключа");
 }
 
+{
+  /*
+   * **`Bold Field names`** — его заказ 2026-10-01: «при ON — все дефолтные
+   * значения field были полужирные (в том числе неактивные), при Off —
+   * текущее поведение». Дорога целиком: конфиг → шов цветов → отрезки. Шов
+   * прежде переводил каждый ключ в строку, и `false` доезжал до слоя
+   * строкой `"false"`, то есть «да».
+   */
+  const line = "- ==**[#/1]** #todo `Cat` `Imp`== || тест";
+  const known = new Set(["Imp", "Type", "Cat"]);
+  const names = (on: boolean): string[] => (I.tagwheelPanelSpans(line,
+    I.resolveTagwheelPaintColors(I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: { boldFieldNames: on } } })),
+    known) as Any[])
+    .filter(x => x.kind === "name" && /font-weight:\s*700/.test(x.style))
+    .map(x => line.slice(x.start, x.end));
+  assert.deepEqual(names(true), ["`Cat`", "`Imp`"],
+    "включён: полужирные ровно имена неактивных полей, не выбранное значение и не активная ячейка");
+  assert.deepEqual(names(false), [], "выключен: имён полужирным нет — прежнее поведение");
+
+  /* Полужирное имя цвета не несёт и не отнимает его у подмены токена. */
+  const hidden = I.tagwheelPanelSpans("- ==**[#/1]** `#Cat`== || тест",
+    { showPrefix: false, defaultTextColor: "#112233", boldFieldNames: true } as never, known) as Any[];
+  const widget = hidden.find(x => x.kind === "replace" && x.text === "Cat");
+  assert.equal(widget && widget.color, "#112233", "подмена под полужирным именем держит цвет: " + JSON.stringify(widget));
+
+  ok("Bold Field names: имена неактивных Field полужирные только при включённом тумблере");
+}
+
 /*
  * **Чем печатается значение вместо себя — один ответ на два места** (его заказ
  * 2026-09-20: «в настройках скроллера нужно добавить режим отображения… чтобы при

@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (90)
+### Пути, которых не было в описи v1.0 (91)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -990,6 +990,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
 | `visual.tagWheel.valueNames` | tagWheel Value names (`panel-value-names`) | tagWheel |
 | `visual.tagWheel.highlightLine` | Highlight the tagWheel line (`panel-highlight`) | tagWheel |
+| `visual.tagWheel.boldFieldNames` | Bold Field names (`panel-bold-names`) | tagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | tagWheel |
 | `visual.tagWheel.chosenValueColor` | Chosen Value text color (`panel-chosen-color`) | tagWheel |
 | `visual.tagWheel.scroller.labels` | Scroller Value names (`scroller-labels`) | tagWheel |

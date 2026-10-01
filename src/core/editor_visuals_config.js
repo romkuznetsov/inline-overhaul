@@ -45,6 +45,8 @@ function getTagwheelHeaderColorsFromConfig(cfg) {
     chosenValueColor: normalizeHexColorInput(wheel.chosenValueColor),
     fillColor: normalizeHexColorInput(wheel.fillColor),
     showPrefix: wheel.showMarkers !== false,
+    /* Имена всех Field полужирным, не только активного (его заказ 2026-10-01). */
+    boldFieldNames: wheel.boldFieldNames === true,
   };
 }
 
@@ -2222,7 +2224,7 @@ function tagwheelPanelPaints(colors) {
   if (!colors) return false;
   return Boolean(colors.fillColor) || Boolean(colors.defaultTextColor)
     || Boolean(colors.activeTextColor) || Boolean(colors.chosenValueColor)
-    || colors.showPrefix === false;
+    || colors.boldFieldNames === true || colors.showPrefix === false;
 }
 
 /**
@@ -2249,6 +2251,7 @@ function tagwheelPanelPaints(colors) {
  * Виды отрезков:
  *   `fill`    — фон панели;
  *   `text`    — цвет неактивных ячеек, на весь отрезок;
+ *   `name`    — полужирное имя неактивного поля (`Bold Field names`);
  *   `active`  — цвет и начертание активной ячейки;
  *   `replace` — один токен: без приставки при спрятанных решётках, целиком у
  *               тега при показанных.
@@ -2384,6 +2387,26 @@ function tagwheelPanelSpans(text, colors, placeholders) {
     paint(at, segment.length);
   }
 
+  /*
+   * **Имена неактивных Field полужирным** — его заказ 2026-10-01: «при ON —
+   * все дефолтные значения field были полужирные (в том числе неактивные),
+   * при Off — текущее поведение». Имя поля узнаётся тем же признаком, что и
+   * выше, — обратными кавычками движка; активную ячейку решает её же правило
+   * ниже. `!important` по той же причине, что у активной.
+   */
+  if (colors && colors.boldFieldNames === true) {
+    const nameRe = /`[^`]*`/g;
+    let hit;
+    while ((hit = nameRe.exec(segment)) !== null) {
+      out.push({
+        kind: "name",
+        start: innerAt + hit.index,
+        end: innerAt + hit.index + String(hit[0] || "").length,
+        style: "font-weight: 700 !important;",
+      });
+    }
+  }
+
   const active = TAGWHEEL_ACTIVE_CELL_RE.exec(segment);
   if (active) {
     const inner = String(active[1] || "");
@@ -2431,7 +2454,8 @@ function tagwheelPanelSpans(text, colors, placeholders) {
       if (!shown || (!showPrefix && shown === raw)) continue;
       /* Виджет подмены цвет пометки не наследует: он несёт стиль самой
          внутренней цветной пометки, накрывающей его (BUGHUNT 2026-09-30, D6). */
-      const cover = out.filter((s) => s.kind !== "line" && s.style && s.start <= start && s.end >= end)
+      /* Только пометки с цветом: полужирное имя поля цвета не несёт. */
+      const cover = out.filter((s) => s.kind !== "line" && /(?:^|;)\s*color:/.test(s.style || "") && s.start <= start && s.end >= end)
         .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
       const color = cover ? (/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "" : "";
       out.push({ kind: "replace", start, end, text: shown, color: String(color).trim() });
@@ -2441,8 +2465,8 @@ function tagwheelPanelSpans(text, colors, placeholders) {
   return out;
 }
 
-/** Порядок наложения: строка, общий цвет, активная ячейка, подмена токена. */
-const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, chosen: 2, active: 3, replace: 4 };
+/** Порядок наложения: строка, общий цвет, имя поля, активная ячейка, подмена токена. */
+const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, chosen: 2, name: 2, active: 3, replace: 4 };
 
 /**
  * Переменные темы, которыми красится панель TagWheel, пока цвет не задан
@@ -2501,7 +2525,8 @@ function resolveTagwheelPaintColors(colors) {
   }
   for (const key of Object.keys(src)) {
     if (key === "showPrefix" || Object.prototype.hasOwnProperty.call(out, key)) continue;
-    out[key] = String(src[key] || "").trim();
+    /* Тумблер остаётся тумблером: строка `"false"` читалась бы как «да». */
+    out[key] = typeof src[key] === "boolean" ? src[key] : String(src[key] || "").trim();
   }
   return out;
 }

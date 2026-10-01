@@ -320,6 +320,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      пары в версии 1 у неё нет, и без маршрута форма v2 уехала бы в
      `_unmigrated` (МГ3). */
   keepV2("visual.tagWheel.chosenValueColor"),
+  /* Полужирные имена всех Field (его заказ 2026-10-01): ветка новая, как и
+     цвет выше. */
+  keepV2("visual.tagWheel.boldFieldNames"),
   keepV2("visual.tagWheel.fillColor"),
   keepV2("visual.tagWheel.scroller.enabled"),
   keepV2("visual.tagWheel.scroller.direction"),

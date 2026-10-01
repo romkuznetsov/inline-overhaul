@@ -510,6 +510,7 @@ triangle beside it, so the preview at the top stays in view while you work.
 | `tagWheel Value names` | `Default` | Whether the picker prints a chosen Value as written, as the custom text from `Color custom tags`, or both |
 | `Highlight the tagWheel line` | on | Marks the line while the picker is open |
 | `Inactive Field text color` | unset | The Field names you are not standing on |
+| `Bold Field names` | off | Every Field that shows its own name is bold, not only the one you are on |
 | `Active Field text color` | unset | The Field you are on |
 | `Chosen Value text color` | unset | A Field that already carries a Value |
 | `Background color` | unset | Behind the picker |

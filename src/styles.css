@@ -944,6 +944,8 @@
   font-weight: 700;
   color: var(--io-wheel-cell-active, var(--text-accent));
 }
+/* `Bold Field names`: имя неактивного Field полужирным */
+.io-wheelcell--name { font-weight: 700; }
 /* Обособление строки: то же, что делает `==…==` в заметке (Пр4). */
 .io-wheelline--lit {
   border-radius: var(--radius-s);

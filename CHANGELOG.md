@@ -39,6 +39,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 16. ✨ **`Move left/right` can take the tree along.** `Indent the whole tree`, under `Change the indent`, gives the lines indented under the line the same step.
 17. 🐛 **`Highlight after moving` colours the lines instead of selecting them.** The next letter you type no longer replaces what you just moved.
 18. 🐛 **Switching the Visual module off switches its look off.** Tag bubbles, Block dimming and size, Block fill, Tag Bars, the text cursor and the jump highlight go back to your theme; the tagWheel colors stay.
+19. 🐛 **The `Highlight after moving` color goes away at your next step,** a cursor move included, not only when the cursor leaves the moved lines.
+20. ✨ **`Bold Field names` in tagWheel.** On, every Field still showing its name is bold, the ones you are not on too, so the empty Fields stand out from the filled ones.
 
 ## 0.12.0
 

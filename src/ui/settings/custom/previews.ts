@@ -388,6 +388,7 @@ const WHEEL_PATHS = [
   "visual.tagWheel.activeTextColor",
   /* Цвет ячейки с выбранным значением — его заказ 2026-09-17. */
   "visual.tagWheel.chosenValueColor",
+  "visual.tagWheel.boldFieldNames",
   /* Чем подписано выбранное значение и соседи в коробке (его пункт 2026-10-01). */
   "visual.tagWheel.valueNames",
   "visual.tagWheel.scroller.labels",
@@ -502,6 +503,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     /* Пусто — ячейка с выбранным значением красится как остальные
        неактивные: так сказано в самой строке панели. */
     const chosenText = readText(ctx, "visual.tagWheel.chosenValueColor", "") || text;
+    const boldNames = Boolean(ctx.get("visual.tagWheel.boldFieldNames"));
     const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
 
     /*
@@ -581,7 +583,10 @@ export const wheelPreview: CustomRender = (host, ctx) => {
         const pick = vals.find(v => printed(v).trim()) || vals[0];
         filled = pick ? labelled(pick, valueNames) : String(cellValues(f)[0] || "");
       }
-      const cell = el(col, "span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""),
+      /* Имя Field полужирным, когда включён `Bold Field names`: так же, как в
+         заметке, и только при обособленной строке. */
+      const named = !isShown && !filled && boldNames && lit;
+      const cell = el(col, "span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : "") + (named ? " io-wheelcell--name" : ""),
         isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {
         if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);

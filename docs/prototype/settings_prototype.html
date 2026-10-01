@@ -1405,6 +1405,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   font-weight: 700;
   color: var(--io-wheel-cell-active, var(--text-accent));
 }
+/* `Bold Field names`: имя неактивного Field полужирным */
+.io-wheelcell--name { font-weight: 700; }
 .io-wheelline--lit {
   border-radius: var(--radius-s);
   padding: 0 2px;
@@ -2953,6 +2955,15 @@ const SCHEMA = [
       searchTerms:["Text color"],
       tip:"This paints the picker drawn over your line, and only while <code>Highlight the tagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected",
       allowReset:true },
+    /* Полужирные имена всех Field — его заказ 2026-10-01 в «Новое пишите
+       сюда»: «я хочу, чтобы был контрол над panel-text-color, при ON — все
+       дефолтные значения field были полужирные (в том числе неактивные), при
+       Off — текущее поведение». Стоит сразу под цветом неактивных — там, где
+       он его и попросил. Умолчание — прежнее поведение. */
+    { kind:"toggle", id:"panel-bold-names", path:"visual.tagWheel.boldFieldNames", default:false,
+      name:"Bold Field names", desc:"Print every Field that shows its own name in bold, while the line is marked",
+      searchTerms:["Bold names","Empty Fields in bold"],
+      tip:"Off, only the Field you are on is bold, and only while it still shows its name. On, every Field that shows its name is bold, the ones you are not on too, so the Fields still waiting for a Value stand out from the ones already filled in. A Field that carries a Value stays regular either way. Like the colors here, it needs <code>Highlight the tagWheel line</code> on" },
     /* Цвет активного Field: третий из трёх, о которых просил заказчик (D6,
        PRD 10.13.15). Он на строке, а не в коробке скроллера: коробка показывает
        соседние значения, а тот Field, в котором человек стоит, нарисован в самой
@@ -5119,6 +5130,7 @@ function renderWheelPreview(host) {
     /* Пусто — ячейка с выбранным значением красится как остальные неактивные:
        «Empty means it takes Inactive Field text color, as before». */
     const chosenText = val("visual.tagWheel.chosenValueColor") || text;
+    const boldNames = ctx.get("visual.tagWheel.boldFieldNames");
     const lit = ctx.get("visual.tagWheel.highlightLine");
     /* Коробка скроллера — не панель, и цвета у неё свои: `Scroller background
        color` и `Scroller text color`. Здесь стояли цвета панели, и заказчик
@@ -5179,7 +5191,10 @@ function renderWheelPreview(host) {
         const pick = vals.find(v => printed(v)) || vals[0];
         filled = pick ? labelled(pick, valueNames) : String(cellValues(f)[0] || "");
       }
-      const cell = el("span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""), col,
+      /* Имя Field полужирным, когда включён `Bold Field names`: так же, как в
+         заметке, и только при обособленной строке. */
+      const named = !isShown && !filled && boldNames && lit;
+      const cell = el("span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : "") + (named ? " io-wheelcell--name" : ""), col,
         isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {
         if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
@@ -5204,6 +5219,7 @@ function renderWheelPreview(host) {
    "visual.tagWheel.fillColor", "visual.tagWheel.textColor",
    /* Этих двух тут не было, и предпросмотр на них не перерисовывался (Пр3). */
    "visual.tagWheel.activeTextColor", "visual.tagWheel.chosenValueColor",
+   "visual.tagWheel.boldFieldNames",
    /* Чем подписано выбранное значение и соседи в коробке (его пункт 2026-10-01). */
    "visual.tagWheel.valueNames", "visual.tagWheel.scroller.labels",
    "visual.tagWheel.highlightLine",

@@ -1070,6 +1070,7 @@ function normalizeConfigV2(cfg) {
   hex("visual.tagWheel.fillColor");
   bool("visual.tagWheel.showMarkers");
   bool("visual.tagWheel.highlightLine");
+  bool("visual.tagWheel.boldFieldNames");
   /* Чем подписано значение в самой полосе панели (его заказ 2026-09-21, `З-38`).
      Умолчание `default` — прежнее поведение; варианты названы его словами. */
   oneOf("visual.tagWheel.valueNames", ["default", "custom", "both"]);

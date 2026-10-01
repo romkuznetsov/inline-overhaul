@@ -17,7 +17,7 @@ python tests/prototype/update_prd.py
 | 3 | Navigation | `features.navigation.enabled` | 5 | 27 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
-| 6 | Visual | `features.visual.enabled` | 7 | 57 | 13 |
+| 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
 
 ### Группы по порядку
@@ -1096,6 +1096,10 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: The color of the Field names you are not standing on, while the line is marked
   - tip: This paints the picker drawn over your line, and only while <code>Highlight the tagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected
   - старые названия для поиска: «Text color»
+- **Bold Field names** — `panel-bold-names`, `toggle`, path `visual.tagWheel.boldFieldNames`, default `false`
+  - desc: Print every Field that shows its own name in bold, while the line is marked
+  - tip: Off, only the Field you are on is bold, and only while it still shows its name. On, every Field that shows its name is bold, the ones you are not on too, so the Fields still waiting for a Value stand out from the ones already filled in. A Field that carries a Value stays regular either way. Like the colors here, it needs <code>Highlight the tagWheel line</code> on
+  - старые названия для поиска: «Bold names», «Empty Fields in bold»
 - **Active Field text color** — `panel-active-color`, `color`, path `visual.tagWheel.activeTextColor`, default `""`
   - desc: The color of the Field you are on, while the line is marked
   - tip: The Field you are standing in is the one the up and down keys move through. Without its own color it differs from the rest only by weight, and on a line with many Fields that is easy to lose. Empty means it takes <code>Inactive Field text color</code> like the others
@@ -1382,6 +1386,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `visual.tagWheel.activeField.mode` | dropdown | `first` |
 | `visual.tagWheel.activeField.right` | dropdown | `""` |
 | `visual.tagWheel.activeTextColor` | color | `""` |
+| `visual.tagWheel.boldFieldNames` | toggle | `false` |
 | `visual.tagWheel.chosenValueColor` | color | `""` |
 | `visual.tagWheel.customTab` | toggle | `false` |
 | `visual.tagWheel.edgeMode` | dropdown | `stay` |
