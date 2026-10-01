@@ -82,7 +82,19 @@ function followConfigWithCommands(plugin) {
     const reason = String(payload && payload.reason || "");
     const tab = plugin._settingTab;
     if (tab && typeof tab.update === "function" && (reason === "command:undo" || reason === "external" || /^toggle:/.test(reason))) {
-      try { tab.update(); } catch (e) { console.error("[inline-overhaul] settings refresh", e); }
+      try {
+        /*
+         * Строку с фокусом платформа при пересборке пропускает (`app.js` 1.13.7,
+         * сверка определений: `a.contains(l) && a !== l`, `l = listEl.doc.activeElement`).
+         * Щёлкнутый тумблер держит фокус, и `Undo` оставлял его отменённым
+         * (BUGHUNT 2026-09-30, D22). Запись пришла не из панели — фокус снимается.
+         */
+        const box = tab.containerEl;
+        const doc = box && (box.doc || box.ownerDocument);
+        const active = doc ? doc.activeElement : null;
+        if (active && box.contains(active) && typeof active.blur === "function") active.blur();
+        tab.update();
+      } catch (e) { console.error("[inline-overhaul] settings refresh", e); }
     }
   });
   plugin.register(unsubscribe);

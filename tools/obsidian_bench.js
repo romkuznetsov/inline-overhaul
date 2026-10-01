@@ -502,6 +502,62 @@ const SCENARIOS = {
   },
 
   /*
+   * D22 перечня 2026-09-30: после `Undo last settings change` тумблер панели
+   * показывает отменённое значение. Два тумблера Advanced щелчком, две отмены
+   * командой — экран обязан совпасть с конфигом после каждой.
+   */
+  async "undo-toggle-redraw"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Advanced");
+    const NAMES = { "Autosave": "autosave", "Save a backup before restoring": "beforeRestore" };
+    const screen = () => host.evaluate((names) => {
+      const out = {};
+      for (const row of document.querySelectorAll(".setting-item")) {
+        const n = row.querySelector(".setting-item-name");
+        const t = n && n.textContent.trim();
+        const box = row.querySelector(".checkbox-container");
+        if (t && names.includes(t) && box && box.getBoundingClientRect().width > 0) out[t] = box.classList.contains("is-enabled");
+      }
+      return out;
+    }, Object.keys(NAMES));
+    const cfg = async () => {
+      const b = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().advanced.backups);
+      const out = {};
+      for (const [t, k] of Object.entries(NAMES)) out[t] = b[k] === true;
+      return out;
+    };
+    const flip = (name) => host.evaluate((t) => {
+      const row = [...document.querySelectorAll(".setting-item")].find((r) => {
+        const n = r.querySelector(".setting-item-name");
+        return n && n.textContent.trim() === t && r.getBoundingClientRect().width > 0;
+      });
+      row.querySelector(".checkbox-container").click();
+    }, name);
+    const log = [];
+    const start = await screen();
+    /* Контроль «тумблеры нашлись» (У-152). */
+    if (Object.keys(start).length !== 2) { console.log("КОНТРОЛЬ: тумблеров на экране " + JSON.stringify(start)); return false; }
+    for (const name of Object.keys(NAMES)) { await flip(name); await host.waitForTimeout(600); }
+    log.push(["щелчки", await screen(), await cfg()]);
+    for (let i = 1; i <= 2; i++) {
+      await win.evaluate(() => window.app.commands.executeCommandById("inline-overhaul:undo-last-settings-change"));
+      await host.waitForTimeout(900);
+      log.push(["Undo " + i, await screen(), await cfg()]);
+    }
+    for (const [step, s, c] of log) console.log(step + ": экран " + JSON.stringify(s) + " | конфиг " + JSON.stringify(c));
+    /* Контроль «щелчки сдвинули конфиг» — иначе отменять нечего. */
+    if (JSON.stringify(log[0][2]) === JSON.stringify(log[2][2])) { console.log("КОНТРОЛЬ: Undo не вернул конфиг — мерить нечего"); return false; }
+    const ok = log.every(([, s, c]) => JSON.stringify(s) === JSON.stringify(c));
+    console.log(ok ? "ok: тумблеры на экране следуют за отменой" : "РАСХОДИТСЯ: экран не совпал с конфигом");
+    return ok;
+  },
+
+  /*
    * Предпросмотр строки на его конфиге (его замечание цикла 113: «когда fields
    * становится много, preview вылазит за границы поля»). Правый край строки
    * не дальше края карточки, а строка листается. Контроль — его Fields

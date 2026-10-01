@@ -140,6 +140,31 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   ok("панель пересобирается на записи не из неё, и только на них");
 }
 
+/* 3б. D22 перечня 2026-09-30: строку с фокусом платформа при пересборке
+   пропускает (`app.js` 1.13.7), поэтому фокус внутри панели снимается до
+   `update()`; фокус вне панели не трогается. */
+{
+  const listeners: Array<(p: Any) => void> = [];
+  const order: string[] = [];
+  const inside = { blur: () => { order.push("blur"); } };
+  const outside = { blur: () => { order.push("blur-outside"); } };
+  let focused: Any = inside;
+  const containerEl = { doc: { get activeElement() { return focused; } }, contains: (n: Any) => n === inside };
+  const plugin: Any = {
+    getConfig: () => config([]), addCommand: () => {}, removeCommand: () => {}, register: () => {},
+    store: { subscribe: (fn: (p: Any) => void) => { listeners.push(fn); return () => {}; } },
+    registerPkmCommands() {}, registerBinderCommands() {},
+    _settingTab: { containerEl, update: () => { order.push("update"); } },
+  };
+  I.followConfigWithCommands(plugin);
+  listeners.forEach((fn) => fn({ reason: "command:undo" }));
+  assert.deepEqual(order, ["blur", "update"], "фокус в панели не снят до пересборки: " + order.join(","));
+  focused = outside;
+  listeners.forEach((fn) => fn({ reason: "command:undo" }));
+  assert.deepEqual(order, ["blur", "update", "update"], "снят фокус вне панели: " + order.join(","));
+  ok("D22: отмена командой снимает фокус в панели, и щёлкнутый тумблер перерисовывается");
+}
+
 /* 4. BUGHUNT R4 (F8, T20): двери PKM и Transform не пускают на код и таблицу. */
 {
   const cfg = config([]);
