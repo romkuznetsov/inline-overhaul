@@ -252,6 +252,8 @@ const PREPARE = {
   },
 };
 
+PREPARE["panel-link-label"] = PREPARE["scroller-link-label"];
+
 /** Value-ссылки сценария `scroller-link-label`: с подписью, простая, с папкой. */
 const SCROLLER_LINKS = ["Alias Target|Shown", "Plain", "111/Deep"];
 
@@ -1241,6 +1243,48 @@ const SCENARIOS = {
     const all = seen.rows.join(" ");
     const ok = /Shown/.test(all) && !/Alias Target/.test(all) && /Deep/.test(all) && !/111\//.test(all);
     console.log(ok ? "ok: подпись ссылки, имя без папки" : "РАСХОДИТСЯ: скроллер подписывает ссылку не так, как строка");
+    return ok;
+  },
+
+  /* A10 перечня 2026-09-30: ссылка с подписью в полосе tagWheel видна как `Ex]`.
+     Обходит ячейки полосы стрелкой вправо, в каждой листает Value вниз и
+     спрашивает экран: подпись `Shown` видна целиком, без скобок и цели. */
+  async "panel-link-label"(win) {
+    const n = await openAt(win, "bench-scroller.md", "- текст");
+    if (n < 0) throw new Error("нет строки в bench-scroller.md");
+    await win.evaluate((n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n, ch: ed.getLine(n).length }); ed.focus(); }, n);
+    await win.waitForTimeout(500);
+    if (!(await runCommand(win, "open-tagwheel-right"))) throw new Error("команда tagWheel Right не выполнилась");
+    await win.waitForTimeout(1000);
+    const look = () => win.evaluate((n) => {
+      const ed = window.app.workspace.activeEditor.editor;
+      const row = ed.cm.contentDOM.querySelectorAll(".cm-line")[n];
+      return { open: !!(window.__tagWheelState && window.__tagWheelState.active), doc: ed.getLine(n), screen: row ? row.textContent : "" };
+    }, n);
+    const seen = [];
+    for (let cell = 0; cell < 8; cell++) {
+      for (let v = 0; v < 3; v++) {
+        await win.keyboard.press("ArrowDown");
+        await win.waitForTimeout(250);
+        seen.push(await look());
+      }
+      await win.keyboard.press("ArrowRight");
+      await win.waitForTimeout(250);
+    }
+    await win.keyboard.press("Escape");
+    await win.waitForTimeout(400);
+    if (!seen.length || !seen[0].open) { console.log("КОНТРОЛЬ: панель не открылась — мерить нечего"); return false; }
+    /* Активная ячейка-ссылка: `**[[[цель]]]**` в документе, `[подпись]` на экране. */
+    const SHOWN = { "Alias Target|Shown": "Shown", "Plain": "Plain", "111/Deep|Deep": "Deep" };
+    const hit = seen.map((s) => {
+      const m = /\*\*\[\[\[([^\]]+)\]\]\]\*\*/.exec(s.doc);
+      return m && SHOWN[m[1]] ? Object.assign({ want: "[" + SHOWN[m[1]] + "]" }, s) : null;
+    }).filter(Boolean);
+    /* Контроль «активная ячейка-ссылка в полосе побывала» (У-152): без неё мерить нечего. */
+    if (!hit.length) { console.log("КОНТРОЛЬ: активной ячейки со ссылкой в полосе не встретилось"); return false; }
+    for (const s of hit) console.log("документ:", s.doc, "\nэкран:   ", s.screen);
+    const ok = hit.every((s) => (" " + s.screen + " ").includes(" " + s.want + " ") && !/Alias Target|111\//.test(s.screen));
+    console.log(ok ? "ok: полоса показывает подпись целиком" : "РАСХОДИТСЯ: полоса показывает ссылку не подписью");
     return ok;
   },
 

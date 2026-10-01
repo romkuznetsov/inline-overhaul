@@ -1103,6 +1103,27 @@ const filled = (el: Any): boolean =>
 
 {
   /*
+   * **Ссылка в активной ячейке** (BUGHUNT 2026-09-30, A10): Obsidian читает
+   * `[[[Цель|Подпись]]]` как ссылку с целью `[Цель` и лишнюю `]` — на экране
+   * `Подпись]`. Скобки ячейки вместе со ссылкой накрывает виджет `[Подпись]`
+   * цветом активной ячейки; неактивную ссылку Obsidian рисует верно сама.
+   * В настоящем Obsidian — `node tools/obsidian_bench.js panel-link-label`.
+   */
+  const colors = I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: { activeTextColor: "#ff0000", showMarkers: true } } });
+  const line = "- x :: ==**[[[Alias Target|Shown]]]** [[Alias Target|Shown]] `Due`== ";
+  const spans = I.tagwheelPanelSpans(line, colors, new Set(["Due"])) as Any[];
+  const links = spans.filter((s) => s.kind === "replace" && /\[\[/.test(line.slice(s.start, s.end)));
+  assert.deepEqual(links.map((s) => [line.slice(s.start, s.end), s.text, s.color]),
+    [["[[[Alias Target|Shown]]]", "[Shown]", "#ff0000"]],
+    "активная ячейка-ссылка — виджет с подписью, неактивная не трогается: " + JSON.stringify(links));
+  const folder = (I.tagwheelPanelSpans("- ==**[[[111/Deep|Deep]]]**== ", colors, new Set()) as Any[])
+    .find((s) => s.kind === "replace");
+  assert.equal(folder && folder.text, "[Deep]", "у Value с папкой — имя без неё: " + JSON.stringify(folder));
+  ok("A10: ссылка в активной ячейке tagWheel видна подписью в скобках ячейки");
+}
+
+{
+  /*
    * **Цвет ячейки с уже выбранным значением** — его заказ 2026-09-17: «сейчас
    * в tagwheel дефолтное значение field (само название field) визуально не
    * различается от измененного значения field (когда пользователь выбрал
