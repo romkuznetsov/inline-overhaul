@@ -47,7 +47,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 24. 🐛 **`Jump left` and `Text start` know headings and quotes.** The cursor stops after `> ` and after `# `.
 25. 🐛 **`Field order source = Field order` works.** The Field order decides the Prefix; with `Manual`, the Fields missing from the list come after it, as the panel shows.
 26. 🎨 **The toggle `Insert only: keep the Prefix` is gone.** Insert-only mode always writes the Separators between the Blocks and the text.
-27. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
+27. 🐛 **The tagWheel scroller names a link the way the line shows it.** `[[Alias Target|Shown]]` reads `Shown`, and a Value in a folder reads its name without the folder.
+28. 🐛 **Insert-only mode keeps your quote and your checkbox.** `> ` and `- [ ]` stay at the start of the line; only the tag changes.
+29. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
 
 ## 0.12.0
 
