@@ -440,6 +440,8 @@ function fixpointOf(line, rules) {
  * надо снять, и обход об этом говорит вслух.
  */
 let TRAILING_SPACE_SEEN = 0;
+/* `When a line empties out = Clear line` у этого конфига — ставит `main`. */
+let CLEAR_LINE = false;
 
 function knownTrailingSpace(line, again, seg, rules) {
   if (again !== String(line || "") + " ") return false;
@@ -612,6 +614,21 @@ const KNOWN = [
       return fixpointOf(cmd, rules).knownProperty === true;
     },
   },
+  {
+    /*
+     * **Опустевшая строка при `Clear line` пустая** — его ответ `В-260`
+     * (A18, исключение 185). Обе дороги согласны, а неподвижность на пустой
+     * строке спрашивать нечего: сборка пустого отвечает знаком новой строки
+     * `- `, и до записи это не доходит — пустую строку пишет сама доводка.
+     * Узко: только когда обе дороги дали ровно пустую строку и конфиг велит
+     * чистить.
+     */
+    why: "Clear line: опустевшая строка пустая у обеих дорог",
+    since: "2026-10-01",
+    where: "его ответ В-260, A18, исключение 185",
+    seen: 0,
+    when: (row) => CLEAR_LINE && row && row.cmd === "" && row.panel === "",
+  },
 ];
 
 function knownFor(row, rules) {
@@ -664,6 +681,7 @@ async function main() {
       + " и " + JSON.stringify(shared.readCfgPath(cfg, "pkm.lineFormat.separator2")));
   }
   const rules = rulesOf(cfg);
+  CLEAR_LINE = shared.readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") === "clear-prefix";
   selfCheck(rules, cfg);
   /* Метка — из его правил, тем же объявлением, каким её берёт доводка;
      значение за ней пишет сам плагин по формату этого поля (см. ниже). */
@@ -1046,6 +1064,13 @@ async function main() {
       /* Круг замкнулся — значит следующий шаг повторяет уже виденное, а
          непустых состояний в нём столько, сколько значений поле может здесь
          показать, плюс пустое место. Меньше — круг схлопнулся. */
+      /*
+       * При `Clear line` пустое место — пустая строка (`В-260`): знак задачи
+       * уходит с последним значением, и дальше круг идёт уже по пустой
+       * строке. Счёт — до неё включительно.
+       */
+      const cut = CLEAR_LINE && c.line !== "" ? walk.indexOf("") : -1;
+      if (cut >= 0) { distinct.clear(); for (const l of walk.slice(0, cut + 1)) distinct.add(l); }
       const closed = distinct.size <= reach.length + 1;
       const full = distinct.size >= reach.length + 1 || walk.every((l) => l === c.line);
       const ok = closed && full && !doubled;
