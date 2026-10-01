@@ -113,7 +113,7 @@ _Tip:_ Saving writes a new note every time and never overwrites an earlier one, 
   - desc: Where in your vault the backups are kept
   - tip: Any folder you like. It is made when you save the first backup, not before. Backups are ordinary notes, so they travel with the vault and sync along with the rest of it
 - **Autosave** — `backup-autosave`, `toggle`, path `advanced.backups.autosave`, default `false`
-  - desc: Keep a copy of your settings whenever they change outside the panel
+  - desc: Each time Obsidian starts, keep a copy of your settings if they differ from the last one
   - tip: On every start of Obsidian the plugin compares your settings file with the last autosave it made, and writes a new one when the two differ — so a file arriving from another device, from your sync or from a copy has a way back. The copy is full: every tab and the hotkeys of this plugin. Under the heading <code>What changed</code> in each note is the list of settings that differ from the previous autosave. The ten newest copies are kept and older ones are removed. This is not the same thing as undo: to step back one change inside the panel, use the command <code>Undo last settings change</code>
 - **Save a backup before restoring** — `backup-before-restore`, `toggle`, path `advanced.backups.beforeRestore`, default `true`
   - desc: Write what you have now into the folder above before an earlier backup replaces it

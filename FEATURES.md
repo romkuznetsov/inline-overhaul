@@ -170,7 +170,7 @@ it to one that already exists. Off out of the box.
   own registry.
 - **Guide note.** `General → Help → Guide → Read` writes the guide into your vault.
 - **Backup.** `Save a backup` writes your setup into a note; `Autosave` keeps a copy
-  whenever the settings file changes outside the panel; `Start over` returns to defaults
+  each time Obsidian starts with settings that differ from the last copy; `Start over` returns to defaults
   and writes a backup first.
 - **Diagnostics.** `Show option IDs in tips` puts each setting's identifier into its tip, a
   developer log records what the plugin did, and `Undo last settings change` rolls back the
