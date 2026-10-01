@@ -107,6 +107,8 @@ export const DIALOG_TEXTS = {
     RESTORE_SAME: "That backup matches what you already have",
     /** Хоткеи вернулись — сказать отдельно: их человек ищет не там, где настройки. */
     HOTKEYS_DONE: "back on the plugin commands",
+    /** Копия объёма `all` ставит клавиши и чужим командам — счёт не про плагин (H3.4). */
+    HOTKEYS_DONE_VAULT: "back in this vault",
     CONFLICT_CLEARED: "taken off other commands",
     /** В копии хоткеи есть, а вернуть их этой сборкой нечем. */
     HOTKEYS_NO_METHOD: "The hotkeys in that backup could not be put back",
@@ -115,6 +117,8 @@ export const DIALOG_TEXTS = {
     RESTORED_BODY: "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago",
     RESTORED_NOTE: "Restart Obsidian to be sure every part matches the backup",
     RESTORED_SAME_BODY: "That backup matches what you already have, so nothing changed",
+    /** Настройки совпали, а хоткеи — нет: «nothing changed» было бы неправдой (H3.3). */
+    RESTORED_HOTKEYS_BODY: "Your settings already match that backup, so only its hotkeys changed",
     RESTORED_CLOSE: "Got it",
   },
 

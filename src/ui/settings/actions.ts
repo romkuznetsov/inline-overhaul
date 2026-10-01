@@ -405,6 +405,31 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
   const partLabelsSaid = (ids: readonly string[]): string[] => partLabelsFor(ids, true);
 
   /**
+   * Сменит ли запись хоткеев копии что-нибудь в vault. Пишет восстановление
+   * клавиши из копии, а при объёме `own` ещё и снимает свои, которых в копии
+   * нет; чужие вне копии не трогает. Прочесть нечем — «не знаю», то есть
+   * прежний ответ: окно говорит то, что говорило.
+   */
+  const hotkeysDiffer = (fromBackup: Record<string, unknown[]>, scope: string): boolean => {
+    const seam = deps.hotkeys;
+    if (!seam || typeof seam.read !== "function") return false;
+    let own: Record<string, unknown[]> = {};
+    let now: Record<string, unknown[]> = {};
+    try {
+      own = seam.read() || {};
+      now = scope === "all" && typeof seam.readAll === "function" ? seam.readAll() || {} : own;
+    } catch (_) {
+      /* Проба: прочесть нынешние клавиши не вышло — ответ «не знаю», запись идёт как шла. */
+      return false;
+    }
+    const ids = new Set([...Object.keys(fromBackup), ...Object.keys(own)]);
+    for (const id of ids) {
+      if (JSON.stringify(now[id] || []) !== JSON.stringify(fromBackup[id] || [])) return true;
+    }
+    return false;
+  };
+
+  /**
    * Записать копию нынешних настроек и вернуть путь. Зовётся и кнопкой
    * `Save a backup`, и восстановлением, и сбросом — оба снимают копию перед
    * записью (Б12), тем же способом и в ту же папку.
@@ -460,7 +485,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
        * она всегда полная. Сузить её значило бы обещать возврат, которого нет.
        */
       parts: auto === true ? allPartIds() : (picked ? picked.parts : allPartIds()),
-      hotkeyScope: auto === true ? "own" : scope,
+      hotkeyScope: scope,
       comment: picked ? picked.comment : "",
     })));
     return path;
@@ -891,7 +916,15 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * по умолчанию есть. Выключен — пишем сразу, и вопрос об этом уже
          * сказал (`RESTORE_BODY` собирается по тому же значению).
          */
-        if (willBackUp) await writeBackup(vault, config, true);
+        /*
+         * Копия перед восстановлением держит то, что восстановление тронет:
+         * копия с хоткеями всего vault перепишет и чужие, и путь назад обязан
+         * их помнить (прогон 2026-10-02, H3.2). Иначе — свои, как было.
+         */
+        if (willBackUp) {
+          await writeBackup(vault, config, true,
+            scope === "all" ? { parts: allPartIds(), comment: "", hotkeyScope: "all" } : undefined);
+        }
         /*
          * Неотмеченная вкладка остаётся такой, какая сейчас (решение
          * заказчика 2026-09-06). Копия, снятая до галочек, частей не называет,
@@ -921,12 +954,14 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * настройки уже на месте, и молчать об этом было бы хуже.
          */
         let saidHotkeys = "";
+        let hotkeysChanged = false;
         if (hotkeyCount) {
           if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
             try {
+              hotkeysChanged = hotkeysDiffer(hotkeys, scope);
               const n = await Promise.resolve(deps.hotkeys.write(hotkeys, { scope, clearConflicts }));
               saidHotkeys = ". " + count(Number(n) || 0, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")
-                + " " + say("HOTKEYS_DONE");
+                + " " + say(scope === "all" ? "HOTKEYS_DONE_VAULT" : "HOTKEYS_DONE");
               if (clearConflicts && conflicts.length) {
                 saidHotkeys += ", " + count(conflicts.length, "WORD_KEY_ONE", "WORD_KEY_MANY")
                   + " " + say("CONFLICT_CLEARED");
@@ -954,7 +989,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
               title: say("RESTORED_TITLE"),
               /* Копия совпала — менять было нечего, и перезапуск не нужен
                  (его ответ `В-267`, BUGHUNT D20). */
-              body: say(changed ? "RESTORED_BODY" : "RESTORED_SAME_BODY"),
+              body: say(changed ? "RESTORED_BODY" : (hotkeysChanged ? "RESTORED_HOTKEYS_BODY" : "RESTORED_SAME_BODY")),
               rows,
               ...(changed ? { note: say("RESTORED_NOTE") } : {}),
               closeLabel: say("RESTORED_CLOSE"),

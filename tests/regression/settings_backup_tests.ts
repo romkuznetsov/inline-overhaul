@@ -1497,6 +1497,60 @@ function sampleConfig(): Record<string, unknown> {
   assert.ok((shown.rows || []).indexOf(ACTION_TEXTS.CONFLICT_SCOPE_ALL) >= 0,
     "про объём all окно ничего не сказало: " + JSON.stringify(shown.rows));
   ok("про копию объёма all окно говорит, почему галочки нет");
+
+  /*
+   * Копия перед восстановлением копии `all` помнит чужие клавиши, которые оно
+   * перепишет (прогон 2026-10-02, H3.2): прежде она всегда была `own`, и
+   * вернуть чужую клавишу было нечем. Контроль — копия `own`: в её копии
+   * перед восстановлением чужих клавиш нет.
+   */
+  const nowAll = { "other-plugin:y": [{ modifiers: ["Mod"], key: "3" }] };
+  const autoAfter = async (backupNote: string): Promise<Record<string, unknown[]>> => {
+    const r = wire({
+      hotkeys: { read: () => ({}), readAll: () => JSON.parse(JSON.stringify(nowAll)), conflicts: () => [], write: () => 1 },
+    });
+    r.fake.files.set(saved, backupNote);
+    ((r.cfg as Any).visual.tags as Any).textSizePct = 140;
+    await r.run("restore-backup");
+    const made = [...r.fake.files.keys()].filter((k) => k !== saved);
+    assert.equal(made.length, 1, "копия перед восстановлением не снята: " + JSON.stringify(made));
+    const text = r.fake.files.get(made[0] as string) as string;
+    return Object.assign(backup.parseBackupHotkeys(text), { __scope: [backup.describeBackup(text).hotkeyScope] });
+  };
+  const keptAll = await autoAfter(note);
+  assert.deepEqual(keptAll["other-plugin:y"], nowAll["other-plugin:y"],
+    "копия перед восстановлением all не помнит чужую клавишу: " + JSON.stringify(keptAll));
+  assert.deepEqual(keptAll.__scope, ["all"], "копия перед восстановлением all помечена не all — при возврате чужие клавиши не вернутся");
+  const ownNote = backup.buildBackupNote({ config: sampleConfig(), hotkeys: { "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }] }, hotkeyScope: "own" });
+  const keptOwn = await autoAfter(ownNote);
+  assert.ok(!("other-plugin:y" in keptOwn), "копия перед восстановлением own взяла чужие клавиши: " + JSON.stringify(keptOwn));
+  ok("копия перед восстановлением all помнит чужие клавиши, перед own — нет");
+
+  /*
+   * H3.3 и H3.4 того же прогона: настройки совпали, а хоткеи — нет, и окно не
+   * говорит «nothing changed»; счёт объёма `all` — хоткеи vault, а не «на
+   * командах плагина». Контроль — хоткеи совпали: окно прежнее.
+   */
+  const announcedFor = async (current: Record<string, unknown[]>): Promise<{ body: string; said: string }> => {
+    const r = wire({
+      hotkeys: {
+        read: () => ({ "inline-overhaul:x": current["inline-overhaul:x"] || [] }),
+        readAll: () => JSON.parse(JSON.stringify(current)),
+        conflicts: () => [], write: () => 2,
+      },
+    });
+    r.fake.files.set(saved, note);
+    await r.run("restore-backup");
+    const last = r.fake.announced[r.fake.announced.length - 1] as Any;
+    return { body: last ? last.body : "", said: r.fake.notes.join(" | ") };
+  };
+  const moved = await announcedFor({ "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }], "other-plugin:y": [{ modifiers: ["Mod"], key: "9" }] });
+  assert.equal(moved.body, ACTION_TEXTS.RESTORED_HOTKEYS_BODY, "хоткеи сменились, а окно говорит другое: " + moved.body);
+  assert.ok(moved.said.indexOf(ACTION_TEXTS.HOTKEYS_DONE_VAULT) >= 0 && moved.said.indexOf(ACTION_TEXTS.HOTKEYS_DONE) < 0,
+    "счёт объёма all назван командами плагина: " + moved.said);
+  const same = await announcedFor(JSON.parse(JSON.stringify(every)));
+  assert.equal(same.body, ACTION_TEXTS.RESTORED_SAME_BODY, "контроль: всё совпало, а окно говорит о хоткеях: " + same.body);
+  ok("настройки совпали, хоткеи нет — окно говорит о хоткеях; счёт all — хоткеи vault");
 }
 
 {
