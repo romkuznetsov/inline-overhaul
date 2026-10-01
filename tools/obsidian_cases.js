@@ -467,6 +467,11 @@ module.exports = [
   ...[["B9", 1, 2], ["B9.w", 2, 9]].map(([id, n, ch]) => one(id, "Jump left на цитате: `> ` — начало строки", "> one two", Array(n).fill("move-cursor-left-in-line"), "",
     { at: { file: "t.md", line: 0, ch: 6, source: true }, expect: {},
       check: "const c = a.workspace.activeEditor.editor.getCursor(); return c.ch === " + ch + " || JSON.stringify(c);" })),
+  /* A18, его ответ `В-260`: Clear line — опустевшая строка пустая, цитата и отступ остаются, у команды и у панели. */
+  ...[["A18.q", ["status-previous"], "> - #todo || ", "> "], ["A18.i", ["status-previous"], "\t- #todo || ", "\t"],
+    ["A18.tw", ["open-tagwheel-left", { key: "ArrowDown" }, { key: "Enter" }], "- #todo || ", ""]].map(([id, steps, line, want]) =>
+    one(id, "Clear line: " + JSON.stringify(line) + " → " + JSON.stringify(want), line, steps, want,
+      { at: { file: "t.md", line: 0, source: true }, cfg: { pkm: { behavior: { cycleEndBehavior: "clear-prefix" } } } })),
   /* B20, его ответ `В-263`: знаки препинания при переносе слова остаются на месте — его примеры. */
   one("B20.1", "Move left: запятая и ! на месте", "- купить хлеб, молоко!", ["move-left"], "- купить молоко, хлеб!", { at: { file: "t.md", line: 0, sel: "молоко" } }),
   one("B20.2", "Move right ×2: точка на месте", "- завтра встреча. Потом отчёт", [{ js: "const l = ed.getLine(0); ed.setSelection({ line: 0, ch: l.indexOf('завтра') }, { line: 0, ch: l.indexOf('завтра') + 6 });" }, "move-right", "move-right"], "- встреча. Потом завтра отчёт"),

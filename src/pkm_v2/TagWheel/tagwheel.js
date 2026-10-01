@@ -2257,7 +2257,9 @@ async function runTagWheel(input, quickAddSettings) {
       },
     })
     finalLine = String(cyclePost && cyclePost.finalLine != null ? cyclePost.finalLine : finalLine)
-    if (hasRightSelected) {
+    /* Очищенной `Clear line` строке правый Block собирать не из чего, а
+       инварианты вернули бы ей знак списка (`В-260`, BUGHUNT A18). */
+    if (hasRightSelected && !(cyclePost && cyclePost.cleared)) {
       if (!linePipeline || typeof linePipeline.normalizeRightPayloadTailToDates !== 'function') {
         throw new Error('line_pipeline unavailable: normalizeRightPayloadTailToDates')
       }

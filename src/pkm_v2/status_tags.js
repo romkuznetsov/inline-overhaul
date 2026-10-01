@@ -1788,9 +1788,11 @@ module.exports = {
       shouldKeepBulletLine: (line) => /^\s*(?:-|\d+\.)\s*$/.test(String(line || "")),
     });
     finalLine = String(cyclePost?.finalLine ?? finalLine);
-    if (!String(finalLine || "").trim()) {
-      editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: rawLine.length });
-      editor.setCursor({ line: lineNo, ch: 0 });
+    /* Опустевшая строка — пустая, но отступ и цитата её (`В-260`, BUGHUNT A18):
+       пишется то, что отдал дом, а не литерал пустоты. */
+    if (cyclePost?.cleared || !String(finalLine || "").trim()) {
+      editor.replaceRange(finalLine, { line: lineNo, ch: 0 }, { line: lineNo, ch: rawLine.length });
+      editor.setCursor({ line: lineNo, ch: finalLine.length });
       return;
     }
     if (targetPanel === "right") {

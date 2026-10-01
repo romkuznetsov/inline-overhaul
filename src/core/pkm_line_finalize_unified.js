@@ -1208,16 +1208,52 @@ function applyCycleEndAndInvariants(options) {
     stripPrefixKeepIndent: opts.stripPrefixKeepIndent,
   });
   const lineAfterCycle = String(cyclePost && cyclePost.finalLine != null ? cyclePost.finalLine : opts.finalLine || "");
-  const finalLine = applyFinalLineInvariants({
+  let finalLine = applyFinalLineInvariants({
     rawLine,
     line: lineAfterCycle,
     rules,
     mode,
   });
+  /*
+   * **`Clear line` — опустевшая строка становится пустой, отступ и цитата
+   * остаются** (его ответ `В-260`, BUGHUNT A18). Три дороги давали три ответа:
+   * команда `- #todo || ` — пусто, `> - #todo || ` — `> - `, панель — `- `.
+   * Отступ, цитата и каллаут принадлежат строке целиком (У-184), знак списка
+   * и задача — нет. Объявлено в доме, который зовут все три дороги.
+   */
+  const cleared = isClearedLine(finalLine, opts);
+  if (cleared) finalLine = outerShapeOf(rawLine);
   return {
     finalLine,
     applyKeepBullet: !!(cyclePost && cyclePost.applyKeepBullet),
+    /* Строка очищена `Clear line`: позвавший не возвращает ей начало строки. */
+    cleared,
   };
+}
+
+/** Внешнее оформление строки: отступ, цитата, каллаут (У-184). */
+function outerShapeOf(line) {
+  const start = __sharedUtils.lineStartOf(String(line || ""));
+  return String(start.indent || "") + String(start.quote || "") + String(start.callout || "");
+}
+
+/**
+ * Строка опустела при `Clear line`: ни значений, ни дат, ни текста, не
+ * заголовок. Её начало — знак списка или задачи — уходит (`В-260`).
+ */
+function isClearedLine(line, opts) {
+  if (normalizeCycleEnd(opts && opts.cycleEndBehavior) !== "clear-prefix") return false;
+  if (typeof (opts && opts.parseLine) !== "function") return false;
+  const parsed = opts.parseLine(String(line || ""), opts.rules) || {};
+  if (parsed.headingToken) return false;
+  if (Array.isArray(parsed.tags) && parsed.tags.length) return false;
+  return !String(parsed.dates || "").trim() && !String(parsed.text || "").trim();
+}
+
+function normalizeCycleEnd(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "clear-prefix" || v === "off" || v === "of" || v === "none" || v.indexOf("clear") !== -1 || v.indexOf("empty") !== -1
+    ? "clear-prefix" : "keep-bullet";
 }
 
 function isSimplePlainRaw(rawLine, rules, options) {
@@ -2319,6 +2355,8 @@ function enforceOffModeFinalPrefixUnified(options) {
     const dates = String(parsed && parsed.dates ? parsed.dates : "").trim();
     const text = String(parsed && parsed.text ? parsed.text : "").trim();
     if (!tags.length && !dates && text) return line;
+    /* Очищенная `Clear line` строка знак списка обратно не получает (`В-260`). */
+    if (!tags.length && !dates && !text && !hasListPrefix(line)) return line;
   }
   const flags = resolveOffPrefixFlagsUnified(opts);
   if (opts.preserveSyntheticPrefix === true) {

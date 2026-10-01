@@ -67,6 +67,21 @@ async function main(): Promise<void> {
   await viaClear("- [ ] #todo || купить", "- [ ] купить", "F15 чекбокс остаётся, когда текст есть");
   await viaClear("1. #todo || пункт", "1. пункт", "F15 номер остаётся, когда текст есть");
   await viaClear("- [ ] #todo", "", "F15 опустевшая строка чистится");
+  /* A18, его ответ `В-260`: опустевшая строка пустая, отступ и цитата остаются —
+     одним правилом у команды тега, команды даты и панели. */
+  for (const [line, want] of [["- #todo || ", ""], ["> #todo || ", "> "], ["> - #todo || ", "> "], ["\t- #todo || ", "\t"]] as const) {
+    await viaClear(line, want, "A18 команда тега: " + JSON.stringify(line) + " → " + JSON.stringify(want));
+    const tw = await bench.runTagWheel(clearCfg, "left", line, line.length, ["ArrowDown"]);
+    assert.ok(tw.opened, "панель не открылась");
+    assert.equal(tw.line, want, "A18 панель: " + JSON.stringify(line));
+    passed++;
+  }
+  for (const [line, want] of [["\t- || 📅2026-10-01", "\t"], ["> - || 📅2026-10-01", "> "]] as const) {
+    const got = await bench.runCommandById(clearCfg, "due-previous", line, line.length);
+    assert.equal(got.line, want, "A18 команда даты: " + JSON.stringify(line));
+    passed++;
+  }
+  console.log("  ok A18 Clear line: пусто, отступ и цитата остаются — команды и панель");
   /* K4, K5: одиночный разделитель, за которым правый Block, — второй; слот
      текста слева (так же отвечает разбор строки). Smart Enter `Text only`
      спрашивает именно его. */
