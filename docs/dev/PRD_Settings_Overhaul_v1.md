@@ -872,7 +872,6 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:6707 | `Subtag format` / `… status_tags commands` | `pkm.behavior.childTagFormat` | Child tag format (`child-tag-format`, Writing rules) |
 | перенесено | R:6720 | `Line prefix after end of cycle` | `pkm.behavior.cycleEndBehavior` | When a line empties out (`cycle-end-behavior`, Writing rules) |
 | перенесено | R:6733 | `Cursor behavior` | `pkm.behavior.cursorPolicy` | Cursor after an action (`cursor-policy`, Writing rules) |
-| перенесено | R:6748 | `Minimal mode separators` | `pkm.placement.keepPrefixInsertOnly` | Insert only: keep Separators (`placement-keep-prefix`, Placement modes) |
 | перенесено | R:6761 | `OFF mode prefix` (описание в 3 строки) | `pkm.placement.bulletInStrict` | Strict: add a bullet (`placement-bullet-strict`, Placement modes) |
 | перенесено | R:6774 | `Minimal mode prefix` | `pkm.placement.fieldPrefixInsertOnly` | Insert only: use Field Prefix (`placement-field-prefix`, Placement modes) |
 | перенесено | R:6181 | `Main checkbox priority` | `pkm.prefixPriority.decideBy` | Decide by (`prefix-priority-decide`, Prefix priority) |
@@ -920,6 +919,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:1587 | `Generate log for AI?` | `advanced.devMode.aiLog` | Machine-readable log (`dev-ai-log`, Diagnostics) |
 | перенесено | R:1598 | `Log Path` / `Plugin writes <path>.new.* …` | `advanced.devMode.logPath` | Log folder (`dev-log-path`, Diagnostics) |
 | снято | R:1779 | `Prefix Cycle Order` (длинное описание) | `navigation.moveSelection.cycleOrder` | переехало в свой блок renderCycleOrder, path сохраняется |
+| **требует решения** | R:6748 | `Minimal mode separators` | `pkm.placement.keepPrefixInsertOnly` | **нет соответствия в прототипе** |
 | **требует решения** | R:6787 | `Full mode: where to input element if cursor inside text?` | `pkm.placement.freeInsertPosition` | **нет соответствия в прототипе** |
 | **требует решения** | R:6195 | `Fields order mode` | `см. 8.3` | **нет соответствия в прототипе** |
 | **требует решения** | R:5817 | `Config Export Mode` | `pkm.configNote.detail` | **нет соответствия в прототипе** |

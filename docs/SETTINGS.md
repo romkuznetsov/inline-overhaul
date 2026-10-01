@@ -315,7 +315,6 @@ settings say what each mode means.
 | Control | Default | What it does |
 |---|---|---|
 | `Strict: add a bullet` | off | Starts the line with a bullet when the Field has nothing of its own to put there |
-| `Insert only: keep Separators` | on | Puts the Value in its Block and keeps the Separators between the Blocks and the text; off, the Value stands right before the text |
 | `Insert only: use Field Prefix` | on | Allows a Value with a Prefix of its own to change the start of the line after all |
 | `Keep typed tags in text` | on | A tag or link you type between words or at the end of a line stays your word; off, a Value of a Field in your text moves to its Block |
 

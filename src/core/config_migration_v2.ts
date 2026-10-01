@@ -222,7 +222,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("pkm.behavior.cursorPolicy"),
 
   /* --- PKM: как Field встаёт в строку ----------------------------------- */
-  move("pkm.behavior.freeRoam.minimalSeparator", "pkm.placement.keepPrefixInsertOnly"),
+  /* Тумблер снят его словом 2026-10-01 (цикл 114): `Insert only` всегда ставит разделители. */
+  drop("pkm.behavior.freeRoam.minimalSeparator"),
   move("pkm.behavior.freeRoam.minimalPrefix", "pkm.placement.fieldPrefixInsertOnly"),
   move("pkm.behavior.freeRoam.offPrefix", "pkm.placement.bulletInStrict"),
   move("pkm.behavior.freeRoam.fullPlacement", "pkm.placement.freeInsertPosition"),
@@ -481,7 +482,6 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("pkm.fields.defaultBlock"),
   keepV2("pkm.lineFormat.separator1"),
   keepV2("pkm.lineFormat.separator2"),
-  keepV2("pkm.placement.keepPrefixInsertOnly"),
   keepV2("pkm.placement.fieldPrefixInsertOnly"),
   keepV2("pkm.placement.bulletInStrict"),
   keepV2("pkm.placement.typedTagsStayText"),
@@ -750,6 +750,12 @@ const REMOVED_V2_KEYS: readonly string[] = [
   "viewState.activeTab",
   "viewState.fieldOrder",
   "advanced.newSettingsPane",
+  /*
+   * Тумблер `Insert only: keep Separators` снят его словом 2026-10-01 (цикл
+   * 114, тест 6): `Insert only` всегда ставит разделители. Движок читает
+   * ключ как «не `false` — значит да», и без ключа отвечает «да».
+   */
+  "pkm.placement.keepPrefixInsertOnly",
 ];
 
 /**

@@ -103,7 +103,6 @@ const MOVED: ReadonlyArray<readonly [string, string]> = [
   ["pkm.behavior.io.separator2", "pkm.lineFormat.separator2"],
   ["pkm.behavior.subtagFormat", "pkm.behavior.childTagFormat"],
 
-  ["pkm.behavior.freeRoam.minimalSeparator", "pkm.placement.keepPrefixInsertOnly"],
   ["pkm.behavior.freeRoam.minimalPrefix", "pkm.placement.fieldPrefixInsertOnly"],
   ["pkm.behavior.freeRoam.offPrefix", "pkm.placement.bulletInStrict"],
   ["pkm.behavior.freeRoam.fullPlacement", "pkm.placement.freeInsertPosition"],
@@ -205,6 +204,8 @@ const KEPT: readonly string[] = [
 
 /** Удаляются (8.1, «Удаляются»). */
 const DROPPED: readonly string[] = [
+  /* Тумблер `Insert only: keep Separators` снят его словом 2026-10-01 (цикл 114). */
+  "pkm.behavior.freeRoam.minimalSeparator",
   /* Служебный файл правил снят 2026-09-13 (PRD 10.13.52, П-8, шаг четвёртый):
      путь к нему не переезжает, потому что читать по нему нечего. */
   "pkm.generatedRulesPath",
@@ -362,8 +363,9 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
      один у служебного файла правил (2026-09-13, 10.13.52) и три листа её
      разобранного кеша (2026-09-19): они теперь не переезжают, а снимаются, и
      потому считаются в «удалено». И ещё один — вид старой панели, снятый
-     2026-09-19 (`showColorSettings`): его цель тоже снята. */
-  assert.ok(accounted.moved >= 95, "переездов проверено меньше порога: " + accounted.moved);
+     2026-09-19 (`showColorSettings`): его цель тоже снята. И ещё один —
+     `minimalSeparator`: тумблер снят его словом 2026-10-01 (цикл 114). */
+  assert.ok(accounted.moved >= 94, "переездов проверено меньше порога: " + accounted.moved);
   assert.ok(accounted.dropped >= 6,
     "удалённых ветвей меньше, чем названо списком: " + accounted.dropped);
   ok("каждый лист конфига v1 нашёл место в v2: переехал " + accounted.moved

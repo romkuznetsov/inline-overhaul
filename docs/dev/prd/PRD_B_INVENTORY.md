@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 15 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 27 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 9 | 1 |
@@ -620,10 +620,6 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - tip: Headings are always left alone. This only decides what happens to a plain line: on, it becomes a list item; off, it stays as it is
   - см. также: `field-editor` — Each Field’s Prefix behavior is set under Fields
   - старые названия для поиска: «OFF mode Prefix»
-- **Insert only: keep Separators** — `placement-keep-prefix`, `toggle`, path `pkm.placement.keepPrefixInsertOnly`, default `true`
-  - desc: Put the Value in its Block and keep the Separators between the Blocks and the text
-  - tip: Off, insert only writes no Separators: the Value stands right before the text, and Separators already on the line go too. What happens to the start of the line is the next setting
-  - старые названия для поиска: «Minimal mode Separators»
 - **Insert only: use Field Prefix** — `placement-field-prefix`, `toggle`, path `pkm.placement.fieldPrefixInsertOnly`, default `true`
   - desc: Allow a Value to change the start of the line after all, if it has its own
   - tip: Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes
@@ -1299,7 +1295,6 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `pkm.lineFormat.separator2` | text | `||` |
 | `pkm.placement.bulletInStrict` | toggle | `false` |
 | `pkm.placement.fieldPrefixInsertOnly` | toggle | `true` |
-| `pkm.placement.keepPrefixInsertOnly` | toggle | `true` |
 | `pkm.placement.typedTagsStayText` | toggle | `true` |
 | `pkm.prefixPriority.decideBy` | dropdown | `by-section` |
 | `pkm.prefixPriority.fieldOrderSource` | dropdown | `manual` |

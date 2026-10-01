@@ -46,7 +46,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 23. 🐛 **`Smart bracket` inside brackets works on those brackets.** Inside `[[Note]]` it takes the link brackets off, inside `[Note]` it makes a link, and a lone `[` no longer copies the rest of the line.
 24. 🐛 **`Jump left` and `Text start` know headings and quotes.** The cursor stops after `> ` and after `# `.
 25. 🐛 **`Field order source = Field order` works.** The Field order decides the Prefix; with `Manual`, the Fields missing from the list come after it, as the panel shows.
-26. 🎨 **`Insert only: keep Separators`** is the name of the toggle that keeps the Separators in insert-only mode; it was called `keep the Prefix`.
+26. 🎨 **The toggle `Insert only: keep the Prefix` is gone.** Insert-only mode always writes the Separators between the Blocks and the text.
 27. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
 
 ## 0.12.0

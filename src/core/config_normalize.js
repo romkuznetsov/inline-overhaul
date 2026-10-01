@@ -919,7 +919,6 @@ function normalizeConfigV2(cfg) {
   bool("pkm.behavior.doneMarker.visual.enabled");
   int("pkm.behavior.doneMarker.visual.opacity", 20, 100);
   hex("pkm.behavior.doneMarker.visual.color");
-  bool("pkm.placement.keepPrefixInsertOnly");
   bool("pkm.placement.fieldPrefixInsertOnly");
   bool("pkm.placement.bulletInStrict");
   bool("pkm.placement.typedTagsStayText");
