@@ -428,6 +428,19 @@ function sampleConfig(): Record<string, unknown> {
 }
 
 {
+  /* D7 перечня 2026-09-30: сброс сохраняет `viewState` и после `migrateConfig`. */
+  const migrate = requireCjs(path.join(root, "src", "core", "config_normalize.js")).migrateConfig;
+  const cfg = migrate(JSON.parse(JSON.stringify(sampleConfig())));
+  cfg.viewState = { releaseNotesShownFor: "0.12.0" };
+  const w = wire({ config: cfg as Record<string, unknown> });
+  await w.run("reset-settings");
+  const after = migrate(w.cfg);
+  assert.deepEqual(after.viewState, { releaseNotesShownFor: "0.12.0" },
+    "сброс потерял viewState: " + JSON.stringify(after.viewState) + ", _unmigrated " + JSON.stringify(after._unmigrated));
+  ok("D7: Start over сохраняет состояние устройства — окно «what changed» не возвращается");
+}
+
+{
   /* Отказ — это отказ: ни записи, ни копии (Б11). */
   const w = wire({ answer: false });
   await w.run("save-backup");
@@ -890,7 +903,9 @@ function sampleConfig(): Record<string, unknown> {
    * Умолчания дальше подставляет миграция на записи — здесь её нет, и это
    * правильно: второго объявления умолчаний в продукте быть не должно.
    */
-  assert.deepEqual(w.cfg, backup.keepDeviceLocal(had, {}),
+  /* `schemaVersion` — версия формы, а не настройка человека: без неё
+     `migrateConfig` уносил ветки устройства в `_unmigrated` (D7). */
+  assert.deepEqual(w.cfg, backup.keepDeviceLocal(had, { schemaVersion: (had as Any).schemaVersion }),
     "сброс оставил что-то из настроек человека: " + JSON.stringify(w.cfg));
   for (const key of backup.DEVICE_LOCAL) {
     if ((had as Any)[key] === undefined) continue;

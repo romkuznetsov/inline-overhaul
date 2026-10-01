@@ -728,7 +728,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
 
         const saved = await writeBackup(vault, config, true);
         const changed = await Promise.resolve(
-          config.replace(keepDeviceLocal(before, {}) as Record<string, unknown>),
+          /* Версия формы едет с пустым конфигом: без неё `migrateConfig` читает
+             его переездом с версии 1 и уносит `viewState` в `_unmigrated` — окно
+             «what changed» возвращалось (BUGHUNT 2026-09-30, D7). */
+          config.replace(keepDeviceLocal(before, { schemaVersion: before["schemaVersion"] }) as Record<string, unknown>),
         );
 
         /*
