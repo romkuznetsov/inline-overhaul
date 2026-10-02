@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (93)
+### Пути, которых не было в описи v1.0 (94)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1028,6 +1028,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.backlink.placement.fallback` | If heading not found (`backlink-header-missing`) | Auto-MOC in your links |
 | `advanced.backups.folder` | Backup folder (`backup-folder`) | Backup |
 | `advanced.backups.autosave` | Autosave (`backup-autosave`) | Backup |
+| `advanced.backups.autosaveKeep` | Autosaves to keep (`backup-autosave-keep`) | Backup |
 | `advanced.backups.beforeRestore` | Save a backup before restoring (`backup-before-restore`) | Backup |
 | `advanced.showSettingIds` | Show option IDs in tips (`show-setting-ids`) | Diagnostics |
 

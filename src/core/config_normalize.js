@@ -1145,6 +1145,10 @@ function normalizeConfigV2(cfg) {
   if (isObj(cfg.advanced)) delete cfg.advanced.generatedRulesPath;
 
   /* --- режим разработчика ------------------------------------------------ */
+  /* Предел автокопий — поле ввода; ввод чистит плагин (его слово В-118): только
+     цифры, без ведущих нулей, ноль — пусто. */
+  writeCfgPath(cfg, "advanced.backups.autosaveKeep",
+    String(readCfgPath(cfg, "advanced.backups.autosaveKeep") ?? "").replace(/\D/g, "").replace(/^0+/, ""));
   bool("advanced.devMode.enabled");
   bool("advanced.devMode.aiLog");
   bool("advanced.devMode.traceTagVisualLine");

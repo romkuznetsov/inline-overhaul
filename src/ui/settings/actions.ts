@@ -34,6 +34,7 @@ import {
   allPartIds,
   backupBeforeRestore,
   backupFolder,
+  AUTOSAVE_FOLDER,
   backupPath,
   buildBackupNote,
   describeBackup,
@@ -548,9 +549,13 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
    * выбрасывается — человек видит имя и решает сам.
    */
   const listBackups = async (vault: VaultSeam, folder: string): Promise<PickOption[]> => {
-    const found: BackupFile[] = typeof vault.list === "function"
-      ? (await Promise.resolve(vault.list(folder))) || []
-      : [];
+    /* Автокопии лежат подпапкой `autosave` (его слово 2026-10-03) — окно выбора видит обе. */
+    const found: BackupFile[] = [];
+    if (typeof vault.list === "function") {
+      for (const dir of [folder, folder + "/" + AUTOSAVE_FOLDER]) {
+        found.push(...((await Promise.resolve(vault.list(dir))) || []));
+      }
+    }
     const notes = found
       .filter(f => f && typeof f.path === "string" && /\.md$/i.test(f.path))
       .sort((a, b) => (Number(b.mtime) || 0) - (Number(a.mtime) || 0)

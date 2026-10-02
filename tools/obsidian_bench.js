@@ -220,6 +220,21 @@ const PREPARE = {
     fs.writeFileSync(path.join(vault, "typed.md"), "- first line\n- second line\n");
   },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
+  "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
+  /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
+     в корне — прежняя автокопия (самая новая) и копия человека, в подпапке — две старые. */
+  "autosave-folder"(vault) {
+    const dataPath = path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json");
+    const cfg = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    cfg.advanced = cfg.advanced || {};
+    cfg.advanced.backups = Object.assign({}, cfg.advanced.backups, { autosave: true, autosaveKeep: "2" });
+    fs.writeFileSync(dataPath, JSON.stringify(cfg));
+    const root = path.join(vault, String(cfg.advanced.backups.folder || "inlineOverhaul/Backups"));
+    fs.mkdirSync(path.join(root, "autosave"), { recursive: true });
+    fs.writeFileSync(path.join(root, "Settings 2026-10-01 10-00-00_autosave.md"), "прежняя\n");
+    fs.writeFileSync(path.join(root, "Settings 2026-09-15 10-00-00.md"), "копия человека\n");
+    for (const d of ["01", "02"]) fs.writeFileSync(path.join(root, "autosave", "Settings 2026-09-" + d + " 10-00-00_autosave.md"), "старая\n");
+  },
   /* Заметка строки README и заметка ссылки: ссылка без заметки рисуется неразрешённой. */
   "clean-readme-shot"(vault) {
     fs.writeFileSync(path.join(vault, "readme.md"), README_LINE + "\n\n");
@@ -615,6 +630,62 @@ const SCENARIOS = {
     if (m.scroll <= m.client && m.right <= m.boxRight) { console.log("КОНТРОЛЬ: строка уже карточки — мерить нечего"); return false; }
     const ok = m.right <= m.boxRight && m.scroll > m.client && m.vbar === 0; /* листается вбок, вертикальной полосы нет */
     console.log(ok ? "ok: строка внутри карточки и листается" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
+   * `Use Shift+Enter instead` — его заказ 2026-10-03. Эталоны — `Enter` без
+   * Smart Enter и `Enter` при Smart Enter без тумблера; с тумблером `Enter`
+   * обязан дать первое, `Shift+Enter` — второе.
+   */
+  async "use-shift-enter"(win) {
+    const line = "- позвонить в банк, завтра в налоговую";
+    const at = line.indexOf(",");
+    const run = async (smartEnter, key) => {
+      await win.evaluate(async ({ smartEnter, line, at }) => {
+        const p = window.app.plugins.plugins["inline-overhaul"];
+        p.setConfigPatch({ editor: { smartEnter } }, "bench:use-shift-enter");
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(line);
+        ed.setCursor({ line: 0, ch: at });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { smartEnter, line, at });
+      await win.keyboard.press(key);
+      await win.waitForTimeout(400);
+      return win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    };
+    const plain = await run({ enabled: false, useShift: false }, "Enter");
+    const smart = await run({ enabled: true, useShift: false, shiftPlainEnter: false }, "Enter");
+    const enter = await run({ enabled: true, useShift: true, shiftPlainEnter: true }, "Enter");
+    const shift = await run({ enabled: true, useShift: true, shiftPlainEnter: true }, "Shift+Enter");
+    console.log("Smart Enter выключен, Enter:   " + JSON.stringify(plain));
+    console.log("Smart Enter на Enter, Enter:   " + JSON.stringify(smart));
+    console.log("тумблер включён, Enter:        " + JSON.stringify(enter));
+    console.log("тумблер включён, Shift+Enter:  " + JSON.stringify(shift));
+    const ok = plain !== smart && enter === plain && shift === smart;
+    console.log(ok ? "ok: Smart Enter на Shift+Enter, Enter обычный" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /* Его заказ 2026-10-03: автокопия при загрузке плагина — в подпапку, прежняя переехала, предел 2. */
+  async "autosave-folder"(win) {
+    const got = await win.evaluate(async () => {
+      await new Promise((r) => setTimeout(r, 2500));
+      const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig();
+      const root = String(cfg.advanced.backups.folder || "inlineOverhaul/Backups");
+      const a = window.app.vault.adapter;
+      const names = async (dir) => ((await a.exists(dir)) ? (await a.list(dir)).files.map((f) => f.split("/").pop()).sort() : []);
+      return { root: await names(root), sub: await names(root + "/autosave") };
+    });
+    console.log("в корне:    " + JSON.stringify(got.root));
+    console.log("в autosave: " + JSON.stringify(got.sub));
+    const ok = JSON.stringify(got.root) === JSON.stringify(["Settings 2026-09-15 10-00-00.md"])
+      && got.sub.length === 2 && got.sub.includes("Settings 2026-10-01 10-00-00_autosave.md")
+      && got.sub.every((n) => /_autosave[.]md$/.test(n)) && !got.sub.some((n) => /2026-09-0[12]/.test(n));
+    console.log(ok ? "ok: автокопии в подпапке, прежняя переехала, держится две" : "РАСХОДИТСЯ");
     return ok;
   },
 

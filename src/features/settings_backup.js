@@ -486,6 +486,17 @@ function backupPath(folder, date, auto) {
  */
 const AUTOSAVE_MARK = "_autosave";
 
+/**
+ * Автокопии лежат подпапкой папки копий — его слово 2026-10-03: «не в корень
+ * backup-folder а в backup-folder/autosave, чтобы не захламлять основную папку
+ * бэкапов и не смешивать её с бэкапами, сохранёнными пользователем».
+ */
+const AUTOSAVE_FOLDER = "autosave";
+
+function autosaveFolder(cfg) {
+  return backupFolder(cfg) + "/" + AUTOSAVE_FOLDER;
+}
+
 function autosavePath(folder, date) {
   return String(folder || DEFAULT_FOLDER) + "/Settings " + stamp(date)
     + AUTOSAVE_MARK + ".md";
@@ -969,6 +980,8 @@ module.exports = {
   CHANGED_HEADING,
   changedLine,
   autosavePath,
+  autosaveFolder,
+  AUTOSAVE_FOLDER,
   isAutosavePath,
   pickStaleAutosaves,
   stripDeviceLocal,

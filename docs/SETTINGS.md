@@ -573,7 +573,8 @@ another machine is how a setup moves.
 | Control | Default | What it does |
 |---|---|---|
 | `Backup folder` | `inlineOverhaul/Backups` | Where in your vault the backups are kept |
-| `Autosave` | off | Writes a copy whenever your settings file differs from the last autosave, checked at every start of Obsidian |
+| `Autosave` | off | Writes a copy whenever your settings file differs from the last autosave, checked at every start of Obsidian, into the `autosave` folder inside `Backup folder` |
+| `Autosaves to keep` | empty | How many autosaves stay; empty means 10, and the oldest go first |
 | `Save a backup before restoring` | on | Writes what you have now before an earlier backup replaces it |
 | `Your settings` | — | `Save a backup`, or bring back an earlier one, tab by tab |
 | `Start over` | — | Deletes everything set up here and returns to the plugin’s defaults; always writes a backup first |

@@ -850,11 +850,12 @@ write a copy of it as an ordinary note. Open **Advanced → Backup**.
   you delete any note.
 - **Autosave**: off by default. Turn it on and on every start of Obsidian the plugin
   compares your settings file with the last autosave it made; when the two differ it
-  writes a new copy, named with `_autosave` at the end. That is the way back from a
+  writes a new copy, named with `_autosave` at the end, into the `autosave` folder inside
+  the backup folder, apart from the backups you save yourself. That is the way back from a
   settings file that arrived from another device, from your sync, or from a copy of
   another vault. The copy is full — every tab and the hotkeys of this plugin — and under
   the heading `What changed` in it is the list of settings that differ from the previous
-  autosave. Ten newest autosaves are kept; older ones go to the vault trash, and copies
+  autosave. `Autosaves to keep` says how many stay, 10 when left empty; older ones go to the vault trash, and copies
   you saved yourself are never touched. Each new copy says so with a notice naming the
   note. What counts as a change is the settings themselves: the tab you left open in the
   panel is not one of them and never makes a copy. This is not undo: to step one change back inside

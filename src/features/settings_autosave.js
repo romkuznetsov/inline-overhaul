@@ -49,14 +49,18 @@ const __noticeKey = __sayModule.noticeKey;
 const AUTOSAVE_KEY = "advanced.backups.autosave";
 
 /**
- * Сколько автокопий держать.
- *
- * Названо здесь и **печатается в отчёте**: при одной заметке на сессию это два
- * с половиной месяца работы, и предел нужен затем, чтобы папка копий не росла
- * бесконечно. Контролом это не сделано нарочно — он не просил числа, а лишняя
- * строка в панели стоит дороже, чем разумное умолчание (У-156).
+ * Сколько автокопий держать, когда поле `Autosaves to keep` пусто — его слово
+ * 2026-10-03: «плейсхолдер 10 — если пользователь ничего не поставил, то будет
+ * сохраняться 10 копий по дефолту».
  */
 const AUTOSAVE_KEEP = 10;
+const AUTOSAVE_KEEP_KEY = "advanced.backups.autosaveKeep";
+
+/** Предел из поля; пусто или не число — `AUTOSAVE_KEEP`. */
+function autosaveKeep(cfg) {
+  const n = parseInt(String(readCfgPath(cfg, AUTOSAVE_KEEP_KEY) ?? ""), 10);
+  return n >= 1 ? n : AUTOSAVE_KEEP;
+}
 
 /** Сколько строк «что изменилось» попадает в заметку; остаток — числом. */
 const AUTOSAVE_DETAIL_LINES = 20;
@@ -120,12 +124,28 @@ async function autosaveOnLoad(plugin, deps) {
     return { decision: "no-vault" };
   }
   try {
-    const folder = __backup.backupFolder(cfg);
-    const found = await d.list(folder);
-    const paths = (Array.isArray(found) ? found : [])
-      .map((x) => (typeof x === "string" ? x : String((x && x.path) || "")))
-      .filter(__backup.isAutosavePath)
-      .sort();
+    const root = __backup.backupFolder(cfg);
+    const folder = __backup.autosaveFolder(cfg);
+    const autosavesIn = async (dir) => {
+      const found = await d.list(dir);
+      return (Array.isArray(found) ? found : [])
+        .map((x) => (typeof x === "string" ? x : String((x && x.path) || "")))
+        .filter((x) => x.slice(0, x.lastIndexOf("/")) === dir && __backup.isAutosavePath(x));
+    };
+    /* Автокопии, снятые до 2026-10-03 в корень папки копий, переезжают в подпапку. */
+    const legacy = await autosavesIn(root);
+    if (legacy.length && typeof d.move === "function") {
+      if (typeof d.ensureFolder === "function") await d.ensureFolder(folder);
+      for (const old of legacy) {
+        try {
+          await d.move(old, folder + "/" + old.split("/").pop());
+        } catch (e) {
+          /* Не переехала — остаётся на месте, в корне; заметка человека цела. */
+          console.error("[inline-overhaul][autosave] прежняя копия не переехала: " + old, e);
+        }
+      }
+    }
+    const paths = (await autosavesIn(folder)).sort();
     const now = comparableConfig(cfg);
     let previous = null;
     const newest = paths.length ? paths[paths.length - 1] : "";
@@ -180,7 +200,7 @@ async function autosaveOnLoad(plugin, deps) {
     /* Старые копии снимаются тем же заходом: предел объявлен один раз. */
     let removed = [];
     if (typeof d.remove === "function") {
-      removed = __backup.pickStaleAutosaves(paths.concat([path]), AUTOSAVE_KEEP);
+      removed = __backup.pickStaleAutosaves(paths.concat([path]), autosaveKeep(cfg));
       for (const stale of removed) {
         try {
           await d.remove(stale);
@@ -211,6 +231,8 @@ async function autosaveOnLoad(plugin, deps) {
 module.exports = {
   AUTOSAVE_KEY,
   AUTOSAVE_KEEP,
+  AUTOSAVE_KEEP_KEY,
+  autosaveKeep,
   AUTOSAVE_DETAIL_LINES,
   autosaveEnabled,
   comparableConfig,

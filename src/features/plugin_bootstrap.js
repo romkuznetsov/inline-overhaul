@@ -366,6 +366,11 @@ function autosaveVaultSeam(plugin) {
         if (!(await adapter.exists(path))) throw e;
       }
     },
+    move: async (from, to) => {
+      const file = vault.getAbstractFileByPath(from);
+      if (file) await vault.rename(file, to);
+      else await adapter.rename(from, to);
+    },
     remove: async (path) => {
       const file = vault.getAbstractFileByPath(path);
       if (file && typeof vault.trash === "function") {

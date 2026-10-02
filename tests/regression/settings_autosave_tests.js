@@ -86,6 +86,8 @@ function noteFor(cfg, when) {
 }
 
 const FOLDER = "inlineOverhaul/Backups";
+/* Автокопии — подпапкой `autosave`, его слово 2026-10-03. */
+const AUTO = FOLDER + "/autosave";
 
 (async () => {
   /* ---- 1. тумблер ------------------------------------------------------ */
@@ -105,7 +107,7 @@ const FOLDER = "inlineOverhaul/Backups";
     const when = new Date(2026, 8, 19, 23, 40, 1);
     const done = await autosave.autosaveOnLoad(pluginWith(cfg), Object.assign({ now: when }, v.seam));
     assert.equal(done.decision, "saved", "копий не было — снимается первая");
-    assert.equal(done.path, FOLDER + "/Settings 2026-09-19 23-40-01_autosave.md",
+    assert.equal(done.path, AUTO + "/Settings 2026-09-19 23-40-01_autosave.md",
       "имя с приставкой `_autosave` — его слово: " + done.path);
     assert.deepEqual(v.events.created, [done.path], "записана ровно одна заметка");
 
@@ -132,7 +134,7 @@ const FOLDER = "inlineOverhaul/Backups";
   /* ---- 3. ничего не менялось ------------------------------------------- */
   {
     const cfg = configWith();
-    const older = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+    const older = AUTO + "/Settings 2026-09-19 10-00-00_autosave.md";
     const v = fakeVault({ [older]: noteFor(cfg) });
     const done = await autosave.autosaveOnLoad(pluginWith(cfg), v.seam);
     assert.equal(done.decision, "same", "файл совпал с последней копией — новой не надо");
@@ -143,7 +145,7 @@ const FOLDER = "inlineOverhaul/Backups";
   /* ---- 4. расхождение: что именно изменилось --------------------------- */
   {
     const before = configWith();
-    const older = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+    const older = AUTO + "/Settings 2026-09-19 10-00-00_autosave.md";
     const cfg = configWith((c) => {
       c.visual.tags.blockFill.enabled = true;
       c.visual.tags.blockFill.direction = "left";
@@ -180,7 +182,7 @@ const FOLDER = "inlineOverhaul/Backups";
     /* Копий на одну больше предела — значит после записи новой уйдут две. */
     for (let i = 0; i <= autosave.AUTOSAVE_KEEP; i++) {
       const stamp = "2026-09-0" + (i % 10) + " 10-0" + (i % 10) + "-00";
-      files[FOLDER + "/Settings " + stamp + "_autosave.md"] = noteFor(before);
+      files[AUTO + "/Settings " + stamp + "_autosave.md"] = noteFor(before);
     }
     /* И чужая копия — снятая руками: её предел не касается. */
     const handmade = FOLDER + "/Settings 2026-09-01 09-00-00.md";
@@ -201,7 +203,7 @@ const FOLDER = "inlineOverhaul/Backups";
   /* ---- 6. прежняя копия испорчена -------------------------------------- */
   {
     const cfg = configWith();
-    const broken = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+    const broken = AUTO + "/Settings 2026-09-19 10-00-00_autosave.md";
     const v = fakeVault({ [broken]: "# Моя заметка\n\nтут нет настроек" });
     const loud = [];
     const realError = console.error;
@@ -268,7 +270,7 @@ const FOLDER = "inlineOverhaul/Backups";
      * тишина, правка контрола — копия.
      */
     const before = configWith();
-    const older = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+    const older = AUTO + "/Settings 2026-09-19 10-00-00_autosave.md";
 
     const tabOnly = configWith((c) => {
       c.ui = Object.assign({}, c.ui, { activeSettingsTab: "visual" });
@@ -314,7 +316,7 @@ const FOLDER = "inlineOverhaul/Backups";
       "в сообщении назван путь заметки: «" + said[0] + "»");
 
     /* И обратная сторона: копия не снималась — говорить нечего. */
-    const v2 = fakeVault({ [FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md"]: noteFor(cfg) });
+    const v2 = fakeVault({ [AUTO + "/Settings 2026-09-19 10-00-00_autosave.md"]: noteFor(cfg) });
     const silent = [];
     const same = await autosave.autosaveOnLoad(pluginWith(cfg),
       Object.assign({ notify: (m) => { silent.push(m); } }, v2.seam));
@@ -342,6 +344,65 @@ const FOLDER = "inlineOverhaul/Backups";
     /* И заметка по-прежнему читается обратно: коллаут стоит вне блока настроек. */
     assert.ok(backup.parseBackupNote(text).visual, "настройки из заметки читаются");
     ok("подсказка человеку в заметке копии — коллаут, и разбор её не задел");
+  }
+
+  /* ---- 13. прежние автокопии из корня переезжают в подпапку ------------ */
+  {
+    /*
+     * Его слово 2026-10-03: автокопии «не в корень backup-folder а в
+     * backup-folder/autosave». Снятые до правки лежат в корне — они переезжают,
+     * а копия, снятая руками, остаётся на месте.
+     */
+    const cfg = configWith();
+    const old = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+    const handmade = FOLDER + "/Settings 2026-09-01 09-00-00.md";
+    const v = fakeVault({ [old]: noteFor(cfg), [handmade]: noteFor(cfg) });
+    const moved = [];
+    const done = await autosave.autosaveOnLoad(pluginWith(cfg), Object.assign({}, v.seam, {
+      move: async (from, to) => { v.store.set(to, v.store.get(from)); v.store.delete(from); moved.push(from + " -> " + to); },
+    }));
+    assert.deepEqual(moved, [old + " -> " + AUTO + "/Settings 2026-09-19 10-00-00_autosave.md"],
+      "прежняя автокопия переехала в подпапку: " + moved.join(" | "));
+    assert.equal(done.decision, "same", "и переехавшая сравнивается: настройки те же — новой не надо");
+    assert.ok(v.store.has(handmade), "копия, снятая руками, осталась в корне");
+
+    /* Контроль: без переезда копия в корне не видна, и снимается новая. */
+    const v2 = fakeVault({ [old]: noteFor(cfg) });
+    const fresh = await autosave.autosaveOnLoad(pluginWith(cfg), v2.seam);
+    assert.equal(fresh.decision, "saved", "контроль: копия в корне — не автокопия подпапки");
+    assert.equal(fresh.path.indexOf(AUTO + "/"), 0, "новая автокопия ложится в подпапку: " + fresh.path);
+    ok("прежние автокопии переезжают в подпапку `autosave`, снятые руками остаются");
+  }
+
+  /* ---- 14. предел — из поля `Autosaves to keep` ------------------------ */
+  {
+    const before = configWith();
+    const files = {};
+    for (let i = 0; i < 5; i++) files[AUTO + "/Settings 2026-09-0" + i + " 10-00-00_autosave.md"] = noteFor(before);
+    const run = async (keep) => {
+      const cfg = configWith((c) => { c.general.help.showTips = false; c.advanced.backups.autosaveKeep = keep; });
+      const v = fakeVault(Object.assign({}, files));
+      await autosave.autosaveOnLoad(pluginWith(cfg), Object.assign({ now: new Date(2026, 8, 19, 23, 0, 0) }, v.seam));
+      return Array.from(v.store.keys()).filter(backup.isAutosavePath).length;
+    };
+    assert.equal(await run("3"), 3, "в поле 3 — осталось три");
+    assert.equal(await run("6"), 6, "в поле 6 — все шесть: снимать нечего");
+    assert.equal(autosave.autosaveKeep(configWith()), autosave.AUTOSAVE_KEEP, "пустое поле — " + autosave.AUTOSAVE_KEEP);
+    assert.equal(autosave.AUTOSAVE_KEEP, 10, "его слово: по умолчанию 10");
+    ok("предел автокопий берётся из поля, пустое — 10");
+  }
+
+  /* ---- 15. ввод поля чистит плагин ------------------------------------- */
+  {
+    const keep = (raw) => normalize.migrateConfig(
+      { schemaVersion: 2, advanced: { backups: { autosaveKeep: raw } } }, { log: () => {} }).advanced.backups.autosaveKeep;
+    assert.equal(keep(" 15 "), "15");
+    assert.equal(keep("15 copies"), "15");
+    assert.equal(keep("007"), "7");
+    assert.equal(keep("0"), "", "ноль — пусто, то есть 10");
+    assert.equal(keep("abc"), "");
+    assert.equal(keep(undefined), "", "умолчание — пусто");
+    ok("ввод `Autosaves to keep`: только цифры, ноль и мусор — пусто");
   }
 
   /* ---- 9. шов к vault ------------------------------------------------- */
@@ -416,6 +477,12 @@ const FOLDER = "inlineOverhaul/Backups";
     await seam.create("inlineOverhaul/Новая/файл.md", "тело");
     assert.ok(calls.indexOf("create inlineOverhaul/Новая/файл.md (4)") !== -1,
       "запись идёт через vault, а не через адаптер: " + calls.join(" | "));
+    app.vault.rename = async (file, to) => { calls.push("rename " + file.path + " " + to); };
+    app.vault.getAbstractFileByPath = (p) => ({ path: p });
+    await seam.move(FOLDER + "/a_autosave.md", FOLDER + "/autosave/a_autosave.md");
+    assert.ok(calls.indexOf("rename " + FOLDER + "/a_autosave.md " + FOLDER + "/autosave/a_autosave.md") !== -1,
+      "переезд идёт через vault: " + calls.join(" | "));
+    app.vault.getAbstractFileByPath = () => null;
     await seam.remove(FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md");
     assert.ok(calls.some((c) => c.indexOf("remove ") === 0), "снятие дошло до адаптера");
     assert.deepEqual(Object.keys(seam.hotkeys()), ["inline-overhaul:x"],
@@ -425,7 +492,7 @@ const FOLDER = "inlineOverhaul/Backups";
     assert.deepEqual(bootstrap.autosaveVaultSeam({}), {},
       "без app шов пустой, а не наполовину собранный");
     assert.deepEqual(bootstrap.autosaveVaultSeam(null), {}, "и без плагина тоже");
-    ok("шов к vault: список, чтение, папка, запись, снятие и хоткеи — все шесть");
+    ok("шов к vault: список, чтение, папка, запись, переезд, снятие и хоткеи");
   }
 
   console.log("\n" + passed + " проверок пройдено");

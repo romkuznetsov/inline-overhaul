@@ -130,7 +130,8 @@ function wire(o?: {
       list: (folder: string): BackupFile[] => {
         const out: BackupFile[] = [];
         for (const p of fake.files.keys()) {
-          if (p.indexOf(folder + "/") !== 0) continue;
+          /* Как `adapter.list` Obsidian: только файлы самой папки, без вложенных. */
+          if (p.slice(0, p.lastIndexOf("/")) !== folder) continue;
           out.push({ path: p, mtime: fake.mtimes.get(p) || 0 });
         }
         return out;
@@ -558,6 +559,20 @@ function sampleConfig(): Record<string, unknown> {
   assert.equal(new Set(names).size, names.length,
     "имена файлов в списке совпали, две копии не различить: " + names.join(", "));
   ok("список идёт новыми вверх, знает состав, различает копии по имени файла и содержит только заметки");
+}
+
+{
+  /* Автокопии лежат подпапкой `autosave` (его слово 2026-10-03) — окно выбора видит и их. */
+  const seen: PickRequest[] = [];
+  const w = wire({ choose: (req: PickRequest) => { seen.push(req); return null; } });
+  await w.run("save-backup");
+  const mine = at([...w.fake.files.keys()], 0, "копия человека");
+  const auto = mine.slice(0, mine.lastIndexOf("/")) + "/autosave/Settings 2026-09-19 10-00-00_autosave.md";
+  w.fake.files.set(auto, String(w.fake.files.get(mine)));
+  await w.run("restore-backup");
+  const values = at(seen, 0, "запрос выбора").options.map(o => o.value).sort();
+  assert.deepEqual(values, [auto, mine].sort(), "окно выбора не видит автокопию в подпапке: " + values.join(", "));
+  ok("окно восстановления видит и копии человека, и автокопии подпапки `autosave`");
 }
 
 {
