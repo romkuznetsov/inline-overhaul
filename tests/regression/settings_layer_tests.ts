@@ -20,7 +20,7 @@ import { SCHEMA, TABS, groupsFor, activeTabs } from "../../src/ui/settings/schem
 import { buildDefaultConfig, getIn, isBound } from "../../src/ui/settings/types.ts";
 import { MemoryStore } from "../../src/ui/settings/store.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
-import { THEME_COLOR_VARS, themeVarFor } from "../../src/ui/settings/custom/theme_colors.ts";
+import { THEME_COLOR_VARS, setThemeReader, themeVarFor } from "../../src/ui/settings/custom/theme_colors.ts";
 import { isSubheaderShut, paintSubheaders, resetSubheaders, subheader, subheaderId }
   from "../../src/ui/settings/custom/subheader.ts";
 import { richParts } from "../../src/ui/settings/describe.ts";
@@ -307,8 +307,8 @@ async function main(): Promise<void> {
       + "«сделай в Keyboard хедер Global hotkeys, чтобы у него были субхедеры select-all, "
       + "smart-delete, smart-enter»: заголовков стало на два меньше, а строк — столько же");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
-    assert.equal(bound.length, 170,
-      "настроек, привязанных к путям конфига. Тумблер `Insert only: keep Separators` снят 2026-10-01 его словом к тесту 6 цикла 113: `Insert only` всегда ставит разделители. Тумблер `Bold Field names` добавлен 2026-10-01 его заказом в «Новое пишите сюда»: имена всех Field без Value в панели tagWheel полужирные, не только активного. Тумблер `Indent the whole tree` добавлен 2026-10-01 его ответом `В-257` («свой тумблер у Move left/right»): шаг отступа получает и дерево строки. Тумблер `Strike through ticked line` добавлен 2026-10-01 его 💬 к тесту 1 цикла 108: строка с маркером зачёркнута (10.13.292). Пять строк метки отмеченной строки (`Mark ticked line`, её место и затемнение по аналогии с `source-dim`) добавлены 2026-09-30 его заказом в `Writing rules`. Тумблер `Shift+Enter as usual Enter` добавлен 2026-09-30 его словом «сделай контрол»: Shift+Enter — обычный Enter, только когда он включён (10.13.290). Тумблер `Keep typed tags in text` добавлен 2026-09-28 его заказом: `В-235` управляется контролом, выключенный переносит Value из текста в Block. Тумблер `Add empty line before wikilink` добавлен 2026-09-28 его заказом: ссылки в чужой заметке без пустых строк. Строка `Jump over neighbor trees` добавлена 2026-09-25 его заказом (PRD 10.13.275). Третья строка цвета гиперссылки — адрес — добавлена 2026-09-22 по его замечанию к тесту 2 («сделай отдельный контрол на него»): до неё адрес красили скобки. Две строки цвета гиперссылки добавлены 2026-09-22 по его замечанию к тесту 4 («я хотел, чтобы hyperlinks управлялись отдельными контролами»): прежняя пара осталась за wikilink. Кегль Block разведён на две строки 2026-09-19 по его слову (`Text size of the Left Block` и `Text size of the Right Block`), прежняя одна снята. Строка `Chosen Value text color` добавлена 2026-09-17 по его заказу: у неактивного Field имя поля и выбранное значение рисовались одним цветом. Тумблер `Floating button` снят "
+    assert.equal(bound.length, 171,
+      "настроек, привязанных к путям конфига. Строка `Moved lines color` добавлена 2026-10-02 его заказом цикла 118: цвет подсветки перенесённых строк, пусто — цвет выделения темы. Тумблер `Insert only: keep Separators` снят 2026-10-01 его словом к тесту 6 цикла 113: `Insert only` всегда ставит разделители. Тумблер `Bold Field names` добавлен 2026-10-01 его заказом в «Новое пишите сюда»: имена всех Field без Value в панели tagWheel полужирные, не только активного. Тумблер `Indent the whole tree` добавлен 2026-10-01 его ответом `В-257` («свой тумблер у Move left/right»): шаг отступа получает и дерево строки. Тумблер `Strike through ticked line` добавлен 2026-10-01 его 💬 к тесту 1 цикла 108: строка с маркером зачёркнута (10.13.292). Пять строк метки отмеченной строки (`Mark ticked line`, её место и затемнение по аналогии с `source-dim`) добавлены 2026-09-30 его заказом в `Writing rules`. Тумблер `Shift+Enter as usual Enter` добавлен 2026-09-30 его словом «сделай контрол»: Shift+Enter — обычный Enter, только когда он включён (10.13.290). Тумблер `Keep typed tags in text` добавлен 2026-09-28 его заказом: `В-235` управляется контролом, выключенный переносит Value из текста в Block. Тумблер `Add empty line before wikilink` добавлен 2026-09-28 его заказом: ссылки в чужой заметке без пустых строк. Строка `Jump over neighbor trees` добавлена 2026-09-25 его заказом (PRD 10.13.275). Третья строка цвета гиперссылки — адрес — добавлена 2026-09-22 по его замечанию к тесту 2 («сделай отдельный контрол на него»): до неё адрес красили скобки. Две строки цвета гиперссылки добавлены 2026-09-22 по его замечанию к тесту 4 («я хотел, чтобы hyperlinks управлялись отдельными контролами»): прежняя пара осталась за wikilink. Кегль Block разведён на две строки 2026-09-19 по его слову (`Text size of the Left Block` и `Text size of the Right Block`), прежняя одна снята. Строка `Chosen Value text color` добавлена 2026-09-17 по его заказу: у неактивного Field имя поля и выбранное значение рисовались одним цветом. Тумблер `Floating button` снят "
       + "2026-08-29: за ним нет движка, а контрол без движка в панели не "
       + "показывается (Ж2, З8). Путь папки копий добавлен 2026-08-31 (10.13.2). "
       + "Две строки `Source line` добавлены 2026-09-01: судьба текста и число "
@@ -996,6 +996,26 @@ async function main(): Promise<void> {
     assert.equal(pane.watcherCount(), 0, "очистка блока обязана снять подписку (С5)");
   });
 
+  await test("цвет, равный цвету темы, пишется пустым — сброс возвращает тему", async () => {
+    /*
+     * Его заказ цикла 118: `Moved lines color` — «возврат к дефолтному цвету
+     * системы». Кнопка сброса платформы ставит `defaultValue`, то есть hex
+     * темы; без правила в `setControlValue` он застывал в конфиге — у
+     * `--text-selection` без прозрачности и без смены темы.
+     */
+    const path = "navigation.moveLine.highlightColor";
+    setThemeReader((v: string) => (v === "--text-selection" ? "rgb(163, 203, 224)" : ""));
+    try {
+      const { pane, store } = makePane({ navigation: { moveLine: { highlightColor: "#ff0000" } } });
+      await pane.setControlValue(path, "#a3cbe0");
+      assert.equal(store.get(path), "", "сброс на цвет темы пишет пустое: " + JSON.stringify(store.get(path)));
+      await pane.setControlValue(path, "#ff0000");
+      assert.equal(store.get(path), "#ff0000", "свой цвет пишется как есть");
+    } finally {
+      setThemeReader(null);
+    }
+  });
+
   await test("панель пересобирается только из-за подсказок (П2)", async () => {
     const { pane, counts } = makeCountingPane();
     const btn = resetButton(groupOf(pane, "visual", TAG_APPEARANCE_HEADING));
@@ -1210,6 +1230,11 @@ async function main(): Promise<void> {
     await store.set("visual.tagWheel.scroller.fillColor", "#0000ff");
     assert.equal(readWheel(host).boxFill, "#0000ff",
       "заливка коробки доехала без перехода по вкладкам");
+    /* Своя заливка без своего текста — текст, читаемый на ней, как в заметке
+       (его `💬` к тесту 3 цикла 118). */
+    assert.equal(readWheel(host).boxText, "#ffffff", "на тёмно-синей заливке — светлый текст");
+    await store.set("visual.tagWheel.scroller.fillColor", "#c9c5c5");
+    assert.equal(readWheel(host).boxText, "#000000", "на его светлой — тёмный");
     await store.set("visual.tagWheel.scroller.textColor", "#00ff00");
     assert.equal(readWheel(host).boxText, "#00ff00",
       "и цвет текста в коробке тоже");

@@ -94,6 +94,7 @@ const V2_ONLY: Record<string, string> = {
   "editor.smartDelete.onBackspace": "тот же разбор на Backspace — заказ 2026-09-05, ответ «отдельным тумблером» (10.13.32 Д9)",
   "visual.caret.enabled": "цвет каретки — заказ 2026-09-05 (10.13.33); читает caretLookFromConfig в main.js",
   "visual.caret.color": "сам цвет каретки — там же (10.13.33 Ц2)",
+  "navigation.moveLine.highlightColor": "цвет подсветки перенесённых строк — его заказ цикла 118 (10.13.303)",
   "visual.caret.shapeEnabled": "толщина и мерцание каретки — заказ 2026-09-05, поздний вечер (10.13.33 Ц6); своя половина группы, цвету не подчинена",
   "visual.caret.width": "толщина каретки в пикселях — там же (10.13.33 Ц6); уезжает в border-left-width и парный сдвиг",
   "visual.caret.blinkSpeed": "скорость мерцания 0..10, ноль значит «не мигает» — там же (10.13.33 Ц7)",

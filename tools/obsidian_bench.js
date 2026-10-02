@@ -227,6 +227,10 @@ const PREPARE = {
   },
   /* H1.5 прогона 2026-10-02: строка README и строка под tagWheel, тёмная тема. */
   "clean-dark-contrast"(vault) { PREPARE["clean-readme-extra"](vault); },
+  /* Его заказ цикла 118: `Moved lines color`. */
+  "moved-lines-color"(vault) { fs.writeFileSync(path.join(vault, "moved.md"), "- first line\n- second line\n"); },
+  /* Его `💬` к тесту 3 цикла 118: «в scroller видно плохо» — его конфиг. */
+  "dark-contrast-mine"(vault) { PREPARE["clean-readme-extra"](vault); },
   /* H1.6 прогона 2026-10-02: строка README, `#high` пустым пузырём. */
   "clean-empty-bubble"(vault) { PREPARE["clean-readme-shot"](vault); },
   "clean-readme-extra"(vault) {
@@ -832,6 +836,58 @@ const SCENARIOS = {
    * по предкам, с прозрачностью предков. Порог — `CONTRAST_FLOOR` панели.
    * Печатает всё ниже порога; светлая тема — сторона сверки.
    */
+  /*
+   * Его `💬` к тесту 3 цикла 118: «в scroller видно плохо». Его конфиг и тема,
+   * три цвета панели сброшены, как просит тест; остальное — его, в том числе
+   * заливка скроллера. Мера — та же, что у `clean-dark-contrast`.
+   */
+  /*
+   * Его заказ цикла 118: `Moved lines color` под `Highlight after moving`.
+   * Его конфиг, подсветка включена; строка переносится командой, у
+   * перенесённой строки спрашивается вычисленный фон. Свой цвет — ровно он,
+   * пусто — цвет выделения темы (`--text-selection`, с его прозрачностью).
+   */
+  async "moved-lines-color"(win) {
+    const n = await openAt(win, "moved.md", "- second line");
+    if (n < 0) throw new Error("нет строки в moved.md");
+    const look = (color) => win.evaluate(async ({ n, color }) => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ navigation: { moveLine: { highlightMovedLines: true, highlightColor: color } } }, "bench:moved-color");
+      await new Promise((r) => setTimeout(r, 400));
+      const ed = window.app.workspace.activeEditor.editor;
+      ed.setValue("- first line\n- second line\n");
+      ed.setCursor({ line: n, ch: 3 });
+      ed.focus();
+      await new Promise((r) => setTimeout(r, 300));
+      await window.app.commands.executeCommandById("inline-overhaul:move-line-up");
+      await new Promise((r) => setTimeout(r, 400));
+      const row = document.querySelector(".workspace-leaf.mod-active .cm-line.io-moved-line");
+      const probe = document.createElement("span");
+      probe.style.backgroundColor = "var(--text-selection)";
+      document.body.appendChild(probe);
+      const theme = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { stored: p.getConfig().navigation.moveLine.highlightColor, bg: row ? getComputedStyle(row).backgroundColor : null, theme };
+    }, { n, color });
+    const own = await look("#ff0000");
+    const unset = await look("");
+    console.log("свой цвет: записано " + JSON.stringify(own.stored) + ", фон строки " + own.bg);
+    console.log("пусто: записано " + JSON.stringify(unset.stored) + ", фон строки " + unset.bg + ", цвет выделения темы " + unset.theme);
+    if (!own.bg || !unset.bg) { console.log("КОНТРОЛЬ: перенесённая строка не подсвечена"); return false; }
+    const ok = own.bg === "rgb(255, 0, 0)" && unset.bg === unset.theme;
+    console.log(ok ? "ok: свой цвет и цвет темы доходят до строки" : "РАСХОДИТСЯ: цвет подсветки не тот");
+    return ok;
+  },
+
+  async "dark-contrast-mine"(win) {
+    await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ visual: { tagWheel: { textColor: "", activeTextColor: "", fillColor: "" } } }, "bench:dark-mine");
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    return SCENARIOS["clean-dark-contrast"](win);
+  },
+
   async "clean-dark-contrast"(win) {
     await win.evaluate(async () => {
       const p = window.app.plugins.plugins["inline-overhaul"];
@@ -885,6 +941,13 @@ const SCENARIOS = {
       await win.waitForTimeout(600);
       await win.evaluate(() => window.app.commands.executeCommandById("inline-overhaul:open-tagwheel-left"));
       await win.waitForTimeout(1500);
+      /* Коробка скроллера есть только у Field с Values: у его первого (`AI`)
+         их нет. Шаг вправо, пока коробка не появилась. */
+      for (let i = 0; i < 6 && !(await win.evaluate(() => !!document.querySelector(".io-twscroller--shown"))); i++) {
+        await win.keyboard.press("ArrowRight");
+        await win.waitForTimeout(500);
+      }
+      if (!(await win.evaluate(() => !!document.querySelector(".io-twscroller--shown")))) { console.log("КОНТРОЛЬ: коробка скроллера не появилась"); return false; }
       const wheel = await measure(".workspace-leaf.mod-active .cm-line, .io-twscroller--shown");
       await win.keyboard.press("Escape");
       await win.waitForTimeout(500);
@@ -909,9 +972,11 @@ const SCENARIOS = {
         return out;
       });
       console.log("  переменные темы на заливке полосы: " + Object.entries(vars).map(([k, v]) => k + " " + v).join(", "));
-      const all = line.concat(wheel).filter((x) => !/rgba\(0, 0, 0, 0\)/.test(x.fg));
+      /* Прозрачный знак списка и текст из одних эмодзи — у них цвет текста не
+         рисуется: эмодзи цветной глиф шрифта (правило 191). */
+      const all = line.concat(wheel).filter((x) => !/rgba\(0, 0, 0, 0\)/.test(x.fg) && !/^[\p{Extended_Pictographic}️‍\s]+$/u.test(x.text));
       seen += all.length;
-      const low = all.filter((x) => x.ratio < 3);
+      const low = all.filter((x) => x.ratio < 3 || process.env.IO_ALL);
       if (dark) darkLow = low.length; else lightLow = low.length;
       console.log("\n" + theme + (dark ? " (тёмная)" : " (светлая)") + ": узлов с текстом " + all.length + ", ниже 3:1 — " + low.length);
       for (const x of low) console.log("  " + x.ratio + ":1  «" + x.text + "»  " + x.cls + "  текст " + x.fg + " фон " + x.bg + " прозрачность " + x.op);

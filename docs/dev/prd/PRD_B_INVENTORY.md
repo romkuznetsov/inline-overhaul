@@ -14,7 +14,7 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 15 | 8 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 27 | 5 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
@@ -356,6 +356,11 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
   - tip: Useful when you move a tree of several lines and want to be sure the whole thing came along
   - видна если: `navigation.moveLine.enabled`
   - старые названия для поиска: «Highlight moved lines», «Select after moving»
+- **Moved lines color** — `move-lines-select-color`, `color`, path `navigation.moveLine.highlightColor`, default `""`
+  - desc: Leave it unset to use the selection color of your theme
+  - tip: Unset, the moved lines take the color your theme gives to selected text, see-through as it is. Pick your own if it is too pale to spot against your background; the reset button brings back the theme color
+  - видна если: `navigation.moveLine.enabled, navigation.moveLine.highlightMovedLines`
+  - старые названия для поиска: «Highlight color after moving»
 - **Follow the moved line** — `move-lines-view`, `toggle`, path `navigation.moveLine.keepInView`, default `true`
   - desc: Scroll the note to the line you moved instead of leaving the view where it was
   - tip: Off, the note does not scroll at all: what you see stays exactly where it was, and a line pushed past the edge goes on moving out of sight. On, the view follows the line and puts it where the setting below says
@@ -1264,6 +1269,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `navigation.moveLine.crossSectionAllowed` | toggle | `true` |
 | `navigation.moveLine.enabled` | toggle | `true` |
 | `navigation.moveLine.headerMode` | dropdown | `move-as-line` |
+| `navigation.moveLine.highlightColor` | color | `""` |
 | `navigation.moveLine.highlightMovedLines` | toggle | `false` |
 | `navigation.moveLine.jumpNeighborTrees` | toggle | `false` |
 | `navigation.moveLine.keepInView` | toggle | `true` |

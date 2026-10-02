@@ -129,6 +129,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveLine.headerMode"),
   keep("navigation.moveLine.crossSectionAllowed"),
   keep("navigation.moveLine.highlightMovedLines"),
+  /* Цвет подсветки перенесённых строк — его заказ цикла 118, пары в версии 1 нет. */
+  keepV2("navigation.moveLine.highlightColor"),
   /* Прокрутка при перемещении строки заведена 2026-09-05 вместе с 10.13.36:
      пары в версии 1 нет, поэтому `keepV2`, иначе ключ уезжает в
      `_unmigrated` (МГ3). */

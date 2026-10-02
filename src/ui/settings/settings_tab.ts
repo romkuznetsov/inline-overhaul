@@ -14,7 +14,7 @@ import { buildDefaultConfig, getIn, isBound } from "./types.ts";
 import type { El } from "./custom/dom.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { fieldOptions } from "./custom/preview_data.ts";
-import { themeVarFor } from "./custom/theme_colors.ts";
+import { themeColorFor, themeVarFor } from "./custom/theme_colors.ts";
 import { paintSubheaders } from "./custom/subheader.ts";
 import { templateOptions } from "./templates.ts";
 /* Подсказчик папок и список папок vault — общий дом с блоком Smart Rules. */
@@ -513,6 +513,17 @@ export class SettingsPane {
         if (chars.length >= 2 && this.deps.notify) this.deps.notify(this.frame("NAME_BRACKETS_TWO"));
         return;
       }
+    }
+    /*
+     * Цвет, равный цвету темы, пишется пустым — «как в теме». Кнопка сброса
+     * платформы ставит `defaultValue`, то есть hex темы, и без этого правила
+     * сброс застывал цветом без прозрачности и без смены темы: у
+     * `--text-selection` это сплошная плашка вместо выделения (его заказ
+     * цикла 118 — «возврат к дефолтному цвету системы»).
+     */
+    if (this.themedColorPaths().has(key) && typeof value === "string"
+      && value.trim().toLowerCase() === themeColorFor(key).toLowerCase()) {
+      value = "";
     }
     const opts: SetOpts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
     const invert = this.inverted().get(key);

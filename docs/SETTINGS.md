@@ -154,6 +154,7 @@ Moving lines, text and the cursor without reaching for the mouse.
 | `Moving headings` | `move-as-line` | Whether a whole section moves, or just the heading line |
 | `Cross heading boundaries` | on | Lets a line travel past a heading into the part of the note below |
 | `Highlight after moving` | off | Keeps the lines highlighted once they land |
+| `Moved lines color` | theme | The color of that highlight; unset, it is your theme's selection color |
 | `Follow the moved line` | on | Scrolls the note to the line you moved |
 | `Where the line lands` | `center` | The place on screen the moved line is scrolled to |
 

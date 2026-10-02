@@ -74,6 +74,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 51. 🐛 **A command right after typing is its own undo step:** one `Ctrl+Z` takes back the command and leaves what you typed, as `Swap line up` does.
 52. 🐛 **tagWheel is readable in a dark theme with its colors left empty:** the Field names take the normal text color and the active one the hover accent, so both stand out from the highlight fill.
 53. 🐛 **An empty tag bubble is as tall as the bubbles next to it.**
+54. 🐛 **The scroller is readable on its own fill:** with `Scroller background color` set and `Scroller text color` empty, the text is dark on a light fill and light on a dark one, instead of the theme color.
+55. ✨ **`Moved lines color`** under `Highlight after moving` picks the color of the moved lines; unset, or reset, it is your theme's selection color.
 
 ## 0.12.0
 

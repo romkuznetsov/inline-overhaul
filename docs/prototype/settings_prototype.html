@@ -2225,6 +2225,12 @@ const SCHEMA = [
       name:"Highlight after moving", desc:"Keep the lines highlighted once they land, so you can see what moved",
       tip:"Useful when you move a tree of several lines and want to be sure the whole thing came along",
       searchTerms:["Highlight moved lines", "Select after moving"], visible: on("navigation.moveLine.enabled") },
+    { kind:"color", id:"move-lines-select-color", path:"navigation.moveLine.highlightColor", default:"",
+      allowReset:true,
+      name:"Moved lines color", desc:"Leave it unset to use the selection color of your theme",
+      searchTerms:["Highlight color after moving"],
+      tip:"Unset, the moved lines take the color your theme gives to selected text, see-through as it is. Pick your own if it is too pale to spot against your background; the reset button brings back the theme color",
+      visible: both(on("navigation.moveLine.enabled"), on("navigation.moveLine.highlightMovedLines")) },
     /* Прокрутка при перемещении строки: заказ заказчика 2026-09-05, поздний
        вечер (PRD 10.13.36). До этого прокруткой распоряжалась платформа, и
        выбора не было вовсе — свой код до неё не доезжал. */
@@ -5154,7 +5160,17 @@ function renderWheelPreview(host) {
        заливки scroller» (замечание к H2). Пусто — цвета темы, их подставляет
        запасное значение переменной в стилях. */
     const scrollFill = val("visual.tagWheel.scroller.fillColor");
-    const scrollText = val("visual.tagWheel.scroller.textColor");
+    /* own fill and no own text color: text readable on that fill, black or
+       white by contrast — as `readableTextOn` in `editor_visuals_config.js` */
+    const readableOn = (hex) => {
+      const m = /^#([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+      if (!m) return "";
+      const l = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255)
+        .map(c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)))
+        .reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0);
+      return (l + 0.05) * (l + 0.05) >= 0.0525 ? "black" : "white";
+    };
+    const scrollText = val("visual.tagWheel.scroller.textColor") || readableOn(scrollFill);
 
     const panel = (idx, where) => {
       if (!idx.length) return null;

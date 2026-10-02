@@ -82,6 +82,8 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
   "visual.tags.hyperlink.addressColor": "--link-external-color",
   /* Каретка: `.io-caret` в стилях берёт `var(--text-normal)`. */
   "visual.caret.color": "--text-normal",
+  /* Перенесённые строки: `.io-moved-line` берёт `var(--text-selection)`. */
+  "navigation.moveLine.highlightColor": "--text-selection",
   /* Круг при прыжке: `.io-jumpflash` берёт `var(--interactive-accent)`. */
   "visual.jumpFlash.color": "--interactive-accent",
   /*

@@ -184,6 +184,8 @@ const DEFAULT_CONFIG = {
       headerMode: "move-as-line",
       crossSectionAllowed: true,
       highlightMovedLines: false,
+      /* Цвет подсветки перенесённых строк: пусто — цвет выделения темы. */
+      highlightColor: "",
       keepInView: true,
       jumpNeighborTrees: false,
       viewPosition: "center",
@@ -932,6 +934,7 @@ function normalizeConfigV2(cfg) {
   oneOf("navigation.moveLine.headerMode", ["move-as-line", "move-with-section"]);
   bool("navigation.moveLine.crossSectionAllowed");
   bool("navigation.moveLine.highlightMovedLines");
+  hex("navigation.moveLine.highlightColor");
   /* Прокрутка при перемещении строки (10.13.36). До этого её не было вовсе:
      свой код до платформы не доезжал, и прыжок решала она. */
   bool("navigation.moveLine.keepInView");

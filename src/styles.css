@@ -3910,5 +3910,5 @@ body.theme-dark {
  * настоящим выделением. Выделения нет, и набранная буква их не стирает.
  */
 .markdown-source-view.mod-cm6 .cm-line.io-moved-line {
-  background-color: var(--text-selection);
+  background-color: var(--io-moved-line-bg, var(--text-selection));
 }

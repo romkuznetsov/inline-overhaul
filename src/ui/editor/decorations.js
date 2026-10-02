@@ -2936,7 +2936,7 @@ function createTagwheelHeaderDecorationExtension(plugin) {
  * это выделение»). Своих правок слой не пишет и выделения не ставит:
  * набранная буква перенесённого не стирает.
  */
-function movedLinesDecorations(view) {
+function movedLinesDecorations(view, plugin) {
   const mark = view.__ioMovedLines;
   if (!mark) return cmView.Decoration.none;
   const doc = view.state.doc;
@@ -2946,21 +2946,28 @@ function movedLinesDecorations(view) {
     view.__ioMovedLines = null;
     return cmView.Decoration.none;
   }
+  /* `Moved lines color` (его заказ цикла 118): свой цвет едет переменной,
+     пусто — правило в `styles.css` берёт цвет выделения темы. */
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const color = normalizeHexColorInput(readCfgPath(cfg, "navigation.moveLine.highlightColor"));
+  const spec = color
+    ? { class: "io-moved-line", attributes: { style: "--io-moved-line-bg: " + color } }
+    : { class: "io-moved-line" };
   const ranges = [];
   for (let n = mark.from + 1; n <= mark.to + 1; n++) {
     const at = doc.line(n).from;
-    ranges.push({ from: at, to: at, deco: cmView.Decoration.line({ class: "io-moved-line" }) });
+    ranges.push({ from: at, to: at, deco: cmView.Decoration.line(spec) });
   }
   return buildDecorationSet(ranges, "moved-lines");
 }
 
-function createMovedLinesExtension() {
+function createMovedLinesExtension(plugin) {
   return cmView.ViewPlugin.fromClass(class {
     constructor(view) {
-      this.decorations = movedLinesDecorations(view);
+      this.decorations = movedLinesDecorations(view, plugin);
     }
     update(update) {
-      this.decorations = movedLinesDecorations(update.view);
+      this.decorations = movedLinesDecorations(update.view, plugin);
     }
   }, {
     decorations: (v) => v.decorations,
