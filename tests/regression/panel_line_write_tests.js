@@ -84,9 +84,15 @@ function invariants(src, view, what) {
   const timeIt = (src) => {
     const view = viewOf(src, bar);
     planPanelLineWrite(src, view);            // прогрев
-    const t0 = process.hrtime.bigint();
-    for (let i = 0; i < 5; i++) planPanelLineWrite(src, view);
-    return Number(process.hrtime.bigint() - t0) / 1e6 / 5;
+    /* Минимум из семи заходов, а не одно среднее: набор идёт параллельно, и
+       процесс, вытесненный посреди замера, раздувал одну сторону отношения. */
+    let best = Infinity;
+    for (let round = 0; round < 7; round++) {
+      const t0 = process.hrtime.bigint();
+      for (let i = 0; i < 5; i++) planPanelLineWrite(src, view);
+      best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6 / 5);
+    }
+    return best;
   };
 
   const short = make(2000);

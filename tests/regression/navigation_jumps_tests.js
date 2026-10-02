@@ -90,8 +90,16 @@ function fakeEditor(text, cursor) {
   };
 }
 
-/** Дать курсору доехать: установка повторяется через таймер. */
-const settle = () => new Promise((r) => setTimeout(r, 80));
+/**
+ * Дать курсору доехать: установка повторяется через таймер.
+ *
+ * Ждём **той же цепочкой**, что у `setCursorRobustCentered` (0 → 40 → прокрутка
+ * через `centerDelayMs` = 0), а не 80 мс по часам: каждый наш таймер ставится
+ * после соответствующего таймера продукта и потому срабатывает после него при
+ * любой нагрузке. 80 мс по часам краснели в параллельном прогоне набора.
+ */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const settle = async () => { await sleep(0); await sleep(40); await sleep(0); await sleep(0); };
 
 const NOTE = [
   "первая строка вводного текста",

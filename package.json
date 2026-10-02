@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node tools/build/release.js",
     "test": "npm run build && node tests/run_all.js",
+    "check": "node tools/check.js",
     "test:version": "node tests/regression/version_consistency_tests.js",
     "test:release": "npm run build && npm run test:version && node tests/regression/release_bundle_tests.js",
     "lint": "eslint .",

@@ -10,7 +10,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const os = require("os");
+const { spawn } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 
@@ -41,8 +42,8 @@ function collect(dir, out) {
 /**
  * **Отбор по подстроке имени — только для итерации** (его решение 2026-09-21).
  *
- * Полный прогон идёт минуту, и правка одной проверки стоила минуты ожидания
- * каждый раз. `npm test -- tagwheel` гоняет то, что названо, за секунду.
+ * Полный прогон шёл минуту (теперь, параллельно, около полминуты), и
+ * правка одной проверки стоила этого ожидания каждый раз. `npm test -- tagwheel` гоняет то, что названо, за секунду.
  *
  * **Отбор не бывает тихим.** Пропуск, о котором не сказано вслух, — это тест,
  * которого нет (A15), и та же опасность здесь: прогон «зелёный» после отбора
@@ -68,27 +69,57 @@ if (PICK.length) {
 
 let failed = 0, passed = 0, skipped = 0;
 
-for (const file of files) {
-  const name = path.basename(file);
-  const rel = path.relative(root, file).replace(/\\/g, "/");
-  if (SKIP[name]) {
-    skipped++;
-    console.log("SKIP  " + rel);
-    console.log("      " + SKIP[name]);
-    continue;
-  }
-  const r = spawnSync(process.execPath, [file], { cwd: root, encoding: "utf8", timeout: 180000 });
-  if (r.status === 0) {
-    passed++;
-    console.log("ok    " + rel);
-  } else {
-    failed++;
-    console.log("FAIL  " + rel);
-    const out = ((r.stdout || "") + (r.stderr || "")).trim().split("\n").slice(-12);
-    out.forEach(l => console.log("      " + l));
-  }
+/**
+ * **Файлы идут параллельно, по процессу на ядро** (ревизия 2026-10-03, Э-1):
+ * по одному набор шёл 72 с при двенадцати ядрах, пулом — около 30. Каждый файл
+ * по-прежнему в своём процессе, а печать — в порядке имён, как раньше: отчёт
+ * не зависит от того, кто доехал первым. Тесты, ждавшие по часам, переведены на
+ * ожидание события (Э-2) — под нагрузкой пула они краснели.
+ */
+function runFile(file) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [file], { cwd: root, timeout: 180000 });
+    let out = "";
+    child.stdout.on("data", (d) => { out += d; });
+    child.stderr.on("data", (d) => { out += d; });
+    child.on("close", (code) => resolve({ code, out }));
+  });
 }
 
-console.log("\n" + passed + " passed, " + failed + " failed, " + skipped + " skipped"
-  + (PICK.length ? "  — НАБОР НЕПОЛОН: мимо прошло " + (allFiles.length - files.length) + " файлов" : ""));
-process.exit(failed ? 1 : 0);
+async function main() {
+  const results = new Array(files.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const i = next++;
+      if (!SKIP[path.basename(files[i])]) results[i] = await runFile(files[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: os.availableParallelism() }, worker));
+
+  files.forEach((file, i) => {
+    const name = path.basename(file);
+    const rel = path.relative(root, file).replace(/\\/g, "/");
+    if (SKIP[name]) {
+      skipped++;
+      console.log("SKIP  " + rel);
+      console.log("      " + SKIP[name]);
+      return;
+    }
+    const r = results[i];
+    if (r.code === 0) {
+      passed++;
+      console.log("ok    " + rel);
+    } else {
+      failed++;
+      console.log("FAIL  " + rel);
+      r.out.trim().split("\n").slice(-12).forEach(l => console.log("      " + l));
+    }
+  });
+
+  console.log("\n" + passed + " passed, " + failed + " failed, " + skipped + " skipped"
+    + (PICK.length ? "  — НАБОР НЕПОЛОН: мимо прошло " + (allFiles.length - files.length) + " файлов" : ""));
+  process.exit(failed ? 1 : 0);
+}
+
+main();

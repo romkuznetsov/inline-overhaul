@@ -124,14 +124,22 @@ async function run(): Promise<void> {
       cloneJson: su.cloneJson, isObj: su.isObj, deepMerge: su.deepMerge,
       migrateConfig: (c: Any): Any => su.cloneJson(c),
       Notice: function (): void { /* сообщений нет */ },
-      saveDebounceMs: 10,
+      /* Окно между концом записи «ru» и началом записи «de» — это и есть
+         отсрочка. При 10 мс сон на 5 мс в параллельном прогоне набора её
+         пропускал, и запись «de» успевала начаться до проверки. */
+      saveDebounceMs: 100,
     });
+    /* «Запись началась» ждём по самой записи, а не по часам. */
+    const writing = async (): Promise<void> => {
+      for (let i = 0; i < 2000 && !pending.length; i++) await sleep(1);
+      if (!pending.length) throw new Error("запись не началась");
+    };
     const initDone = store.init();
-    await sleep(1);
+    await writing();
     release();
     await initDone;
     store.patch({ general: { language: "ru" } }, "первая");
-    await sleep(40);                         // запись «ru» началась и висит
+    await writing();                         // запись «ru» началась и висит
     store.patch({ general: { language: "de" } }, "посреди записи");
     release();
     await sleep(5);
@@ -139,7 +147,7 @@ async function run(): Promise<void> {
     assertEq(store.diskChangedUnderUs(saved[saved.length - 1]), false,
       "Д-3: свой же файл посреди записи объявлен изменённым снаружи");
     assertEq(store.getSnapshot().general.language, "de", "правка посреди записи в памяти");
-    await sleep(40);
+    await writing();
     release();
     await sleep(5);
     assertEq(langOf(saved), "de", "правка посреди записи дописана следом");
