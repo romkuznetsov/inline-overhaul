@@ -23,6 +23,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 1. ✨ **Smart Enter on `Shift+Enter`.** `Use Shift+Enter instead`, under Smart Enter, moves it to `Shift+Enter` and leaves `Enter` as usual.
 2. ✨ **Autosaves in their own folder, as many as you choose.** Autosaves go into `autosave` inside the backup folder, earlier ones move there on the next start, and `Autosaves to keep` sets how many stay — 10 when empty.
+3. 🎨 **Help in the panel, in plain words.** Every callout now says what a section is for, and every `?` tip compares the choices and says which to pick — shorter and without the technical wording.
 
 ## 0.13.0
 

@@ -734,7 +734,7 @@ async function main(): Promise<void> {
     const text = host.textContent;
     assert.ok(text.includes("Move around lines and notes without the mouse"),
       "нет фразы о том, что делает вкладка: " + text.slice(0, 80));
-    assert.ok(text.includes("Moving lines and whole trees"), "нет абзаца о содержимом вкладки");
+    assert.ok(text.includes("Move lines and whole trees"), "нет абзаца о содержимом вкладки");
   });
 
   await test("подсказка коллаута открывается под коллаутом, а не внутри (К2)", () => {
@@ -875,7 +875,7 @@ async function main(): Promise<void> {
       "подсказка не должна открываться внутри строки подписи");
     const tips = host.children.filter((n: StubNode) => n.classList.contains("io-tip"));
     assert.equal(tips.length, 1, "подсказка должна быть под подписью, одна");
-    assert.ok(String(tips[0]?.textContent).includes("needs a selection"),
+    assert.ok(String(tips[0]?.textContent).includes("works on selected text"),
       "в подсказке не тот текст: " + tips[0]?.textContent);
     assert.equal(mark?.getAttribute("aria-expanded"), "true");
 

@@ -17,61 +17,38 @@ export interface CalloutText {
 export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
   general: {
     head: "inlineOverhaul lets one line of a note carry its own status, dates and links",
-    tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left " +
-         "to right is reading the plugin. Nothing here depends on anything else: a Field you set up on " +
-         "<b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth " +
-         "knowing about before you start are <b>Transform</b>, the only one that creates and edits files, and " +
-         "<b>Keyboard</b>: none of the commands has a key by default, so until you bind one nothing responds",
-    body: "Five areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is " +
-          "bound to. <b>Navigation</b> moves lines, text and the cursor without the mouse. <b>Tags & PKM</b> is the " +
-          "heart of it: you lay out the slots a line can hold — a status, a priority, a due date — and " +
-          "afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look " +
-          "while you write, and <b>Transform</b> turns a finished line into a note of its own. Three steps to get " +
-          "going: switch off any of the other four areas you do not want, press <code>Read</code> above for a worked example, then lay " +
-          "out your first Field on <b>Tags & PKM</b>. Nothing is written into your notes until you press a key, and " +
-          "the one area that creates files stays off until you switch it on"
+    tip: "Start here: switch off what you don’t need, press <code>Read</code> for a worked example, then set up your first Field on <b>Tags & PKM</b>. The parts work on their own. No command has a key at first, so bind the ones you want on <b>Keyboard</b>. Only <b>Transform</b> creates and edits files",
+    body: "Turn on the parts of the plugin you want, pick a language and find help. Nothing is written into your notes until you press a key, and the one part that creates files stays off until you switch it on"
   },
   navigation: {
     head: "Move around lines and notes without the mouse",
-    tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
-         "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
-    body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate more easily and much more. Try each group and keep what fits the way you write"
+    tip: "<b>None of these commands has a key by default</b>. Set keys in <code>Settings → Hotkeys</code>. Each command chip below shows the key it has now",
+    body: "Move lines and whole trees up and down, change indents, slide text along a line and jump between headings, all from the keyboard. Keep the groups that suit the way you write"
   },
   keyboard: {
     head: "Everything about keys lives here",
-    tip: "Obsidian owns the hotkeys themselves, so this tab tells you what to bind and takes you there; the binding " +
-         "is done in <code>Settings \u2192 Hotkeys</code> and survives updates of this plugin",
-    body: "Take over Ctrl/Cmd + A so it selects a line before the whole note, keep a row of snippets you drop in with " +
-          "one press, and read the full list of commands with the key each one currently has"
+    tip: "Hotkeys are set in Obsidian, not here. This tab shows you what to bind and takes you to <code>Settings → Hotkeys</code>. Your keys stay when the plugin updates",
+    body: "Make <code>Ctrl/Cmd + A</code> select a line before the whole note, keep snippets you insert with one key, and see every command with the hotkey it has now"
   },
   pkm: {
-    head: "This is the plugin\u2019s main feature",
-    tip: "The idea is that you never stop writing to fill in metadata. You define your slots once here \u2014 a status, " +
-         "a priority, a due date \u2014 and afterwards one keypress puts the right Value on the line and steps it forward",
-    body: "Lay out your PKM here once, and tagging a line becomes a keypress instead of typing. Decide which slots a " +
-          "line can hold, what Values each one offers, where they sit, and how they are written"
+    head: "The heart of the plugin: your tags, links and dates",
+    tip: "Make a Field for each thing you track, such as a status, a priority or a due date. Then one keypress puts the right Value on the line, and the next press moves it on to the next Value. You never stop writing to fill things in",
+    body: "Set up once which tags, links and dates your lines can have, and where they go. After that, tagging a line takes one keypress instead of typing"
   },
   visual: {
     head: "How a tagged line looks while you are writing",
-    tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this " +
-         "plugin and you see plain text with ordinary tags",
-    body: "Draw tags as colored bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
-          "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
+    tip: "Nothing on this tab changes your files. Open the same note without this plugin and you see plain text with ordinary tags",
+    body: "Show tags as colored bubbles, add a colored Bar in the margin so you can see what a block of lines is about at a glance, and set up tagWheel, the picker for choosing a Value with the arrow keys"
   },
   transform: {
     head: "Turn a line you have already written into a note of its own",
-    tip: "This is the one part of the plugin that creates and edits files. Everything here is off until you switch it " +
-         "on, and it is worth a backup and a practice run on a note you do not mind breaking",
-    body: "A thought you jotted on one line becomes a proper note, from a template, with its properties already " +
-          "filled in from the tags on that line \u2014 and the line itself left holding a link to it"
+    tip: "This is the only part of the plugin that creates and changes files. Everything here is off until you switch it on. Make a backup and try it first on a note you do not mind breaking",
+    body: "Turn a thought you jotted on one line into a proper note, made from a template, with its properties filled in from the line’s tags. The line keeps a link to the new note"
   },
   advanced: {
     head: "Housekeeping you rarely need",
-    tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want " +
-         "to look at what the plugin has written into your vault",
-    body: "Backups of your settings and how to bring one back, and how to record a log when something needs " +
-          "reporting"
+    tip: "You don’t need anything here day to day. Come back when something behaves oddly, or when you want to see what the plugin wrote into your vault",
+    body: "Back up your settings and restore them, or record a log when you need to report a problem"
   }
 };
 
