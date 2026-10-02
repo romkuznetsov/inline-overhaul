@@ -6,7 +6,7 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { on, eq, either, both } from "../types.ts";
+import { on, not, eq, either, both } from "../types.ts";
 import { binderTable } from "../custom/binder.ts";
 import { callout } from "../custom/callouts.ts";
 import { commandReference } from "../custom/command_reference.ts";
@@ -100,10 +100,15 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
                 {value:"none",label:"None"},
                 {value:"number-only",label:"Numbered lines only"} ],
       tip:"<b>Same as above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>Numbered lines only</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" },
+    { kind:"toggle", id:"smart-enter-use-shift", path:"editor.smartEnter.useShift", default:false,
+      name:"Use Shift+Enter instead", desc:"Make <code>Shift+Enter</code> the Smart Enter key and leave <code>Enter</code> as usual",
+      searchTerms:["Shift+Enter","Smart Enter key"],
+      visible: on("editor.smartEnter.enabled"),
+      tip:"On, <code>Enter</code> splits the line as usual and <code>Shift+Enter</code> adds a line below. Off, it is the other way round" },
     { kind:"toggle", id:"smart-enter-shift", path:"editor.smartEnter.shiftPlainEnter", default:false,
       name:"Shift+Enter as usual Enter", desc:"Let <code>Shift+Enter</code> split the line the way <code>Enter</code> does without <code>Smart Enter</code>",
       searchTerms:["Shift+Enter","Plain Enter"],
-      visible: on("editor.smartEnter.enabled"),
+      visible: both(on("editor.smartEnter.enabled"), not("editor.smartEnter.useShift")),
       tip:"On, <code>Shift+Enter</code> does what Obsidian’s own <code>Enter</code> does: it splits the line at the cursor and continues the list. Off, <code>Shift+Enter</code> keeps Obsidian’s own behavior" },
     { kind:"custom", id:"smart-paste-sub", render: subheader("Smart Paste (Ctrl+V)",
         "Paste a numbered list you cut from somewhere else and it arrives carrying the numbers it had there: a list that started at nine goes on starting at nine. With this on, a pasted list is counted from one, and pasting it right under a list you already have carries that list's count on instead. The other half is the single item: paste <code>1. text</code> into a line that already starts with a number and you get <code>2. 1. text</code>, two markers in a row. With this on the pasted marker is dropped and only the text lands. Everything else you paste — plain text, a link, a table — arrives exactly as it always did") },

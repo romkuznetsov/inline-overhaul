@@ -242,6 +242,8 @@ being Obsidian’s own. If a line carries only one Separator, the text slot is w
 lies after the first or before the second, and a line with none is text from end to end.
 
 `Shift+Enter as usual Enter` makes `Shift+Enter` the usual `Enter` of Obsidian: it splits the line and continues the list. Off, `Shift+Enter` stays Obsidian’s own.
+
+`Use Shift+Enter instead` swaps the keys: `Shift+Enter` adds the line below and `Enter` splits the line as usual. With it on, `Shift+Enter as usual Enter` is hidden — there is nothing left for it to do.
 In code, in a table, on an empty line and on an empty list item `Enter` stays Obsidian’s
 own, so it still takes you out of a list.
 

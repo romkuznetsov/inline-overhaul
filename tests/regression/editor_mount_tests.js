@@ -206,6 +206,60 @@ test("Shift+Enter при включённом `Shift+Enter as usual Enter` — �
   assert.equal(configNormalize.migrateConfig({ schemaVersion: 2 }).editor.smartEnter.shiftPlainEnter, false, "умолчание тумблера не «выключен»");
 });
 
+/*
+ * `Use Shift+Enter instead` — его заказ 2026-10-03: Smart Enter на
+ * `Shift+Enter`, а `Enter` — платформы. `Shift+Enter as usual Enter` при этом
+ * спрятан, и стоящее в нём «включено» нажатия не перехватывает.
+ */
+test("`Use Shift+Enter instead`: Shift+Enter — Smart Enter, Enter — платформы", () => {
+  const cmView = require(path.join(root, "node_modules", "@codemirror", "view"));
+  const engine = require(path.join(root, "src", "features", "smart_enter_engine.js"));
+  const configNormalize = require(path.join(root, "src", "core", "config_normalize.js"));
+  const text = "- позвонить в банк, завтра в налоговую";
+  let useShift = true;
+  const smart = [];
+  const plugin = makePlugin();
+  plugin.getConfig = () => configNormalize.migrateConfig({
+    schemaVersion: 2,
+    editor: { smartEnter: { enabled: true, useShift, shiftPlainEnter: true, newLinePrefix: "same" } },
+    pkm: { lineFormat: { separator1: "||", separator2: "::" } },
+  });
+  plugin.getActiveEditor = () => ({
+    getLine: () => text, getCursor: () => ({ line: 0, ch: 17 }),
+    somethingSelected: () => false, listSelections: () => [{}],
+    replaceRange: (t) => { smart.push(t); }, setCursor: () => {},
+  });
+  plugin.handleSmartEnterKeymap = function () { return engine.handleSmartEnterKeymap(this); };
+  plugin.handlePlainEnterKeymap = function (run) { return engine.handlePlainEnterKeymap(this, run); };
+  mount.mountExtensions(plugin);
+  const platform = [];
+  const view = {
+    state: cmState.EditorState.create({
+      doc: text,
+      extensions: [plugin.registered.slice(), cmView.keymap.of([{
+        key: "Enter",
+        run: () => { platform.push("Enter"); return true; },
+        shift: () => { platform.push("Shift-Enter"); return true; },
+      }])],
+    }),
+  };
+  const press = (shiftKey) => cmView.runScopeHandlers(view, {
+    type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
+    preventDefault() {}, stopPropagation() {},
+  }, "editor");
+
+  press(true);
+  assert.equal(smart.length, 1, "Shift+Enter не стал Smart Enter");
+  assert.deepEqual(platform, [], "Shift+Enter ушёл платформе");
+  press(false);
+  assert.equal(smart.length, 1, "Enter остался Smart Enter");
+  assert.deepEqual(platform, ["Enter"], "Enter не дошёл до платформы");
+  useShift = false;
+  press(false);
+  assert.equal(smart.length, 2, "контроль: выключенный тумблер обязан вернуть Smart Enter на Enter");
+  assert.equal(configNormalize.migrateConfig({ schemaVersion: 2 }).editor.smartEnter.useShift, false, "умолчание тумблера не «выключен»");
+});
+
 let failed = 0;
 for (const t of tests) {
   try {

@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. ✨ **Smart Enter on `Shift+Enter`.** `Use Shift+Enter instead`, under Smart Enter, moves it to `Shift+Enter` and leaves `Enter` as usual.
+
 ## 0.13.0
 
 _2026-10-02 · [all changes since 0.12.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.12.0...0.13.0)_

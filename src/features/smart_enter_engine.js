@@ -137,11 +137,13 @@ function planSmartEnter(opts) {
  * Обработчик клавиши. Всё, что связано с редактором, живёт здесь; решение —
  * в чистой функции выше.
  */
-function handleSmartEnterKeymap(plugin) {
+function handleSmartEnterKeymap(plugin, viaShift) {
   if (plainEnter) return false;
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const se = cfg && cfg.editor && cfg.editor.smartEnter ? cfg.editor.smartEnter : null;
   if (!se || se.enabled !== true) return false;
+  /* Клавиша Smart Enter — `Enter`, а с `Use Shift+Enter instead` — `Shift+Enter`. */
+  if ((se.useShift === true) !== (viaShift === true)) return false;
 
   const editor = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
   if (!editor) return false;
@@ -207,6 +209,7 @@ let plainEnter = false;
 function handlePlainEnterKeymap(plugin, runEnter) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const se = cfg && cfg.editor && cfg.editor.smartEnter ? cfg.editor.smartEnter : null;
+  if (se && se.enabled === true && se.useShift === true) return handleSmartEnterKeymap(plugin, true);
   if (!se || se.enabled !== true || se.shiftPlainEnter !== true || typeof runEnter !== "function") return false;
   plainEnter = true;
   try {

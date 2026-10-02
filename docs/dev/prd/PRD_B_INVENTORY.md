@@ -13,7 +13,7 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 5 | 9 | 2 |
-| 2 | Keyboard | — | 4 | 15 | 8 |
+| 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
@@ -289,10 +289,15 @@ _Tip:_ Nothing here rebinds a key: all four stay Obsidian’s own, and each sett
   - варианты: `same` Same as above · `none` None · `number-only` Numbered lines only
   - видна если: `editor.smartEnter.enabled`
   - старые названия для поиска: «Keep the bullet», «New line Prefix», «Carry the Prefix over»
+- **Use Shift+Enter instead** — `smart-enter-use-shift`, `toggle`, path `editor.smartEnter.useShift`, default `false`
+  - desc: Make <code>Shift+Enter</code> the Smart Enter key and leave <code>Enter</code> as usual
+  - tip: On, <code>Enter</code> splits the line as usual and <code>Shift+Enter</code> adds a line below. Off, it is the other way round
+  - видна если: `editor.smartEnter.enabled`
+  - старые названия для поиска: «Shift+Enter», «Smart Enter key»
 - **Shift+Enter as usual Enter** — `smart-enter-shift`, `toggle`, path `editor.smartEnter.shiftPlainEnter`, default `false`
   - desc: Let <code>Shift+Enter</code> split the line the way <code>Enter</code> does without <code>Smart Enter</code>
   - tip: On, <code>Shift+Enter</code> does what Obsidian’s own <code>Enter</code> does: it splits the line at the cursor and continues the list. Off, <code>Shift+Enter</code> keeps Obsidian’s own behavior
-  - видна если: `editor.smartEnter.enabled`
+  - видна если: `editor.smartEnter.enabled, editor.smartEnter.useShift`
   - старые названия для поиска: «Shift+Enter», «Plain Enter»
 - **`smart-paste-sub`** — свой блок, рендерер `?`
 - **Smart paste** — `smart-paste-enabled`, `toggle`, path `editor.smartPaste.enabled`, default `false`
@@ -1252,6 +1257,7 @@ _Tip:_ Every tag in a note is drawn as a bubble, whether the plugin put it there
 | `editor.smartEnter.newLinePrefix` | dropdown | `same` |
 | `editor.smartEnter.scope` | dropdown | `line` |
 | `editor.smartEnter.shiftPlainEnter` | toggle | `false` |
+| `editor.smartEnter.useShift` | toggle | `false` |
 | `editor.smartPaste.enabled` | toggle | `false` |
 | `features.navigation.enabled` | toggle | `true` |
 | `features.pkm.enabled` | toggle | `true` |

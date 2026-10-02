@@ -148,7 +148,7 @@ it to one that already exists. Off out of the box.
   stops at.
 - **Smart Delete\Backspace** — `Del` at the end of a line and `Backspace` at the start
   bring up the words without the indent and the Prefix. The two switch on separately.
-- **Smart Enter** — `Enter` adds a line below instead of splitting the one you are on; `Shift+Enter` can be the usual `Enter`.
+- **Smart Enter** — `Enter` adds a line below instead of splitting the one you are on; `Shift+Enter` can be the usual `Enter`, or the Smart Enter key itself.
 - **Smart paste** — a pasted numbered list is counted from one, unless it lands under a
   list you already have, and then that count carries on. A pasted `1. text` dropped into a
   line that already starts with a number loses its marker.

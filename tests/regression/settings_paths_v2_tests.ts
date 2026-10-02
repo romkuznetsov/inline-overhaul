@@ -85,6 +85,7 @@ const V2_ONLY: Record<string, string> = {
   "pkm.behavior.doneMarker.visual.opacity": "насколько её погасить — там же",
   "pkm.behavior.doneMarker.visual.color": "её цвет — там же",
   "editor.smartEnter.shiftPlainEnter": "Shift+Enter — обычный Enter, его слово 2026-09-30 «сделай контрол» (10.13.290); читает handlePlainEnterKeymap",
+  "editor.smartEnter.useShift": "Smart Enter на Shift+Enter, Enter обычный — его заказ 2026-10-03 (10.13.304); читает handleSmartEnterKeymap",
   "visual.tags.linkAsWritten.targetColor": "цвет цели ссылки, показанной как написано — его заказ `З-37`, ответ `В-174`; читает createTagVisualDecorationExtension в decorations.js",
   "visual.tags.linkAsWritten.bracketsColor": "цвет скобок той же ссылки — там же; цена скобок названа ему и принята (`В-176`)",
   "editor.smartPaste.enabled": "Smart paste — его пункт 9 от 2026-09-21 (`З-31`, `З-32`); читает handleSmartPaste в smart_paste_engine.js",

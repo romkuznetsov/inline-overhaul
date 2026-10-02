@@ -995,6 +995,7 @@ function normalizeConfigV2(cfg) {
      Block. */
   oneOf("editor.smartEnter.scope", ["line", "text"]);
   bool("editor.smartEnter.shiftPlainEnter");
+  bool("editor.smartEnter.useShift");
   /* Smart paste (`З-31`, `З-32`). Умолчание выключено — как у трёх соседних
      разделов `Global hotkeys`: клавиша принадлежит Obsidian. */
   bool("editor.smartPaste.enabled");
