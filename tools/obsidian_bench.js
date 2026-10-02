@@ -227,6 +227,8 @@ const PREPARE = {
   },
   /* H1.5 прогона 2026-10-02: строка README и строка под tagWheel, тёмная тема. */
   "clean-dark-contrast"(vault) { PREPARE["clean-readme-extra"](vault); },
+  /* H1.6 прогона 2026-10-02: строка README, `#high` пустым пузырём. */
+  "clean-empty-bubble"(vault) { PREPARE["clean-readme-shot"](vault); },
   "clean-readme-extra"(vault) {
     PREPARE["clean-readme-shot"](vault);
     /* Пустые строки сверху: скроллер открывается вверх и лёг бы на заголовок заметки. */
@@ -787,6 +789,38 @@ const SCENARIOS = {
     await shoot("line-tuned", README_LINE, false);
     await shoot("tagwheel", "- your text", true);
     console.log(ok ? "ok: снимки в " + out : "РАСХОДИТСЯ: см. строки выше");
+    return ok;
+  },
+
+  /*
+   * H1.6 прогона 2026-10-02: «пустой пузырь ниже соседей (20 против 22.8 px)».
+   * Чистый vault, строка README, у `#high` вид `empty`; у каждого пузыря
+   * строки — высота и середина по вертикали. Пустой обязан совпасть с
+   * соседями по обеим величинам с точностью до полупикселя.
+   */
+  async "clean-empty-bubble"(win) {
+    const set = await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      const byTag = p.getConfig().visual.tags.byTag;
+      Object.assign(byTag.Priority["#high"], { visibility: "empty" });
+      p.setConfigPatch({ visual: { tags: { byTag } } }, "bench:empty-bubble");
+      await new Promise((r) => setTimeout(r, 800));
+      return p.getConfig().visual.tags.byTag.Priority["#high"].visibility;
+    });
+    if (set !== "empty") { console.log("КОНТРОЛЬ: вид empty не записался"); return false; }
+    const n = await openAt(win, "readme.md", README_LINE);
+    await win.evaluate((n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n + 1, ch: 0 }); ed.cm.contentDOM.blur(); }, n);
+    await win.waitForTimeout(1000);
+    const boxes = await win.evaluate(() => [...document.querySelectorAll(".workspace-leaf.mod-active .cm-line .io-tagbubble")].map((b) => {
+      const r = b.getBoundingClientRect();
+      return { empty: b.classList.contains("io-tagbubble--empty"), token: b.getAttribute("data-io-tag-token"), h: Math.round(r.height * 10) / 10, mid: Math.round((r.top + r.bottom) / 2 * 10) / 10 };
+    }));
+    for (const b of boxes) console.log("  " + (b.empty ? "пустой " : "        ") + b.token + ": высота " + b.h + ", середина " + b.mid);
+    const empty = boxes.filter((b) => b.empty);
+    const full = boxes.filter((b) => !b.empty);
+    if (!empty.length || !full.length) { console.log("КОНТРОЛЬ: нет пустого или нет соседа — мерить нечего"); return false; }
+    const ok = empty.every((e) => full.every((f) => Math.abs(e.h - f.h) <= 0.5 && Math.abs(e.mid - f.mid) <= 0.5));
+    console.log(ok ? "ok: пустой пузырь вровень с соседями" : "РАСХОДИТСЯ: пустой пузырь другой высоты или на другом уровне");
     return ok;
   },
 

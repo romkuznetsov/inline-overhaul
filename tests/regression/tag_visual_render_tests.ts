@@ -1475,4 +1475,20 @@ const filled = (el: Any): boolean =>
   ok("D6: подменённый токен несёт цвет своей ячейки");
 }
 
+{
+  /*
+   * H1.6 прогона 2026-10-02: пустой пузырь той же высоты, что соседи. Его
+   * `line-height: 1` давал 20 px против 22.8 (`clean-empty-bubble` в настоящем
+   * Obsidian). Высоту строки задаёт базовое правило, и оно обязано её задавать
+   * — иначе запрет ниже зелен от того, что высоту не задаёт никто.
+   */
+  const css = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+  const rule = (sel: string): string => ((css.match(new RegExp("\\n" + sel.replace(/[.-]/g, "\\$&") + " \\{([^}]*)\\}")) || [])[1] || "");
+  assert.ok(/line-height:\s*var\(--io-tagbubble-line\)/.test(rule(".io-tagbubble")), "у пузыря высота строки своя: " + rule(".io-tagbubble").slice(0, 80));
+  const empty = rule(".io-tagbubble--empty");
+  assert.ok(/width:/.test(empty), "правило пустого пузыря найдено: " + empty);
+  assert.ok(!/line-height/.test(empty), "у пустого пузыря своей высоты строки нет: " + empty);
+  ok("H1.6: пустой пузырь той же высоты, что соседи");
+}
+
 console.log("\n" + passed + " проверок пройдено");

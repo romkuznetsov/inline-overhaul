@@ -3524,13 +3524,17 @@ body.theme-dark {
 /*
  * Value без текста: ширина задана, горизонтальные поля сняты. Правило стоит
  * ПОСЛЕ базового нарочно — специфичность у них одна, и решает порядок (У-67).
+ *
+ * Высота строки — та же, что у соседей (`--io-tagbubble-line` базового
+ * правила): здесь стояло `line-height: 1` с первого выпуска, и пустой пузырь
+ * выходил ниже соседей, 20 против 22.8 px (H1.6 прогона 2026-10-02). Мера —
+ * `node tools/obsidian_bench.js clean-empty-bubble`.
  */
 .io-tagbubble--empty {
   width: var(--io-tagbubble-width);
   min-width: var(--io-tagbubble-width);
   padding-left: 0;
   padding-right: 0;
-  line-height: 1;
 }
 /*
  * Заливка есть — значит текст лежит на цветной подложке, и цвет его берётся
