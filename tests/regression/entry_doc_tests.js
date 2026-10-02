@@ -34,6 +34,9 @@ const root = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 
 const claude = read("CLAUDE.md");
+/* Полный текст правил переехал в `docs/dev/RULES.md` (Э-4): его ссылки на файлы
+   и уроки проверяются вместе с `CLAUDE.md`, иначе ушли бы из-под проверки. */
+const linked = claude + "\n" + read("docs/dev/RULES.md");
 
 /* ---------- 1. у переехавшего один дом, и обе стороны спрошены ---------- */
 
@@ -53,6 +56,12 @@ const MOVED = [
     gone: /Ставится шаг двумя командами/,
     home: "docs/dev/BROWSER_GATE.md",
     there: /Ставится шаг двумя командами/,
+  },
+  {
+    what: "полный текст правил «Проверок»",
+    gone: /Свой файл гоняется через `node tools\/panel_dry_run\.mjs/,
+    home: "docs/dev/RULES.md",
+    there: /Свой файл гоняется через `node tools\/panel_dry_run\.mjs/,
   },
   {
     what: "указатели на архив",
@@ -109,7 +118,7 @@ const GONE_ON_PURPOSE = {};
 const pathRe = /`([A-Za-z0-9_][A-Za-z0-9_./-]*\/[A-Za-z0-9_./-]+\.[a-z]{2,4})`/g;
 const seen = new Set();
 const missing = [];
-for (let m = pathRe.exec(claude); m; m = pathRe.exec(claude)) {
+for (let m = pathRe.exec(linked); m; m = pathRe.exec(linked)) {
   const rel = m[1];
   if (rel.indexOf("*") >= 0 || rel.indexOf("<") >= 0) continue;
   if (!TOP.has(rel.split("/")[0])) continue;
@@ -148,7 +157,7 @@ const lessons = read("docs/dev/LESSONS.md");
 const haveLessons = new Set(
   [...lessons.matchAll(/^### (У-\d+)\./gm)].map((m) => m[1]));
 const usedLessons = new Set(
-  [...claude.matchAll(/У-(\d+)/g)].map((m) => "У-" + m[1]));
+  [...linked.matchAll(/У-(\d+)/g)].map((m) => "У-" + m[1]));
 
 assert.ok(haveLessons.size > 100,
   "контроль: заголовков уроков нашлось " + haveLessons.size + " — образец их не находит");
@@ -280,10 +289,33 @@ function parseRules(text) {
   });
 }
 
-const rules = parseRules(claude);
+/*
+ * **С 2026-10-03 правило живёт в двух местах** (ревизия, Э-4): полный текст —
+ * `docs/dev/RULES.md`, в `CLAUDE.md` — заголовок и номера уроков под тем же
+ * номером. Форма и предел длины спрашиваются у полного текста; у заголовков —
+ * что они те же самые и в том же порядке. Иначе правило, дописанное в одно
+ * место, молча не доехало бы до другого.
+ */
+const rulesDoc = read("docs/dev/RULES.md");
+const rules = rulesDoc.split(/\n(?=\d+\. \*\*)/).slice(1)
+  .map((t) => ({ num: Number(t.match(/^(\d+)\./)[1]), text: t.trim() }));
+const heads = parseRules(claude);
+const headOf = (t) => (t.match(/^\d+\. \*\*(.+?)\*\*/) || [])[1];
 
 assert.ok(rules.length > 100,
   "контроль: правил разобрано " + rules.length + " — разбор читает не тот раздел");
+assert.deepStrictEqual(heads.map((r) => r.num), rules.map((r) => r.num),
+  "номера правил в CLAUDE.md и в docs/dev/RULES.md разошлись — правило дописано в одно место");
+const headDiff = heads.filter((h, i) => headOf(h.text) !== headOf(rules[i].text)).map((h) => h.num);
+assert.deepStrictEqual(headDiff, [],
+  "заголовки этих правил в CLAUDE.md и docs/dev/RULES.md разные: " + headDiff.join(", "));
+const multiLine = heads.filter((h) => h.text.indexOf("\n") >= 0).map((h) => h.num);
+assert.deepStrictEqual(multiLine, [],
+  "в CLAUDE.md вернулся полный текст правил — там живёт заголовок одной строкой: " + multiLine.join(", "));
+const headNoSource = heads.filter((h) => !/У-\d+/.test(h.text)
+  && !/(его слово|его решение)[^.]{0,40}20\d\d-\d\d-\d\d/.test(h.text)).map((h) => h.num);
+assert.deepStrictEqual(headNoSource, [],
+  "у заголовков этих правил в CLAUDE.md нет ни урока, ни даты его слова: " + headNoSource.join(", "));
 
 const OWNER_WORD = /(его слово|его решение)[^.]{0,40}20\d\d-\d\d-\d\d/;
 const noSource = rules
@@ -315,9 +347,10 @@ const sizes = [
 
 console.log("ok: читается целиком каждую сессию — " + claude.length + " знаков; "
   + "по событию: " + sizes.slice(1).map((s) => s[0] + " " + s[1]).join(", "));
-console.log("ok: путей в CLAUDE.md " + seen.size + ", все ведут в существующие файлы; "
+console.log("ok: путей в CLAUDE.md и docs/dev/RULES.md " + seen.size + ", все ведут в существующие файлы; "
   + "ссылок на уроки " + usedLessons.size + " из " + haveLessons.size + ", все разрешаются; "
   + "переездов с двусторонней сверкой " + MOVED.length);
-console.log("ok: правил в разделе «Проверки» " + rules.length + " на " + rulesChars
-  + " знаков (" + Math.round(rulesChars * 100 / claude.length) + "% файла); самое длинное — "
+console.log("ok: правил " + rules.length + "; заголовки в CLAUDE.md — "
+  + heads.reduce((sum, r) => sum + r.text.length, 0) + " знаков, полный текст в docs/dev/RULES.md — "
+  + rulesChars + " знаков; самое длинное — "
   + longest.num + " на " + longest.text.length + " при пороге " + RULE_CAP);

@@ -829,10 +829,16 @@ else ok("схема загружена: групп " + SCHEMA.length);
     const CEILING_MS = 150;
     const slow: string[] = [];
     const times: string[] = [];
+    /* Минимум из трёх открытий, а не одно: `npm run check` гоняет гейт рядом с
+       линтером и набором, и вытесненный посреди замера процесс давал 240 мс
+       вместо 5 (ревизия 2026-10-03, Э-3). Дорогая отрисовка дорога во всех трёх. */
     for (const tab of TABS as Array<{ id: string; label?: string }>) {
-      const started = performance.now();
-      openTab(pane, tab.id);
-      const spent = performance.now() - started;
+      let spent = Infinity;
+      for (let round = 0; round < 3; round++) {
+        const started = performance.now();
+        openTab(pane, tab.id);
+        spent = Math.min(spent, performance.now() - started);
+      }
       times.push(String(tab.label || tab.id) + " " + spent.toFixed(1) + " мс");
       if (spent > CEILING_MS) slow.push(String(tab.label || tab.id) + ": " + spent.toFixed(1) + " мс");
     }
