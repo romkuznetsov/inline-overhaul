@@ -2514,10 +2514,14 @@ const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, chosen: 2, name: 2, active: 3, r
  *
  * Пары взяты у самой Obsidian, а не собраны на глаз: `--text-highlight-bg` —
  * ровно то, чем она красит `==…==`, а панель обособлена именно им.
+ *
+ * Цвета текста — свои переменные `styles.css`: у светлой темы это прежние
+ * `--text-muted` и `--text-accent`, у тёмной — `--text-normal` и
+ * `--text-accent-hover`, прежние там читались 2.8:1 и 2.1:1 (H1.5).
  */
 const TAGWHEEL_THEME_COLOR_VARS = {
-  defaultTextColor: "--text-muted",
-  activeTextColor: "--text-accent",
+  defaultTextColor: "--io-tw-text",
+  activeTextColor: "--io-tw-active",
   fillColor: "--text-highlight-bg",
 }
 

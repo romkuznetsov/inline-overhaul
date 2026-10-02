@@ -935,14 +935,31 @@
  * как чипы Value, а панель в заметке красится своими цветами. Теперь ячейка —
  * слово, активная в квадратных скобках и полужирная, как её пишет движок.
  */
+/*
+ * Цвета текста панели tagWheel, пока они не заданы, — одно объявление на
+ * заметку и предпросмотр (`TAGWHEEL_THEME_COLOR_VARS`, `THEME_COLOR_VARS`).
+ * В тёмной теме по умолчанию `--text-muted` и `--text-accent` на заливке
+ * `--text-highlight-bg` дают 2.8:1 и 2.1:1 при пороге панели 3:1 (H1.5 прогона
+ * 2026-10-02); `--text-normal` и `--text-accent-hover` там — 4.2:1 и 3.2:1.
+ * Светлая тема остаётся прежней: 5.6:1 и 3.6:1. Мера —
+ * `node tools/obsidian_bench.js clean-dark-contrast`.
+ */
+body {
+  --io-tw-text: var(--text-muted);
+  --io-tw-active: var(--text-accent);
+}
+body.theme-dark {
+  --io-tw-text: var(--text-normal);
+  --io-tw-active: var(--text-accent-hover);
+}
 .io-wheelcell {
   white-space: nowrap;
   font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale));
-  color: var(--io-wheel-cell, var(--text-muted));
+  color: var(--io-wheel-cell, var(--io-tw-text));
 }
 .io-wheelcell--active {
   font-weight: 700;
-  color: var(--io-wheel-cell-active, var(--text-accent));
+  color: var(--io-wheel-cell-active, var(--io-tw-active));
 }
 /* `Bold Field names`: имя неактивного Field полужирным */
 .io-wheelcell--name { font-weight: 700; }
@@ -3836,7 +3853,7 @@
 .io-nf .io-wheelval { transition: background-color 160ms ease, color 160ms ease; }
 .io-nf .io-wheelval--on {
   font-weight: 700;
-  color: var(--io-wheel-cell-active, var(--text-accent));
+  color: var(--io-wheel-cell-active, var(--io-tw-active));
   background: var(--background-modifier-hover);
 }
 @media (prefers-reduced-motion: reduce) { .io-nf .io-wheelval { transition: none; } }

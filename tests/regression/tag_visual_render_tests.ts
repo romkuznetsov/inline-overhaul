@@ -1245,10 +1245,10 @@ const filled = (el: Any): boolean =>
     I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: {} } }));
   assert.equal(themed.fillColor, "var(--text-highlight-bg)",
     "заливка панели берётся у темы: " + themed.fillColor);
-  assert.equal(themed.defaultTextColor, "var(--text-muted)",
-    "неактивные Fields — приглушённым цветом темы: " + themed.defaultTextColor);
-  assert.equal(themed.activeTextColor, "var(--text-accent)",
-    "активный Field — акцентным цветом темы: " + themed.activeTextColor);
+  assert.equal(themed.defaultTextColor, "var(--io-tw-text)",
+    "неактивные Fields — своей переменной, у неё пара по теме (H1.5): " + themed.defaultTextColor);
+  assert.equal(themed.activeTextColor, "var(--io-tw-active)",
+    "активный Field — тоже: " + themed.activeTextColor);
 
   /* 2. Цвет человека сильнее темы всегда (Ц6). */
   const own = I.resolveTagwheelPaintColors(
@@ -1257,7 +1257,7 @@ const filled = (el: Any): boolean =>
     }));
   assert.equal(own.fillColor, "#f0e17f", "заданная заливка остаётся своей");
   assert.equal(own.defaultTextColor, "#322b2a", "и заданный цвет текста тоже");
-  assert.equal(own.activeTextColor, "var(--text-accent)",
+  assert.equal(own.activeTextColor, "var(--io-tw-active)",
     "а незаданный рядом с ними по-прежнему берётся у темы");
 
   /* 3. Пустое значение в конфиге осталось пустым: признак «не задан» цел. */
@@ -1280,8 +1280,24 @@ const filled = (el: Any): boolean =>
     "переменные темы в панели и в заметке — одни и те же",
   );
 
+  /*
+   * 4а. Свои переменные объявлены у обеих тем (H1.5 прогона 2026-10-02):
+   * необъявленная дала бы и полю, и строке пустоту. Пара тёмной темы — та,
+   * что прошла 3:1 на `clean-dark-contrast`; прежняя давала 2.8 и 2.1.
+   */
+  {
+    const css = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
+    const block = (sel: string): string => ((css.match(new RegExp("\\n" + sel.replace(/\./g, "\\.") + " \\{([^}]*)\\}")) || [])[1] || "");
+    const light = block("body");
+    const dark = block("body.theme-dark");
+    assert.ok(/--io-tw-text:\s*var\(--text-muted\)/.test(light) && /--io-tw-active:\s*var\(--text-accent\)/.test(light),
+      "светлая тема — прежние переменные: " + light);
+    assert.ok(/--io-tw-text:\s*var\(--text-normal\)/.test(dark) && /--io-tw-active:\s*var\(--text-accent-hover\)/.test(dark),
+      "тёмная тема — пара, прошедшая 3:1: " + dark);
+  }
+
   /* 5. Панель показывает цвет темы, а не чёрное: `defaultValue` контрола. */
-  setThemeReader((v: string) => (v === "--text-muted" ? "rgb(136, 136, 136)" : ""));
+  setThemeReader((v: string) => (v === "--io-tw-text" ? "rgb(136, 136, 136)" : ""));
   const defs = toDefinitions(SCHEMA, TABS, {
     ctx: { get: () => undefined } as Any,
     activeTab: "visual",

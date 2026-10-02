@@ -1400,14 +1400,25 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 /* the panel of the picker is text, not bubbles: two text colors and a fill,
    which is what its settings actually change (10.13.22) */
+/* the panel's text colors while unset: muted and accent in the light theme,
+   normal and accent-hover in the dark one — the dark defaults read 2.8:1 and
+   2.1:1 on the highlight fill (H1.5, 2026-10-02) */
+body {
+  --io-tw-text: var(--text-muted);
+  --io-tw-active: var(--text-accent);
+}
+body.theme-dark {
+  --io-tw-text: var(--text-normal);
+  --io-tw-active: var(--text-accent-hover);
+}
 .io-wheelcell {
   white-space: nowrap;
   font-size: calc(var(--io-text-size, 11.5px) * var(--io-text-scale, 1));
-  color: var(--io-wheel-cell, var(--text-muted));
+  color: var(--io-wheel-cell, var(--io-tw-text));
 }
 .io-wheelcell--active {
   font-weight: 700;
-  color: var(--io-wheel-cell-active, var(--text-accent));
+  color: var(--io-wheel-cell-active, var(--io-tw-active));
 }
 /* `Bold Field names`: имя неактивного Field полужирным */
 .io-wheelcell--name { font-weight: 700; }

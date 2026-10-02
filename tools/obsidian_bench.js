@@ -225,6 +225,8 @@ const PREPARE = {
     fs.writeFileSync(path.join(vault, "readme.md"), README_LINE + "\n\n");
     fs.writeFileSync(path.join(vault, "Project A.md"), "");
   },
+  /* H1.5 прогона 2026-10-02: строка README и строка под tagWheel, тёмная тема. */
+  "clean-dark-contrast"(vault) { PREPARE["clean-readme-extra"](vault); },
   "clean-readme-extra"(vault) {
     PREPARE["clean-readme-shot"](vault);
     /* Пустые строки сверху: скроллер открывается вверх и лёг бы на заголовок заметки. */
@@ -785,6 +787,104 @@ const SCENARIOS = {
     await shoot("line-tuned", README_LINE, false);
     await shoot("tagwheel", "- your text", true);
     console.log(ok ? "ok: снимки в " + out : "РАСХОДИТСЯ: см. строки выше");
+    return ok;
+  },
+
+  /*
+   * H1.5 прогона 2026-10-02: «тёмная тема: текст полосы 2.1–2.8:1 при пороге
+   * 3:1». Чистый vault со стартовым набором, обе темы по умолчанию; строка
+   * README и строка под открытым tagWheel со скроллером. У каждого узла с
+   * текстом внутри нашего оформления — контраст цвета текста к фону, сложенному
+   * по предкам, с прозрачностью предков. Порог — `CONTRAST_FLOOR` панели.
+   * Печатает всё ниже порога; светлая тема — сторона сверки.
+   */
+  async "clean-dark-contrast"(win) {
+    await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ visual: { tagWheel: { scroller: { enabled: true } } } }, "bench:dark-contrast");
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    const measure = (scope) => win.evaluate((scope) => {
+      const rgba = (s) => { const m = String(s).match(/rgba?\(([^)]+)\)/); if (!m) return null; const a = m[1].split(/[,\s/]+/).filter(Boolean).map(Number); return { r: a[0], g: a[1], b: a[2], a: a.length > 3 ? a[3] : 1 }; };
+      const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
+      const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+      const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      const bgOf = (el) => {
+        const layers = [];
+        for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+          const c = rgba(getComputedStyle(n).backgroundColor);
+          if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
+        }
+        let base = { r: 255, g: 255, b: 255, a: 1 };
+        if (!layers.length || layers[layers.length - 1].a < 1) base = rgba(getComputedStyle(document.body).backgroundColor) || base;
+        for (let i = layers.length - 1; i >= 0; i--) base = over(layers[i], base);
+        return base;
+      };
+      const opacityOf = (el) => { let o = 1; for (let n = el; n && n.nodeType === 1; n = n.parentElement) o *= Number(getComputedStyle(n).opacity || 1); return o; };
+      const roots = [...document.querySelectorAll(scope)];
+      const out = [];
+      for (const root of roots) {
+        for (const el of [root, ...root.querySelectorAll("*")]) {
+          const own = [...el.childNodes].filter((t) => t.nodeType === 3).map((t) => t.textContent).join("").trim();
+          if (!own) continue;
+          const cls = String(el.className || "");
+          const inOurs = /(^|\s)io-|inline-overhaul/.test(cls) || !!el.closest("[class*='io-'], [class*='inline-overhaul']");
+          if (!inOurs) continue;
+          const bg = bgOf(el);
+          const fg0 = rgba(getComputedStyle(el).color) || { r: 0, g: 0, b: 0, a: 1 };
+          const fg = over({ ...fg0, a: fg0.a * opacityOf(el) }, bg);
+          out.push({ text: own.slice(0, 24), cls: cls.slice(0, 60), ratio: Math.round(ratio(fg, bg) * 10) / 10, fg: getComputedStyle(el).color, bg: [bg.r, bg.g, bg.b].map(Math.round).join(","), op: Math.round(opacityOf(el) * 100) / 100 });
+        }
+      }
+      return out;
+    }, scope);
+    let darkLow = 0, lightLow = 0, seen = 0;
+    for (const [theme, dark] of [["moonstone", false], ["obsidian", true]]) {
+      await win.evaluate((t) => window.app.changeTheme(t), theme);
+      await win.waitForTimeout(800);
+      const nr = await openAt(win, "readme.md", README_LINE);
+      await win.evaluate(async (n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n + 1, ch: 0 }); ed.cm.contentDOM.blur(); }, nr);
+      await win.waitForTimeout(800);
+      const line = await measure(".workspace-leaf.mod-active .cm-line");
+      const nw = await openAt(win, "wheel.md", "- your text");
+      await win.evaluate(async (n) => { const ed = window.app.workspace.activeEditor.editor; ed.setCursor({ line: n, ch: ed.getLine(n).length }); ed.focus(); }, nw);
+      await win.waitForTimeout(600);
+      await win.evaluate(() => window.app.commands.executeCommandById("inline-overhaul:open-tagwheel-left"));
+      await win.waitForTimeout(1500);
+      const wheel = await measure(".workspace-leaf.mod-active .cm-line, .io-twscroller--shown");
+      await win.keyboard.press("Escape");
+      await win.waitForTimeout(500);
+      /* Цена вариантов умолчания: переменные темы против той же заливки полосы. */
+      const vars = await win.evaluate(() => {
+        const rgba = (s) => { const m = String(s).match(/rgba?\(([^)]+)\)/); if (!m) return null; const a = m[1].split(/[,\s/]+/).filter(Boolean).map(Number); return { r: a[0], g: a[1], b: a[2], a: a.length > 3 ? a[3] : 1 }; };
+        const over = (t, u) => ({ r: t.r * t.a + u.r * (1 - t.a), g: t.g * t.a + u.g * (1 - t.a), b: t.b * t.a + u.b * (1 - t.a), a: 1 });
+        const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+        const host = document.querySelector(".workspace-leaf.mod-active .cm-content") || document.body;
+        const probe = document.createElement("span");
+        host.appendChild(probe);
+        const at = (v, prop) => { probe.style.cssText = prop + ": var(" + v + ")"; return rgba(getComputedStyle(probe)[prop === "color" ? "color" : "backgroundColor"]); };
+        const page = rgba(getComputedStyle(document.body).backgroundColor);
+        const band = over(at("--text-highlight-bg", "background-color"), page);
+        const out = {};
+        for (const v of ["--text-normal", "--text-muted", "--text-faint", "--text-accent", "--text-accent-hover", "--interactive-accent", "--text-on-accent"]) {
+          const c = over(at(v, "color"), band);
+          const x = lum(c), y = lum(band);
+          out[v] = Math.round((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) * 10) / 10;
+        }
+        probe.remove();
+        return out;
+      });
+      console.log("  переменные темы на заливке полосы: " + Object.entries(vars).map(([k, v]) => k + " " + v).join(", "));
+      const all = line.concat(wheel).filter((x) => !/rgba\(0, 0, 0, 0\)/.test(x.fg));
+      seen += all.length;
+      const low = all.filter((x) => x.ratio < 3);
+      if (dark) darkLow = low.length; else lightLow = low.length;
+      console.log("\n" + theme + (dark ? " (тёмная)" : " (светлая)") + ": узлов с текстом " + all.length + ", ниже 3:1 — " + low.length);
+      for (const x of low) console.log("  " + x.ratio + ":1  «" + x.text + "»  " + x.cls + "  текст " + x.fg + " фон " + x.bg + " прозрачность " + x.op);
+    }
+    if (!seen) { console.log("КОНТРОЛЬ: ни одного узла с текстом — мерить нечего"); return false; }
+    const ok = darkLow === 0;
+    console.log(ok ? "ok: в тёмной теме всё не ниже 3:1" : "РАСХОДИТСЯ: в тёмной теме " + darkLow + " узлов ниже 3:1 (в светлой " + lightLow + ")");
     return ok;
   },
 

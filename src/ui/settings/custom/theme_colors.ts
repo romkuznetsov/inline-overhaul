@@ -34,9 +34,10 @@ import { toHexColor } from "./contrast.ts";
  * заливка» — это они и есть, только именами темы, а не кодами.
  */
 export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
-  "visual.tagWheel.textColor": "--text-muted",
-  "visual.tagWheel.activeTextColor": "--text-accent",
-  "visual.tagWheel.chosenValueColor": "--text-muted",
+  /* Свои переменные `styles.css`: в тёмной теме у них другие пары (H1.5). */
+  "visual.tagWheel.textColor": "--io-tw-text",
+  "visual.tagWheel.activeTextColor": "--io-tw-active",
+  "visual.tagWheel.chosenValueColor": "--io-tw-text",
   "visual.tagWheel.fillColor": "--text-highlight-bg",
   "visual.tagWheel.scroller.fillColor": "--background-primary",
   "visual.tagWheel.scroller.textColor": "--text-normal",
