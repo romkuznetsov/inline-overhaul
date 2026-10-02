@@ -454,7 +454,15 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       : f.kind === "element"
         ? [f.name]
         : f.values.filter(v => v.depth === 0).map(v => (markers ? "#" : "") + v.token));
-    const values = cellValues(shown);
+    /*
+     * Круг коробки — тот же, что в заметке: пустое место стоит в нём первым
+     * (`tagwheel_rules_normalizer.js` кладёт его перед Values), и коробка
+     * рисует его `-`. Без него предпросмотр Field с одним Value показывал в
+     * коробке само это Value (H1.4 прогона 2026-10-02).
+     */
+    const real = cellValues(shown);
+    const ringed = Boolean(shown && shown.kind !== "element" && real.length);
+    const values = ringed ? ["-", ...real] : real;
     /*
      * Подписи значений — его пункт 2026-10-01: «разные варианты выбора не
      * меняют вид io-tip-wheel-preview». Своя подпись есть только у значения с
@@ -468,14 +476,16 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     const printed = (v: PreviewValue): string => (v.shown === "custom" ? String(v.custom || "") : "");
     const labelled = (v: PreviewValue, mode: string): string =>
       joinValueLabel(printed(v), (markers ? "#" : "") + v.token, mode);
-    const shownTop = top(shown);
+    const shownTop: (PreviewValue | undefined)[] = ringed ? [undefined, ...top(shown)] : top(shown);
 
     const n = values.length;
-    const at = n > 2 ? Math.floor(n / 2) : 0;
-    const rows = perSide && n ? perSide : 0;
+    /* Активное — настоящее Value, а не пустое место. */
+    const at = (ringed ? 1 : 0) + (real.length > 2 ? Math.floor(real.length / 2) : 0);
+    /* Круг короче коробки — заметка не повторяет его (`buildBranch`). */
+    const rows = perSide && n ? Math.min(perSide, n) : 0;
 
     /* Вверх встречаются следующие значения, вниз — предыдущие, оба круга
-       замкнуты, поэтому панель всегда полная. */
+       замкнуты. */
     const upIdx: number[] = [];
     const downIdx: number[] = [];
     for (let k = rows; k >= 1; k--) upIdx.push((at + k) % n);

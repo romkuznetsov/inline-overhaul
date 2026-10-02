@@ -14,6 +14,9 @@ const run = e => h.vm.runInContext(e, h.ctxVm);
 run('ctx.set("visual.tagBars.fieldId", "status")');
 run('ctx.set("visual.tagBars.active", true)');
 run('ctx.set("visual.tagBars.stripesToShow", 3)');
+/* Без него коробки нет вовсе, и проверка печатала «nothing found» (2026-10-02). */
+run('ctx.set("visual.tagWheel.scroller.enabled", true)');
+run('ctx.set("visual.tagWheel.showMarkers", false)');
 run('ctx.set("visual.tagWheel.scroller.direction", "full")');
 run('ctx.set("visual.tagWheel.scroller.size", 3)');
 run('selectTab("visual")');
@@ -35,7 +38,28 @@ const walk =
   ' go(document.getElementById("content"));' +
   ' return out.join("\\n  "); })()';
 console.log("\nrendered scroller:");
-console.log("  " + (run(walk) || "nothing found"));
+const rendered = run(walk) || "nothing found";
+console.log("  " + rendered);
+
+/*
+ * Круг — как в заметке: пустое место `-` первым, затем Values; активное —
+ * среднее Value, вверх следующие, вниз предыдущие (H1.4 прогона 2026-10-02).
+ * Ожидание считается здесь из списка Values, а не из отрисовки.
+ */
+const tokens = JSON.parse(run('(() => { const l = fieldsOn("Left"); const f = l[1] || l[0];' +
+  ' return JSON.stringify(f.values.filter(v => v.depth === 0).map(v => v.token)); })()'));
+const ring = ["-"].concat(tokens);
+const at = 1 + (tokens.length > 2 ? Math.floor(tokens.length / 2) : 0);
+const pick = k => ring[((at + k) % ring.length + ring.length) % ring.length];
+const want = [
+  "up   top to bottom: " + [3, 2, 1].map(pick).join(", "),
+  "down top to bottom: " + [-1, -2, -3].map(pick).join(", "),
+];
+const got = rendered.split("\n  ").filter(s => /^(up|down)/.test(s));
+if (JSON.stringify(got) !== JSON.stringify(want)) {
+  console.log("\nFAIL scroller ring:\n  want " + want.join("\n       ") + "\n  got  " + got.join("\n       "));
+  process.exit(1);
+}
 
 console.log("\nrendered tree, with the bars each line carries:");
 console.log("  " + run(

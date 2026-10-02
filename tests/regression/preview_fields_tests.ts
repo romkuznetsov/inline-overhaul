@@ -415,12 +415,26 @@ function realConfig(): Any {
   assert.ok(values.length, "скроллер нарисован");
   /*
    * Скроллер садится на второй Field слева — это `urgency`, и его значение
-   * одно. Список замкнут, поэтому и вверх, и вниз показано оно же.
+   * одно. Круг в заметке — пустое место и `#now`, поэтому на шаг в обе
+   * стороны стоит пустое место (H1.4 прогона 2026-10-02: предпросмотр
+   * показывал там само `#now`).
    */
-  assert.deepEqual(Array.from(new Set(values)), ["#now"],
-    "значения из конфига, с маркером: " + values.join(" | "));
+  assert.deepEqual(Array.from(new Set(values)), ["-"],
+    "на шаг от единственного Value — пустое место: " + values.join(" | "));
   close();
-  ok("TagWheel: скроллер показывает настоящие Values");
+  /* На два шага круг замыкается на настоящее Value, с маркером, и не
+     повторяется: в заметке коробка короче круга не бывает длиннее его. */
+  const host2 = makeNode("div");
+  const close2 = wheelPreview(host2 as unknown as El, makeCtx(cfg, {
+    "visual.tagWheel.scroller.enabled": true,
+    "visual.tagWheel.scroller.size": 5,
+    "visual.tagWheel.scroller.direction": "up",
+    "visual.tagWheel.showMarkers": true,
+  }));
+  assert.deepEqual(texts(host2, "io-wheelval"), ["#now", "-"],
+    "вверх: пустое место, затем само Value, круг не повторяется");
+  close2();
+  ok("TagWheel: скроллер показывает настоящие Values и пустое место круга");
 }
 
 {
@@ -464,8 +478,8 @@ function realConfig(): Any {
     const host = makeNode("div");
     const close = wheelPreview(host as unknown as El, makeCtx(cfg, {
       "visual.tagWheel.scroller.enabled": true,
-      "visual.tagWheel.scroller.size": 1,
-      "visual.tagWheel.scroller.direction": "full",
+      "visual.tagWheel.scroller.size": 2,
+      "visual.tagWheel.scroller.direction": "up",
       "visual.tagWheel.showMarkers": true,
       "visual.tagWheel.valueNames": names,
       "visual.tagWheel.scroller.labels": labels,
@@ -480,9 +494,10 @@ function realConfig(): Any {
   assert.ok(base.cells.includes("#x"), "по умолчанию ячейка печатает написанное: " + JSON.stringify(base.cells));
   assert.ok(look("custom", "value").cells.includes("★"), "Custom печатает свой текст: " + JSON.stringify(look("custom", "value").cells));
   assert.ok(look("both", "value").cells.includes("★\u200A#x"), "Custom + default — оба, свой первым: " + JSON.stringify(look("both", "value").cells));
-  assert.deepEqual(base.box, ["#now"], "коробка по умолчанию — написанное: " + JSON.stringify(base.box));
-  assert.deepEqual(look("default", "custom").box, ["!"], "коробка Custom — свой текст");
-  assert.deepEqual(look("default", "both").box, ["!\u200A#now"], "коробка Custom + default — оба");
+  /* Два шага вверх: само Value, под ним пустое место круга. */
+  assert.deepEqual(base.box, ["#now", "-"],"коробка по умолчанию — написанное: " + JSON.stringify(base.box));
+  assert.deepEqual(look("default", "custom").box, ["!", "-"],"коробка Custom — свой текст");
+  assert.deepEqual(look("default", "both").box, ["!\u200A#now", "-"], "коробка Custom + default — оба");
   ok("tagWheel Value names и Scroller Value names меняют вид предпросмотра");
 }
 

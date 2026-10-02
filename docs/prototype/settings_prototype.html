@@ -5086,7 +5086,11 @@ function renderWheelPreview(host) {
     const cellValues = (f) => (f.type === "element"
       ? [f.marker + " " + f.format]
       : (Array.isArray(f.values) ? f.values : []).map(v => (markers ? "#" : "") + v.token));
-    const values = cellValues(shown);
+    /* Круг коробки — тот же, что в заметке: пустое место стоит в нём первым и
+       рисуется `-` (H1.4 прогона 2026-10-02). */
+    const real = cellValues(shown);
+    const ringed = shown.type !== "element" && real.length > 0;
+    const values = ringed ? ["-", ...real] : real;
     /* Подписи значений — его пункт 2026-10-01: «разные варианты выбора не
        меняют вид io-tip-wheel-preview». Своя подпись есть только у значения с
        `custom` и непустым текстом; без неё все три положения печатают
@@ -5103,13 +5107,14 @@ function renderWheelPreview(host) {
       /* Волосяной пробел, как в доме: у эмодзи своё поле в коробке знака. */
       return mode === "both" ? own + "\u200A" + written : mode === "custom" ? own : written;
     };
-    const shownTop = top(shown);
+    const shownTop = ringed ? [undefined, ...top(shown)] : top(shown);
     const n = values.length;
-    const at = n > 2 ? Math.floor(n / 2) : 0;   /* the middle, so both sides read clearly */
+    /* the middle real Value, so both sides read clearly */
+    const at = (ringed ? 1 : 0) + (real.length > 2 ? Math.floor(real.length / 2) : 0);
 
     /* upwards you keep meeting the next value, downwards the previous one,
-       both wrapping round the loop, so the panel is always full */
-    const rows = perSide && n ? perSide : 0;
+       both wrapping round the loop; a loop shorter than the box is not repeated */
+    const rows = perSide && n ? Math.min(perSide, n) : 0;
     const upIdx = [], downIdx = [];
     for (let k = rows; k >= 1; k--) upIdx.push((at + k) % n);
     for (let k = 1; k <= rows; k++) downIdx.push(((at - k) % n + n) % n);
