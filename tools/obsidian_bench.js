@@ -215,6 +215,10 @@ const PREPARE = {
   "properties-focus"(vault) {
     fs.writeFileSync(path.join(vault, "props.md"), "---\ntitle: a\nstatus: b\n---\n- first line\n- second line\n");
   },
+  /* H2.3 прогона 2026-10-02: набор, сразу команда, одно `Ctrl+Z`. */
+  "undo-after-typing"(vault) {
+    fs.writeFileSync(path.join(vault, "typed.md"), "- first line\n- second line\n");
+  },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   /* Заметка строки README и заметка ссылки: ссылка без заметки рисуется неразрешённой. */
   "clean-readme-shot"(vault) {
@@ -1406,6 +1410,50 @@ const SCENARIOS = {
     if (!inText.changed) { console.log("КОНТРОЛЬ: команда не работает и в тексте — мерить нечего"); return false; }
     const ok = !inProps.changed;
     console.log(ok ? "ok: в свойстве команда молчит" : "РАСХОДИТСЯ: команда правит текст из поля свойства");
+    return ok;
+  },
+
+  /*
+   * H2.3 прогона 2026-10-02: команда сразу после набора. Настоящие нажатия:
+   * набрать три буквы в конце второй строки, без паузы вызвать команду, одно
+   * `Ctrl+Z`. Своя ступень у команды — после отмены набранное на месте.
+   * Встроенная `editor:swap-line-up` — сторона сверки: как ведёт себя
+   * платформа на той же клавише.
+   */
+  async "undo-after-typing"(win) {
+    const base = "- first line\n- second line\n";
+    const ids = await win.evaluate(() => Object.keys(window.app.commands.commands)
+      .filter((id) => /^inline-overhaul:(?!jump).*-next$/.test(id)).slice(0, 4));
+    const cmds = ["editor:swap-line-up", "inline-overhaul:move-line-up"].concat(ids);
+    const res = {};
+    const n = await openAt(win, "typed.md", "- second line");
+    if (n < 0) throw new Error("нет строки в typed.md");
+    for (const cmd of cmds) {
+      await win.evaluate(({ n, base }) => {
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(base);
+        ed.setCursor({ line: n, ch: ed.getLine(n).length });
+        ed.focus();
+      }, { n, base });
+      await win.waitForTimeout(800);
+      await win.keyboard.type("xyz");
+      await win.evaluate((cmd) => window.app.commands.executeCommandById(cmd), cmd);
+      await win.waitForTimeout(300);
+      const afterCmd = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+      await win.keyboard.press("Control+z");
+      await win.waitForTimeout(300);
+      const afterUndo = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+      const typed = afterUndo.includes("xyz");
+      res[cmd] = { commandChanged: afterCmd !== base.replace("second line", "second linexyz"), typedKept: typed };
+      console.log(cmd + ": команда " + (res[cmd].commandChanged ? "сработала" : "НЕ сработала")
+        + "; после одного Ctrl+Z набранное " + (typed ? "на месте" : "снято вместе с командой")
+        + " — " + JSON.stringify(afterUndo));
+    }
+    const built = res["editor:swap-line-up"];
+    if (!built.commandChanged) { console.log("КОНТРОЛЬ: встроенная команда не сработала"); return false; }
+    if (!ids.some((c) => res[c].commandChanged)) { console.log("КОНТРОЛЬ: ни одна команда поля не сработала"); return false; }
+    const ok = cmds.every((c) => !res[c].commandChanged || res[c].typedKept);
+    console.log(ok ? "ok: у каждой команды своя ступень" : "РАСХОДИТСЯ: команда склеилась с набором");
     return ok;
   },
 

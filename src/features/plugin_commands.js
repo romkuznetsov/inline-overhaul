@@ -27,6 +27,10 @@
  */
 
 const { Modal, Notice } = require("obsidian");
+/* `isolateHistory` — тот экземпляр, на котором история редактора: Obsidian
+   отдаёт плагинам свой `@codemirror/commands` (`app.js` 1.13.7, объект `c4`),
+   и копия истории в сборке одна. */
+const cmCommands = require("@codemirror/commands");
 
 const __commandIds = require("./command_ids.js");
 const __configNormalize = require("../core/config_normalize.js");
@@ -232,6 +236,28 @@ function focusOutsideNoteText() {
   return !!(el && typeof el.closest === "function" && el.closest(".metadata-container, .inline-title, .view-header-title"));
 }
 
+/**
+ * Вход команды текста: фокус вне текста — команда молчит; иначе у неё будет
+ * своя ступень отмены.
+ *
+ * История CodeMirror склеивает правку без `userEvent` с набором, если она
+ * рядом с набранным и пришла быстрее `newGroupDelay` (`addChanges` в
+ * `@codemirror/commands`): одно `Ctrl+Z` после команды, вызванной сразу за
+ * набором, снимало и набранное (прогон 2026-10-02, H2.3). Встроенная
+ * `Swap line up` ставит `userEvent: "move.line"` и склейки не допускает.
+ * Пустая транзакция с `isolateHistory` = `before` закрывает группу набора, и
+ * первая правка команды заводит свою ступень; правки самой команды между
+ * собой склеиваются, как прежде. Стенд — сценарий `undo-after-typing`
+ * в `tools/obsidian_bench.js`.
+ */
+function textCommandBlocked(plugin) {
+  if (focusOutsideNoteText()) return true;
+  const ws = plugin && plugin.app ? plugin.app.workspace : null;
+  const view = ws && ws.activeEditor && ws.activeEditor.editor ? ws.activeEditor.editor.cm : null;
+  if (view && typeof view.dispatch === "function") view.dispatch({ annotations: cmCommands.isolateHistory.of("before") });
+  return false;
+}
+
 function registerAll(plugin) {
   const registry = getCommandRegistry();
   const coreDefs = registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META);
@@ -268,7 +294,7 @@ function registerNavigation(plugin) {
       id: d.id,
       name: __commandIds.commandDisplayName(COMMAND_AREAS.navigation, d.name),
       callback: async () => {
-        if (focusOutsideNoteText()) return;
+        if (textCommandBlocked(plugin)) return;
         await runNavigationGuard(plugin, "navigation", d.run, d.jump);
       },
     });
@@ -322,7 +348,7 @@ function registerPkm(plugin) {
       id,
       name,
       callback: async () => {
-        if (focusOutsideNoteText()) return;
+        if (textCommandBlocked(plugin)) return;
         await runPkmGuard(plugin, async (cfg) => {
           /*
            * Определение спрашивается у **нынешнего** конфига: Field мог
@@ -383,7 +409,7 @@ function registerBinder(plugin) {
       id,
       name,
       callback: async () => {
-        if (focusOutsideNoteText()) return;
+        if (textCommandBlocked(plugin)) return;
         const fresh = registry.buildBinderCommandDefs(plugin.getConfig()).find((x) => x && x.id === id);
         if (fresh) await Promise.resolve(fresh.run(plugin));
       },
@@ -398,7 +424,7 @@ function registerTransform(plugin) {
     id: "transform-inline-to-note",
     name: __commandIds.commandDisplayName(COMMAND_AREAS.transform,
       __commandIds.commandName("transform-inline-to-note")),
-    callback: async () => { if (focusOutsideNoteText()) return; await runInlineToNote(plugin); },
+    callback: async () => { if (textCommandBlocked(plugin)) return; await runInlineToNote(plugin); },
   });
 }
 
@@ -677,6 +703,7 @@ function closeTagWheelSession() {
 
 module.exports = {
   focusOutsideNoteText,
+  textCommandBlocked,
   closeTagWheelSession,
   openTagWheelSession,
   navigationRuntime,

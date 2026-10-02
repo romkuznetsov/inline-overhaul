@@ -70,6 +70,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 47. 🐛 **Panel controls reach an open note at once,** `Empty tag bubble width` and `Preview on hover` included, without touching the note first.
 48. 🐛 **A Field dropped on the row below it takes that row’s place,** as rules and Binder rows do.
 49. 🐛 **A backup of every hotkey in the vault keeps the way back:** the backup taken before restoring it holds the other commands’ keys too, and the restore window says when only hotkeys changed.
+50. 🎨 **The scroller in the tagWheel preview walks the same loop as the note,** with the empty place `-` in it.
+51. 🐛 **A command right after typing is its own undo step:** one `Ctrl+Z` takes back the command and leaves what you typed, as `Swap line up` does.
 
 ## 0.12.0
 

@@ -44,6 +44,8 @@ export interface PluginInternals {
   /** Обёртка команд навигации и шов подсветки прыжка (Н5). */
   runNavigationGuard: (plugin: Any, moduleKey: string, action: Any, jumpKind?: string) => Promise<Any>;
   runPkmGuard: (plugin: Any, action: Any) => Promise<Any>;
+  /** Вход команды текста: фокус и своя ступень отмены (H3.1, H2.3). */
+  textCommandBlocked: (plugin: Any) => boolean;
   runInlineToNote: (plugin: Any) => Promise<Any>;
   /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
   runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
@@ -193,6 +195,9 @@ export function cmStub(): Any {
   });
 }
 
+/** Подделка `@codemirror/commands`: пометка истории узнаётся по полю. */
+export const ISOLATE_STUB = { isolateHistory: { of: (value: string): Any => ({ isolateHistory: value }) } };
+
 let cached: PluginInternals | null = null;
 
 export function loadPluginInternals(): PluginInternals {
@@ -216,6 +221,10 @@ export function loadPluginInternals(): PluginInternals {
        загрузке. Пустая заглушка тут ничего не подделывает — путь записи она
        не проходит. */
     if (request === "@codemirror/view" || request === "@codemirror/state") return cmStub();
+    /* Подделка названа (У-1): настоящий модуль тянет `@codemirror/view`.
+       Пометка узнаётся по полю, и проверка шва спрашивает именно её;
+       настоящую историю меряет стенд `undo-after-typing`. */
+    if (request === "@codemirror/commands") return ISOLATE_STUB;
     return origLoad.call(this, request, parent, isMain);
   };
   try {
@@ -271,6 +280,7 @@ export function loadPluginInternals(): PluginInternals {
     runNavigationGuard: commands.runNavigationGuard,
     /* Двери команд PKM и Transform: код и таблица (BUGHUNT R4). */
     runPkmGuard: commands.runPkmGuard,
+    textCommandBlocked: commands.textCommandBlocked,
     runInlineToNote: commands.runInlineToNote,
     joinSpacedElementValues: commands.joinSpacedElementValues,
     /* Дверь всех команд PKM. Через неё проходит и открытие панели, и каждая

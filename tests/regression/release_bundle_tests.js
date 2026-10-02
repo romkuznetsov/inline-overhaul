@@ -100,8 +100,10 @@ async function run() {
   assert.ok(!/PrivateTaxonomySentinel/.test(bundledSource), "bundle contains no hardcoded private taxonomy sentinel");
   assert.ok(!/require\(["']\.\.?\//.test(bundledSource), "bundle has no local runtime require calls");
   /* `@codemirror/language` — с 2026-09-24: тег спрашивается у дерева разбора
-     Obsidian (10.13.266); Obsidian отдаёт его плагинам наравне с двумя прежними. */
-  const allowedExternals = new Set(["obsidian", "@codemirror/view", "@codemirror/state", "@codemirror/language"]);
+     Obsidian (10.13.266); Obsidian отдаёт его плагинам наравне с двумя прежними.
+     `@codemirror/commands` — с 2026-10-02: своя ступень отмены у команды
+     (`isolateHistory`, H2.3); тот же объект `c4` в `app.js` 1.13.7. */
+  const allowedExternals = new Set(["obsidian", "@codemirror/view", "@codemirror/state", "@codemirror/language", "@codemirror/commands"]);
   const bundledRequires = Array.from(bundledSource.matchAll(/require\(["']([^"']+)["']\)/g), (match) => match[1]);
   /*
    * Порог до вывода: запрет зелен и тогда, когда `require` в сборке не нашлось
@@ -180,6 +182,7 @@ async function run() {
     if (request === "@codemirror/view") return { WidgetType: baseClass };
     if (request === "@codemirror/state") return {};
     if (request === "@codemirror/language") return {};
+    if (request === "@codemirror/commands") return { isolateHistory: { of: () => ({}) } };
     return originalLoad.call(this, request, parent, isMain);
   };
   try {
