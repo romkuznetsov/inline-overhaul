@@ -167,6 +167,9 @@ function createTagWheelScrollerOverlay(options) {
     fill: pickColor(cfg.fillColor),
     text: pickColor(cfg.textColor),
   };
+  /* Своя заливка без своего цвета текста — текст читаемый на ней, а не цвет
+     темы: в тёмной теме тот светлый и сливался со светлой заливкой. */
+  if (colors.fill && !colors.text) colors.text = __editorVisualsConfig.readableTextOn(colors.fill);
   let boxPrimary = createRoot(colors);
   let boxSecondary = createRoot(colors);
 

@@ -34,6 +34,26 @@ function normalizeHexColorInput(value) {
   return /^#[0-9a-f]{6}$/.test(src) ? src : "";
 }
 
+/**
+ * Текст, читаемый на своей заливке: чёрный или белый — у кого контраст выше.
+ *
+ * Нужен там, где заливку человек задал, а цвет текста оставил пустым: пустое
+ * значение отдаёт цвет теме, и в тёмной теме светлый текст темы ложился на
+ * его светлую заливку скроллера `#c9c5c5` — 1.1:1 (его `💬` к тесту 3 цикла
+ * 118). Пусто — заливка не разобралась, и решать тут нечего.
+ */
+function readableTextOn(fill) {
+  const hex = normalizeHexColorInput(fill);
+  if (!hex) return "";
+  const lin = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const l = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  /* Контраст с чёрным (l + 0.05) / 0.05 против белого 1.05 / (l + 0.05). */
+  return (l + 0.05) * (l + 0.05) >= 0.0525 ? "#000000" : "#ffffff";
+}
+
 function getTagwheelHeaderColorsFromConfig(cfg) {
   const wheel = isObj(readCfgPath(cfg, "visual.tagWheel")) ? readCfgPath(cfg, "visual.tagWheel") : {};
   return {
@@ -2645,6 +2665,7 @@ function collectPkmFieldDefinitions(cfg) {
 module.exports = {
   visualModuleOn,
   normalizeHexColorInput,
+  readableTextOn,
   getTagwheelHeaderColorsFromConfig,
   buildTagwheelPlaceholderSetFromConfig,
   getTagVisualsFromConfig,

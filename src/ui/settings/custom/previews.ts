@@ -531,7 +531,10 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      * стилях, `var(--io-wheel-bg, var(--background-primary))`.
      */
     const scrollFill = readText(ctx, "visual.tagWheel.scroller.fillColor", "");
-    const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "");
+    /* Своя заливка без своего текста — текст читаемый на ней: так же, как
+       коробка в заметке (`tagwheel_scroller_overlay.js`). */
+    const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "")
+      || (scrollFill ? String(visualsConfig.readableTextOn(scrollFill) || "") : "");
 
     const scrollerBox = (col: El, idx: readonly number[], where: string): void => {
       if (!idx.length) return;
