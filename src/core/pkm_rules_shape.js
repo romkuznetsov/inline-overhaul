@@ -1,26 +1,12 @@
 "use strict";
 
 /**
- * Правила PKM, собранные **из настроек**: один шов между конфигом версии 2 и
- * той формой, которую ждут движки.
- *
- * **Почему это отдельный модуль, а не часть сборщика заметки.** Пока правила
- * доезжали до движков только через служебный файл `generated_rules.md`, эта
- * функция была первой половиной сборщика: собрать форму и напечатать её
- * блоками JSON. С 2026-09-11 у неё второй потребитель — `navigation_runtime.js`
- * читает правила **прямо отсюда**, минуя диск (PRD 10.13.52, П-8, шаг 1).
- * Движки подключают только `src/core/**`; печать заметки — работа слоя
- * возможностей и остаётся в `src/features/rules_markdown_builder.js`.
- *
- * **Важное про форму.** Имена блоков (`behavior`, `leftMode`, `io`, …) и ключи
- * внутри них — форма версии 1: их читает `pkm_v2/**`, а тот под З3 не правится
- * (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`). Конфиг при этом переехал на
- * версию 2, поэтому здесь стоит **шов**: значения берутся из `pkm.fields.*`,
- * `pkm.lineFormat.*`, `pkm.placement.*`, `pkm.prefixRules.*` и
- * `visual.tagWheel.*`, а раскладываются по старым именам.
- *
- * Переписать заодно и форму значило бы переписать рантайм TagWheel целиком —
- * ровно то, что раздел 3.2 держит вне границ работ.
+ * Правила PKM из настроек: шов между конфигом версии 2 и формой движков.
+ * Потребители — печать `generated_rules.md` (`src/features/rules_markdown_builder.js`)
+ * и `navigation_runtime.js` напрямую (PRD 10.13.52, П-8). Имена блоков и ключи —
+ * форма версии 1: её читает `pkm_v2/**`, под З3 не правится
+ * (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`); значения — из `pkm.fields.*`,
+ * `pkm.lineFormat.*`, `pkm.placement.*`, `pkm.prefixRules.*`, `visual.tagWheel.*`.
  */
 
 const __sharedUtils = require("./shared_utils.js");
@@ -40,18 +26,12 @@ function slice(node, key) {
 }
 
 /**
- * Определения Fields для одного Block: Left и Right или один custom block
- * (PRD 10.13.260).
- *
- * Шов один на все движки: Left и Right получают правила **без** Field из
- * custom block — для них это текст строки, и переставлять или снимать его они
- * не вправе (пункт 13). Панель custom block получает только свои Field, а её
- * порядок — это её Block, записанный как левый: ядро панели умеет ходить по
- * одному Block, и второго правила «как ходить по полям» заводить незачем.
+ * Определения Fields для одного Block (PRD 10.13.260). Left и Right — без
+ * Field из custom block: для них это текст строки (пункт 13). Панель custom
+ * block получает свои Field, записанные как левый Block.
  */
 function scopeToBlock(behavior, blockId) {
-  /* Порядок в конфиге уже нормализован `migrateConfig`; второй проход здесь
-     менял бы правила Left и Right там, где custom block ни при чём. */
+  /* Порядок уже нормализован `migrateConfig`; второй проход менял бы Left и Right. */
   const order = isObj(behavior.order) ? behavior.order : {};
   const blocks = Array.isArray(order.custom) ? order.custom : [];
   const custom = __pkmOrderConfig.customBlockKeys(order);
@@ -107,40 +87,23 @@ function buildRulesShapeFromConfig(cfg, blockId) {
     minimalPrefix: placement.fieldPrefixInsertOnly !== false,
     offPrefix: placement.bulletInStrict === true,
     fullPlacement: String(placement.freeInsertPosition || "smart"),
-    /* `Keep typed tags in text` (`В-235`, его слово 2026-09-28): выключен —
-       Value поля из текста переезжает в свой Block. */
+    /* `Keep typed tags in text` (`В-235`): выключен — Value из текста переезжает в свой Block. */
     typedTagsStayText: placement.typedTagsStayText !== false,
   };
 
   /*
-   * Блок `ui`: подсветка строки, пока открыт TagWheel (10.13.6).
-   *
-   * Движок обёртку в `==` умел с самого начала — `renderControlLine` ставит
-   * её при `rules.ui.activePanel.useHighlight`, — но ветки `pkm.behavior.ui`
-   * нет в умолчаниях, и блок уезжал пустым. Значение приходит из настройки
-   * версии 2, а имена ключей внутри блока остаются формой версии 1: правила
-   * движков — отдельный контракт (см. шапку файла).
-   *
-   * **`showMarkers` здесь не тот, что в панели.** Внутри `activePanel` это
-   * текстовые обёртки `{TW} … {/TW}` вокруг строки, а не тумблер
-   * `Show tag markers`, который решает судьбу решёток в самом списке. Имена
-   * совпали случайно, и запись сюда значения из `visual.tagWheel.showMarkers`
-   * вписала бы человеку в строку скобки. Ключ остаётся невыставленным.
+   * Блок `ui`: подсветка строки при открытом TagWheel (10.13.6) —
+   * `rules.ui.activePanel.useHighlight` читает `renderControlLine`.
+   * `activePanel.showMarkers` — обёртки `{TW} … {/TW}`, не `visual.tagWheel.showMarkers`:
+   * имена совпали случайно, ключ остаётся невыставленным.
    */
   const ui = cloneJson(slice(behaviorCfg, "ui"));
   const activePanel = isObj(ui.activePanel) ? cloneJson(ui.activePanel) : {};
   activePanel.enabled = true;
   activePanel.useHighlight = wheel.highlightLine === true;
   /*
-   * **Значения противоположного Block, пока панель открыта** (10.13.87, заказ
-   * заказчика 2026-09-12). Полоса панели встаёт на место своего Block, а
-   * противоположный уходил из строки на всё время выбора — его слова: «визуально
-   * исчезают все элементы из противоположного block, даже если они уже были
-   * выбраны».
-   *
-   * Ключ живёт рядом с `useHighlight`, потому что отвечает на тот же вопрос —
-   * как выглядит строка, пока панель открыта, — а читает его тот же
-   * `renderControlLine`. Умолчание `hide` прежнее: «первый прятать (текущий)».
+   * Значения противоположного Block при открытой панели (10.13.87): читает
+   * `renderControlLine`, умолчание `hide`.
    */
   activePanel.keepOppositeBlock = String(wheel.oppositeBlock || "") === "keep";
   ui.activePanel = activePanel;
@@ -148,23 +111,9 @@ function buildRulesShapeFromConfig(cfg, blockId) {
   const meta = cloneJson(slice(behaviorCfg, "meta"));
   meta.generatedBy = "inline-overhaul";
   /*
-   * **Времени сборки здесь больше нет** (Д-1 разбора готовности, 2026-09-08).
-   *
-   * Стояло `meta.generatedAt = new Date().toISOString()`, и от этого файл
-   * `generated_rules.md` менялся при **каждом** запуске Obsidian на каждом
-   * устройстве: содержимое всегда разное, значит запись всегда новая. Платил
-   * за это человек — Obsidian Sync, git и любая папочная синхронизация
-   * видели изменившийся файл на старте, а с двумя устройствами это конфликт
-   * на ровном месте.
-   *
-   * Поле не читает никто: сплошной поиск давал два места — эту запись и
-   * проверку кругового обхода, которая его **явно исключает** из сверки
-   * (`rules_document_roundtrip_tests.ts`). То есть у времени сборки не было
-   * ни одного потребителя, а цена была у каждого.
-   *
-   * Снятие поля — половина починки, и без второй половины оно бесполезно:
-   * содержимое стало устойчивым, и теперь `ensureGeneratedRulesNow` читает
-   * файл перед записью и не пишет, если там уже то же самое.
+   * Времени сборки нет (Д-1, 2026-09-08): `meta.generatedAt` менял
+   * `generated_rules.md` на каждом запуске и будил синхронизацию. Пара —
+   * `ensureGeneratedRulesNow` не пишет совпавший файл.
    */
 
   return {
@@ -188,21 +137,11 @@ function buildRulesShapeFromConfig(cfg, blockId) {
 }
 
 /**
- * Правила в том виде, в каком их ждут движки PKM.
- *
- * **Это второй ход из двух** (PRD 10.13.52, П-5). Первый — сегодняшний: конфиг
- * → заметка `generated_rules.md` → `parseRulesFromMarkdown` → правила. Второй
- * — этот: конфиг → форма → `normalizeMode` на двух блоках → правила. Что ходы
- * равны, держит сверка на фикстурах (`rules_document_roundtrip_tests.ts` по
- * блокам, `rules_from_settings_tests.ts` целиком и по поведению движка).
- *
- * **Блока дат здесь нет, и это не забывчивость.** `parseRulesFromMarkdown` его
- * не читает, значит и второй ход не должен: лишний ключ сделал бы формы
- * разными, а разница обязана быть нулевой.
- *
- * `normalizeMode` — единственное, что ход через диск добавлял к записанному:
- * досыпка формы списка Fields. Она вынесена в свой модуль и зовётся отсюда,
- * а не переписывается (У-32).
+ * Правила в форме движков PKM — второй ход (PRD 10.13.52, П-5): конфиг → форма
+ * → `normalizeMode` → правила; первый — через `generated_rules.md` и
+ * `parseRulesFromMarkdown`. Равенство держат `rules_document_roundtrip_tests.ts`
+ * и `rules_from_settings_tests.ts`. Блока дат нет: `parseRulesFromMarkdown`
+ * его не читает. `normalizeMode` — из своего модуля (У-32).
  */
 function buildRulesForEngines(cfg, blockId) {
   const shape = buildRulesShapeFromConfig(cfg, blockId);

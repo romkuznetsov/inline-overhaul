@@ -1,30 +1,12 @@
 "use strict";
 
-/*
- * Модуль берётся литеральным `require`, без заглушки за ним: он лежит в
- * бандле, и «не приехал» — состояние, которого не бывает (У-89, У-90).
- * Прежние две запасные ветки были не страховкой, а вторым ответом на тот же
- * вопрос: последняя отвечала «ключ равен самому себе», то есть при отказе
- * модуля дочерний Field молча терял своё место в Order. А ветка перед ней
- * читала `globalThis.__inlinePkmDomainRegistry`, которую **никто не пишет**.
- */
+/* Литеральный `require` без заглушки (У-89, У-90): запасная ветка молча лишала дочерний Field места в Order. */
 const __pkmDomainRegistry = require("./pkm_domain_registry.js");
 const __sharedUtils = require("./shared_utils.js");
 
 /*
- * **Ключ дочернего поля сворачивает реестр доменов, и только он** (10.13.161).
- *
- * Здесь стояло своё тело за запасным ходом: спросить реестр, а если его нет —
- * свернуть `_sub` самому. Плюс поправка «реестр ответил тем же ключом — значит
- * не свернул, свернём мы». Ни то, ни другое не исполняется: реестр приезжает
- * литеральным `require` на уровне модуля, а свой ответ он всегда сворачивает.
- * Проверено пробоем: отказ в обеих ветках не уронил ни одной проверки и ни
- * одного сочетания обхода строки (У-146), при том что сама функция
- * исполняется.
- *
- * Держал их **пин по тексту** — `assertTrue(/…/.test(src))`, — а он не
- * спрашивает, доходит ли до строки исполнение (У-141). Заменён ожиданием
- * ответа.
+ * Ключ дочернего поля сворачивает только реестр доменов (10.13.161); держит
+ * это ожидание ответа, а не пин по тексту (У-141, У-146).
  */
 function collapseSubOrderKey(key) {
   if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.collapseSubOrderKey !== "function") {
@@ -47,20 +29,10 @@ function normalizeFieldSourceKind(fieldOrSource) {
 }
 
 /**
- * Каким выводом печатается это поле — тег или ссылка. **Одно объявление на
- * все три дороги.**
- *
- * До 2026-09-15 вопрос был объявлен трижды: у панели (`tagwheel.js`), у ядра
- * (`tagwheel_core.js`) и замыканием внутри `buildTagTokenKeyMap` здесь же.
- * Три тела сверены на 150 парах «поле × правила» — все поля его `data.json`
- * плюс десять форм, которых у него нет, на шести наборах правил — и разошлись
- * на нуле; у меры при этом был контроль чувствительности. Поэтому сведение
- * поведения не меняет, и это измеренное утверждение, а не обещание.
- *
- * Тело взято у замыкания побайтно. Проверка источника оставлена **в той же
- * форме**, в какой она участвовала в мере, а не переписана через
- * `normalizeFieldSourceKind`: переписанное было бы четвёртым телом, которого
- * никто не мерил (У-92).
+ * Каким выводом печатается поле — тег или ссылка. Одно объявление на три
+ * дороги (панель, ядро, `buildTagTokenKeyMap`), сведено при нулевом
+ * расхождении (2026-09-15). Проверка источника — в той форме, в которой
+ * мерилась, не через `normalizeFieldSourceKind` (У-92).
  */
 function resolveFieldOutputMode(field, rules) {
   if (field && typeof field.outputMode === "string") {
@@ -90,21 +62,10 @@ function isSourceDrivenField(fieldOrSource) {
 }
 
 /**
- * Выполнено ли предусловие Field — **одно объявление на все три дороги**.
- *
- * Правило записано в PRD 10.13.4, Н21, и слово там сказано прямо: «Field с
- * предусловием не показывается ни в TagWheel, **ни в своих командах**, ни в
- * строке, пока у Field-предусловия нет значения». Панель его спрашивала —
- * внутри `isFieldEnabled` в `tagwheel_core.js`, — а команды поля не
- * спрашивали вовсе: на пустой строке `Project next` писал значение, хотя
- * панель этого Field в том же месте не показывает (обход строки 2026-09-12).
- *
- * `selected` — то, что уже стоит на строке: у панели это её сессия, у команд —
- * их состояние, собранное разбором строки. Больше предусловию ничего не нужно,
- * поэтому и объявление одно, а спрашивать его может кто угодно.
- *
- * Отвечает `true`, когда предусловия нет вовсе: Field без `dependsOn` работает
- * всегда.
+ * Выполнено ли предусловие Field — одно объявление на все дороги (PRD 10.13.4,
+ * Н21: ни в TagWheel, ни в командах, ни в строке). `selected` — что уже стоит
+ * на строке (сессия панели или разбор строки у команд). `true` — предусловия
+ * нет (`dependsOn` пуст).
  */
 function isFieldPrerequisiteMet(field, selected, fields, seen) {
   if (!field || typeof field !== "object") return true;
@@ -114,12 +75,8 @@ function isFieldPrerequisiteMet(field, selected, fields, seen) {
   const onLine = String(bag[parentKey] || "").trim();
   const parentValue = onLine || navigatorFromChild(parentKey, field, bag, fields);
   /*
-   * **Дочерний Field без родителя на строке ждёт и того, чего ждёт родитель**
-   * (его замечание к тесту 2 цикла 94: «пропадает родительский field, но
-   * остаётся дочерний. Дочернего также не должно быть»). Родитель на строке —
-   * его значение уже принято; нет его — ребёнок стоит вместо него. Дочерний —
-   * это ключ `<родитель>_sub`; Field, который родителя просто ждёт, сюда не
-   * входит. `seen` — от круга в настройках.
+   * Дочерний Field (`<родитель>_sub`) без родителя на строке ждёт и того, чего
+   * ждёт родитель (тест 2 цикла 94). `seen` — от круга в настройках.
    */
   if (!onLine && String(field.id || "") === parentKey + "_sub") {
     const done = seen || new Set();
@@ -130,23 +87,14 @@ function isFieldPrerequisiteMet(field, selected, fields, seen) {
     }
   }
   /*
-   * **Дочернее поле, которому родитель не нужен** (его слово 2026-09-19,
-   * контрол `Child Field` = `Show always`). Предусловие спрашивают обе дороги
-   * и обе прячут поле, пока у родителя нет значения; с этим разрешением поле
-   * работает и на строке без родителя, а значений у него столько же, сколько
-   * заведено (отбор по родителю без родителя не отбирает — 10.13.214).
-   *
-   * Разрешение читается **у поля**, а не у настроек: сюда приходят и поля
-   * панели, и поля команд, и общего конфига у этого объявления нет. Ставит
-   * флаг `pkm_order_config.js`, разбирая настройку `subWithoutParent`.
+   * Дочернее поле без родителя (`Child Field` = `Show always`, 2026-09-19):
+   * работает и без родителя, значений — все (10.13.214). Флаг читается у поля —
+   * ставит его `pkm_order_config.js` из `subWithoutParent`.
    */
   const only = Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues : null;
   /*
-   * **Ждать можно и дочернее Value** (его замечание к тесту 3 цикла 93:
-   * «чтобы в качестве пререквизита можно было использовать и дочерние
-   * values»). Панель кладёт в список значение ребёнка рядом со значениями
-   * родителя; выполняет его дочернее Value, стоящее на строке, — есть там
-   * родитель или нет.
+   * Ждать можно и дочернее Value (тест 3 цикла 93): выполняет его дочернее
+   * Value на строке, есть родитель или нет.
    */
   if (only && only.length && childValuesOnLine(parentKey, field, bag, fields).some((k) => only.indexOf(k) !== -1)) {
     return true;
@@ -159,9 +107,8 @@ function isFieldPrerequisiteMet(field, selected, fields, seen) {
 }
 
 /**
- * Дочерние Values Field `parentKey`, стоящие на строке: `id` и токен каждого.
- * Дочернее — значит у значения названы родители (`allowedParentValues`);
- * Field, который просто ждёт того же родителя, своих Values сюда не даёт.
+ * Дочерние Values Field `parentKey` на строке: `id` и токен. Дочернее — у
+ * значения названы `allowedParentValues`.
  */
 function childValuesOnLine(parentKey, field, bag, fields) {
   const out = [];
@@ -178,13 +125,9 @@ function childValuesOnLine(parentKey, field, bag, fields) {
 }
 
 /**
- * Навигатор, которого на строке нет, а ребёнок его есть (`В-222`, его ответ
- * 2026-09-25: «показывать»). Навигатор на строку не пишут, и Field, ждущий
- * родителя-навигатора, иначе ждал бы вечно; ребёнок на строке выполняет это
- * ожидание своим родителем. **Сам дочерний Field — тоже** (его замечание к
- * тестам 3 и 4 цикла 94): навигатора на строке не бывает никогда, и строка
- * `… :: [[123]]` без этого не отдавала `Inline to note` ни одного Value.
- * Без списка полей ответа нет — пустая строка.
+ * Навигатор, которого на строке нет, а его ребёнок есть (`В-222`; тесты 3 и 4
+ * цикла 94): навигатор на строку не пишут, иначе ожидание вечное. Без списка
+ * полей — пустая строка.
  */
 function navigatorFromChild(parentKey, field, bag, fields) {
   const all = Array.isArray(fields) ? fields : [];
@@ -199,13 +142,8 @@ function navigatorFromChild(parentKey, field, bag, fields) {
 }
 
 /**
- * Какому значению родителя принадлежит значение дочернего Field.
- *
- * Объявление одно на обе дороги: панель и команда спрашивают его, когда
- * дочернее поле работает без родителя и человек попросил родителя дописывать
- * (`Add the parent Value`). Ответ — `id` значения родителя, пустая строка,
- * если значение ничьё (список `allowedParentValues` пуст) или названного
- * родителя у этого Field нет.
+ * Какому значению родителя принадлежит дочернее (`Add the parent Value`), одно
+ * на обе дороги. `id` родителя или "", если значение ничьё или родителя нет.
  */
 function parentValueIdForChildValue(parentField, childValue) {
   const tokens = Array.isArray(childValue && childValue.allowedParentValues)
@@ -222,21 +160,10 @@ function parentValueIdForChildValue(parentField, childValue) {
 }
 
 /**
- * Родитель на строке — наше эхо дочернего значения, а не выбор человека.
- *
- * **Зачем спрашивать.** При `Show always` + `Add the parent Value` родителя на
- * строку пишем мы сами, следом за долистанным дочерним значением. На следующем
- * нажатии он уже лежит на строке, и обе дороги считали его выбором человека и
- * отбирали по нему — круг дочернего поля схлопывался в одно значение (его
- * замечание 2026-09-19: «в tagwheel в sub-field есть только значение `#new`»).
- * Значение, выведенное из выбранного ребёнка, сведений не несёт: спрашивать
- * надо, совпадает ли оно с тем, что мы бы **сами** и дописали.
- *
- * Выбор человека при этом остаётся сильнее: пока дочернего значения нет,
- * родитель принадлежит ему и отбирает по-прежнему.
- *
- * Объявление одно на обе дороги (У-122): панель зовёт его из `cycleValue`,
- * команда — из разбора действия `_sub`.
+ * Родитель на строке — наше эхо дочернего значения, а не выбор человека
+ * (`Show always` + `Add the parent Value`, 2026-09-19): иначе круг дочернего
+ * поля схлопывался в одно значение. Пока дочернего значения нет, родитель —
+ * выбор человека. Одно на обе дороги (У-122): `cycleValue` и разбор `_sub`.
  */
 function parentValueEchoesChildValue(parentField, childField, parentValueId, childValue) {
   if (!childField || typeof childField !== "object") return false;
@@ -262,12 +189,8 @@ function navigatorChildOf(parentField, fields) {
 }
 
 /**
- * Навигатор ли это значение родителя: у дочернего Field включён `Parent is
- * Navigator`, и у значения есть хоть один ребёнок. Значение без детей —
- * обычное и пишется как прежде (нюанс 6 постановки).
- *
- * Объявление одно на все дороги: панель не пишет навигатор на строку,
- * команда родителя его пропускает (10.13.269).
+ * Навигатор ли значение родителя: у дочернего включён `Parent is Navigator` и
+ * у значения есть дети; без детей — обычное (10.13.269).
  */
 function isNavigatorValue(parentField, childField, parentValue) {
   if (!childField || childField.parentIsNavigator !== true) return false;
@@ -278,20 +201,11 @@ function isNavigatorValue(parentField, childField, parentValue) {
   return kids.some((k) => k && Array.isArray(k.allowedParentValues) && k.allowedParentValues.indexOf(tok) !== -1);
 }
 
-/*
- * **Чтения служебного файла правил здесь больше нет** (PRD 10.13.52, П-8, шаг
- * третий, 2026-09-13). Сняты три объявления: перебор кандидатов пути
- * (`buildPathCandidates`), приведение пути к `.md` (`normalizeRulesPath`) и
- * само чтение с запасным путём (`readRulesMarkdownWithFallback`). Правила
- * приезжают к движкам из настроек ключом `Rules data`, и последний читатель
- * файла — панель TagWheel — перешёл на него тем же заходом.
- */
+/* Служебный файл правил не читается: правила — из настроек ключом `Rules data` (PRD 10.13.52, П-8). */
 
 function parseOrderConfig(raw, normalizeKey) {
   let src = raw;
-  /* Дом один — `normalizeOrderKey` в `shared_utils.js` (10.13.168). Здесь
-     стояло безымянное тело того же правила: форма, к которой сторож копий
-     был слеп, потому что знал имя функции и имя довода, а не присваивание. */
+  /* Дом — `normalizeOrderKey` в `shared_utils.js` (10.13.168). */
   const normalize = typeof normalizeKey === "function" ? normalizeKey : __sharedUtils.normalizeOrderKey;
   if (typeof src === "string") {
     const s = src.trim();
@@ -397,13 +311,9 @@ function parseOrderConfig(raw, normalizeKey) {
     }
   }
   /*
-   * Две карты дочернего Field (его слово 2026-09-19). `subWithoutParent` —
-   * работает ли поле на строке, где у родителя значения нет; `subAddsParent`
-   * — дописывать ли тогда родителя выбранному значению. Обе булевы и обе
-   * ключуются именем дочернего поля (`<Field>_sub`).
-   *
-   * Ключи здесь не сверяются с `discover`: дочерние ключи в `left`/`right` не
-   * стоят нарочно, и сверка выбросила бы их целиком.
+   * Две карты дочернего Field (2026-09-19), ключ `<Field>_sub`, булевы:
+   * `subWithoutParent` — работает без родителя, `subAddsParent` — дописывать
+   * родителя. С `discover` не сверяются: в `left`/`right` их нет нарочно.
    */
   for (const mapKey of ["subWithoutParent", "subAddsParent"]) {
     const bag = src[mapKey];
@@ -507,9 +417,7 @@ function resolveFieldActiveMode(orderCfg, fieldKey) {
 function resolvePanelForField(orderCfg, fieldKey, options) {
   const opts = options && typeof options === "object" ? options : {};
   const fallback = String(opts.defaultPanel || "left").trim().toLowerCase() === "right" ? "right" : "left";
-  /* Тот же дом (10.13.168). Этот запасной ход живой: звавшие из панели
-     передают только `defaultPanel`, и до правки они получали копию
-     правила, а остальные — дом. Тела совпадали до знака. */
+  /* Тот же дом (10.13.168); запасной ход живой — панель передаёт только `defaultPanel`. */
   const normalize = typeof opts.normalizeKey === "function"
     ? opts.normalizeKey
     : __sharedUtils.normalizeOrderKey;
@@ -685,23 +593,10 @@ function hasDateLikeMarkerInText(text, options) {
 }
 
 /**
- * Снять с блока все токены этой метки.
- *
- * **Три образца вместо одного, и берётся самый длинный.** Прежде тут стояли
- * три прохода подряд: образец формата, потом «метка плюс одно слово», потом
- * «метка без значения». Второй проход и терял вторую половину: значение
- * формата `YYYY-MM-DD hh:mm` занимает два слова, и всё, что не совпало с
- * нынешним форматом, обрезалось по первому пробелу. Хвост `21:32` оставался
- * в строке и дальше объявлялся текстом человека — ряд, который заказчик
- * прислал 2026-09-12 (PRD 10.13.71).
- *
- * Теперь образцы спрашиваются **разом**, и выигрывает тот, кто узнал больше:
- * формат поля, общий вид даты со временем, метка без значения, слово до
- * пробела. Порядок в списке ничего не решает — это и есть смысл правки
- * (`longestValueLengthAt`).
- *
- * Метка, стоящая не с начала токена (`abc📅2026-09-11`), не наша и не
- * трогается — как и раньше.
+ * Снять с блока все токены метки. Образцы (формат поля, дата со временем,
+ * метка без значения, слово) спрашиваются разом, выигрывает самый длинный
+ * (`longestValueLengthAt`): формат `YYYY-MM-DD hh:mm` — два слова (PRD 10.13.71).
+ * Метка не с начала токена (`abc📅2026-09-11`) не наша.
  */
 function removeMarkerTokensFromSegment(segText, marker, valueRx) {
   const mk = String(marker || "");
@@ -714,24 +609,14 @@ function removeMarkerTokensFromSegment(segText, marker, valueRx) {
 }
 
 function escapeRegex(text) {
-  /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32).
-     Своя копия стояла здесь и расходилась с ним на `0` и `false`:
-     `String(s || "")` отдавала пустую строку, то есть пустую
-     альтернативу регулярного выражения, а та совпадает со всем. */
+  /* Дом — `escapeRe` в `shared_utils.js` (У-32): своя копия на `0`/`false` давала пустую альтернативу. */
   return __sharedUtils.escapeRe(text);
 }
 
 /**
- * Чем записан хвост эмодзи-элемента, выведенный из его формата.
- *
- * `YYYY-MM-DD hh:mm` даёт `\d{4}-\d{2}-\d{2}[ ]\d{2}:\d{2}`: буквы образца
- * становятся цифрами, пробел — пробелом, остальное — собой.
- *
- * **Это второе объявление того же правила**: первое живёт в `main.js`
- * (`elementTailPatternFromFormat`, правка C35) и нужно там отрисовке. Свести
- * их в один модуль нечем — `main.js` грузит этот файл не через `require`, а
- * мостом vault, — поэтому расхождение сторожит пин, сверяющий обе функции на
- * наборе форматов (У-32).
+ * Хвост эмодзи-элемента из формата: `YYYY-MM-DD hh:mm` → цифры, пробел, прочее
+ * собой. Второе объявление (первое — `elementTailPatternFromFormat`, C35);
+ * расхождение сторожит пин на наборе форматов (У-32).
  */
 function elementTailPatternFromFormat(format) {
   const src = String(format || "").trim();
@@ -754,25 +639,11 @@ function elementTailPatternFromFormat(format) {
 }
 
 /**
- * Разбор блока строки на токены — с оглядкой на эмодзи-элементы.
- *
- * Почему не `split(/\s+/)`. Элемент, у которого в формате есть пробел
- * (`📅YYYY-MM-DD hh:mm`), между пробелами не помещается: он разваливался на
- * `📅2026-09-02` и `20:43`. Первая половина узнавалась по метке и встала на
- * своё место в Order, вторая не узнавалась никем, уходила в корзину
- * неизвестных — а корзина печатается последней. Новые теги вставали по Order,
- * то есть **между половинами**:
- *
- *   было      `📅2026-09-02 20:43`
- *   стало     `📅2026-09-02 #work #AK 20:43`
- *
- * Заказчик прислал это символ в символ (свободное замечание, 2026-09-02).
- *
- * Длина хвоста выводится из формата поля — тем же правилом, которым её
- * выводит отрисовка (C35). Метки без формата и всё прочее режется по пробелу,
- * как раньше.
- *
- * Двенадцатое исключение к З3, разрешение заказчика 2026-09-02.
+ * Разбор блока на токены с оглядкой на эмодзи-элементы. Не `split(/\s+/)`:
+ * элемент с пробелом в формате (`📅YYYY-MM-DD hh:mm`) разваливался, и новые
+ * теги вставали между половинами (2026-09-02). Длина хвоста — из формата, тем
+ * же правилом, что у отрисовки (C35); остальное — по пробелу. Двенадцатое
+ * исключение к З3.
  */
 function tokenizeSegmentBody(body, markers) {
   const src = String(body || "");
@@ -883,11 +754,7 @@ function getDateMarkersFromRules(rules, options) {
     start: String(dateFields.start && dateFields.start.orderKey || "").trim(),
     due: String(dateFields.due && dateFields.due.orderKey || "").trim(),
   };
-  /*
-   * Чем записан хвост у каждой метки. Без этого элемент из двух слов не
-   * собрать в один токен: длина хвоста живёт в формате поля, а не в метке
-   * (Т-14, 2026-09-02).
-   */
+  /* Хвост каждой метки — из формата поля, иначе элемент из двух слов не собрать (Т-14). */
   const elements = behavior && typeof behavior.elements === "object" && !Array.isArray(behavior.elements)
     ? behavior.elements
     : {};
@@ -895,14 +762,8 @@ function getDateMarkersFromRules(rules, options) {
     ? elements.byField
     : {};
   /*
-   * **Формат спрашивается там же, откуда его берёт движок.** Карта строилась
-   * только по `behavior.elements`, а движок дат читает формат из
-   * `behavior.dateRuntimeConfig` — того, что приезжает ключом настроек. У
-   * заказчика обе ветки совпадают, и расхождения не видно; там, где ветка
-   * `elements` пуста, хвост не доезжал вовсе, и уборка снова резала значение
-   * по первому пробелу (У-147: две согласные стороны не показывают, какую из
-   * них читают). Поэтому сначала рантайм, потом `elements` — на те метки,
-   * которых в рантайме нет.
+   * Формат — откуда его берёт движок: сначала `behavior.dateRuntimeConfig`,
+   * потом `behavior.elements` на остальные метки (У-147).
    */
   out.tailByMarker = {};
   const addTails = (rows) => {
@@ -926,14 +787,11 @@ const LEAD_PREFIX_RE = new RegExp(
 function reorderSegmentTokensByOrder(segText, orderCfg, panelName, tokenToKey, options) {
   const opts = options && typeof options === "object" ? options : {};
   const source = String(segText || "").trim();
-  /* Начало строки — знак человека, и форма у него общая (`LIST_PREFIX_SRC`).
-     Здесь стоял свой образец из одного дефиса, и звёздочка, плюс или номер
-     уезжали в зону значений как обычный токен (10.13.106). */
+  /* Начало строки — общая форма `LIST_PREFIX_SRC` (10.13.106). */
   const match = source.match(LEAD_PREFIX_RE);
   const lead = match ? match[1] : "";
   const body = match ? String(match[2] || "").trim() : source;
-  /* Токены, а не куски между пробелами: эмодзи-элемент из двух слов иначе
-     разваливается, и новые теги встают между его половинами (Т-14). */
+  /* Токены, а не куски между пробелами (Т-14). */
   const parts = tokenizeSegmentBody(body, opts.markers);
   if (!parts.length) return lead ? String(lead).trim() : "";
 
@@ -1110,29 +968,11 @@ function collectSourceCatalogValues(sourceConfig) {
 }
 
 /**
- * **Эта ссылка — значение поля или слово человека?** Одно объявление на все
- * дороги (его слово 2026-09-17, В-141).
- *
- * До этого дня вопрос задавался **форме**: `[[что угодно]]` считалось значением
- * поля везде, где спрашивали. Поэтому ссылку, которую `Inline to note` ставит
- * **вместо его текста**, плагин читал как значение левого Block: слота под текст
- * на строке не оставалось, и первая же команда поля дописывала его пустым —
- * `- [[333/имя]] ::  :: #/1 #processed`. Его слово: «она должна считаться
- * текстом… при любом из вариантов имя преобразованной заметки и текст не должны
- * подмешиваться в left block», и шире: «в left block строки должны быть только
- * те values, которые есть в fields left block — то же самое с right block».
- *
- * **Чем значение отличается от слова — измерено, а не выведено.** У его полей
- * типа link значения перечислены (`Project` — `test1`, `test2`, `test444`), и
- * ссылки Transform нет ни в одном списке. Сомнение разбора («а вдруг у поля со
- * свободным вводом списка нет вовсе») снято у самого продукта: `Free` в панели —
- * это `Prefix behavior`, то есть куда вставить значение, а не «любое значение
- * годится». Списка значений нет только у поля, которому нечего предлагать.
- *
- * Спрашивается та же карта «токен → поле», которой значения узнают все
- * остальные (`buildTagTokenKeyMap`): второй список ссылок разошёлся бы с ней
- * молча (У-32). Цель ссылки сверяется без подписи после черты — подпись человек
- * пишет для глаз, адресом заметки она не является.
+ * Ссылка — значение поля или слово человека? Одно объявление на все дороги
+ * (В-141, 2026-09-17). Значение — только то, что есть в Values поля, а не
+ * любая форма `[[…]]`: иначе ссылка `Inline to note` на месте текста уходила
+ * в левый Block. Спрашивается `buildTagTokenKeyMap` (У-32); цель ссылки —
+ * без подписи после черты.
  */
 function makeWikilinkValueTest(rules) {
   const map = buildTagTokenKeyMap(rules) || {};
@@ -1143,11 +983,8 @@ function makeWikilinkValueTest(rules) {
     if (target) targets.add(target);
   }
   /*
-   * **Value без решётки и без скобок — тоже названное значение** (`В-247`,
-   * режим списка у Element: `🙂‍↕️да`, `💡`). Формы у него нет, и узнаётся оно
-   * только тем, что стоит в списке Values поля. Вопрос тот же, что у ссылки, и
-   * спрашивают его те же 19 мест: без этой строки разбор панели уносил такое
-   * Value в текст, и круг рядом с `#todo` множил его во фразе.
+   * Value без решётки и скобок (`В-247`, список у Element: `🙂‍↕️да`, `💡`)
+   * узнаётся только по списку Values; без этого разбор панели уносил его в текст.
    */
   const named = new Set(Object.keys(map).filter((t) => !__sharedUtils.isWikilinkToken(t) && !__sharedUtils.isTagToken(t)));
   return function isFieldWikilinkValue(token) {
@@ -1200,28 +1037,15 @@ function buildTagTokenKeyMap(rules, options) {
 
     return out.filter(isActiveValue);
   };
-  /* «Приставка плюс значение» — общий дом (10.13.152). Это тело было самым
-     полным из четырёх, и от него дом отличается одним: пропуск насквозь
-     любого готового тега снят. Он молча терял приставку, не равную решётке. */
+  /* «Приставка плюс значение» — общий дом (10.13.152). */
   const composeToken = (prefix, rawToken) => __sharedUtils.composeToken(prefix, rawToken);
 
   const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
   /*
-   * Правая корзина читается тоже, и это исключение № 7 из З3, разрешённое
-   * заказчиком 2026-09-01 (замечание И-4).
-   *
-   * `leftMode` и `rightMode` документа правил — это **не** левая и правая
-   * панели: `rules_markdown_builder` кладёт в них корзины `pkm.fields.tags` и
-   * `pkm.fields.links`. Сторону же (Block) решает Order. Поэтому Field типа
-   * link, стоящий у человека вторым слева, лежит в `rightMode`, в карту не
-   * попадал, и `reorderSegmentTokensByOrder` считал его токен незнакомым — а
-   * незнакомые дописываются **после** всех упорядоченных. Ссылка уезжала в
-   * конец блока при любом Order.
-   *
-   * Правая корзина идёт второй и **не перетирает** уже занятый токен: карта
-   * для левой корзины остаётся ровно такой, какой была, а новые ключи только
-   * добавляются. Токен, поделённый тегом и ссылкой, по-прежнему принадлежит
-   * тегу.
+   * Правая корзина читается тоже (исключение № 7 из З3, И-4): `leftMode` и
+   * `rightMode` — корзины `pkm.fields.tags`/`links`, а не Block; Block решает
+   * Order. Без неё ссылка уезжала в конец блока. Правая идёт второй и занятый
+   * токен не перетирает: общий токен остаётся тегу.
    */
   const rightFields = rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [];
   const mapFields = leftFields.concat(rightFields);
@@ -1244,9 +1068,7 @@ function buildTagTokenKeyMap(rules, options) {
     return source;
   };
 
-  /* Вопрос «каким выводом печатается это поле» объявлен один раз — выше, на
-     уровне модуля. Здесь остаётся подстановка правил, которые лежат в
-     замыкании. */
+  /* `resolveFieldOutputMode` — на уровне модуля; здесь подстановка правил замыкания. */
   const fieldOutputMode = (field) => resolveFieldOutputMode(field, rules);
 
   const addFieldTokens = (key, field, keepExisting) => {
@@ -1262,8 +1084,7 @@ function buildTagTokenKeyMap(rules, options) {
       const rawToken = String(v && v.token ? v.token : "");
       if (!rawToken) continue;
       const link = String(v && v.link ? v.link : rawToken).trim();
-      /* Строка с подписью (`[[папка/имя|имя]]`, 10.13.277) и написанная раньше
-         без неё — одно Value. */
+      /* С подписью (`[[папка/имя|имя]]`, 10.13.277) и без — одно Value. */
       if (outputMode === "wikilink" && link) { put(__sharedUtils.wikilinkLineToken(link)); put(`[[${link}]]`); }
       if (outputMode !== "wikilink" || projectTagWhenWikilink) {
         const pref = typeof field.prefix === "string" ? field.prefix : "#";
@@ -1412,25 +1233,12 @@ function applyOrderToRules(rules, orderCfg, options) {
 
   const runtimeExcludedIds = new Set();
   /*
-   * `scopeFields` — где искать Field, которого ждёт зависимый (предусловие
-   * Field, PRD 10.13.4).
-   *
-   * Определения тегов лежат в `leftMode.fields`, ссылок и элементов — в
-   * `rightMode.fields`: их раскладывает по типу `ensureBehaviorModesFromOrder`
-   * в `main.js`, и это НЕ Block, в который Field пишется. До 2026-08-27 каждый
-   * список разбирался сам по себе, и связь через границу списков движок считал
-   * сломанной: стирал `dependsOn` и ставил `enabled = false`.
-   *
-   * Решением заказчика от 2026-08-27 граница открыта **в одну сторону**: Field
-   * правого списка — ссылка или элемент — может ждать Field любого списка,
-   * Field левого списка по-прежнему только своего. Одно направление, а не оба,
-   * потому что `dependsOn` у левого Field значит для движка ещё и «дочерний
-   * тег»: его читают сборка `techOrder` ниже и слияние в `#parent/child`
-   * (`buildCombinedSelectionSet`), и левый Field, ждущий ссылку, попал бы туда
-   * не тем, чем он есть.
-   *
-   * Порядок полей внутри списка при этом остаётся своим: зависимый от чужого
-   * списка Field считается корнем и стоит там же, где стоял.
+   * `scopeFields` — где искать Field, которого ждёт зависимый (PRD 10.13.4).
+   * `leftMode.fields`/`rightMode.fields` — раскладка по типу, а не Block.
+   * Граница открыта в одну сторону (2026-08-27): Field правого списка ждёт
+   * любой, левого — только свой, потому что `dependsOn` у левого значит ещё
+   * «дочерний тег» (`techOrder`, `buildCombinedSelectionSet`). Зависимый от
+   * чужого списка — корень и стоит на месте.
    */
   const reconcileModeDependencies = (mode, scopeFields) => {
     const fields = Array.isArray(mode && mode.fields) ? mode.fields.slice() : [];
@@ -1474,8 +1282,7 @@ function applyOrderToRules(rules, orderCfg, options) {
       const fid = String(f && f.id || "").trim();
       if (!fid) continue;
       const dep = String(f && f.dependsOn || "").trim();
-      /* Родитель из другого списка порядок не задаёт: зависимый Field
-         остаётся корнем и стоит там же, где стоял. */
+      /* Родитель из другого списка порядок не задаёт: зависимый — корень. */
       if (!dep || !byId.has(dep)) continue;
       childIds.add(fid);
       if (!childrenByParent.has(dep)) childrenByParent.set(dep, []);
@@ -1527,28 +1334,16 @@ function applyOrderToRules(rules, orderCfg, options) {
     mode.fields = ordered;
   };
 
-  /* Левый список ищет родителя только у себя, правый — в обоих: см. разбор
-     у `reconcileModeDependencies`. */
+  /* Левый ищет родителя у себя, правый — в обоих (см. `reconcileModeDependencies`). */
   reconcileModeDependencies(rules.leftMode, leftFields.concat(rightFields));
   reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
 
   /*
-   * Короткое имя Field для TagWheel (`Name in TagWheel`, оно же `labels`).
-   * Одно место на весь разбор: отсюда берётся и `placeholder` поля, и подпись
-   * группы `rules.ui.leftGroups` (У-32).
-   *
-   * «Своего имени нет» здесь выглядит не как пустая подпись, а как подпись,
-   * равная ключу: `parseOrderConfig` досыпает в `labels` сам ключ для каждого
-   * встреченного Field. Это тот же признак, по которому панель показывает
-   * строку `Name in TagWheel` пустой (`fields_model.setStrictName`). Без него
-   * ветка вывода имени дочернего Field недостижима, и заказчик видел
-   * `Category_sub` вместо `Cat_sub` при родителе `Cat` (D12).
-   *
-   * Своё имя у дочернего Field есть с 2026-09-29 — строка `Child name in
-   * tagWheel` пишет `labels[<ключ>_sub]`. Без него дочка зовётся `sub` у
-   * всех: его ответ интервью 2026-09-29 «всегда sub» снял прежний вывод из
-   * имени родителя (`Imp_sub`, D12). Запасной `sub` стоит у `tagwheel_core.js`
-   * и у определения дочки (`placeholder`), поэтому здесь ответ — пусто.
+   * Короткое имя Field для TagWheel (`labels`) — одно место для `placeholder` и
+   * `rules.ui.leftGroups` (У-32). «Своего имени нет» — подпись, равная ключу:
+   * `parseOrderConfig` досыпает ключ (как `fields_model.setStrictName`; D12).
+   * Дочка без своего `labels[<ключ>_sub]` — пусто: запасной `sub` у
+   * `tagwheel_core.js` и `placeholder` (2026-09-29).
    */
   const labelsMap = isObj(orderCfg.labels) ? orderCfg.labels : {};
   const ownShortName = (rawKey) => {
@@ -1684,8 +1479,7 @@ module.exports = {
   buildTagTokenKeyMap,
   makeWikilinkValueTest,
   applyOrderToRules,
-  /* Отдаётся наружу ради ожидания ответа: своё тело за запасным ходом
-     снято, и вместо пина по тексту спрашивается сам ответ (10.13.161). */
+  /* Наружу — ради ожидания ответа вместо пина по тексту (10.13.161). */
   collapseSubOrderKey,
   normalizeFieldSourceKind,
   resolveFieldOutputMode,

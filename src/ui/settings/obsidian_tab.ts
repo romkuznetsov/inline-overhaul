@@ -1,9 +1,6 @@
 /**
- * Вкладка настроек, которую регистрирует плагин (PRD 5.3).
- *
- * Единственный файл слоя, который знает про модуль `obsidian`. Всё остальное
- * — схема, отображение, описания, хранилище — собирается и проверяется без
- * него, поэтому гейты работают на заглушке.
+ * Вкладка настроек плагина (PRD 5.3). Единственный файл слоя, знающий модуль
+ * `obsidian`: остальное проверяется гейтами на заглушке.
  */
 
 import {
@@ -52,32 +49,22 @@ import type { ActionId } from "./types.ts";
 interface HostPlugin {
   store?: ConfigStoreLike & { config?: Record<string, unknown>; getSnapshot?: () => Record<string, unknown> };
   getConfig?: () => Record<string, unknown>;
-  /*
-   * Заново собрать всё, что плагин строит из конфига: команды и место
-   * служебного файла. Необязательный: без него восстановление работает
-   * как работало, а последствия разбирает перезапуск.
-   */
+  /* Пересобрать построенное из конфига (команды); без него — до перезапуска. */
   rebuildFromConfig?: () => Promise<void> | void;
-  /* Пересобрать оформление открытых заметок; причины только для вида панели он пропускает сам. */
+  /* Пересобрать оформление открытых заметок; причины вида панели пропускает сам. */
   refreshEditorsFor?: (reason: string) => void;
 }
 
 /**
- * То, что плагин передаёт третьим аргументом для перенесённых блоков (3b):
- * нормализация Order и список заранее известных ключей живут в `main.js` и
- * из слоя настроек недостижимы. Аргумент необязательный: без него редактор
- * Fields просто не показывается, а остальная панель работает.
+ * Третий аргумент для перенесённых блоков (3b): нормализация Order и ключи из
+ * `main.js`. Без него редактор Fields не показывается.
  */
 interface HostBridge {
   normalizePkmOrder?: (raw: unknown) => unknown;
   pkmOrderFields?: readonly string[];
 }
 
-/**
- * Обёртка над ConfigStore плагина. Чтение идёт по живому объекту, а не по
- * снимку: `getSettingDefinitions` вызывается часто (П-11), а `getSnapshot`
- * каждый раз клонирует весь конфиг.
- */
+/** Обёртка ConfigStore. Чтение по живому объекту: `getSettingDefinitions` частый (П-11), снимок клонирует. */
 function storeFor(plugin: HostPlugin): ConfigStoreLike {
   const store = plugin.store;
   if (!store) throw new Error("inline-overhaul: settings pane needs plugin.store");
@@ -94,13 +81,8 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
       return store.subscribe(listener);
     },
     update(mutator, reason, opts) {
-      /*
-       * Контрол пишет сюда, а не через `setConfigPatch`, и пересборку
-       * открытых заметок раньше не звал никто (`Ф-4`): то, что живёт в
-       * самой отрисовке, — `Preview on hover`, `Empty tag bubble width`, —
-       * ждало ближайшего касания заметки (прогон 2026-10-02, H1.1). Цвета
-       * доезжали переменными CSS, поэтому разница видна была не везде.
-       */
+      /* Контрол пишет сюда, мимо `setConfigPatch`, поэтому пересборку открытых
+         заметок зовём здесь (`Ф-4`, H1.1). */
       const changed = store.update(
         (cfg: Record<string, unknown>) => {
           mutator(cfg);
@@ -109,32 +91,20 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
         reason,
         opts,
       );
-      /* `ConfigStore` отвечает `false`, когда менять было нечего: тогда и пересобирать нечего. */
+      /* `false` — менять было нечего. */
       if ((changed as unknown) !== false && typeof plugin.refreshEditorsFor === "function") plugin.refreshEditorsFor(String(reason || ""));
       return changed;
     },
   };
 }
 
-/**
- * Как окно спрашивает свой текст: именем из таблицы `texts_dialogs.ts`.
- *
- * Именем, а не готовой строкой: ключ каталога строит одна функция, и собрать
- * его на месте вызова значило бы объявить ключ второй раз (У-82).
- */
+/** Текст окна по имени из `texts_dialogs.ts`, не ключом: ключ строит одна функция (У-82). */
 type Say = (name: string) => string;
 
 /**
- * Заголовок внутри окна и подсказка к нему (замечание заказчика 2026-09-06:
- * «к каждому хедеру добавь tip, который должен также подчиняться show-tips»).
- *
- * Подсказка живёт тем же помощником, что и в панели, — `tipBelow`: значок «?»
- * встаёт в строку заголовка, а текст открывается **под** ней. Второго правила
- * про подсказки в продукте нет и быть не должно (У-32), поэтому и тумблер
- * `Show tips` тут не спрашивается заново: он приходит готовым ответом.
- *
- * Собственный `host` у каждого заголовка — чтобы открытая подсказка вставала
- * под своим заголовком, а не в конце всего, что под ним нарисовано.
+ * Заголовок окна с подсказкой (2026-09-06) — тот же `tipBelow`, что в панели
+ * (У-32); `Show tips` приходит готовым. Свой `host` — чтобы подсказка вставала
+ * под своим заголовком.
  */
 function dlgHead(box: El, o: {
   text: string;
@@ -146,8 +116,7 @@ function dlgHead(box: El, o: {
 }): void {
   const host = el(box, "div", "io-dlg__head");
   const row = el(host, "div", "io-dlg__head-row");
-  /* Тег здесь и есть признак «это заголовок окна, а не раздела в нём»:
-     размер такого заголовка объявляем мы, иначе его задаёт тема. */
+  /* Тег — признак заголовка окна: его размер объявляем мы, а не тема. */
   el(row, o.tag || "div", o.tag ? "io-dlg__head-name io-dlg__title" : "io-dlg__head-name", o.text);
   tipBelow({
     head: row,
@@ -159,11 +128,7 @@ function dlgHead(box: El, o: {
   });
 }
 
-/**
- * Окно «точно?». Живёт здесь, а не в реестре действий: `Modal` — платформа, а
- * реестр обязан собираться и проверяться без неё. Закрытие мимо кнопок — это
- * отказ, а не согласие: так же устроены все окна панели.
- */
+/** Окно «точно?»; здесь, а не в реестре: `Modal` — платформа. Закрытие мимо кнопок — отказ. */
 function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
   return new Promise<boolean>(resolve => {
     let answered = false;
@@ -185,10 +150,7 @@ function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
           for (const row of o.rows) el(list, "li", undefined, row);
         }
         if (o.note) el(box, "p", "io-dlg__body io-dlg__note", o.note);
-        /*
-         * Галочка стоит между списком и кнопками: её читают после того, как
-         * узнали, что именно произойдёт, и до того, как нажали.
-         */
+        /* Галочка — между списком и кнопками. */
         if (o.check) {
           const input = checkInput(box, "io-dlg__check", {
             label: o.check.label,
@@ -223,12 +185,7 @@ function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
   });
 }
 
-/**
- * Окно на одну кнопку (просьба заказчика 2026-09-06). Отдельное от окна
- * подтверждения: здесь ответа нет, есть только «прочитал». Закрытие мимо
- * кнопки — то же самое, поэтому обещание разрешается в обоих случаях и ровно
- * один раз.
- */
+/** Окно на одну кнопку (2026-09-06): закрытие мимо неё — то же «прочитал», обещание разрешается один раз. */
 function announce(app: App, o: AnnounceRequest): Promise<void> {
   return new Promise<void>(resolve => {
     let done = false;
@@ -269,12 +226,7 @@ function announce(app: App, o: AnnounceRequest): Promise<void> {
   });
 }
 
-/**
- * Окно состава копии (заказ заказчика 2026-09-06).
- *
- * Всё в нём уже выбрано по-максимуму, и `Enter` сразу даёт то же, что давала
- * кнопка до окна. Закрытие мимо кнопки — отказ, как и во всех окнах панели.
- */
+/** Окно состава копии (2026-09-06): всё выбрано по максимуму, закрытие мимо кнопки — отказ. */
 function askBackupOptions(app: App, o: BackupOptionsRequest, say: Say): Promise<BackupOptions | null> {
   return new Promise<BackupOptions | null>(resolve => {
     let answered = false;
@@ -289,11 +241,7 @@ function askBackupOptions(app: App, o: BackupOptionsRequest, say: Say): Promise<
         const box = this.contentEl as unknown as import("./custom/dom.ts").El;
         box.empty();
         box.addClass("io-dlg");
-        /*
-         * Три заголовка, и у каждого своя подсказка (замечание заказчика
-         * 2026-09-06). Абзаца под заголовком окна больше нет: то, что стояло
-         * там, ушло в подсказку первого из них.
-         */
+        /* Три заголовка, у каждого своя подсказка (2026-09-06). */
         dlgHead(box, { text: o.title, tip: o.tip, showTips: o.showTips, id: "backup-save-tip", tag: "h4" });
 
         el(box, "div", "io-dlg__field-label", o.commentLabel);
@@ -363,10 +311,7 @@ function askBackupOptions(app: App, o: BackupOptionsRequest, say: Say): Promise<
   });
 }
 
-/**
- * Окно выбора копии настроек (Б9). Отдельное от окна подтверждения: там ответ
- * «да или нет», здесь — «какая из». Закрытие мимо строк — отказ.
- */
+/** Окно выбора копии настроек (Б9). Закрытие мимо строк — отказ. */
 function askPick(app: App, o: PickRequest, say: Say): Promise<string | null> {
   return new Promise<string | null>(resolve => {
     let answered = false;
@@ -411,17 +356,10 @@ function askPick(app: App, o: PickRequest, say: Say): Promise<string | null> {
   });
 }
 
-/**
- * Vault для руководства. Единственное место, где слой настроек пишет файл в
- * хранилище, и оно здесь по той же причине, что и окно подтверждения: это
- * платформа, а реестр действий обязан собираться без неё.
- */
+/** Шов vault — единственная запись слоя настроек в хранилище; здесь, потому что это платформа. */
 function vaultSeam(app: App): VaultSeam {
   return {
-    /*
-     * `exists` идёт через адаптер, а не через `getAbstractFileByPath`: копия
-     * переезда лежит в папке плагина, а её файлы в дерево vault не попадают.
-     */
+    /* Через адаптер: файлы папки плагина в дерево vault не попадают. */
     exists: async (path: string) => await app.vault.adapter.exists(path),
     create: async (path: string, text: string) => { await app.vault.create(path, text); },
     open: async (path: string) => {
@@ -429,18 +367,13 @@ function vaultSeam(app: App): VaultSeam {
       if (!file) throw new Error("Cannot open " + path);
       const leaf = app.workspace.getLeaf(true);
       await leaf.openFile(file as never);
-      /* Заметка открывается в главном окне; окно настроек поверх неё — значит
-         главное поднимается (BUGHUNT R2, «Guide → Read»). */
+      /* Окно настроек поверх главного — поднять главное (BUGHUNT R2). */
       app.workspace.setActiveLeaf(leaf, { focus: true });
       const win = (leaf.view.containerEl as unknown as { ownerDocument?: Document }).ownerDocument?.defaultView;
       if (win && typeof win.focus === "function") win.focus();
     },
     read: async (path: string) => await app.vault.adapter.read(path),
-    /*
-     * Папка под копии создаётся при первом сохранении, не раньше (Б2). Уже
-     * существующая — не ошибка: адаптер об этом сообщает исключением, и оно
-     * здесь гасится намеренно.
-     */
+    /* При первом сохранении (Б2); «уже есть» адаптер бросает исключением — гасим. */
     ensureFolder: async (path: string) => {
       const folder = String(path || "").replace(/\/+$/, "");
       if (!folder) return;
@@ -462,7 +395,7 @@ function vaultSeam(app: App): VaultSeam {
           const stat = await app.vault.adapter.stat(file);
           mtime = stat && typeof stat.mtime === "number" ? stat.mtime : 0;
         } catch (_) {
-          /* проба: у адаптера может не быть `stat`, и тогда времени просто нет */
+          /* проба: `stat` может не быть — времени нет */
           mtime = 0;
         }
         out.push({ path: file, mtime });
@@ -472,15 +405,11 @@ function vaultSeam(app: App): VaultSeam {
   };
 }
 
-/**
- * Хранилище для копий настроек. Чтение — снимок, запись — тот же `update`,
- * которым пишет вся панель: миграция, undo и сохранение достаются даром.
- */
+/** Хранилище для копий: запись тем же `update`, что вся панель (миграция, undo). */
 function configSeam(plugin: HostPlugin): ConfigSeam {
   const store = storeFor(plugin);
   return {
-    /* Снимок, а не живой объект: восстановление собирает следующий конфиг из
-       нынешнего, и подмена под руками ему не нужна. */
+    /* Снимок: восстановление собирает следующий конфиг из нынешнего. */
     get: () => JSON.parse(JSON.stringify(store.getConfig())) as Record<string, unknown>,
     replace: async (next: Record<string, unknown>) => {
       const before = JSON.stringify(store.getConfig());
@@ -502,41 +431,27 @@ function pluginVersionOf(plugin: HostPlugin): string {
 }
 
 /**
- * Хоткеи команд плагина: прочитать и вернуть назад (Б18, вопрос В-32).
- *
- * **Служебное API Obsidian, и это второе исключение к 7.2.** Первое — колонка
- * `Hotkey` в справочнике команд (К-2), только чтение. Здесь появляется запись,
- * и разрешение на неё дано заказчиком 2026-09-04 после разбора.
- *
- * Что именно читалось в `app.js` Obsidian 1.13.7, чтобы это писать не наугад:
- *
- *   - `hotkeyManager.customKeys` — **геттер, отдающий копию**
- *     (`Object.assign({}, this[Symbol("customKeys")])`). Присвоить ему нельзя:
- *     настоящее хранилище лежит под символом. Отсюда `setHotkeys`, а не
- *     присваивание.
- *   - `setHotkeys(id, list)` кладёт список и сбрасывает `baked` — новая
- *     привязка начинает работать сразу, без перезапуска.
- *   - `removeHotkeys(id)` убирает запись целиком: команда возвращается к
- *     умолчанию плагина, если оно есть.
- *   - `save()` пишет `hotkeys.json` через `vault.writeConfigJson`. Без него
- *     назначение живёт до конца сеанса.
- *
- * **Трогаются только свои команды.** Идентификатор команды в Obsidian —
- * `<id плагина>:<id команды>`, и всё, что не начинается с нашего префикса,
- * пропускается в обе стороны. Восстановление копии не имеет права снять
- * хоткей другого плагина или самого Obsidian, и это единственное место, где
- * такое ограничение можно нарушить.
+ * Хоткеи команд плагина (Б18, В-32): служебное API Obsidian, второе
+ * исключение к 7.2 (первое — К-2), запись разрешена 2026-09-04. По `app.js`
+ * 1.13.7:
+ *   - `customKeys` — геттер, отдающий копию (хранилище под символом): писать
+ *     только `setHotkeys`;
+ *   - `setHotkeys(id, list)` сбрасывает `baked` — работает без перезапуска;
+ *   - `removeHotkeys(id)` возвращает умолчание плагина;
+ *   - `save()` пишет `hotkeys.json`, без него — до конца сеанса.
+ * Снимаются только свои команды (`<id плагина>:`): чужой хоткей восстановление
+ * снять не вправе.
  */
 interface HotkeyManagerApi {
   customKeys?: Record<string, unknown>;
-  /** Хоткеи по умолчанию: команда держит клавишу и тогда, когда её не назначали руками. */
+  /** Хоткеи по умолчанию — держатся и без назначения руками. */
   defaultKeys?: Record<string, unknown>;
   setHotkeys?: (id: string, bindings: unknown[]) => void;
   removeHotkeys?: (id: string) => void;
   save?: () => Promise<void> | void;
 }
 
-/** Реестр команд Obsidian: нужно только имя, чтобы назвать чужую команду в окне. */
+/** Имя чужой команды для окна. */
 function commandNameOf(app: App, id: string): string {
   const holder = app as unknown as { commands?: { commands?: Record<string, { name?: unknown }> } };
   const found = holder && holder.commands && holder.commands.commands
@@ -546,15 +461,7 @@ function commandNameOf(app: App, id: string): string {
   return name || id;
 }
 
-/**
- * Привязка одной строкой для сравнения.
- *
- * Само правило живёт в `settings_backup.js` — там же, где разбор копии, и
- * там же, где его можно прогнать без Obsidian. Здесь остаётся одно: сказать
- * ему, на какой платформе он работает, потому что `Mod` — это Cmd на macOS и
- * Ctrl везде ещё, и без этого `Mod + Tab` и `Ctrl + Tab` считались разными
- * комбинациями (замечание заказчика 2026-09-06).
- */
+/** Привязка строкой для сравнения; правило в `settings_backup.js`, здесь только платформа: `Mod` — Cmd на macOS (2026-09-06). */
 function keyOf(binding: unknown): string {
   return bindingKey(binding, { mac: Platform.isMacOS });
 }
@@ -585,11 +492,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
   };
 
   return {
-    /**
-     * Всё, что человек назначил руками — включая чужие команды. Умолчания
-     * сюда не попадают намеренно: они приедут с самими плагинами, а в копии
-     * означали бы «человек так решил» — чего он не решал.
-     */
+    /** Назначенное руками, и чужое тоже; умолчаний нет — они приедут с плагинами. */
     readAll: () => {
       const out: Record<string, unknown[]> = {};
       const hm = hotkeyManagerOf(app);
@@ -602,11 +505,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       return out;
     },
 
-    /**
-     * Чужие команды, держащие те же клавиши. Считается по **действующим**
-     * привязкам, а не только по назначенным руками: команда со своим умолчанием
-     * конфликтует точно так же, и именно о ней Obsidian ругается после перезапуска.
-     */
+    /** Чужие команды на тех же клавишах — по действующим привязкам, с умолчаниями. */
     conflicts: (map: Record<string, unknown[]>) => {
       const hm = hotkeyManagerOf(app);
       if (!hm) return [];
@@ -631,8 +530,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
         out.push({
           id,
           name: commandNameOf(app, id),
-          /* Клавиши называются так, как их пишет экран `Hotkeys`: там `Mod` не
-             показывается никогда — стоит `Ctrl` или `Cmd`. */
+          /* Как на экране `Hotkeys`: `Ctrl`/`Cmd`, не `Mod`. */
           hotkey: hotkeyListWords(clashing, { mac: Platform.isMacOS }),
         });
       }
@@ -657,23 +555,14 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function") {
         throw new Error("This build of Obsidian does not let the plugin write hotkeys");
       }
-      /*
-       * Объём решает копия, а не этот код: чужие хоткеи пишутся только
-       * тогда, когда человек сам выбрал `all` при сохранении и увидел это
-       * в окне восстановления (заказ заказчика 2026-09-06). Умолчание прежнее.
-       */
+      /* Чужие хоткеи — только если копия снята с `all` (2026-09-06). */
       const wide = opts && opts.scope === "all";
       const wanted = new Set<string>();
-      /* Ответ — сколько клавиш легло на наши команды: о нём и говорит
-         сообщение (D9: две клавиши одной команды звались «1 hotkey»). */
+      /* Ответ — число клавиш на наших командах, не команд (D9). */
       let written = 0;
 
-      /*
-       * Конфликты снимаются **до** того, как клавиша ляжет на нашу команду:
-       * иначе после записи «чужой держатель» и наш новый были бы неразличимы.
-       * Пустой список через `setHotkeys` — это и есть «человек снял клавишу»;
-       * `removeHotkeys` вернул бы умолчание плагина и ничего не решил.
-       */
+      /* Конфликты снимаются до записи, иначе чужой и наш неразличимы. Пустой
+         список `setHotkeys` — «снял клавишу»; `removeHotkeys` вернул бы умолчание. */
       if (opts && opts.clearConflicts) {
         const wantedKeys = new Set<string>();
         for (const id of Object.keys(map || {})) {
@@ -703,15 +592,8 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
         hm.setHotkeys(id, bindings);
         written += bindings.length;
       }
-      /*
-       * Своё, чего в копии нет, снимается: копия описывает состояние целиком,
-       * и оставленный хоткей был бы состоянием, которого в ней не было.
-       *
-       * **Снимается только своё, даже при `all`.** Для наших команд копия —
-       * полный список, а для чужих она говорит только про то, что в ней есть:
-       * чужой хоткей, заведённый после снятия копии, не должен исчезать оттого,
-       * что копию сняли раньше (Б10 касается наших настроек, а не чужих).
-       */
+      /* Своё, чего в копии нет, снимается; чужое — никогда, даже при `all`:
+         для чужих копия не полный список (Б10). */
       const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : {};
       for (const id of Object.keys(custom)) {
         if (!mine(id) || wanted.has(id)) continue;
@@ -734,11 +616,7 @@ function pluginFolderOf(app: App, plugin: HostPlugin): string {
   return configDir + "/plugins/" + id;
 }
 
-/**
- * Шов к хранилищу для каталогов. Адаптер, а не дерево заметок: `.obsidian/**`
- * Obsidian не индексирует, и файл в папке плагина `getAbstractFileByPath` не
- * найдёт **никогда** (10.13.26 Ф5).
- */
+/** Шов для каталогов — адаптер: `.obsidian/**` Obsidian не индексирует (10.13.26 Ф5). */
 function textFilesOf(app: App): TextFiles | null {
   const holder = app && app.vault ? (app.vault as { adapter?: unknown }).adapter : null;
   if (!holder || typeof holder !== "object") return null;
@@ -761,17 +639,10 @@ function textFilesOf(app: App): TextFiles | null {
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
 
-  /**
-   * Каталоги текстов, прочитанные с диска (10.13.38). Пусто до того, как
-   * чтение закончится, и это не проблема: пустой каталог — это английский из
-   * схемы, то есть ровно то, чем панель была до 2026-09-06.
-   */
+  /** Каталоги текстов с диска (10.13.38); до чтения пусто — английский из схемы. */
   private catalogs: Catalogs = {};
 
-  /**
-   * Текст окна по имени из таблицы. Поле со стрелкой, а не метод: его
-   * передают дальше как значение, и `this` у него должен остаться свой.
-   */
+  /** Текст окна по имени. Стрелка, а не метод: передаётся значением, `this` свой. */
   private say: Say = (name: string): string =>
     this.textFor(dialogKey(name), TEXT_BY_NAME[name] || "");
 
@@ -782,8 +653,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
 
   constructor(app: App, plugin: HostPlugin, bridge?: HostBridge) {
     super(app, plugin as never);
-    /* Окно, в котором человек видит панель: туда встают её окна (BUGHUNT R2).
-       Узел вкладки заводит платформа, и он один на всю жизнь вкладки. */
+    /* Окно панели — туда встают её окна (BUGHUNT R2); узел один на жизнь вкладки. */
     rememberSettingsRoot(this.containerEl as never);
     const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function"
       ? bridge.normalizePkmOrder
@@ -791,63 +661,34 @@ export class InlineOverhaulSettings extends PluginSettingTab {
     this.pane = new SettingsPane({
       schema: SCHEMA,
       tabs: TABS,
-      /*
-       * Видимые тексты по ключу (10.13.38). Чтение идёт с диска и потому
-       * асинхронно, а панель строится сразу: до конца чтения она говорит
-       * английским из схемы, а закончив, перерисовывается сама.
-       */
+      /* Тексты по ключу (10.13.38): читаются асинхронно, панель перерисуется. */
       texts: () => this.catalogs,
       store: new ConfigStoreAdapter(storeFor(plugin)),
-      /*
-       * Реестр действий (5.6). Кнопка, действия которой здесь нет, в схему
-       * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
-       */
+      /* Реестр действий (5.6); кнопка без действия в схему не попадает (`READY_ACTIONS`). */
       actions: buildActions({
         notify: (message: string) => { inSettingsWindow(() => new Notice(message)); },
         confirm: (o: ConfirmRequest) => askConfirm(app, o, this.say),
         pick: (o: PickRequest) => askPick(app, o, this.say),
         vault: vaultSeam(app),
-        /*
-         * Открыть адрес снаружи Obsidian — кнопка `Changelog` (его слово
-         * 2026-09-19). `window.open` у Obsidian на рабочем столе отдаёт адрес
-         * системному браузеру; своего окна здесь не заводится.
-         */
+        /* Кнопка `Changelog` (2026-09-19): `window.open` на десктопе отдаёт адрес системному браузеру. */
         openExternal: (url: string) => { window.open(url, "_blank"); },
-        /*
-         * Руководство на выбранном языке (10.13.51, ответ на В-73). Перевод
-         * лежит в папке плагина, а `.obsidian/**` Obsidian не индексирует —
-         * `vault` до него не достаёт (10.13.26 Ф5), поэтому чтение идёт
-         * адаптером, тем же, что у каталогов.
-         */
+        /* Руководство на выбранном языке (10.13.51, В-73) — адаптером (10.13.26 Ф5). */
         guide: async () => {
           const files = textFilesOf(app);
           if (!files) return { text: howtoMarkdown(), lang: "en", name: "English" };
           return guideTextFor(
             files, pluginFolderOf(app, plugin), this.pane.currentLanguage(), howtoMarkdown());
         },
-        /*
-         * Копии настроек пишутся и читаются через то же хранилище, что и всё
-         * остальное: замена идёт `update`-мутатором и потому проходит миграцию
-         * (CS10). Второй точки записи в конфиг нет.
-         */
+        /* Копии — через то же хранилище, замена проходит миграцию (CS10). */
         config: configSeam(plugin),
         pluginVersion: pluginVersionOf(plugin),
-        /* Хоткеи: второе исключение к 7.2, разрешение заказчика 2026-09-04. */
+        /* Второе исключение к 7.2 (2026-09-04). */
         hotkeys: hotkeySeam(app, plugin),
-        /*
-         * После восстановления. `addCommand` у Obsidian кладёт команду
-         * в словарь по её id, поэтому повторный заход обновляет старые и
-         * добавляет новые, а не двоит. Команды снятых Field остаются до
-         * перезапуска — про него и говорит окно.
-         */
+        /* `addCommand` кладёт по id — повтор не двоит; команды снятых Field живут до перезапуска. */
         rebuildFromConfig: typeof plugin.rebuildFromConfig === "function"
           ? () => plugin.rebuildFromConfig!()
           : undefined,
-        /*
-         * Тексты окон — из каталога (10.13.46). Замыкание, а не значение:
-         * панель в этот момент ещё собирается, а язык человек меняет на
-         * лету.
-         */
+        /* Тексты окон (10.13.46); замыкание — язык меняется на лету. */
         t: (key: string, fallback: string) => this.textFor(key, fallback),
         announce: (o: AnnounceRequest) => announce(app, o),
         askBackupOptions: (o: BackupOptionsRequest) => askBackupOptions(app, o, this.say),
@@ -861,11 +702,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       refresh: () => { this.refreshDomState(); },
       rebuild: () => { this.update(); },
       tabStrip: state => tabStripRow(state),
-      /*
-       * Шов для перенесённого редактора Fields. Без нормализации Order из
-       * `main.js` его показывать нельзя: она нужна ему на каждом чтении, и
-       * подделать её здесь значило бы завести вторую (З8, П9 по смыслу).
-       */
+      /* Редактор Fields — только с нормализацией Order из `main.js` (З8, П9). */
       platform: normalizePkmOrder
         ? {
           Setting: SettingCtor,
@@ -874,11 +711,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
           AbstractInputSuggest,
           Scope,
           setIcon: (node: unknown, icon: string) => { setIcon(node as HTMLElement, icon); },
-          /*
-           * Пути заметок vault: из них собирается список шаблонов (1.6.2.4).
-           * Список файлов Obsidian держит в памяти, поэтому чтение синхронное
-           * и годится для `getSettingDefinitions` (П-11).
-           */
+          /* Для списка шаблонов (1.6.2.4); синхронно, в памяти — годится для П-11. */
           listNotes: () => app.vault.getMarkdownFiles().map(f => f.path),
           plugin,
           getConfig: () => (typeof plugin.getConfig === "function" ? plugin.getConfig() : {}),
@@ -888,33 +721,14 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         : undefined,
     });
 
-    /*
-     * Каталоги — после того, как панель собрана: она обязана существовать
-     * даже если файлов нет вовсе, а чтение с диска не должно задерживать
-     * загрузку плагина. Неудача не роняет ничего: без каталогов панель
-     * говорит английским.
-     */
+    /* Каталоги — после сборки панели, не задерживая загрузку; без них — английский. */
     void this.loadTexts(app, plugin);
 
     /*
-     * **Шов к сообщениям плагина в редакторе** (10.13.50 Ф-2).
-     *
-     * `main.js` и файлы `pkm_v2/**` про панель не знают и знать не должны: у
-     * них нет ни `ctx`, ни импорта слоя настроек, а два из трёх ещё и под З3.
-     * Так они получают всё остальное — `__inlinePkmMacroShared`,
-     * `__inlineLinePipeline`, сам `Notice`, — и заводить для одной строки
-     * второй способ доставки значило бы объявить одно правило дважды (У-32).
-     *
-     * **Резолвер здесь не свой, а тот же самый.** Зовётся `pane.textFor` — та
-     * функция, которой отвечает панель. Отсюда даром берётся то, что своим
-     * резолвером пришлось бы поддерживать руками: человек меняет язык в
-     * `General → Language`, и сообщения в редакторе меняются вместе с
-     * панелью, потому что язык живёт в одном месте.
-     *
-     * Если этой вкладки нет вовсе (старый Obsidian, не загрузившийся модуль —
-     * `createSettingTab()` отдаёт `null`), глобали нет, и каждое место в
-     * рантайме отдаёт свой английский литерал. Это не поломка, а тот же
-     * контракт, что у `PLAIN`.
+     * Шов к сообщениям рантайма (10.13.50 Ф-2): глобалью, как остальные
+     * (`__inlineLinePipeline`…), У-32. Резолвер тот же `pane.textFor` — язык
+     * в одном месте. Нет вкладки — нет глобали, рантайм говорит своим
+     * английским литералом (контракт `PLAIN`).
      */
     (globalThis as Record<string, unknown>)["__inlineSay"] =
       (key: string, fallback: string): string => {
@@ -923,13 +737,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       };
   }
 
-  /**
-   * Положить недостающие каталоги и прочитать то, что в папке лежит.
-   *
-   * Порядок обязателен: сначала запись, потом чтение — иначе первый запуск
-   * не увидел бы собственных файлов и список языков был бы пуст до
-   * перезапуска.
-   */
+  /** Положить недостающие каталоги и прочитать папку — именно в этом порядке, иначе первый запуск без языков. */
   private async loadTexts(app: App, plugin: HostPlugin): Promise<void> {
     const files = textFilesOf(app);
     if (!files) return;
@@ -937,20 +745,11 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       const folder = pluginFolderOf(app, plugin);
       await ensureCatalogFiles(files, folder, panelCatalog(SCHEMA, TABS),
         { en: BASE_LANG_SEED, ru: RU_SEED });
-      /*
-       * Образец руководства кладётся тем же заходом (10.13.51). Он не язык и
-       * в списке языков его нет: его копируют, чтобы перевод завести. Переводы
-       * при этом не читаются и не трогаются — любой из них человеческий с
-       * момента появления (Г-5).
-       */
+      /* Образец руководства (10.13.51); переводы не трогаются — они человека (Г-5). */
       await ensureGuideFiles(files, folder, howtoMarkdown());
       const read = await readCatalogs(files, folder);
       this.catalogs = read.catalogs;
-      /*
-       * Сломанный файл не роняет ничего, но и промолчать о нём нельзя: его
-       * правит человек руками, и молчание в ответ на его правку — худшее,
-       * что можно сделать.
-       */
+      /* Сломанный файл правил человек — сказать ему. */
       for (const name of read.broken) {
         inSettingsWindow(() => new Notice(fill(this.say("TEXTS_BROKEN"), name)));
       }
@@ -963,12 +762,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
 
   /* ---- декларативный путь Obsidian 1.13 ------------------------------- */
 
-  /*
-   * Приведение типа живёт здесь, и только здесь. Слой настроек описывает
-   * определения своей структурой, чтобы собираться и проверяться без модуля
-   * obsidian; этот файл — единственный, который знает про платформу, и
-   * единственное место, где две формы встречаются.
-   */
+  /* Единственное место, где своя форма определений встречает тип платформы. */
   override getSettingDefinitions(): SettingDefinitionItem[] {
     return this.pane.getSettingDefinitions();
   }
@@ -981,24 +775,12 @@ export class InlineOverhaulSettings extends PluginSettingTab {
     await this.pane.setControlValue(key, value);
   }
 
-  /**
-   * Отпустить подписку панели на хранилище — шаг выгрузки плагина.
-   *
-   * Обещание «зовётся при выгрузке» стояло над `SettingsPane.dispose` с самого
-   * начала, и звать его было некому: сегодня утечкой это не является — панель
-   * и хранилище живут ровно столько же, сколько плагин, — но договор, который
-   * никто не исполняет, читается как исполненный (`docs/dev/AUDIT_2026-09-18.md`,
-   * 4.5). Путь отсюда короче любого объяснения о сроках жизни.
-   */
+  /** Отпустить подписку панели на хранилище при выгрузке (AUDIT_2026-09-18, 4.5). */
   disposePane(): void {
     this.pane.dispose();
   }
 
-  /**
-   * При декларативном пути `display` не вызывается. Если Obsidian всё же его
-   * позвал, значит версия старше 1.13 и определения игнорируются — тогда
-   * пустая панель хуже честного объяснения.
-   */
+  /** Зовётся только Obsidian старше 1.13 (декларативный путь его не зовёт) — объяснить. */
   override display(): void {
     const el = this.containerEl;
     el.empty();
@@ -1011,5 +793,5 @@ export class InlineOverhaulSettings extends PluginSettingTab {
 /** Действия кнопок появятся в фазе 5; тип держим рядом, чтобы не разошёлся. */
 export type { ActionId };
 
-/* Обёртка хранилища — наружу ради проверки пересборки заметок после записи контрола (H1.1). */
+/* Наружу ради проверки пересборки заметок (H1.1). */
 export { storeFor };

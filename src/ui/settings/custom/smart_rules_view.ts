@@ -1,22 +1,9 @@
 /**
- * Вёрстка Smart Rules (PRD 10.8, фаза 3c).
- *
- * Только DOM: ни `Modal`, ни `Notice`, ни движка. Диалог выбора значения
- * открывает тот, кто знает платформу (`smart_rules.ts`), и ответ приходит
- * обратным вызовом — так же устроен редактор Fields, и по той же причине:
- * вёрстка обязана рисоваться на заглушке (гейт Г16).
- *
- * Что здесь важно про смысл, а не про пиксели:
- *
- *   * **Порядок значим.** Правила читаются сверху вниз, срабатывает первое
- *     подходящее (С-6). Поэтому у карточки есть номер и ручка перетаскивания,
- *     а не только галочка.
- *   * **ИЛИ внутри типа, И между типами** — свойство движка, а не настройка
- *     (С-7). Подписи `or` и `and` в строках условий — слова, объясняющие это,
- *     и ни одна из них не нажимается. Выбор соединения внутри типа придёт
- *     фазой 5.
- *   * **Спор правил считает движок.** Карточка показывает то, что вернула
- *     `validateSmartRules`, и не судит сама.
+ * Вёрстка Smart Rules (PRD 10.8, фаза 3c). Только DOM: диалог открывает
+ * `smart_rules.ts`, вёрстка рисуется на заглушке (Г16). Срабатывает первое
+ * подходящее правило (С-6) — отсюда номер и ручка; ИЛИ внутри типа, И между
+ * типами — свойство движка (С-7), `or`/`and` только подписи; спор правил
+ * считает `validateSmartRules`.
  */
 
 import type { El, ElInput, DragEv } from "./dom.ts";
@@ -50,25 +37,16 @@ const KIND_LABEL: Record<RuleKind, string> = {
   fields: T.KIND_FIELD,
 };
 
-/**
- * Хвост чипа условия «любое значение Field» (10.13.7). Условие хранит id
- * Field, а читается оно словами: `Importance — any Value`.
- */
+/** Хвост чипа «любое значение Field» (10.13.7): `Importance — any Value`. */
 const ANY_VALUE = T.ANY_VALUE_SUFFIX.replace("{0}", "");
 
-/** Имя пустое — правило зовётся по своему месту в очереди (С-3). */
+/** Имя пустое — правило зовётся по месту в очереди (С-3). */
 const RULE_FALLBACK = T.RULE_FALLBACK_NAME.replace("{0}", "");
-/** У типа нет условий — правило не смотрит на него вовсе. */
-/* Папка новой заметки у правила (10.13.8). */
-/** Пустой список: правил нет, и это приглашение, а не ошибка (ПЗ2, ПЗ3). */
+/* Тексты папки (10.13.8) и пустого списка (ПЗ2, ПЗ3) — в каталоге блока. */
 
-/**
- * Слово между значениями. Внутри типа — `or`, потому что движок берёт любое
- * из них; между типами — `and`, потому что нужны все названные типы (С-7).
- */
+/** Внутри типа `or` — движок берёт любое, между типами `and` — нужны все (С-7). */
 const OP_OR = T.MATCH_OR;
 const OP_AND = T.MATCH_AND;
-/** Строка над условиями: как читать, что в них написано. */
 
 export interface RulesViewOpts {
   model: RulesModel;
@@ -76,49 +54,31 @@ export interface RulesViewOpts {
   enabled: boolean;
   /** Шаблоны из vault: имя файла и есть значение. */
   templates: readonly string[];
-  /** Папка, из которой они взяты: нужна подписи пустого списка (1.6.6.2). */
+  /** Их папка — для подписи пустого списка (1.6.6.2). */
   templatesFolder?: string;
   redraw: () => void;
-  /**
-   * Спросить значение условия. Окно рисует панель: `Modal` принадлежит
-   * платформе, а блок про неё знать не должен. `null` — человек отказался.
-   */
+  /** Спросить значение условия; окно рисует панель (`Modal`). `null` — отказ. */
   askCondition: (
     kind: RuleKind,
     done: (answer: { kind: "value" | "field"; id: string } | null) => void,
   ) => void;
-  /**
-   * Повесить на поле подсказчик папок vault. Его даёт панель: класс
-   * `AbstractInputSuggest` принадлежит платформе, а вёрстка обязана
-   * рисоваться и на заглушке (Г16). Нет подсказчика — поле остаётся обычным
-   * полем ввода, и папку можно вписать руками.
-   */
+  /** Подсказчик папок (`AbstractInputSuggest`) от панели (Г16); нет — обычное поле. */
   folderSuggest?: (input: ElInput, write: (value: string) => void) => void;
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
   /**
-   * Развёрнутые карточки (З-6). **Состояние вида, и в конфиг оно не пишется**
-   * (О0): хранить в настройках человека, открыта ли карточка, значило бы
-   * записывать туда вид панели. Живёт оно в замыкании блока — так же, как
-   * выбранный Field у редактора Fields, — и переживает перерисовку, которой
-   * отвечает на каждое нажатие сам блок.
-   *
-   * Нет набора — карточки развёрнуты все: так вёрстка ведёт себя на заглушке
-   * и в старых проверках, где ей никакого состояния не передают.
+   * Развёрнутые карточки (З-6): состояние вида, в конфиг не пишется (О0),
+   * живёт в замыкании блока. Нет набора — развёрнуты все.
    */
   expanded?: Set<string>;
 }
 
-/** Номер правила и его имя: по имени человек его и зовёт. */
+/** Имя правила или его номер. */
 function ruleTitle(row: RuleRow, index: number): string {
   return row.name || RULE_FALLBACK + (index + 1);
 }
 
-/**
- * Жалоба на правило словами панели (BUGHUNT 2026-09-30, C16): движок говорит
- * `rule-2` и `tag/emoji/wikilink`, а человек видит `Rule 2` и Tag, Element,
- * Link, Field. Вердикт по-прежнему движка — здесь только слова.
- */
+/** Жалоба движка словами панели (C16): `Rule 2`, а не `rule-2`; вердикт движка. */
 function conflictText(row: RuleRow, o: RulesViewOpts): string {
   if (!row.conflict) return "";
   const say = o.say || PLAIN;
@@ -127,13 +87,7 @@ function conflictText(row: RuleRow, o: RulesViewOpts): string {
   return say("CONFLICT_WITH", row.conflictWith.map(i => (rows[i] ? ruleTitle(rows[i], i) : RULE_FALLBACK + (i + 1))).join(", "));
 }
 
-/**
- * Что стоит в строке условий этого типа: значения и Fields целиком.
- *
- * Одно объявление на два места — саму строку и сводку свёрнутой карточки
- * (З-6). Второй такой же сбор разошёлся бы с первым молча (У-32): человек
- * увидел бы в свёрнутом виде не то, что развернул бы нажатием.
- */
+/** Значения и Fields целиком в строке условий типа; одно объявление для строки и сводки (З-6, У-32). */
 function conditionItems(
   row: RuleRow,
   kind: RowKind,
@@ -150,37 +104,15 @@ function conditionItems(
     })));
 }
 
-/**
- * Что стоит в сводке свёрнутой карточки: у каждой части подпись и значение.
- *
- * Заказчик назвал состав сам: «название, что выбрано в `when the line has`,
- * используемый template, папка назначения» — плюс управление, а оно и так
- * стоит в шапке и никуда не девается. Имя здесь не повторяется: оно в шапке,
- * строкой выше.
- *
- * **Подписи появились по его замечанию 2026-09-09:** «мне не нравится, что в
- * свёрнутом состоянии во второй строке сжатая информация даётся слишком
- * скудно… сделай, чтобы было `Use when: #todo` | `Template: template1.md` |
- * `Folder: 333`». Прежде три значения стояли подряд через точку, и `333` ничем
- * не отличалось от имени шаблона: догадаться, что из них папка, можно было
- * только развернув карточку — то есть ровно тем действием, ради экономии
- * которого сводка и заведена.
- *
- * Состав собран отдельно от отрисовки нарочно: **что** сказано — решение, и
- * его проверяет набор; **как** оно разложено по узлам — вёрстка.
- */
-/**
- * Имя шаблона на экране. Правило одно и живёт в `templates.ts`: и список
- * `Use template`, и сводка свёрнутой карточки называют шаблон так же, как его
- * называет `Default template` (замечание по S6, 2026-09-09).
- *
- * В конфиге при этом остаётся путь целиком: имя — то, что человек читает, а не
- * то, что записано.
- */
+/** Имя шаблона на экране — правило `templates.ts` (S6); в конфиге путь целиком. */
 function templateName(path: string, o: RulesViewOpts): string {
   return templateLabel(String(o.templatesFolder || ""), path);
 }
 
+/**
+ * Сводка свёрнутой карточки: `Use when: #todo | Template: … | Folder: …`
+ * (2026-09-09), с подписями. Состав отдельно от отрисовки — его проверяет набор.
+ */
 function summaryParts(row: RuleRow, o: RulesViewOpts): Array<{ label: string; value: string }> {
   const say = o.say || PLAIN;
   const shown = ROW_KINDS.flatMap(kind => conditionItems(row, kind, o).map(x => x.shown));
@@ -202,44 +134,24 @@ function summaryParts(row: RuleRow, o: RulesViewOpts): Array<{ label: string; va
   ];
 }
 
-/**
- * \u0421\u0432\u0451\u0440\u043d\u0443\u0442\u0430\u044f \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430: \u043e\u0434\u043d\u0430 \u0441\u0442\u0440\u043e\u043a\u0430 \u0441 \u0442\u0435\u043c, \u0440\u0430\u0434\u0438 \u0447\u0435\u0433\u043e \u0447\u0435\u043b\u043e\u0432\u0435\u043a \u0435\u0451 \u043e\u0442\u043a\u0440\u044b\u043b \u0431\u044b (\u0417-6).
- *
- * \u0421\u0447\u0438\u0442\u0430\u0442\u044c \u043d\u0435\u0447\u0435\u0433\u043e \u2014 \u0432\u0441\u0451 \u044d\u0442\u043e \u0443 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u0443\u0436\u0435 \u0435\u0441\u0442\u044c; \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u0441\u0442\u0440\u043e\u043a\u0430, \u0438 \u0442\u043e\u043b\u044c\u043a\u043e.
- */
+/** Свёрнутая карточка: одна строка сводки (З-6). */
 function drawSummaryLine(host: El, row: RuleRow, o: RulesViewOpts): void {
   const box = el(host, "div", "io-rule__summary");
   summaryParts(row, o).forEach((part, i) => {
-    /* \u0427\u0435\u0440\u0442\u0430, \u0430 \u043d\u0435 \u0442\u043e\u0447\u043a\u0430: \u0447\u0430\u0441\u0442\u0438 \u0442\u0435\u043f\u0435\u0440\u044c \u043f\u043e\u0434\u043f\u0438\u0441\u0430\u043d\u044b, \u043f\u043e\u0434\u043f\u0438\u0441\u044c \u0441\u043e \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435\u043c \u0447\u0438\u0442\u0430\u044e\u0442\u0441\u044f
-       \u0432\u043c\u0435\u0441\u0442\u0435, \u0438 \u0440\u0430\u0437\u0434\u0435\u043b\u044f\u0442\u044c \u0438\u0445 \u043d\u0430\u0434\u043e \u0437\u0430\u043c\u0435\u0442\u043d\u0435\u0435, \u0447\u0435\u043c \u0441\u043b\u043e\u0432\u0430 \u0432\u043d\u0443\u0442\u0440\u0438 \u043e\u0434\u043d\u043e\u0439 \u0447\u0430\u0441\u0442\u0438. */
+    /* Черта, а не точка: подписанные части разделяются заметнее слов. */
     if (i) el(box, "span", "io-rule__sep", "|");
     const cell = el(box, "span", "io-rule__sumpart");
     el(cell, "span", "io-rule__sumlabel", part.label);
-    /*
-     * Пробел стоит **в тексте значения**, а не отступом в стилях. Отступ виден
-     * глазами и не виден больше никому: в скопированной строке и у программы
-     * чтения с экрана подпись слиплась бы со значением — `Use when:#todo`.
-     */
+    /* Пробел в тексте, а не отступом: иначе копия и экранный диктор слипнут `Use when:#todo`. */
     el(cell, "span", "io-rule__sumvalue", " " + part.value);
   });
 }
 
-/**
- * Строка условий одного типа: подпись, значения и кнопка `+`. Значения
- * перечислены через `or`, и это подпись, а не контрол.
- */
+/** Строка условий типа: подпись, значения через `or` (подпись, не контрол) и `+`. */
 function kindRow(host: El, row: RuleRow, index: number, kind: RowKind, o: RulesViewOpts): void {
   const say = o.say || PLAIN;
-  /*
-   * В строке стоят и значения этого типа, и Fields этого типа целиком —
-   * через `or`, одним списком. Отдельной строки `Field` больше нет: заказчик
-   * просил «вместо того, чтобы накликивать отдельные values», а прежняя
-   * строка соединялась с остальными через `and`, то есть значила обратное
-   * (B14, решение 2026-09-03).
-   *
-   * Field, тип которого неизвестен (его удалили из конфига), не попадает ни в
-   * одну строку — и правило он тоже не блокирует, см. `selectSmartRule`.
-   */
+  /* Значения и Fields типа одним списком через `or` (B14, 2026-09-03). Field
+     неизвестного типа не попадает никуда и правило не блокирует (`selectSmartRule`). */
   const items = conditionItems(row, kind, o);
 
   const box = el(host, "div", "io-kind" + (items.length ? "" : " io-kind--empty"));
@@ -271,12 +183,8 @@ function kindRow(host: El, row: RuleRow, index: number, kind: RowKind, o: RulesV
     if (!o.enabled) return;
     o.askCondition(kind, answer => {
       if (!answer || !answer.id) return;
-      /*
-       * Ветка конфига у «любого значения Field» своя (`conditions.fields`,
-       * там лежит id Field, а не токен), а строка — та, из которой открыли
-       * окно: окно перечисляет Fields только своего типа, поэтому чип
-       * вернётся сюда же (10.13.14 Н5, B14).
-       */
+      /* «Любое значение Field» — в `conditions.fields` (id, не токен); чип
+         вернётся в эту же строку (10.13.14 Н5, B14). */
       const into: RuleKind = answer.kind === "field" ? "fields" : kind;
       o.model.addCondition(row.id, into, answer.id);
       o.redraw();
@@ -285,23 +193,9 @@ function kindRow(host: El, row: RuleRow, index: number, kind: RowKind, o: RulesV
 }
 
 /**
- * Своя ветка `Note content` у правила (З-5, заказчик 2026-09-08).
- *
- * Заказчик: «под `move to folder` появилась новая строка `Advanced settings`,
- * при нажатии на которую бы открывались дополнительные опции, по сути
- * дублирующие note-content… По умолчанию должно стоять `default` — т.е.
- * поведение как у note-content».
- *
- * **Открывает опции сам выбор, а не отдельная кнопка.** Строка `Advanced
- * settings` несёт список из двух значений; `Default` — «как в `Note content`»,
- * и это умолчание. Второе состояние (открыто/закрыто) пришлось бы где-то
- * хранить, а хранить его негде: панель перерисовывает блок от любого
- * изменения хранилища, и в памяти вёрстки оно терялось бы на каждом шаге.
- *
- * **Строки те же, что в `Note content`, и появляются они по тем же условиям:**
- * имя заголовка и запасное положение — только при `At custom header`, уровень
- * — когда строка над текстом вообще есть, а текст и формат даты — каждый при
- * своём режиме. Иначе у правила стояли бы контролы, которым нечего решать (З8).
+ * Своя ветка `Note content` у правила (З-5, 2026-09-08). Открывает её выбор
+ * `Advanced settings` (`Default` — как `Note content`), а не кнопка: открытость
+ * хранить негде. Строки и их условия — как в `Note content` (З8).
  */
 function placementRows(host: El, row: RuleRow, index: number, o: RulesViewOpts): void {
   const say = o.say || PLAIN;
@@ -386,11 +280,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   taken: { index: number | null };
 }): void {
   const say = o.say || PLAIN;
-  /*
-   * Свёрнутая карточка занимает две строки: шапку с именем и управлением и
-   * одну строку сводки. Нет набора развёрнутых — развёрнуты все: так вёрстка
-   * ведёт себя без состояния.
-   */
+  /* Свёрнутая — шапка и строка сводки; нет набора — развёрнуты все. */
   const open = !o.expanded || o.expanded.has(row.id);
   const card = el(host, "div", "io-rule"
     + (row.enabled ? "" : " io-rule--off")
@@ -443,11 +333,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   }) as never);
 
   const tools = el(head, "div", "io-rule__tools");
-  /*
-   * Сворачивание (З-6). Кнопка стоит первой в шапке: она про саму карточку, а
-   * не про правило, — и остаётся живой при выключенном модуле. Свернуть
-   * список правил можно и тогда, когда менять их нельзя.
-   */
+  /* Сворачивание (З-6) — про вид, поэтому живо и при выключенном модуле. */
   const fold = btn(tools, "io-icon", {
     text: open ? "\u25be" : "\u25b8",
     label: say(open ? "RULE_COLLAPSE" : "RULE_EXPAND", ruleTitle(row, index)),
@@ -459,10 +345,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     o.redraw();
   }) as never);
 
-  /*
-   * Выключенное правило остаётся на месте и остаётся видимым: человек его
-   * выключил, а не удалил, и порядок остальных от этого не меняется.
-   */
+  /* Выключенное правило остаётся на месте и видимым. */
   const use = btn(tools, "io-icon" + (row.enabled ? " io-icon--on" : ""), {
     text: row.enabled ? "◉" : "○",
     label: say(row.enabled ? "RULE_STOP" : "USE_VALUE", ruleTitle(row, index)),
@@ -507,11 +390,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   const out = el(main, "div", "io-rule__out");
   el(out, "span", "io-rule__arrow", "→");
   el(out, "span", undefined, say("USE_TEMPLATE"));
-  /*
-   * Пустой список объясняется, а не показывает одно `None`: человек не
-   * должен гадать, кончились ли шаблоны или он не назначил папку
-   * (замечание заказчика 1.6.6.2). Слова — те же, что у `Default template`.
-   */
+  /* Пустой список объясняется, а не `None` (1.6.6.2) — словами `Default template`. */
   const choices = o.templates.length
     ? [{ value: "", label: say("TEMPLATE_NONE") }]
       .concat(o.templates.map(t => ({ value: t, label: templateName(t, o) })))
@@ -528,12 +407,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     o.redraw();
   }) as never);
 
-  /*
-   * Папка новой заметки (10.13.8). Один список на три случая: `Default` —
-   * как `New notes folder`, `Near current note` — рядом с текущей заметкой,
-   * и своя папка. Своя папка открывает поле рядом: подсказчик папок Obsidian
-   * живёт в панели, а вёрстка обязана рисоваться и без него.
-   */
+  /* Папка новой заметки (10.13.8): `Default`, рядом с текущей или своя — с полем. */
   const where = el(main, "div", "io-rule__out io-rule__where");
   el(where, "span", "io-rule__arrow", "\u2192");
   el(where, "span", undefined, say("MOVE_TO_FOLDER"));
@@ -569,10 +443,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     path.addEventListener("change", (() => { writeFolder(path.value); }) as never);
   }
 
-  /*
-   * `Advanced settings` (З-5): своя ветка `Note content` у правила. Стоит под
-   * `Move to folder` — там, где её и просил заказчик.
-   */
+  /* `Advanced settings` (З-5) — под `Move to folder`. */
   const adv = el(main, "div", "io-rule__out io-rule__advanced");
   el(adv, "span", "io-rule__arrow", "\u2192");
   el(adv, "span", undefined, say("RULE_ADVANCED"));
@@ -629,20 +500,12 @@ export function renderSmartRules(host: El, o: RulesViewOpts): void {
   }) as never);
 }
 
-/**
- * Тело диалога выбора значения (С-5): сначала Field, потом его Value. Рисуется
- * здесь, а открывается платформой: заглушке `Modal` недоступен, а проверить
- * выбор нужно.
- */
+/** Тело диалога выбора (С-5): Field, затем Value; открывает платформа. */
 export function renderConditionPicker(host: El, o: {
   kind: RuleKind;
   choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
   pick: (value: string) => void;
-  /**
-   * Завести условие «любое значение этого Field» (10.13.14). Отсутствует —
-   * имя Field остаётся подписью, как было: это тот же тихий отказ, что у
-   * подсказчика папок.
-   */
+  /** Условие «любое значение Field» (10.13.14); нет — имя Field лишь подпись. */
   pickField?: (fieldId: string) => void;
   /** Fields, у которых такое условие в правиле уже есть: их имя неактивно. */
   fieldsTaken?: readonly string[];
@@ -660,17 +523,8 @@ export function renderConditionPicker(host: El, o: {
   const taken = new Set((o.fieldsTaken || []).map(x => String(x || "").trim()));
   for (const group of o.choices) {
     const wrap = el(box, "div", "io-pickvals__group");
-    /*
-     * Имя Field — кнопка: нажатие заводит условие «любое значение этого
-     * Field» и закрывает окно (10.13.14, замечание заказчика B14 от
-     * 2026-09-02). Раньше имя было подписью, и Field целиком заводился только
-     * через отдельную строку `Field` — заказчик просил другой способ
-     * добавления, а не другой способ показа, поэтому строка осталась.
-     *
-     * Условие уже заведено — имя неактивно: повтор ничего не меняет в
-     * правиле, а нажатие, которое ничего не делает, хуже отсутствия кнопки
-     * (З8).
-     */
+    /* Имя Field — кнопка «любое значение» (10.13.14, B14); условие уже есть —
+       неактивна (З8). */
     const fieldId = String(group.fieldId || "").trim();
     if (o.pickField && fieldId) {
       const already = taken.has(fieldId);
@@ -703,19 +557,13 @@ export function renderConditionPicker(host: El, o: {
   }
 }
 
-/** Заголовок диалога: он же объясняет, что выбирается. */
+/** Заголовок диалога. */
 export function conditionDialogTitle(kind: RuleKind, say: Say = PLAIN): string {
-  /* Заголовок целиком в каталоге: склейка «Add a » + слово давала «Add a element» (C16). */
+  /* Целиком из каталога: склейка давала «Add a element» (C16). */
   return say(CONDITION_TITLE[kind]);
 }
 
-/**
- * Подсказка под заголовком диалога: почему значений может не быть.
- *
- * Слово живёт в каталоге (`CONDITION_TIP`), а здесь только адрес. До
- * 2026-09-08 тут стоял сам текст — то есть второе его объявление, и строка
- * каталога никем не спрашивалась (долг A46, У-82).
- */
+/** Подсказка диалога — адрес в каталоге, не текст (A46, У-82). */
 export const CONDITION_DIALOG_NOTE = "CONDITION_TIP";
 
 export { KIND_LABEL, OP_AND, OP_OR, RULE_FALLBACK };

@@ -1,29 +1,14 @@
 /**
- * **Окно `Add a Field`: главное сразу и живой предпросмотр** — его заказ
- * 2026-09-27 («при создании field для каждого вида type давать сразу настроить
- * ключевые настройки… в этой форме должен быть live preview… как будет
- * выглядеть field в tagwheel панели и в строке»).
- *
- * **Цикл 98, его замечания к тесту 3** (2026-09-28) переложили окно:
- * - предпросмотр — **внизу, рядом с кнопками**, и в нём две половины рядом:
- *   tagWheel (имя Field — постоянная ячейка, под ней скроллер со всеми Values,
- *   по которому сам ходит курсор, как командой `next`) и строка, где Value
- *   меняется вместе с курсором. Строка одной формы в обеих половинах: его
- *   разделители и место по Block, у custom block — внутри текста;
- * - у **Tag** — цвет заливки и цвет текста, у **Link** — одна строка
- *   добавления с подсказкой заметок vault (подсказку рисует платформа) и
- *   `Use as MOC`; «все заметки папки» снято — он не понял, зачем оно;
- * - у **Element** — знак (заглушка нейтральна: `📅` в поле читался как уже
- *   выбранный), вид значения `Date and time` / `Counter` / `Random`, у даты —
- *   что показывать (дата, время, оба) и что делает нажатие (шаг или момент),
- *   и шаг. «List» прежнего окна писал шаги-числа, а предпросмотр показывал их
- *   словами — снят до режима списка у Element (его пункт в «Новое пишите
- *   сюда», отдельная работа);
- * - у всех — свойство YAML (`io-field-yaml-property` правой колонки).
- *
- * Здесь только вёрстка и черновик: запись — `configureNewField` модели, окно
- * платформы — `fields_editor.ts`. Вёрстка рисуется на заглушке DOM, поэтому
- * платформа приходит швами (`noteExists`, `ctx.platform`).
+ * Окно `Add a Field`: ключевые настройки типа сразу и живой предпросмотр
+ * (2026-09-27; раскладка — тест 3 цикла 98). Предпросмотр внизу у кнопок:
+ * tagWheel и строка рядом, строка одной формы в обеих половинах.
+ * Tag — заливка и текст; Link — строка добавления с подсказкой заметок и
+ * `Use as MOC`; Element — знак (заглушка нейтральна), `Date and time` /
+ * `Counter` / `Random` / список (`В-247`), у даты — что показывать, нажатие и
+ * шаг; у всех — свойство YAML.
+ * Здесь вёрстка и черновик: запись — `configureNewField`, окно —
+ * `fields_editor.ts`. Рисуется на заглушке DOM, платформа — швами
+ * (`noteExists`, `ctx.platform`).
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
@@ -138,7 +123,7 @@ export function draftProblem(d: NewFieldDraft, checkName: (n: string) => string,
   const bad = checkName(d.name);
   if (bad) return bad;
   if (d.kind === "element" && d.value !== "list" && !d.marker.trim()) return say("NF_NEED_EMOJI");
-  /* Value тега и списка — одно слово: строку делят по пробелам (BUGHUNT 2026-09-30, A4, A5). */
+  /* Value тега и списка — одно слово: строку делят по пробелам (BUGHUNT A4, A5). */
   if (d.kind === "tag" && d.values.some(v => /\s/.test(bare(v.token, "tag")))) return say("ERR_VALUE_SPACE");
   if (d.kind === "element" && d.value === "list" && d.values.some(v => /\s/.test(v.token.trim()))) return say("ERR_LIST_VALUE_SPACE");
   /* Занятое другим Field при создании молча выпадало (BUGHUNT A13). */
@@ -235,15 +220,11 @@ export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string
 const WHEEL_WINDOW = 5;
 
 /**
- * **Предпросмотр: tagWheel и строка рядом** (его замечание к тесту 3 цикла
- * 98). В обеих половинах строка одной формы — `имя :: lorem ipsum` у Left,
- * `lorem ipsum :: имя` у Right, Field внутри текста у custom block, — и
- * разделители его. Слева на месте Field стоит ячейка с его именем, под ней
- * скроллер со всеми Values; справа на том же месте — Value, на котором стоит
- * курсор скроллера. `at` — номер этого Value: окно двигает его само.
- *
- * Классы и переменные — предпросмотров панели (`io-wheel*`, `io-line`,
- * `applyTagVars`): вид берётся из его настроек оформления (У-32).
+ * Предпросмотр: tagWheel и строка рядом (тест 3 цикла 98). Строка одной формы и
+ * с его разделителями: `имя :: lorem ipsum` у Left, наоборот у Right, внутри
+ * текста у custom block. Слева на месте Field — ячейка имени и скроллер Values,
+ * справа — Value под курсором; `at` — его номер. Классы — предпросмотров панели
+ * (`io-wheel*`, `io-line`, `applyTagVars`, У-32).
  */
 export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, now: Date, at = 0,
   values: ReadonlyArray<{ text: string; fill?: string; color?: string }> = previewValues(d, now)): void {
@@ -300,7 +281,7 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
     const from = Math.max(0, Math.min(pos - Math.floor(WHEEL_WINDOW / 2), n - WHEEL_WINDOW));
     for (let i = from; i < from + shown; i++) {
       const v = values[i] as { text: string };
-      /* Как подпишет настоящий скроллер — общий дом (его `💬` к тесту 5 цикла 114). */
+      /* Подпись как у настоящего скроллера — общий дом (тест 5 цикла 114). */
       const text = d.kind === "wikilink" ? (sharedUtils.wikilinkShownOf(v.text) || v.text) : v.text;
       el(panel, "span", "io-wheelval" + (i === pos ? " io-wheelval--on" : ""), text);
     }
@@ -310,8 +291,7 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
   const linePane = el(host, "div", "io-nf__pane");
   el(linePane, "div", "io-nf__plabel", say("NF_PREVIEW_LINE"));
   const line = el(linePane, "div", "io-line io-nf__pline");
-  /* Без заливки Block: полоса над одним Value читалась как его рамка (его
-     замечание к тесту 3 цикла 99). */
+  /* Без заливки Block: полоса над одним Value читалась как рамка (тест 3 цикла 99). */
   applyTagVars(line, ctx, { blockFill: false });
   shape(line, side => {
     if (!cur) { el(side, "span", "io-nf__pempty", say("NF_PREVIEW_VALUE")); return; }
@@ -325,10 +305,9 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
 /* ---- вёрстка окна -------------------------------------------------------- */
 
 /**
- * Выбор на нажатии, а не на отпускании: раскрытая выбиралка знака сворачивается
- * по уходу фокуса, форма под курсором съезжает, и отпускание приходится на
- * другой узел — `click` не рождается (стенд `new-field`, 2026-09-28). `click`
- * остаётся клавиатуре: `Enter` и пробел нажатия мыши не дают.
+ * Выбор на нажатии, не на отпускании: выбиралка знака сворачивается по уходу
+ * фокуса, форма съезжает, и `click` не рождается (стенд `new-field`, 2026-09-28).
+ * `click` остаётся клавиатуре.
  */
 function onPress(node: El, fn: () => void): void {
   let pressed = false;
@@ -367,12 +346,10 @@ interface NoteSuggest { setValue(v: string): void; close(): void; limit: number;
 type NoteSuggestCtor = new (app: unknown, input: unknown) => NoteSuggest;
 
 /**
- * Подсказка заметок — родная подсказка Obsidian, как у свойства YAML: пустое
- * поле показывает все заметки, набранное их фильтрует, выбор сразу встаёт
- * в Values (его замечание к тесту 3 цикла 98). Набранное без выбора
- * работает по-прежнему — Enter или `Add Value`. Одна на окно `Add a Field` и
- * поле `Add Value` у Link в правой колонке (его замечание к тесту 1 цикла 100).
- * Нет платформы (заглушка DOM) — подсказки нет, поле обычное.
+ * Подсказка заметок — родная подсказка Obsidian: пустое поле — все заметки,
+ * выбор сразу встаёт в Values; Enter и `Add Value` работают по-прежнему. Одна на
+ * `Add a Field` и `Add Value` у Link (тест 3 цикла 98, тест 1 цикла 100). Нет
+ * платформы — поле обычное.
  */
 export function attachNoteSuggest(input: ElInput, o: {
   platform: SettingsCtx["platform"]; app: unknown; notes: (() => readonly string[]) | undefined; pick: (target: string) => void;
@@ -398,21 +375,16 @@ export function attachNoteSuggest(input: ElInput, o: {
         this.close();
         o.pick(p);
       }
-      /*
-       * Список — всегда под полем (его замечание к тесту 1 цикла 101: «прыгает —
-       * то сверху, то снизу»). Платформа ставит его вниз, только если он
-       * помещается целиком, иначе наверх (`dm` в `app.js` 1.13.7), а высота
-       * меняется с каждой буквой. Здесь низ закреплён, высота — до края окна,
-       * по тем же отступам, что у платформы: 5 от поля, 10 от края.
-       */
+      /* Список всегда под полем (тест 1 цикла 101): платформа ставит вниз, только если
+       * влезает целиком (`dm` в `app.js` 1.13.7). Низ закреплён, высота до края окна,
+       * отступы платформы: 5 от поля, 10 от края. */
       override reposition(rect: SuggestRect): void {
         super.reposition(rect);
         const box = this.suggestEl;
         const host = box.offsetParent || (box.doc ? box.doc.documentElement : null);
         if (!host) return;
         const floor = host.scrollTop + host.clientHeight - 10;
-        /* Место — переменными: инлайновый стиль своему коду каталог запрещает
-           (Г1), а класс перебивает инлайн платформы (`.io-suggest--below`). */
+        /* Место — переменными: инлайн-стиль запрещён (Г1), класс перебивает инлайн платформы. */
         box.classList.add("io-suggest--below");
         box.style.setProperty("--io-suggest-top", String(rect.bottom + 5) + "px");
         box.style.setProperty("--io-suggest-max", String(Math.max(80, floor - rect.bottom - 5)) + "px");
@@ -448,14 +420,13 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   box.addClass("io-dlg", "io-nf");
   el(box, "h4", "io-dlg__title", say("NEW_FIELD_TITLE"));
   const body = el(box, "div", "io-nf__body");
-  /* Низ окна: предпросмотр во всю ширину, под ним кнопки — его слово «должен
-     быть внизу, на уровне с кнопками Add field». */
+  /* Низ окна: предпросмотр во всю ширину, под ним кнопки. */
   const bottom = el(box, "div", "io-nf__bottom");
   const previewBox = el(bottom, "div", "io-preview io-nf__preview");
   const previewCap = el(previewBox, "div", "io-preview__cap io-nf__pcap");
   el(previewCap, "span", undefined, say("NF_PREVIEW"));
   const preview = el(previewBox, "div", "io-nf__pbody");
-  /* Щелчок по подписи сворачивает предпросмотр (его замечание к тесту 3 цикла 99). */
+  /* Щелчок по подписи сворачивает предпросмотр (тест 3 цикла 99). */
   previewCap.setAttribute("role", "button");
   previewCap.setAttribute("tabindex", "0");
   previewCap.setAttribute("aria-expanded", "true");
@@ -577,7 +548,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       drawElement();
     } else drawValues();
 
-    /* Свойство YAML — у каждого типа (его замечание к тесту 3 цикла 98). */
+    /* Свойство YAML — у каждого типа (тест 3 цикла 98). */
     const yaml = item(body, "YAML_HEAD", "YAML_DESC", "YAML_HEAD_TIP");
     propertyPicker(yaml, {
       value: d.property,
@@ -596,18 +567,16 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     const isLink = d.kind === "wikilink";
     /* Element-список (`В-247`): Values как есть, без цвета и без решётки. */
     const isList = d.kind === "element";
-    /* Values — строкой окна, как остальные контролы: тот же шрифт подписи и
-       свой «?» (его замечание к тесту 3 цикла 99). */
+    /* Values — строкой окна, как остальные контролы, со своим «?» (тест 3 цикла 99). */
     const valuesCtl = item(body, "NF_VALUES_HEAD", isLink ? "NF_VALUES_DESC_LINK" : isList ? "NF_VALUES_DESC_LIST" : "NF_VALUES_DESC_TAG", "NF_VALUES_TIP", true);
-    /* Строка добавления — под фишками, а не рядом (его замечание к тесту 2 цикла 100). */
+    /* Строка добавления — под фишками (тест 2 цикла 100). */
     valuesCtl.addClass("io-nf__values");
     const chips = el(valuesCtl, "div", "io-nf__chips");
     const theme = themePair(box);
     const held: DragHold = { taken: null };
     d.values.forEach((v, i) => {
       const chip = el(chips, "span", "io-nf__chip");
-      /* Ручка первой, перед точками цвета: порядок фишек — порядок Values и
-         в предпросмотре, и в Field (его замечание к тесту 3 цикла 99). */
+      /* Ручка первой: порядок фишек — порядок Values в предпросмотре и Field (тест 3 цикла 99). */
       attachRowDrag({
         row: chip, index: i, label: say("NF_VALUE_DRAG", v.token), enabled: true, held,
         onMove: (from, to) => {
@@ -616,9 +585,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
           draw();
         },
       });
-      /* Цвет заливки и цвет текста — двумя точками в самой фишке (его
-         замечание: «рядом цвет текста, по аналогии минималистично»), и имя
-         в фишке рисуется этими цветами; пока свой не выбран — цвет темы. */
+      /* Заливка и текст — двумя точками в фишке, имя рисуется ими; без выбора — цвет темы. */
       let label: El | null = null;
       const paintChip = (): void => {
         if (!label) return;
@@ -639,8 +606,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       label = el(chip, "span", "io-nf__chiptext" + (isLink || isList ? "" : " io-nf__chiptext--tag"),
         isLink ? linkText(v.token) : isList ? v.token.trim() : "#" + bare(v.token, "tag"));
       paintChip();
-      /* Есть заметка — молчим: `note` у каждой ссылки он назвал лишним (тест 3
-         цикла 99). Говорится только то, чего не видно, — заметки ещё нет. */
+      /* Говорится только «заметки ещё нет» (тест 3 цикла 99). */
       if (isLink && o.noteExists && !o.noteExists(bare(v.token, "wikilink"))) {
         el(chip, "span", "io-nf__note", say("NF_NOTE_NONE"));
       }
@@ -668,10 +634,10 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       addOne();
     }) as never);
     btn(addRow, "io-btn io-btn--sm", { text: say("ADD_VALUE") }).addEventListener("click", addOne as never);
-    /* После выбора из подсказки фокус в поле не возвращается: платформа
-       открыла бы список снова поверх формы (стенд `new-field`, снимок). */
+    /* После выбора фокус в поле не возвращается: платформа открыла бы список снова
+     * (стенд `new-field`). */
     if (isLink) attachNoteSuggest(input, { platform, app, notes: o.notes, pick: t => { if (push(t)) draw(); } });
-    /* Эмодзи набирать неудобно — у поля Value списка выбиралка Binder (символ, эмодзи, рожица; тест 4 цикла 104); знак встаёт в поле, слово человек допечатывает. */
+    /* У Value списка выбиралка Binder (тест 4 цикла 104): знак встаёт в поле. */
     if (isList) {
       const picker = attachPicker(input, addRow, {
         kinds: PICK_ALL, say,
@@ -759,11 +725,9 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     const fmt = textInput(fmtCtl, "io-text io-text--mono", { value: d.format, label: say("ELEMENT_FORMAT_NAME") });
     fmt.addEventListener("input", (() => { d.format = String(fmt.value || ""); refresh(); }) as never);
 
-    /* Шаг — у всего, что шагает (его замечание: «не хватает настройки шага инкремента»). */
+    /* Шаг — у всего, что шагает. */
     if (d.value === "counter" || (d.value === "datetime" && d.press === "step")) {
-      /* Единица — от формата, а не от выбора `Shows`: формат человек правит сам,
-         и подпись «дней» над форматом минут вводила бы в заблуждение (его
-         замечание к тесту 3 цикла 99). */
+      /* Единица — от формата, не от `Shows`: формат правится руками (тест 3 цикла 99). */
       const desc = d.value === "counter" ? "NF_STEP_DESC_COUNT" : "NF_STEP_DESC_UNIT";
       const stepCtl = item(body, "ELEMENT_AMOUNT_NAME", desc, "ELEMENT_AMOUNT_TIP");
       const step = stepCtl.createEl("input", {

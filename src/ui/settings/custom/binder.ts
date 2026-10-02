@@ -1,22 +1,12 @@
 /**
- * Binder в новой панели (PRD 10.4, фаза 3c).
+ * Binder в новой панели (PRD 10.4, фаза 3c): вёрстка — `binder_view.ts`,
+ * записи — `binder_model.ts`, здесь — шов с платформой. Вёрстка рисуется на
+ * заглушке (гейт Г16), а `Modal` заглушке недоступен.
  *
- * Подключение: вёрстка в `binder_view.ts`, записи в `binder_model.ts`, а этот
- * файл сводит их с платформой. Разделение то же, что у редактора Fields и
- * Smart Rules, и по той же причине: вёрстка обязана рисоваться на заглушке
- * (гейт Г16), а `Modal` заглушке недоступен — окно «завести строку»
- * открывается отсюда.
- *
- * Две вещи берутся у тех, с кого начинается работа, а не считаются заново:
- *
- *   * **имена команд** — у реестра (`buildBinderCommandDefs`): по этому имени
- *     человек ищет команду в списке хоткеев, и разойтись с ним нельзя;
- *   * **идентификатор новой команды** — у `normalizeBinderRows` внутри
- *     `migrateConfig`: новая строка рождается без него, и он появляется на
- *     том же патче.
- *
- * Колонка `Hotkey` живёт на приватном API Obsidian (`custom/hotkeys.ts`,
- * К-2): при его отсутствии кнопка неактивна, а панель работает.
+ * Имена команд — у реестра (`buildBinderCommandDefs`), по ним человек ищет
+ * хоткей; id новой команды выдаёт `normalizeBinderRows` в `migrateConfig`.
+ * Колонка `Hotkey` — приватный API Obsidian (`custom/hotkeys.ts`, К-2): нет
+ * его — кнопка неактивна.
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
@@ -29,7 +19,7 @@ import { escapeScope } from "./char_picker.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
-/* Реестр команд: тот же модуль, по которому плагин их регистрирует. */
+/* Реестр команд — тот же, по которому плагин их регистрирует. */
 import commandRegistry from "../../../features/command_registry.js";
 
 interface RegistryApi {
@@ -38,10 +28,7 @@ interface RegistryApi {
 
 const registry = commandRegistry as unknown as RegistryApi;
 
-/**
- * Ветка, которую блок показывает. Схема в неё пока не пишет, но подписка
- * объявляет зависимость: появится там контрол — блок обновится сам.
- */
+/** Ветка блока. Схема в неё пока не пишет; подписка — на случай контрола. */
 const BINDER_PATHS = ["editor.binder.rows"] as const;
 
 interface ModalCtor {
@@ -120,9 +107,8 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
 
   let mounted: El | null = null;
   /*
-   * Снятие открытых подсказок шапки. Перерисовка выбрасывает узел целиком, но
-   * очистка блока обязана убирать за собой всё, что он завёл (С5), — и
-   * подсказка тут единственное, что переживает узел в виде замыкания.
+   * Снятие открытых подсказок шапки: очистка блока убирает всё, что он завёл
+   * (С5), а подсказка переживает узел замыканием.
    */
   let tipClosers: Array<() => void> = [];
   const dropTips = (): void => {
@@ -142,9 +128,8 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
       });
 
       /*
-       * Запись и перерисовка. Перерисовка в `finally`: `setConfigPatch` после
-       * самой записи делает многое, и исключение оттуда не должно оставлять
-       * на экране прежнее — это уже стоило одного замечания заказчика.
+       * Перерисовка в `finally`: исключение из `setConfigPatch` не должно
+       * оставлять на экране прежнее.
        */
       const commit = (write: () => void): void => {
         try { write(); }
@@ -164,10 +149,8 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
         onRemove: row => commit(() => { model.remove(row.rowId); }),
         onMove: (from, to) => commit(() => { model.move(from, to); }),
         /*
-         * Повтор ловится **в окне**, пока человек печатает: сообщение стоит
-         * под тем полем, которое повторяется, и `Add` при этом недоступна
-         * (C13, 2026-09-02). Всплывающее сообщение остаётся последней
-         * преградой — на случай, если строка пришла не из окна.
+         * Повтор ловится в окне, под повторяющимся полем, и `Add` недоступна
+         * (C13, 2026-09-02). Сообщение — последняя преграда для строки не из окна.
          */
         onAdd: () => askAddModal(Modal, app, draft => {
           if (!draft) return;
@@ -181,8 +164,8 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
         }),
       });
     } catch (e) {
-      /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что
-         работало: так же устроены редактор Fields и Smart Rules. */
+      /* Неудачная попытка выбрасывается целиком, на экране остаётся рабочее —
+         как у редактора Fields и Smart Rules. */
       next.remove();
       console.error("inline-overhaul: Binder не отрисовался", e);
       return;

@@ -1,24 +1,17 @@
 /**
- * Порядок Fields: как он выводится, нормализуется и уезжает в макро-рантайм.
+ * Порядок Fields: вывод, нормализация и отправка в макро-рантайм.
  *
- * Ключ Order — единственное, что связывает список порядка с определением Field
- * (У-49), поэтому и вывод типа, и вывод дочернего ключа, и сборка определений
- * живут здесь, в одном месте. `ensureBehaviorModesFromOrder` строит из порядка
- * ветку поведения PKM; её зовёт нормализация конфига.
- *
- * **Односторонняя связь.** Этот модуль о нормализации конфига не знает вовсе —
- * проверено обходом ссылок при переезде. Обратное неверно:
- * `config_normalize.js` зовёт отсюда две функции.
- *
- * **Откуда взялось.** Вынесено из `main.js` 2026-09-07, кусок третий разбора
- * A3 (PRD, раздел 11). Тела функций при переезде не правились.
- *
- * Модули — литеральным `require`, по одному на модуль (У-89).
+ * Ключ Order — единственная связь списка порядка с определением Field (У-49),
+ * поэтому вывод типа, дочернего ключа и сборка определений живут здесь.
+ * `ensureBehaviorModesFromOrder` строит ветку поведения PKM для нормализации
+ * конфига. Связь односторонняя: `config_normalize.js` зовёт отсюда, обратно —
+ * нет. Вынесено из `main.js` 2026-09-07 (A3, PRD раздел 11). Модули —
+ * литеральным `require` (У-89).
  */
 const __sharedUtils = require("./shared_utils.js");
 const __pkmDomainRegistry = require("./pkm_domain_registry.js");
 
-/* Те же однострочные обёртки, что были в `main.js`. */
+/* Однострочные обёртки из `main.js`. */
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
 function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
@@ -36,19 +29,9 @@ function normalizeOrderFieldKey(key) {
 }
 
 /*
- * Тип ключа Order решает реестр доменов, и только он.
- *
- * Здесь стоял **молчаливый запасной ход** — вторая копия правила за `if`,
- * — и знала она больше дома: ветку `element` реестр не возвращает вовсе.
- * Исполнись она хоть раз, половина плагина считала бы типом элемента то, что
- * другая половина зовёт тегом; снаружи это неотличимо от чтения настройки.
- *
- * Недостижимость снята **пробоем**, а не рассуждением (У-146): отказ внутри
- * запасной ветки не уронил ни одной из 70 проверок и ни одного из 189
- * сочетаний обхода строки, при том что положительный контроль — отказ на
- * входе в функцию — уронил 18 проверок, то есть функция исполняется. Модуль
- * приезжает литеральным `require`, заглушек на месте модулей в рантайме нет
- * (A33, У-90).
+ * Тип ключа Order решает только реестр доменов. Запасная копия правила снята
+ * пробоем (У-146; A33, У-90): вторая копия знала ветку `element`, которой
+ * реестр не возвращает.
  */
 function inferOrderFieldType(key) {
   if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferOrderFieldType !== "function") {
@@ -67,12 +50,8 @@ function inferElementDefaultsByKey(key) {
 }
 
 /*
- * То же и с ключом дочернего Field: ответ даёт реестр. Запасной ход повторял
- * его тело слово в слово, а обёртка `String(… || "").trim()` вокруг ответа
- * делала из делегата объявление — мера копий видела тело, а не пересказ.
- * Обёртка снята после измерения: `node tools/form_divergence.js`, вопрос
- * «меняет ли обёртка вокруг ответа реестра сам ответ» — ноль расхождений на
- * 22 ключах, при живом контроле «обёртка умеет менять ответ».
+ * Дочерний ключ Field — тоже ответ реестра, без обёртки: расхождение
+ * обёртки померено нулём (`node tools/form_divergence.js`, 22 ключа).
  */
 function inferSubFieldKey(parentKey) {
   if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferSubFieldKey !== "function") {
@@ -108,10 +87,7 @@ function uniqueTrimmed(list) {
   return out;
 }
 
-/**
- * Values Element в режиме списка (`В-247`); `null` — поле не в этом режиме.
- * Одно объявление на сборку определения и на оформление.
- */
+/** Values Element в режиме списка (`В-247`); `null` — поле не в этом режиме. */
 function elementListValues(elemCfg) {
   const inc = isObj(elemCfg && elemCfg.increment) ? elemCfg.increment : {};
   if (String(inc.mode || "").trim().toLowerCase() !== "list") return null;
@@ -152,8 +128,7 @@ function ensureBehaviorModesFromOrder(cfg) {
   };
   for (const k of order.left || []) push(k);
   for (const k of order.right || []) push(k);
-  /* Field из custom block — такие же определения, только Block у них свой
-     (PRD 10.13.260): без этой строки фильтр ниже выбросил бы их определения. */
+  /* Field из custom block — тоже определения (PRD 10.13.260), иначе фильтр ниже их выбросит. */
   for (const block of order.custom || []) for (const k of block.keys || []) push(k);
 
   const builtInLeftIds = new Set();
@@ -163,15 +138,10 @@ function ensureBehaviorModesFromOrder(cfg) {
    const allowedCustomWikilinkIds = new Set();
   const allowedCustomSubIds = new Set();
   /*
-   * Дочерний Field ссылки. Отдельный набор, а не общий с тегом: тег и его
-   * дочерний Field живут в leftMode, ссылка и её дочерний — в rightMode, и
-   * один набор пустил бы каждого не на свою сторону.
-   *
-   * Без него дочерний Field ссылки не переживал ни одной записи: ключа
-   * `<name>_sub` нет в `order.left` / `order.right` (`normalizePkmOrder`
-   * складывает такие ключи отдельно), в наборы он не попадал, и фильтр ниже
-   * выбрасывал его. `migrateConfig` идёт на каждом патче, поэтому дочернее
-   * значение ссылки исчезало тут же после нажатия стрелки `Level`.
+   * Дочерний Field ссылки — отдельный набор: тег и его дочерний живут в
+   * leftMode, ссылка и её дочерний — в rightMode. Ключа `<name>_sub` нет в
+   * `order.left`/`order.right`, и без набора фильтр ниже выбрасывал бы его на
+   * каждом патче `migrateConfig`.
    */
   const allowedCustomLinkSubIds = new Set();
   const allowedCustomElementIds = new Set();
@@ -223,13 +193,10 @@ function ensureBehaviorModesFromOrder(cfg) {
       const marker = String(elemCfg.emoji || inferElementDefaultsByKey(key).marker || "").trim();
       const placeholder = String(order.labels && order.labels[key] ? order.labels[key] : (key || "")).trim() || key;
       /*
-       * **Режим списка — движкам полем со списком Values, как у тега** (`В-247`).
-       * Знака у поля нет — он в каждом Value, — и формы у значения нет: движки
-       * узнают его по списку (`makeWikilinkValueTest`), шагают и прокручивают
-       * тем же ходом, что тег. Определение — среди тегов (`leftMode`): панель
-       * пишет в строку значения только оттуда, `rightMode` для неё — ссылки и
-       * элементы движка дат. Values живут у Element (`list`), здесь только
-       * выводятся.
+       * Режим списка (`В-247`) — движкам полем со списком Values, как у тега:
+       * знака у поля нет, значение узнаётся по списку (`makeWikilinkValueTest`).
+       * Определение — среди тегов (`leftMode`): панель пишет значение только
+       * оттуда. Values живут у Element (`list`), здесь только выводятся.
        */
       const list = elementListValues(elemCfg);
       const dropFrom = (arr) => {
@@ -275,12 +242,9 @@ function ensureBehaviorModesFromOrder(cfg) {
         rightByIdLive.add(key);
       }
       /*
-       * **Дочерний Field ссылки** (его заказ 2026-09-25, PRD 10.13.269):
-       * определение и разрешения — те же, что у тега ниже, но на правом
-       * списке и с `source`, иначе рантайм напишет значение тегом. Прежде
-       * панель заводила дочерний Field ссылки, а сюда он не доходил: без
-       * `enabled` и `dependsOn` на поле движки его не показывали и команд
-       * ему не заводили.
+       * Дочерний Field ссылки (PRD 10.13.269): как у тега ниже, но на правом
+       * списке и с `source`, иначе рантайм напишет значение тегом. Без
+       * `enabled` и `dependsOn` движки его не показывают.
        */
       const linkSubKey = inferSubFieldKey(key);
       if (linkSubKey) {
@@ -332,10 +296,8 @@ function ensureBehaviorModesFromOrder(cfg) {
       const subIdx = leftFieldsLive.findIndex((f) => String(f && f.id || "").trim() === subKey);
       if (subIdx !== -1) {
         /*
-         * Оба разрешения дочернего Field переезжают на само поле: движки
-         * спрашивают их у поля (`isFieldPrerequisiteMet`, обе дороги), а
-         * настроек в руках у них нет. Дом настройки — `order`, дом ответа —
-         * поле, и перенос один, здесь.
+         * Разрешения дочернего Field — на само поле: движки спрашивают их у
+         * поля (`isFieldPrerequisiteMet`, обе дороги). Перенос один, здесь.
          */
         leftFieldsLive[subIdx] = {
           ...leftFieldsLive[subIdx],
@@ -350,9 +312,8 @@ function ensureBehaviorModesFromOrder(cfg) {
   if (!Array.isArray(fields.elements.fields)) fields.elements.fields = [];
   if (!isObj(fields.elements.byField)) fields.elements.byField = {};
 
-  /* Легаси-ветка `pkm.fields.dates` сворачивается в `pkm.fields.elements`:
-     единственный источник истины по элементам — `elements`. Маршрут
-     `pkm.behavior.dates` заведён в миграции ровно ради этой ступени. */
+  /* Легаси `pkm.fields.dates` сворачивается в `pkm.fields.elements` — единственный
+     источник по элементам; маршрут `pkm.behavior.dates` в миграции — ради этой ступени. */
   if (isObj(fields.dates)) {
     const legacyDates = fields.dates;
     const legacyFields = Array.isArray(legacyDates.fields) ? legacyDates.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
@@ -451,7 +412,7 @@ function makeDefaultPkmOrder() {
     subNavigator: {},
     /* `YAML of navigator values` (PRD 10.13.272): ключ — дочерний Field. */
     yamlNavigator: {},
-    /* Link как MOC (его замечание к тесту 3 цикла 98): `false` — нет. */
+    /* Link как MOC (тест 3 цикла 98): `false` — нет. */
     useAsMoc: {},
     types: {},
     labels: {},
@@ -463,12 +424,9 @@ function makeDefaultPkmOrder() {
 }
 
 /**
- * Что можно написать в имени Field.
- *
- * Та же строка стоит в панели — `STRICT_NAME_RE` в
- * `src/ui/settings/custom/fields_model.ts` — и то же говорит окно
- * переименования. Три места, одно правило: расхождение двух из них уже стоило
- * заказчику молча несработавшего переименования (1.3.1).
+ * Что можно написать в имени Field. То же правило — `STRICT_NAME_RE` в
+ * `custom/fields_model.ts` и окно переименования; расхождение уже стоило
+ * молча несработавшего переименования (1.3.1).
  */
 const STRICT_FIELD_NAME_RE = /^[a-z0-9_\- ]+$/i;
 
@@ -485,9 +443,8 @@ function subAddsParentValue(order, subKey) {
 }
 
 /**
- * Разрешения дочернего Field, перенесённые на само поле. Движки спрашивают их у
- * поля (`isFieldPrerequisiteMet`, обе дороги), а настроек в руках у них нет.
- * Дом настройки — `order`, дом ответа — поле, и перенос один на тег и ссылку.
+ * Разрешения дочернего Field, перенесённые на само поле: движки спрашивают их
+ * у поля (`isFieldPrerequisiteMet`, обе дороги). Перенос один на тег и ссылку.
  */
 function subPermissions(order, parentKey, subKey) {
   return {
@@ -512,8 +469,7 @@ function subParentIsNavigator(order, subKey) {
 
 /**
  * Навигатор ребёнка идёт в свойство родителя (`YAML of navigator values`,
- * PRD 10.13.272). Навигатора на строке нет, и без этого в заметку ему
- * взяться неоткуда.
+ * PRD 10.13.272): на строке навигатора нет.
  */
 function subYamlNavigator(order, subKey) {
   const bag = isObj(order) && isObj(order.yamlNavigator) ? order.yamlNavigator : {};
@@ -521,9 +477,8 @@ function subYamlNavigator(order, subKey) {
 }
 
 /** Новый дочерний Field выключен, пока человек не выбрал положение. */
-/* Заводит дочерний ключ всеми картами, которые `normalizePkmOrder` заводит
-   каждому ключу Order: без `freeRoam` второй проход `migrateConfig` дописывал
-   его сам, и хранилище читало это как чужую правку файла (BUGHUNT 2026-09-30, D1). */
+/* Заводит дочерний ключ всеми картами `normalizePkmOrder`: без `freeRoam`
+   второй проход `migrateConfig` дописывал его сам — чужая правка файла (BUGHUNT 2026-09-30, D1). */
 function seedSubActive(order, subKey) {
   if (Object.prototype.hasOwnProperty.call(order.active, subKey)) return;
   order.active[subKey] = "no";
@@ -608,10 +563,8 @@ function normalizePkmOrder(rawOrder) {
     }
   }
   /*
-   * Две карты дочернего Field (его слово 2026-09-19): работает ли он без
-   * значения у родителя и дописывать ли тогда родителя. Ключ — дочерний, и
-   * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
-   * `left`/`right` нет нарочно.
+   * Карты дочернего Field (2026-09-19). Ключ — дочерний, поэтому из
+   * `orderKeys`, а не `orderFields`: дочерних ключей в `left`/`right` нет нарочно.
    */
   for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc"]) {
     if (!isObj(rawOrder[mapKey])) continue;
@@ -629,8 +582,7 @@ function normalizePkmOrder(rawOrder) {
   if (isObj(rawOrder.freeRoam)) {
     for (const k of orderKeys) {
       const raw = String(rawOrder.freeRoam[k] || "").trim().toLowerCase();
-      /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в
-         custom block, и `full` уходит в умолчание, как любое незнакомое. */
+      /* `Free` снят (PRD 10.13.260, `В-203`): `full` уходит в умолчание, как любое незнакомое. */
       if (raw === "minimal") out.freeRoam[k] = raw;
       else if (raw === "off" || raw === "full") out.freeRoam[k] = "off";
     }
@@ -640,10 +592,8 @@ function normalizePkmOrder(rawOrder) {
   }
 
   if (isObj(rawOrder.labels)) {
-    /* Имя дочернего Field в tagWheel — тоже подпись (его заказ 2026-09-29,
-       `io-field-short-sub`): ключ дочки берётся из `orderKeys`. Подпись
-       `<ключ> sub` панель писала сама до 2026-09-04 (D12) — это не имя
-       человека, и она по-прежнему отбрасывается. */
+    /* Имя дочернего Field в tagWheel — подпись (2026-09-29, `io-field-short-sub`).
+       Подпись `<ключ> sub` — не имя человека (D12), отбрасывается. */
     for (const k of orderKeys) {
       if (/_sub$/.test(k) && String(rawOrder.labels[k] || "").trim() === k.slice(0, -4) + " sub") continue;
       if (typeof rawOrder.labels[k] === "string" && rawOrder.labels[k].trim()) {
@@ -653,18 +603,9 @@ function normalizePkmOrder(rawOrder) {
   }
   if (isObj(rawOrder.strictNames)) {
     /*
-     * Правило имени Field — одно на оба прохода.
-     *
-     * Раньше их было два: первый принимал имя с заглавными и пробелами,
-     * второй требовал `^[a-z0-9_-]+$` и всё остальное **молча** возвращал к
-     * исходному ключу. Панель разрешает то же, что первый проход, — и
-     * переименование через карандаш не срабатывало никак: окно закрывалось,
-     * имя оставалось прежним, сообщения не было (замечание заказчика 1.3.1).
-     *
-     * Верным признано мягкое правило: в идентификатор команды имя всё равно
-     * идёт через `kebab()` (`src/features/command_ids.js`), а он и заглавные,
-     * и пробелы переводит сам. То, что панель и конфиг говорят об имени одно
-     * и то же, держит пин в `bootstrap_loader_tests.js`.
+     * Правило имени Field одно на оба прохода (1.3.1): мягкое, как в панели;
+     * в id команды имя идёт через `kebab()` (`command_ids.js`). Пин —
+     * `bootstrap_loader_tests.js`.
      */
     const used = new Set();
     for (const k of orderFields) {
@@ -697,12 +638,9 @@ function normalizePkmOrder(rawOrder) {
 }
 
 /**
- * Custom block — свой Block у каретки (PRD 10.13.260).
- *
- * Один Field — один блок: ключ, уже стоящий в Left или Right, в блок не
- * берётся — прежнее место сильнее, — и ключ, взятый одним блоком, не берёт
- * второй. `id` выдаётся при создании и больше не меняется: на нём стоит
- * идентификатор команды, а значит и хоткей. Имя — непустое и без повторов.
+ * Custom block — свой Block у каретки (PRD 10.13.260). Один Field — один
+ * блок: место в Left/Right сильнее, первый блок сильнее второго. `id` не
+ * меняется после создания — на нём id команды и хоткей. Имя непустое, без повторов.
  */
 function normalizeCustomBlocks(raw, discovered, placed) {
   const out = [];
@@ -742,7 +680,7 @@ function customBlockKeys(order) {
 
 /**
  * Порядок, каким его видят Left и Right: без ключей custom block (PRD
- * 10.13.260, пункт 13). Для их движков значение custom block — текст строки.
+ * 10.13.260, п. 13).
  */
 function orderWithoutCustom(order) {
   const drop = customBlockKeys(order);
@@ -760,9 +698,8 @@ function orderWithoutCustom(order) {
 function serializePkmOrderForMacro(cfg) {
   const order = orderWithoutCustom(normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order")));
   const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
-  /* Имена внутри `freeRoamBehavior` — часть контракта макросов рантайма
-     (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`), поэтому меняются только
-     источники значений, а не ключи. */
+  /* Имена в `freeRoamBehavior` — контракт макросов рантайма
+     (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`): ключи не менять. */
   order.freeRoamBehavior = {
     minimalSeparator: placement.keepPrefixInsertOnly !== false,
     minimalPrefix: placement.fieldPrefixInsertOnly !== false,

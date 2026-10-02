@@ -1,16 +1,8 @@
 /**
- * Живые предпросмотры (PRD 10.3).
- *
- * Предпросмотр не редактируем и показывает результат текущих настроек на
- * выдуманной строке (П1). Перерисовывается точечно, по путям, от которых
- * зависит, а не полной пересборкой панели (П2): пересборка на каждом шаге
- * слайдера отбирает у слайдера перетаскивание.
- *
- * П9 честно: это не тот код, которым рисует редактор. Виджеты редактора
- * живут в движке CM6, куда слою настроек ходить нельзя (З3), поэтому каждый
- * предпросмотр говорит о себе одной фразой, и говорит её в своём «?»: на
- * экране отдельной серой строки над картинкой больше нет (замечание
- * заказчика 1.4.1.1.1, PRD 10.3 П10).
+ * Живые предпросмотры (PRD 10.3). Не редактируемы, рисуют текущие настройки на
+ * выдуманной строке (П1); перерисовка точечно по путям (П2) — полная пересборка
+ * отбирает у слайдера перетаскивание. П9: это не код редактора — в движок CM6
+ * слою настроек ходить нельзя (З3); каждый говорит это в своём «?» (1.4.1.1.1, П10).
  */
 
 import {
@@ -36,14 +28,9 @@ import type { PreviewNode } from "../schema/custom_texts.ts";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey, previewKey } from "../texts_custom.ts";
 /* Движок Transform: считает он, блок только рисует (У-4). */
 import sourceEngine from "../../../features/transform_feature.js";
-/*
- * Правило «получает ли эта сторона полосу» (З-12) берётся у того же модуля,
- * которым живёт слой заметки: у правила вида два места отрисовки и один дом
- * (У-217). Своя копия здесь разошлась бы с заметкой первым же уточнением.
- */
+/* Правило «получает ли сторона полосу» (З-12) — у модуля слоя заметки, один дом (У-217). */
 import visualsConfig from "../../../core/editor_visuals_config.js";
-/* Как своя подпись соединяется с написанной — дом полосы панели и коробки
-   скроллера; предпросмотр спрашивает его же (У-159). */
+/* Соединение своей подписи с написанной — дом полосы и коробки скроллера (У-159). */
 import wheelCore from "../../../pkm_v2/TagWheel/tagwheel_core.js";
 
 const joinValueLabel = (wheelCore as unknown as {
@@ -57,20 +44,14 @@ function num(ctx: SettingsCtx, path: string): number {
 }
 
 /**
- * Видимый текст предпросмотра по ключу каталога (10.13.38).
- *
- * У записи `kind: "custom"` нет ни `name`, ни `desc`, и подстановка, идущая
- * по схеме, до её текстов не достаёт. Второй аргумент — то, что написано в
- * выгрузке из прототипа: он же и ответ, когда перевода нет (Я4).
+ * Видимый текст по ключу каталога (10.13.38): у `kind: "custom"` нет `name`/`desc`.
+ * `fallback` — текст из выгрузки прототипа, он же ответ без перевода (Я4).
  */
 function askText(ctx: SettingsCtx, key: string, fallback: string): string {
   return ctx.t ? ctx.t(key, fallback) : fallback;
 }
 
-/**
- * Строка панели по имени из `FRAME_TEXTS`: пустые состояния и подписи
- * разбора строки. Ключ строит `frameKey` — литерала на его месте нет (У-82).
- */
+/** Строка панели по имени из `FRAME_TEXTS`; ключ строит `frameKey` (У-82). */
 export function frame(ctx: SettingsCtx, name: string): string {
   return askText(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
 }
@@ -83,18 +64,9 @@ function readText(ctx: SettingsCtx, path: string, fallback: string): string {
 }
 
 /**
- * **Разделители: из настроек, и запасного значения у них нет** (У-186).
- *
- * Десять мест писали рядом с чтением `"||"` — то самое умолчание, которое уже
- * объявлено дважды: в схеме (`separator-1`, `separator-2`) и у движка
- * (`DEFAULT_CONFIG` в `config_normalize.js`). Третья копия у места вызова —
- * это не запас, а ложь на экране: у человека с `::` предпросмотр рисовал бы
- * `||`, если бы значение до него не доехало.
- *
- * Пустым оно быть не может: `normalizeConfigV2` прогоняет `separator1` и
- * `separator2` через `text(...)` на **каждом** патче, а через неё проходит
- * любая запись в хранилище. Если значение всё же пусто — рисуется пусто, и
- * это честнее, чем показать разделитель, которого у человека нет.
+ * Разделители — из настроек, без запасного значения (У-186): умолчание объявлено
+ * в схеме и в `DEFAULT_CONFIG`. Пустым не бывает — `normalizeConfigV2` прогоняет их
+ * через `text(...)` на каждом патче; если всё же пусто — рисуется пусто.
  */
 const SEP1_PATH = "pkm.lineFormat.separator1";
 const SEP2_PATH = "pkm.lineFormat.separator2";
@@ -104,11 +76,7 @@ function sep(ctx: SettingsCtx, path: string): string {
   return v === undefined || v === null ? "" : String(v);
 }
 
-/**
- * Рамка предпросмотра: подпись, «?» с подсказкой и фраза о том, что это не
- * редактор. Возвращает и рамку, и снятие подсказки — очистка блока обязана
- * убрать за собой всё (С5).
- */
+/** Рамка: подпись, «?» и фраза «не редактор». Отдаёт и снятие подсказки (С5). */
 function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close: () => void } {
   const text = PREVIEW_TEXTS[id];
   const cap0 = text ? askText(ctx, previewKey(id, "cap"), text.cap) : "";
@@ -123,46 +91,23 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
     id: "io-tip-" + id,
     showTips: Boolean(ctx.get("general.help.showTips")),
     showIds: Boolean(ctx.get("advanced.showSettingIds")),
-    /* Над картинкой, а не под ней: его замечание 2026-09-17 и то, как это
-       устроено в прототипе. Разбор — у самого `afterHead`. */
+    /* Над картинкой (2026-09-17, как в прототипе); разбор — у `afterHead`. */
     afterHead: true,
   });
-  /*
-   * Линии за подписью здесь больше нет: «в настройках в каждом live preview в
-   * строке хедера (live preview) после хедера есть горизонтальная линия —
-   * убери её у всех live preview окон» (заказчик, 2026-09-07). Рамку
-   * предпросмотра рисует сам блок, и вторая черта внутри неё делила его
-   * надвое без нужды.
-   */
+  /* Линии за подписью нет (2026-09-07): рамку рисует сам блок. */
   return { box, close };
 }
 
 /**
- * Оформление тегов из настроек уезжает в CSS-переменные: проценты считаются
- * один раз здесь, а геометрию строит стиль. Так предпросмотр не задаёт ни
- * одного свойства кроме `--io-*` (Г1).
- *
- * Третий аргумент — то, чего у строки быть не должно: `{ blockFill: false }`
- * оставляет переменные и снимает саму подложку Block. Нужен он одному
- * предпросмотру — панели: «в io-tip-wheel-preview сейчас видна фиолетовая
- * полоска tags-block-fill-color — это не правильно, поскольку в этом preview
- * мы смотрим на tagwheel panel» (его слово 2026-09-22). Полоса Block и
- * обособление панели ложились на **один и тот же узел**, и подложка выигрывала
- * каскад тремя классами против одного: цвет панели до экрана не доезжал
- * (У-67).
+ * Оформление тегов — в CSS-переменные `--io-*`, геометрию строит стиль (Г1).
+ * `blockFill: false` снимает подложку Block (панель TagWheel, 2026-09-22): она и
+ * обособление панели на одном узле, и подложка выигрывала каскад (У-67).
  */
 export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: boolean; plainSize?: boolean }): void {
   cssVar(node, "--io-opacity-left", String(num(ctx, "visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(num(ctx, "visual.tags.opacityRight") / 100));
-  /*
-   * **Кегль Block слушают не все предпросмотры** (его слово 2026-09-24: «в
-   * io-tip-wheel-preview и io-tip-line-preview размеры полей в left и right
-   * block привязаны к контролам tags-text-size-left и tags-text-size-right…
-   * размеры fields в leftight blocks были как у обычного текста. Т.е.
-   * размер leftight block должен меняться только у io-tip-tag-preview»).
-   * `plainSize` снимает оба слайдера и даёт полям кегль соседнего текста
-   * строки: основа `--io-text-size` равна `1em`, а не 11.5 точки пузыря.
-   */
+  /* `plainSize`: кегль соседнего текста (`--io-text-size: 1em`) вместо слайдеров
+     Block — слайдеры слушает только предпросмотр тегов (2026-09-24). */
   if (opts && opts.plainSize) {
     cssVar(node, "--io-text-scale-left", "1");
     cssVar(node, "--io-text-scale-right", "1");
@@ -175,43 +120,21 @@ export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: bo
   cssVar(node, "--io-bubble-y", String(num(ctx, "visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x", String(num(ctx, "visual.tags.emptyBubblePct") / 100));
   cssVar(node, "--io-corners", String((100 - num(ctx, "visual.tags.cornersPct")) / 100));
-  /*
-   * Заливка Left и Right Block (З-7): цвет и густота приходят переменными,
-   * сама подложка — классом. Пусто в цвете значит «взять у темы» — смысл
-   * живёт на шве, а не в значении (У-60).
-   */
+  /* Заливка Left/Right Block (З-7): пусто в цвете — «у темы», смысл на шве (У-60). */
   const bandColor = String(ctx.get("visual.tags.blockFill.color") || "").trim();
   cssVar(node, "--io-blockfill-color", bandColor || "var(--text-accent)");
   cssVar(node, "--io-blockfill-opacity", String(num(ctx, "visual.tags.blockFill.opacity") / 100));
-  /*
-   * Два цвета ссылки, показанной **как написано** (`З-37`, его ответ `В-174`):
-   * цель и скобки красятся врозь. Пусто значит «взять у темы» — и запасное
-   * значение то самое, чем ссылка красилась до этой пары (У-60).
-   */
+  /* Цель и скобки ссылки «как написано» красятся врозь (`З-37`, `В-174`); пусто — у темы (У-60). */
   const linkTarget = String(ctx.get("visual.tags.linkAsWritten.targetColor") || "").trim();
   const linkBrackets = String(ctx.get("visual.tags.linkAsWritten.bracketsColor") || "").trim();
   cssVar(node, "--io-link-target", linkTarget || "var(--text-accent)");
   cssVar(node, "--io-link-brackets", linkBrackets || "var(--text-accent)");
   /*
-   * На сколько подложка выходит за написанное (S7). Высота — в точках. Ширина
-   * — шкала с переломом на середине, и три её ориентира назвал заказчик
-   * (2026-09-09): ноль — по написанному, пятьдесят — до разделителя, сотня —
-   * включая разделитель. Первая половина шкалы тратится на промежуток —
-   * здесь это промежуток флекса `--io-line-gap`, — вторая на сам разделитель.
-   *
-   * Ширина разделителя взята его длиной в знаках (`ch`), а не измерена:
-   * предпросмотр собирается до того, как попадёт в документ, и мерить в нём
-   * нечего. В заметке та же величина именно измеряется.
-   *
-   * Без этих строк предпросмотр показывал бы подложку **постоянного**
-   * размера при любом положении ползунков — то есть был бы вторым,
-   * расходящимся объявлением правила (У-32). Ровно этим он и был до
-   * 2026-09-09, и заказчик увидел разницу между панелью и заметкой.
-   */
-  /*
-   * Высота — доля свободного места. У строки предпросмотра это её собственное
-   * поле сверху и снизу (`padding: 3px 0` у `.io-line`), у строки заметки —
-   * остаток зрительной строки за написанным; сотня заполняет и то и другое.
+   * Выход подложки за написанное (S7). Высота — доля свободного места (`padding: 3px 0`
+   * у `.io-line`). Ширина — шкала с переломом (2026-09-09): 0 — по написанному,
+   * 50 — до разделителя (`--io-line-gap`), 100 — включая его. Ширина разделителя —
+   * в `ch`, не мерена: узел ещё не в документе (в заметке мерится). Иначе — второе
+   * расходящееся объявление правила (У-32).
    */
   const bandRoomPx = 3;
   cssVar(node, "--io-blockfill-pady",
@@ -224,16 +147,8 @@ export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: bo
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
   if (!(opts && opts.blockFill === false) && ctx.get("visual.tags.blockFill.enabled") === true) {
     node.addClass("io-line--blockfill");
-    /*
-     * Сторона называется классом (З-12): при `both` их два, при `left` и
-     * `right` — один. Общий класс остаётся — им держится высота строки, а она
-     * у обеих сторон одна.
-     */
-    /*
-     * Имена классов написаны целиком, а не собраны из куска и зоны: имя класса
-     * — такое же объявление правила (У-103), и собранное по частям не находит
-     * ни греп, ни сверка двух отрисовок.
-     */
+    /* Сторона — классом (З-12): при `both` два. Имена целиком, не собраны из кусков —
+       иначе их не найти грепом (У-103). */
     const dir = ctx.get("visual.tags.blockFill.direction");
     if (visualsConfig.blockFillZoneWanted(dir, "left")) node.addClass("io-line--blockfill-left");
     if (visualsConfig.blockFillZoneWanted(dir, "right")) node.addClass("io-line--blockfill-right");
@@ -243,7 +158,7 @@ export function applyTagVars(node: El, ctx: SettingsCtx, opts?: { blockFill?: bo
 /** Пути, от которых зависит вид тега: на них предпросмотр перерисовывается. */
 const TAG_PATHS = [
   "visual.tags.opacityLeft",
-  /* Заливка блоков (З-7): предпросмотр обязан показывать её сразу (У-24). */
+  /* Заливка блоков (З-7) — сразу (У-24). */
   "visual.tags.blockFill",
   "visual.tags.opacityRight",
   "visual.tags.textSizePctLeft",
@@ -255,25 +170,16 @@ const TAG_PATHS = [
   "pkm.behavior.childTagFormat",
   "pkm.lineFormat.separator1",
   "pkm.lineFormat.separator2",
-  /*
-   * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
-   * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
-   * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
-   * список Values, и перечислить это по листьям значит однажды отстать.
-   */
+  /* Ветка `pkm.fields` целиком: `previewFields` читает её (1.4.1.1.3), листья не перечислить. */
   "pkm.fields",
   "visual.tags.byTag",
-  /* Цвета ссылки, показанной как написано (`З-37`): предпросмотр обязан
-     показывать их сразу, а не с первой правки соседней настройки (У-24). */
+  /* Цвета ссылки «как написано» (`З-37`) — сразу (У-24). */
   "visual.tags.linkAsWritten",
 ] as const;
 
 /**
- * Подпись пузыря. Вынесена отдельно затем, что зовут её двое: отрисовка ниже и
- * живое обновление колонки `Preview`, пока человек печатает свой текст. Две
- * копии этого правила разошлись бы молча (У-32), и разошлись бы на пустом
- * тексте: подпись пустого пузыря — **неразрывный** пробел, иначе пузырь
- * схлопывается в точку.
+ * Подпись пузыря — одна на отрисовку и живую колонку `Preview` (У-32). Пустой
+ * пузырь подписан неразрывным пробелом, иначе схлопывается.
  */
 export function bubbleLabel(v: PreviewValue, override?: string): string {
   if (v.shown === "empty") return " ";
@@ -282,19 +188,13 @@ export function bubbleLabel(v: PreviewValue, override?: string): string {
 }
 
 /**
- * Пузырь Value. Пустой пузырь остаётся пузырём: он держит высоту строки
- * неразрывным пробелом, а цвет прячет сам символ — иначе строка при показе
- * `empty` подпрыгивает.
- *
- * Экспортируется, потому что колонка `Preview` в таблице Values обязана
- * рисовать Value ровно тем же кодом, что и предпросмотры (П9). Иначе
- * предпросмотр и редактор однажды разойдутся, и никто этого не заметит.
+ * Пузырь Value; пустой держит высоту неразрывным пробелом. Экспорт — колонка
+ * `Preview` таблицы Values рисует тем же кодом (П9).
  */
 export function bubble(parent: El, v: PreviewValue, override?: string): El {
   const empty = v.shown === "empty";
-  /* Без своей заливки — вид тега темы; `#FFFFFF` значит «прозрачно», и в
-     заливке, и в рамке (`Side`) — его пункт цикла 89. Правило одно на
-     заметку и панель (`isClearColor`). */
+  /* Без заливки — вид тега темы; `#FFFFFF` = прозрачно и в заливке, и в рамке (цикл 89).
+     Правило одно на заметку и панель (`isClearColor`). */
   const filled = !!v.fill && !visualsConfig.isClearColor(v.fill);
   const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : "")
     + (filled ? " io-bubble--filled" : "") + (v.side ? " io-bubble--side" : ""), bubbleLabel(v, override));
@@ -304,10 +204,7 @@ export function bubble(parent: El, v: PreviewValue, override?: string): El {
   return b;
 }
 
-/**
- * Value с подзначением: одним пузырём `#parent/child` или двумя рядом —
- * так, как решает `Child tag format`.
- */
+/** Value с подзначением: одним пузырём `#parent/child` или двумя — по `Child tag format`. */
 function drawTagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
   const { parent: p, child } = valuePair(f);
   if (!p) return;
@@ -328,11 +225,7 @@ function fieldChip(parent: El, f: PreviewField): El {
   return chip;
 }
 
-/**
- * Форма строки: по чипу на Field, в порядке записи. `chipFor` позволяет
- * блоку нарисовать свой чип — так TagWheel вешает скроллер на тот Field, на
- * котором стоит.
- */
+/** Форма строки: чип на Field по порядку. `chipFor` — свой чип (так TagWheel вешает скроллер). */
 function structuralLine(
   parent: El,
   ctx: SettingsCtx,
@@ -369,27 +262,18 @@ const WHEEL_PATHS = [
   "visual.tagWheel.scroller.enabled",
   "visual.tagWheel.scroller.direction",
   "visual.tagWheel.scroller.size",
-  /*
-   * Цвета коробки скроллера. Их тут тоже не было — та же половина дефекта,
-   * что у цвета активного Field (У-24): предпросмотр не перерисовывался на их
-   * изменение, и человек не увидел бы работу настройки, даже когда коробка
-   * научилась их читать.
-   */
+  /* Цвета коробки скроллера — перерисовка на их изменение (У-24). */
   "visual.tagWheel.scroller.fillColor",
   "visual.tagWheel.scroller.textColor",
   "visual.tagWheel.showMarkers",
   "visual.tagWheel.fillColor",
   "visual.tagWheel.textColor",
-  /*
-   * Эти два пути тут не было, и предпросмотр не перерисовывался на их
-   * изменение вовсе — то есть не показал бы работу настроек, даже если бы
-   * умел их рисовать (замечание H2, PRD 10.13.22 Пр3; У-24).
-   */
+  /* Перерисовка на эти пути (H2, PRD 10.13.22 Пр3; У-24). */
   "visual.tagWheel.activeTextColor",
-  /* Цвет ячейки с выбранным значением — его заказ 2026-09-17. */
+  /* Цвет ячейки с выбранным значением (2026-09-17). */
   "visual.tagWheel.chosenValueColor",
   "visual.tagWheel.boldFieldNames",
-  /* Чем подписано выбранное значение и соседи в коробке (его пункт 2026-10-01). */
+  /* Подписи значений в коробке (2026-10-01). */
   "visual.tagWheel.valueNames",
   "visual.tagWheel.scroller.labels",
   "visual.tagWheel.highlightLine",
@@ -397,40 +281,28 @@ const WHEEL_PATHS = [
   "visual.tags.opacityRight",
   "pkm.lineFormat.separator1",
   "pkm.lineFormat.separator2",
-  /*
-   * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
-   * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
-   * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
-   * список Values, и перечислить это по листьям значит однажды отстать.
-   */
+  /* Ветка `pkm.fields` целиком: `previewFields` читает её (1.4.1.1.3), листья не перечислить. */
   "pkm.fields",
   "visual.tags.byTag",
 ] as const;
 
 /**
- * Строка панели скроллера: 15px высоты плюс 4px отступов. Число живёт и здесь,
- * и в `styles.css` — иначе место под панель считать нечем. Поэтому высота
- * строки там задана явно: если её отдать теме, панель окажется выше
- * зарезервированного места и накроет пометки предпросмотра.
+ * Строка панели скроллера: 15px + 4px отступов. Число дублирует `styles.css`, где
+ * высота задана явно: отданная теме, панель накроет пометки предпросмотра.
  */
 const WHEEL_ROW = 21;
 /** Рамка панели, её отступы и зазор до строки. */
 const WHEEL_CHROME = 18;
 
 /**
- * Предпросмотр TagWheel (П7). Панель стоит над строкой и под ней: текущее
- * значение в середине, **вверх — следующие**, вниз — предыдущие, список
- * замкнут. Направление проверяется тестом вывода, а не чтением кода (Г20):
- * перевернуть его местами — ошибка, которую глазами не видно.
- *
- * П8: место под панели резервируется на подложке, а не на рамке блока —
- * тогда подсказка, открытая под подписью, ни с чем не сталкивается.
+ * Предпросмотр TagWheel (П7): текущее в середине, вверх — следующие, вниз —
+ * предыдущие, круг замкнут; направление держит тест вывода (Г20). Место под
+ * панели — на подложке, не на рамке (П8), чтобы не задеть подсказку.
  */
 export const wheelPreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "wheel-preview");
   const stage = el(shell.box, "div", "io-wheelstage");
-  /* Пометка о примере живёт под подложкой, а не в ней: внутри подложки она
-     оказывается под нижней панелью скроллера, и та её закрывает. */
+  /* Пометка — под подложкой: внутри её закрывает нижняя панель скроллера. */
   const foot = el(shell.box, "div", "io-preview__foot");
 
   const draw = (): void => {
@@ -444,31 +316,21 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     const markers = Boolean(ctx.get("visual.tagWheel.showMarkers"));
 
     const left = fieldsOn(fields, "left");
-    /* Скроллер садится на второй Field слева: так обе стороны панели видно,
-       и видно, что остальные Fields остаются обычными чипами. */
+    /* Скроллер на втором Field слева: видны обе стороны панели и обычные чипы. */
     const shown = left[1] || left[0] || fields[0] || null;
-    /* Что показывает ячейка этого Field — одно объявление на обе ячейки:
-       активную и ту, у которой значение уже выбрано (У-32). */
+    /* Одно объявление на активную ячейку и ячейку с выбранным значением (У-32). */
     const cellValues = (f: PreviewField | null): string[] => (!f
       ? []
       : f.kind === "element"
         ? [f.name]
         : f.values.filter(v => v.depth === 0).map(v => (markers ? "#" : "") + v.token));
-    /*
-     * Круг коробки — тот же, что в заметке: пустое место стоит в нём первым
-     * (`tagwheel_rules_normalizer.js` кладёт его перед Values), и коробка
-     * рисует его `-`. Без него предпросмотр Field с одним Value показывал в
-     * коробке само это Value (H1.4 прогона 2026-10-02).
-     */
+    /* Круг как в заметке: пустое место первым (`tagwheel_rules_normalizer.js`), рисуется
+       `-` (H1.4, 2026-10-02). */
     const real = cellValues(shown);
     const ringed = Boolean(shown && shown.kind !== "element" && real.length);
     const values = ringed ? ["-", ...real] : real;
-    /*
-     * Подписи значений — его пункт 2026-10-01: «разные варианты выбора не
-     * меняют вид io-tip-wheel-preview». Своя подпись есть только у значения с
-     * `custom` и непустым текстом; без неё все три положения печатают
-     * написанное — так же и в заметке (У-188).
-     */
+    /* Своя подпись — только у `custom` с непустым текстом; иначе написанное, как в заметке
+       (2026-10-01, У-188). */
     const valueNames = readText(ctx, "visual.tagWheel.valueNames", "default");
     const scrollLabels = readText(ctx, "visual.tagWheel.scroller.labels", "value");
     const top = (f: PreviewField | null): PreviewValue[] =>
@@ -484,8 +346,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     /* Круг короче коробки — заметка не повторяет его (`buildBranch`). */
     const rows = perSide && n ? Math.min(perSide, n) : 0;
 
-    /* Вверх встречаются следующие значения, вниз — предыдущие, оба круга
-       замкнуты. */
+    /* Вверх — следующие, вниз — предыдущие; оба круга замкнуты. */
     const upIdx: number[] = [];
     const downIdx: number[] = [];
     for (let k = rows; k >= 1; k--) upIdx.push((at + k) % n);
@@ -498,41 +359,20 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     cssVar(shell.box, "--io-wheel-up", room(up.length));
     cssVar(shell.box, "--io-wheel-down", room(down.length));
 
-    /*
-     * Цвета панели: два цвета текста и заливка (PRD 10.13.22 Пр2).
-     *
-     * До 2026-09-04 предпросмотр применял их **только к коробке скроллера**, а
-     * Fields рисовал чипами Value — цветом Field. То есть показывал не то, чем
-     * управляют эти настройки: «io-tip-wheel-preview не показательная… я не
-     * могу проверить в нем как работают настройки panel-active-color и
-     * panel-text-color» (замечание H2).
-     */
+    /* Цвета панели: два цвета текста и заливка (PRD 10.13.22 Пр2, H2) — на Fields, не только на коробку. */
     const fill = readText(ctx, "visual.tagWheel.fillColor", "");
     const text = readText(ctx, "visual.tagWheel.textColor", "");
     const activeText = readText(ctx, "visual.tagWheel.activeTextColor", "") || text;
-    /* Пусто — ячейка с выбранным значением красится как остальные
-       неактивные: так сказано в самой строке панели. */
+    /* Пусто — красится как остальные неактивные. */
     const chosenText = readText(ctx, "visual.tagWheel.chosenValueColor", "") || text;
     const boldNames = Boolean(ctx.get("visual.tagWheel.boldFieldNames"));
     const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
 
-    /*
-     * Коробка скроллера — не панель, и цвета у неё свои: `Scroller background
-     * color` и `Scroller text color`.
-     *
-     * Здесь стояли цвета панели, и заказчик увидел ровно это: «в
-     * io-tip-wheel-preview panel-background меняет цвет и заливки tagwheel и
-     * заливки scroller; заливка scroller должна быть как у scroller-fill»
-     * (замечание к H2, 2026-09-04). В заметке коробку красит оверлей
-     * (`tagwheel_scroller_overlay.js`) — и красит правильно, — а расходился с
-     * ним только предпросмотр.
-     *
-     * Пусто — цвета темы: их подставляет запасное значение переменной в
-     * стилях, `var(--io-wheel-bg, var(--background-primary))`.
-     */
+    /* Коробка скроллера красится своими цветами, не цветами панели (H2, 2026-09-04),
+       как оверлей `tagwheel_scroller_overlay.js`. Пусто — тема через
+       `var(--io-wheel-bg, var(--background-primary))`. */
     const scrollFill = readText(ctx, "visual.tagWheel.scroller.fillColor", "");
-    /* Своя заливка без своего текста — текст читаемый на ней: так же, как
-       коробка в заметке (`tagwheel_scroller_overlay.js`). */
+    /* Своя заливка без своего текста — читаемый текст, как в заметке. */
     const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "")
       || (scrollFill ? String(visualsConfig.readableTextOn(scrollFill) || "") : "");
 
@@ -547,12 +387,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       }
     };
 
-    /*
-     * Обособление строки живёт на контейнере стороны, а не на каждой ячейке: в
-     * заметке `==…==` обнимает панель целиком, и заливка у неё одна (Пр4).
-     * Выключенный тумблер снимает её — красить нечего, и это ровно то, что
-     * человек должен увидеть, переключая его.
-     */
+    /* Обособление — на контейнере стороны: в заметке `==…==` обнимает панель целиком (Пр4). */
     const dressed = new Set<El>();
     const dressSide = (side: El): void => {
       if (dressed.has(side)) return;
@@ -568,36 +403,19 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       dressSide(side);
       const isShown = f === shown;
       const col = el(side, "span", "io-wheelcol");
-      /*
-       * Ячейка панели — текст, как в заметке: активная в квадратных скобках,
-       * остальные обычным словом. Активная ровно одна — тот Field, на котором
-       * стоит человек (Пр1, Пр5).
-       */
+      /* Ячейка — текст: активная (одна, Field человека) в квадратных скобках (Пр1, Пр5). */
       const label = f.short || f.name;
-      /*
-       * **У одной неактивной ячейки значение уже выбрано** — его заказ
-       * 2026-09-17: «в io-tip-wheel-preview сделай одно из значений
-       * non-active field с выбранным value, чтобы было видно как работает
-       * этот контрол». Без такой ячейки новый цвет проверять не на чем
-       * (У-113).
-       *
-       * Ровно одна, и **вторая** по ходу, а не первая: полоса из одних
-       * значений перестала бы показывать разницу между именем поля и
-       * выбранным значением — ради неё контрол и заведён, — а первая
-       * ячейка обязана остаться именем поля: по ней видно, что
-       * переименование Field доезжает до предпросмотра.
-       */
+      /* Одна неактивная ячейка с выбранным значением (2026-09-17, У-113) — вторая, а не
+         первая: первая остаётся именем поля, чтобы видеть переименование Field. */
       if (!isShown) plainCells += 1;
       let filled = "";
       if (!isShown && plainCells === 2) {
-        /* Значение со своей подписью, если оно у Field есть: иначе смену
-           `tagWheel Value names` показать не на чем. */
+        /* Значение со своей подписью, если есть: иначе `tagWheel Value names` не показать. */
         const vals = top(f);
         const pick = vals.find(v => printed(v).trim()) || vals[0];
         filled = pick ? labelled(pick, valueNames) : String(cellValues(f)[0] || "");
       }
-      /* Имя Field полужирным, когда включён `Bold Field names`: так же, как в
-         заметке, и только при обособленной строке. */
+      /* `Bold Field names` — как в заметке, только при обособленной строке. */
       const named = !isShown && !filled && boldNames && lit;
       const cell = el(col, "span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : "") + (named ? " io-wheelcell--name" : ""),
         isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
@@ -611,19 +429,9 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       if (!isShown) return;
       scrollerBox(col, up, "up");
       scrollerBox(col, down, "down");
-    /*
-     * Класс на строке: в этом предпросмотре прозрачность блока гасит чипы, но
-     * **не** коробку скроллера.
-     *
-     * Прозрачность объявлена у контейнера стороны, а коробка лежит внутри
-     * него; CSS `opacity` у предка потомком не отменяется, поэтому яркость
-     * коробки ехала за настройкой блока — «в io-tip-wheel-preview яркость
-     * scroller ретушируется при изменении opacity» (B2, 2026-09-02). Коробка
-     * показывает соседние значения, и гасить её нечему.
-     *
-     * Заливки Block здесь нет нарочно: этот предпросмотр показывает панель, и
-     * полоса у строки одна — её обособление. Его слово 2026-09-22.
-     */
+    /* Класс строки: прозрачность блока гасит чипы, но не коробку скроллера — CSS
+       `opacity` предка потомком не отменить (B2, 2026-09-02). Заливки Block здесь нет
+       нарочно (2026-09-22). */
     }, "io-line--wheel", { blockFill: false, plainSize: true });
 
     if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
@@ -634,13 +442,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
   return () => { unwatch(); shell.close(); };
 };
 
-/**
- * Почему полос нет, когда они включены. Две разные причины, и обе — про
- * настройку выше, а не про поломку (замечание заказчика 1.5.3.2).
- */
-
-/* Английское этих трёх строк живёт в `FRAME_TEXTS` (10.13.46); здесь их
-   больше никто не читает, и второго дома у текста нет (У-32). */
+/* Подписи «почему полос нет» (1.5.3.2) живут в `FRAME_TEXTS` (10.13.46, У-32). */
 
 /** Пути, от которых зависят полосы. */
 const BARS_PATHS = [
@@ -658,48 +460,27 @@ const BARS_PATHS = [
   "visual.tags.opacityLeft",
   "visual.tags.opacityRight",
   "pkm.lineFormat.separator1",
-  /*
-   * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
-   * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
-   * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
-   * список Values, и перечислить это по листьям значит однажды отстать.
-   */
+  /* Ветка `pkm.fields` целиком: `previewFields` читает её (1.4.1.1.3), листья не перечислить. */
   "pkm.fields",
   "visual.tags.byTag",
 ] as const;
 
 /**
- * Предпросмотр Bars. Полоса принадлежит строке, которая несёт Field, и идёт
- * во всю высоту этой строки и всего вложенного под неё (П4). Требование
- * заказчика: **текст строк не зависит от того, какой Field рисует полосы** —
- * строка всегда несёт свои теги, переключение Field меняет только полосы.
- * Скрывается ровно один тег, тот, чей Field рисует полосу, и только если
- * выключено `Show the Field's tag`.
- *
- * Полоса не занимает места в потоке (П5): её рисует абсолютный `::before` в
- * отведённом жёлобе, а текст отодвинут сразу на все дорожки. Дорожка 0 —
- * самая левая и принадлежит родителю (П6): ребёнок всегда правее той строки,
- * от которой он висит.
+ * Предпросмотр Bars: полоса на всю высоту строки с Field и её поддерева (П4). Текст
+ * строк не зависит от выбранного Field; скрывается один тег — того Field, и только
+ * при выключенном `Show the Field's tag`. Полоса — абсолютный `::before` в жёлобе (П5);
+ * дорожка 0 — самая левая, родителя (П6).
  */
 export const barsPreview: CustomRender = (host, ctx) => {
   const text = PREVIEW_TEXTS["bars-preview"];
   const shell = previewShell(host, ctx, "bars-preview");
   const tree = el(shell.box, "div", "io-tree");
 
-  /*
-   * Выбранный Field — только тот, что и правда выбран. Раньше на пустом
-   * значении подставлялось имя `status` из мокданных прототипа, и предпросмотр
-   * искал Field, которого у человека нет: полосы не рисовались никогда, а
-   * почему — не было сказано (замечание заказчика 1.5.3.2). Движок ведёт себя
-   * так же: пустой `fieldId` даёт пустой набор токенов и ни одной полосы.
-   */
+  /* Только реально выбранный Field, без подстановки из мокданных (1.5.3.2): пустой
+     `fieldId` — ни одной полосы, как у движка. */
   const chosenField = (): string => readText(ctx, "visual.tagBars.fieldId", "");
 
-  /**
-   * Места, которые называет выдуманное дерево, — в порядке первого появления.
-   * Имена в дереве это места, а не id (П13): у человека Fields свои, а дерево
-   * одно и то же.
-   */
+  /** Места выдуманного дерева в порядке появления — места, а не id (П13). */
   const treeSlots = (nodes: readonly PreviewNode[]): string[] => {
     const out: string[] = [];
     const walk = (list: readonly PreviewNode[]): void => {
@@ -750,9 +531,8 @@ export const barsPreview: CustomRender = (host, ctx) => {
       for (const v of shown) bubble(side, v);
     }
 
-    /* Separator уходит только тогда, когда перед текстом не осталось ничего.
-       Если единственный тег там был тем, кого заменила полоса, судьбу
-       Separator решает настройка ниже. */
+    /* Separator уходит, только когда перед текстом ничего не осталось; если там был
+       заменённый полосой тег — решает настройка ниже. */
     const replaced = hideChosen && ids.includes(chosen);
     const sepHidden = !shown.length &&
       (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
@@ -771,21 +551,9 @@ export const barsPreview: CustomRender = (host, ctx) => {
       ? valueAtDepth(fields.find(f => f.id === chosen) || null, depth)
       : null;
     /*
-     * Дорожка — это глубина строки в дереве, а не счётчик нарисованных полос.
-     *
-     * Здесь номер увеличивался только тогда, когда полосу нарисовал родитель.
-     * Строка без значения Field дорожку не занимала, и внучатая строка вставала
-     * на место дочерней: при трёх дорожках рисовались первая и вторая вместо
-     * первой и третьей (замечание заказчика B22, 2026-09-02).
-     *
-     * Движок считает иначе — `depthFromRoot` в `priority_strip_engine.js`
-     * растёт на каждый уровень независимо от того, есть ли у строки своё
-     * значение. Предпросмотр обязан показывать то же (П9).
-     */
-    /*
-     * Полоса по всему поддереву или только по своей строке (PRD 10.13.21 Б5).
-     * Выключенный тумблер снимает наследование: дорожка одна на всех, и
-     * ограничение по числу полос предмета не имеет — полоса у строки одна.
+     * Дорожка — глубина в дереве, не счётчик полос (B22, 2026-09-02), как `depthFromRoot`
+     * в `priority_strip_engine.js` (П9). Выключенный тумблер поддерева (PRD 10.13.21 Б5) —
+     * дорожка одна, полоса у строки одна.
      */
     const whole = ctx.get("visual.tagBars.drawWholeTree") !== false;
     const bar = active && v !== null && (whole ? depth < cap : true);
@@ -794,23 +562,12 @@ export const barsPreview: CustomRender = (host, ctx) => {
     if (bar && v) {
       cssVar(box, "--io-bar-color", v.fill);
       cssVar(box, "--io-lane", String(whole ? depth : 0));
-      /*
-       * Зазор сверху и снизу полосы — из настройки, а не литералом
-       * (PRD 10.13.16). Тумблер `Join Bars in a tree` здесь не читается, и
-       * это не пропуск: в предпросмотре полоса рисуется на **поддереве**
-       * целиком (П6) — один узел на родителя вместе со всеми его дочерними
-       * строками, — поэтому рвать её внутри дерева нечему. В заметке полосу
-       * рисует каждая строка своей пометкой, и там тумблер и работает; его
-       * держат проверки движка и адаптера.
-       */
+      /* Зазор — из настройки (PRD 10.13.16). `Join Bars in a tree` не читается: полоса
+         рисуется на поддереве целиком (П6), рвать нечего; тумблер держат проверки движка. */
       cssVar(box, "--io-bar-inset", num(ctx, "visual.tagBars.lineGap") + "px");
     }
     drawLine(box, node, depth, fields, slots);
-    /*
-     * Дочерние строки лежат **внутри** узла с полосой — потому она и идёт по
-     * всему поддереву (П6). Выключенный тумблер выносит их наружу: узел
-     * остаётся высотой в одну строку, и полоса не длиннее её.
-     */
+    /* Дети внутри узла с полосой — она идёт по поддереву (П6); выключенный тумблер выносит их. */
     const kids = whole ? box : parent;
     for (const child of node.children) {
       drawNode(kids, child, depth + 1, fields, slots);
@@ -819,13 +576,7 @@ export const barsPreview: CustomRender = (host, ctx) => {
 
   const draw = (): void => {
     tree.empty();
-    /*
-     * Полосы рисуются только по Field типа tag: цвет полосы — это цвет Value,
-     * а он есть у тега и ни у ссылки, ни у элемента. Поэтому и места
-     * выдуманного дерева раскладываются на **теги**, а не на первые Fields по
-     * порядку: иначе в строке оказывалась дата или ссылка, для которой полосу
-     * нарисовать нечем (замечание заказчика 1.5.3.2, пункт 2).
-     */
+    /* Полосы — только у Field типа tag (цвет Value); места дерева — на тегах (1.5.3.2, пункт 2). */
     const all = previewFields(ctx);
     const tags = all.fields.filter(f => f.kind === "tag");
     const fields = tags;
@@ -836,11 +587,7 @@ export const barsPreview: CustomRender = (host, ctx) => {
     const nodes = (text && text.tree) || [];
     const slots = resolveSlots(fields, treeSlots(nodes));
     for (const node of nodes) drawNode(tree, node, 0, fields, slots);
-    /*
-     * Полосы включены, а Field не выбран — на экране пустое дерево, и человек
-     * не знает, что настройка ждёт от него ещё один выбор. Пустота обязана
-     * объясниться (З8 наоборот: сообщение человеку, а не разработчику).
-     */
+    /* Field не выбран — пустота объясняется человеку (З8 наоборот). */
     const chosen = chosenField();
     if (ctx.get("visual.tagBars.active") && !fields.some(f => f.id === chosen)) {
       rich(el(tree, "p", "io-preview__note"), !tags.length
@@ -856,11 +603,6 @@ export const barsPreview: CustomRender = (host, ctx) => {
 };
 
 /* ---- предпросмотр строки (П3) ------------------------------------------ */
-
-/**
- * Подписи под разбором строки. Сняты с прототипа: он показывает не значения, а
- * устройство строки, и подписи — часть этого объяснения.
- */
 
 /** Пути, от которых зависит разбор строки. */
 const LINE_PATHS = [
@@ -882,16 +624,9 @@ const LINE_PATHS = [
 ] as const;
 
 /**
- * Предпросмотр строки целиком (П3): `Prefix`, Left Block, `First Separator`,
- * текст, `Second Separator`, Right Block. Показываются **Fields**, а не
- * значения одного Field — этим он и отличается от предпросмотра оформления.
- *
- * Три ряда на одной сетке, и это не украшение: строка, скобки под Blocks и
- * подписи Separator обязаны стоять друг под другом. Разложи их тремя
- * отдельными строками — и подпись разъедется с тем, что подписывает, на
- * первом же длинном имени Field. Подписи Separator вынуты из потока
- * (`position: absolute` в `styles.css`), чтобы длинное слово не расширило
- * узкую колонку.
+ * Предпросмотр строки целиком (П3): `Prefix`, Left Block, `First Separator`, текст,
+ * `Second Separator`, Right Block — Fields, не значения. Три ряда на одной сетке,
+ * чтобы подписи стояли под своим; подписи Separator — `position: absolute`.
  */
 export const linePreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "line-preview");
@@ -901,8 +636,7 @@ export const linePreview: CustomRender = (host, ctx) => {
   const draw = (): void => {
     holder.empty();
     foot.empty();
-    /* Полосы Block в этом превью нет — его слово, цикл 90: «убери из этого live
-       preview полоску tags-block-fill-color». */
+    /* Полосы Block здесь нет (цикл 90). */
     applyTagVars(holder, ctx, { plainSize: true, blockFill: false });
     const { fields, example } = previewFields(ctx);
 
@@ -962,18 +696,12 @@ export const linePreview: CustomRender = (host, ctx) => {
   return () => { unwatch(); shell.close(); };
 };
 
-/**
- * Места, которые показывает предпросмотр оформления: два Field слева. Имена
- * взяты из примерного набора и работают как места, а не как id (П13).
- */
+/** Места предпросмотра оформления: два Field слева, места, а не id (П13). */
 const TAG_SLOTS = ["status", "priority"] as const;
 
 /*
- * Ссылка, показанная **как написано**, — три куска, а не один (`З-37`):
- * скобка, цель, скобка. Иначе второму цвету красить нечего. Не разобралась
- * на три — рисуется одним куском: своего разбора ссылки здесь нет, образец
- * спрашивает ровно то, что видно. Вторая отрисовка того же — прототип
- * (`renderWrittenLink`, правило 41).
+ * Ссылка «как написано» — три куска: скобка, цель, скобка (`З-37`); не разобралась —
+ * одним куском. Вторая отрисовка — прототип (`renderWrittenLink`, правило 41).
  */
 export function drawWrittenLink(host: El, text: string): El {
   const src = String(text || "");
@@ -986,20 +714,15 @@ export function drawWrittenLink(host: El, text: string): El {
   return box;
 }
 
-/** Пути, от которых зависит предпросмотр цветов ссылок. Обе пары. */
+/** Пути предпросмотра цветов ссылок, обе пары. */
 const LINK_PATHS = [
   "visual.tags.linkAsWritten",
   "visual.tags.hyperlink",
 ] as const;
 
 /**
- * Цвета одной пары на узел ссылки.
- *
- * Пустое значение значит «взять у темы», и запасное здесь то самое, каким
- * ссылка красилась до этих пар (У-60). Переменные те же, что у заметки:
- * второй набор имён на тот же вопрос разошёлся бы с первым молча (У-32), а
- * у гиперссылки переменные объявляются **на её узле** — каскад отдаёт
- * ближнему.
+ * Цвета пары на узел ссылки. Пусто — у темы (У-60). Переменные те же, что у заметки
+ * (У-32); у гиперссылки они объявляются на её узле — каскад отдаёт ближнему.
  */
 function linkPreviewVars(node: El, ctx: SettingsCtx, targetPath: string, bracketsPath: string): void {
   const target = String(ctx.get(targetPath) || "").trim();
@@ -1009,14 +732,9 @@ function linkPreviewVars(node: El, ctx: SettingsCtx, targetPath: string, bracket
 }
 
 /**
- * Предпросмотр цветов ссылок — его слово 2026-09-22: «я просил тебя добавить
- * live preview в низ `io-tip-sub-link-view`, чтобы можно было видеть как
- * меняются цвета wikilinks и hyperlinks».
- *
- * Форм три, и разбиты они там же, где их разбивает движок
- * (`scanHyperlinksInLine` в `editor_visuals_config.js`): у `[подпись](адрес)`
- * разметка — это `[` и `](адрес)`, у голого адреса разметки нет вовсе, и
- * второй цвет до него не доходит. Вторая отрисовка того же — прототип
+ * Предпросмотр цветов ссылок (2026-09-22). Формы разбиты как в движке
+ * (`scanHyperlinksInLine`, `editor_visuals_config.js`): у `[подпись](адрес)` разметка —
+ * `[` и `](адрес)`, у голого адреса разметки нет. Вторая отрисовка — прототип
  * (`renderLinkPreview`, правило 41).
  */
 export const linkPreview: CustomRender = (host, ctx) => {
@@ -1036,17 +754,13 @@ export const linkPreview: CustomRender = (host, ctx) => {
     el(mdBox, "span", "io-link__mark", "[");
     el(mdBox, "span", "io-link__target", askText(ctx, previewKey("link-preview", "label"), text ? text.label || "" : ""));
     el(mdBox, "span", "io-link__mark", "](");
-    /*
-     * Адрес — свой кусок и свой цвет (его замечание 2026-09-22). Переменная
-     * объявляется на нём самом: каскад отдаёт ближнему, и второго набора имён
-     * на тот же вопрос заводить не надо (У-32).
-     */
+    /* Адрес — свой кусок, переменная на нём самом (2026-09-22, У-32). */
     const mdAddr = el(mdBox, "span", "io-link__mark", askText(ctx, previewKey("link-preview", "address"), text ? text.address || "" : ""));
     el(mdBox, "span", "io-link__mark", ")");
     linkPreviewVars(mdBox, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.bracketsColor");
     linkPreviewVars(mdAddr, ctx, "visual.tags.hyperlink.targetColor", "visual.tags.hyperlink.addressColor");
 
-    /* Голый адрес — адрес, а не подпись (его слово 2026-09-22, вечер). */
+    /* Голый адрес — адрес, а не подпись (2026-09-22). */
     const bare = el(holder, "div");
     const bareBox = el(bare, "span", "io-link");
     el(bareBox, "span", "io-link__mark", askText(ctx, previewKey("link-preview", "bare"), text ? text.bare || "" : ""));
@@ -1058,11 +772,7 @@ export const linkPreview: CustomRender = (host, ctx) => {
   return () => { unwatch(); shell.close(); };
 };
 
-/**
- * Предпросмотр оформления тегов. Показывает то, что настраивает группа: два
- * Value слева, текст, и справа элемент со ссылкой — они не теги и пузырей не
- * получают, но прозрачность гасит сторону целиком, вместе с ними.
- */
+/** Предпросмотр тегов: два Value слева, текст, справа элемент и ссылка — без пузырей, но под прозрачностью стороны. */
 export const tagPreview: CustomRender = (host, ctx) => {
   const text = PREVIEW_TEXTS["tag-preview"];
   const shell = previewShell(host, ctx, "tag-preview");
@@ -1077,11 +787,7 @@ export const tagPreview: CustomRender = (host, ctx) => {
     el(line, "span", "io-line__prefix", "- ");
 
     const left = el(line, "span", "io-line__side io-line__side--left");
-    /*
-     * Два места слева, а не два id: у человека Fields свои, и `status` с
-     * `priority` — это имена мест из примерного набора (П13). Разрешает их
-     * `resolveSlots`, а не поиск по id.
-     */
+    /* Места `status`/`priority` разрешает `resolveSlots`, а не поиск по id (П13). */
     const slots = resolveSlots(fields, TAG_SLOTS);
     for (const slot of TAG_SLOTS) {
       const f = slots.get(slot);
@@ -1096,8 +802,7 @@ export const tagPreview: CustomRender = (host, ctx) => {
     if (text && text.element) el(right, "span", "io-elem", askText(ctx, previewKey("tag-preview", "element"), text.element));
     if (text && text.link) drawWrittenLink(right, askText(ctx, previewKey("tag-preview", "link"), text.link));
 
-    /* Пример помечается, иначе человек с настроенными Fields решит, что
-       панель показывает его собственные (ПЗ2). */
+    /* Пример помечается, иначе Fields примут за свои (ПЗ2). */
     if (example) rich(el(holder, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
@@ -1109,47 +814,21 @@ export const tagPreview: CustomRender = (host, ctx) => {
 const FLOAT_PATHS = [
   "pkm.lineFormat.separator1",
   "pkm.lineFormat.separator2",
-  /*
-   * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
-   * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
-   * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
-   * список Values, и перечислить это по листьям значит однажды отстать.
-   */
+  /* Ветка `pkm.fields` целиком: `previewFields` читает её (1.4.1.1.3), листья не перечислить. */
   "pkm.fields",
   "visual.tags.byTag",
-  /* Расстояние от текста до кнопки: предпросмотр обязан двигать её вместе со
-     слайдером, иначе он показывает не то, чем управляют (У-24). */
+  /* Отступ кнопки — сразу со слайдером (У-24). */
   "transform.inline2note.floatingButtonGap",
 ] as const;
 
-/**
- * Что написано на самой кнопке: одна стрелка, как в заметке.
- *
- * Было `\u2192 note`, и заказчик написал: «в io-tip-i2n-button-preview button
- * отображается как `-> note`, сделай чтобы было как в заметке (т.е. просто
- * стрелочка)» (2026-09-04). Кнопка теперь и рисуется тем же классом, что в
- * заметке (`io-flybtn`), — второй вид того же элемента разошёлся бы с первым
- * молча (У-32).
- */
+/** На кнопке одна стрелка и класс `io-flybtn`, как в заметке (2026-09-04, У-32). */
 const FLOAT_LABEL = "\u2192";
 
 /**
- * Где появляется плавающая кнопка Transform (10.3). Показывает не настройку,
- * а место: строка, на которой стоит курсор, и кнопка в её конце.
- *
- * **В панели этого блока пока нет, и это намеренно.** Самой кнопки в плагине
- * нет: `flyingButton.enabled` нормализуется в `transform_feature.js` и больше
- * никем не читается, декорации CM6 не существует. Показывать её тумблер и
- * картинку значило бы обещать то, чего нет (Ж2, З8), поэтому и тумблер, и эта
- * запись сняты со схемы списком `AWAITING_ENGINE` в `build/gen_schema.js`.
- * Блок написан и закреплён проверкой заранее: он включается снятием одной
- * строки из того списка, когда кнопка появится в фазе 5.
- *
- * **Кнопка здесь — картинка, а не кнопка.** В прототипе на этом месте стоит
- * `<button>`, который ничего не делает: прототип и не должен ничего делать.
- * В панели нажимаемый контрол, который ничем не отвечает, запрещён (З8),
- * поэтому рисуется `span` с тем же видом. Вид блока прототипу соответствует,
- * поведение — правилам панели.
+ * Где появляется плавающая кнопка Transform (10.3). В панели пока снят списком
+ * `AWAITING_ENGINE` (`build/gen_schema.js`): кнопки в плагине нет,
+ * `flyingButton.enabled` никто не читает (Ж2, З8); включается снятием строки
+ * в фазе 5. Кнопка — `span`, не `<button>`: немой контрол запрещён (З8).
  */
 export const floatingButton: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "i2n-button-preview");
@@ -1162,8 +841,7 @@ export const floatingButton: CustomRender = (host, ctx) => {
     const { fields } = previewFields(ctx);
     structuralLine(row, ctx, fields);
     const button = el(row, "span", "io-flybtn", FLOAT_LABEL);
-    /* Отступ — из слайдера, той же переменной, которой его ставит декорация
-       строки в заметке: одно правило, одно место (У-32). */
+    /* Та же переменная, что ставит декорация в заметке (У-32). */
     cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
     el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
   };
@@ -1175,13 +853,7 @@ export const floatingButton: CustomRender = (host, ctx) => {
 
 /* ---- предпросмотр `Source line` (10.13.10) ------------------------------ */
 
-/**
- * Написания Value, по которым его узнают в строке.
- *
- * Одно и то же значение стоит в строке по-разному: тег — `#todo`, ссылка —
- * `[[Proj]]`, элемент — уже со своей меткой. Карта собирается по всем трём
- * написаниям, чтобы предпросмотр узнал значение независимо от вида Field.
- */
+/** Написания Value в строке: тег `#todo`, ссылка `[[Proj]]`, элемент с меткой. */
 function valueSpellings(
   fields: readonly PreviewField[],
 ): Map<string, { value: PreviewValue; kind: string }> {
@@ -1202,17 +874,9 @@ function valueSpellings(
 }
 
 /**
- * Строка предпросмотра теми же узлами, что и остальные предпросмотры.
- *
- * Раньше строка кладась в узел **текстом**: ни пузырей, ни префикса, ни
- * разделителей — «все элементы в plain text, не красиво, должно быть как в
- * live preview у tag appearance» (замечание заказчика B13, 2026-09-02).
- *
- * Разбор здесь **свой и намеренно грубый**: строку уже посчитал движок, и
- * узнать в готовой строке её части можно только по написанию. Это не второй
- * разбор правил — правила остались у движка, — а раскраска его результата. То,
- * чего предпросмотр не узнал, остаётся текстом: соврать про часть строки хуже,
- * чем показать её как есть (П9, и «?» предпросмотра об этом говорит).
+ * Строка теми же узлами, что остальные предпросмотры (B13, 2026-09-02). Разбор
+ * намеренно грубый — раскраска результата движка по написанию, не второй разбор
+ * правил; неузнанное остаётся текстом (П9).
  */
 function drawSourceLine(
   row: El,
@@ -1224,9 +888,7 @@ function drawSourceLine(
   const sep1 = sep(ctx, SEP1_PATH);
   const sep2 = sep(ctx, SEP2_PATH);
 
-  /* Префикс — то, что стоит до первого значащего символа: буллит, номер,
-     чекбокс. Он рисуется своим узлом, иначе в половинах «до» и «после» не
-     видно, что с началом строки что-то произошло. */
+  /* Префикс (буллит, номер, чекбокс) — своим узлом: видно, что с началом строки. */
   const prefix = /^(\s*(?:[-*+]|\d+\.)\s+(?:\[[^\]]?\]\s+)?)/.exec(line);
   let rest = line;
   if (prefix) {
@@ -1234,18 +896,8 @@ function drawSourceLine(
     rest = line.slice((prefix[1] as string).length);
   }
 
-  /*
-   * Пробелы сохраняются, а не выбрасываются (замечание B13, 2026-09-02).
-   *
-   * Первая версия резала строку `split(/\s+/)` и вставляла куски строчными
-   * узлами подряд — на экране весь текст выглядел склеенным. Остальные
-   * предпросмотры собирает `structuralLine`, где стороны это flex с зазором,
-   * поэтому склеен был только этот.
-   *
-   * Пробел возвращается **текстовым узлом**, а не зазором flex: тогда текст
-   * нарисованной строки совпадает с исходной посимвольно, и это можно
-   * проверить, а не «посмотреть».
-   */
+  /* Пробелы — текстовыми узлами, не зазором flex (B13, 2026-09-02): нарисованный текст
+     совпадает с исходным посимвольно, это проверяемо. */
   for (const piece of rest.split(/(\s+)/)) {
     if (!piece) continue;
     if (/^\s+$/.test(piece)) {
@@ -1258,20 +910,18 @@ function drawSourceLine(
     }
     const hit = known.get(piece);
     if (hit && hit.kind === "tag") {
-      /* Тег — пузырь, тем же кодом, что и в остальных предпросмотрах (П9). */
+      /* Тег — пузырь тем же кодом (П9). */
       bubble(row, hit.value, piece.replace(/^#/, "") ? undefined : piece);
       continue;
     }
     if (hit) {
-      /* Ссылка и элемент пузырём не рисуются: в заметке они остаются текстом,
-         и прозрачность блока им достаётся стилем, а не подменой узла. */
+      /* Ссылка и элемент — текст, как в заметке; прозрачность — стилем. */
       el(row, "span", "io-line__side io-line__side--left", piece);
       continue;
     }
     el(row, "span", "io-line__text", piece);
   }
 }
-
 
 /** Пути, от которых зависит, что останется на строке. */
 const SOURCE_PATHS = [
@@ -1287,25 +937,13 @@ const SOURCE_PATHS = [
 ] as const;
 
 /**
- * Что станет с исходной строкой после `Inline to note` (замечание заказчика
- * 1.4.3.1.2).
- *
- * Считает **движок** — `buildSourcePreviewTree` из `transform_feature.js`, тот
- * же путь, что переносит строку по-настоящему. Свой разбор здесь разошёлся бы
- * с ним на первой правке (У-4), поэтому блок только рисует.
- *
- * До этого под настройками стояла строка «nothing is kept…», и она исчезала,
- * стоило отметить хоть один Field: человек видел подпись пустого случая и не
- * видел остальных.
+ * Что станет с исходной строкой после `Inline to note` (1.4.3.1.2). Считает движок —
+ * `buildSourcePreviewTree` (`transform_feature.js`), блок только рисует (У-4).
  */
 export const sourcePreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "source-preview");
   const body = el(shell.box, "div", "io-srcprev");
-  /*
-   * Подсказка у каждой половины — заказ заказчика 2026-09-08: «добавь tip ко
-   * всем элементам, у которых еще нет». Подпись половины занимает строку
-   * целиком, поэтому «?» стоит в ней самой, а тело — в слоте сразу за ней.
-   */
+  /* Подсказка у каждой половины (2026-09-08): «?» в подписи, тело — в слоте за ней. */
   let halfTips: Array<() => void> = [];
   const dropHalfTips = (): void => {
     for (const close of halfTips) { try { close(); } catch { /* узла уже нет */ } }
@@ -1344,8 +982,7 @@ export const sourcePreview: CustomRender = (host, ctx) => {
       const box = el(body, "div", "io-srcprev__lines");
       for (const line of lines) {
         const row = el(box, "div", "io-srcprev__line");
-        /* Отступ рисуется классом, а не символом табуляции: так он виден и
-           так же измеряется, как в дереве Bars. */
+        /* Отступ — классом, не табуляцией: виден и мерится, как в дереве Bars. */
         if (/^\s/.test(line)) row.classList.add("io-srcprev__line--sub");
         drawSourceLine(row, ctx, line.replace(/^\s+/, ""), known);
       }
@@ -1366,35 +1003,15 @@ const JUMP_FLASH_PATHS = [
   "visual.jumpFlash.color",
   "visual.jumpFlash.radius",
   "visual.jumpFlash.fadeMs",
-  /* Задержка попала сюда 2026-09-17 вместе с тем, что круг стал мигать сам:
-     пока прыжок был один, менять от неё было нечего. */
+  /* Задержка — с тех пор, как круг мигает сам (2026-09-17). */
   "visual.jumpFlash.quietMs",
 ] as const;
 
 /**
- * Подсветка места, куда прыгнул курсор, — как она будет выглядеть (Н5).
- *
- * Его заказ 2026-09-16: «должен быть добавлен live preview с анимацией
- * подсветки при прыжке (по аналогии с caret-preview)».
- *
- * **Гасит круг анимация, а не таймер** — так же, как в самом слое редактора:
- * таймер пришлось бы снимать при выгрузке панели, а анимация уезжает вместе с
- * узлом.
- *
- * **Круг мигает сам, и это его слово 2026-09-17:** «не видно как работает
- * `jump-flash-delay`… сейчас само preview работает по клику на preview либо
- * при изменении настроек — сделай, чтобы оно работало циклично всегда».
- * Прежде задержку между прыжками было видно не на чем: её предмет — второй
- * прыжок следом за первым, а прыжок здесь был один.
- *
- * Круг живёт `fadeMs`, за ним `quietMs` тишины — оба срока из настроек, и
- * оба видны глазом. При нулевой тишине круги идут подряд, ровно как говорит
- * сама строка: «at `0` every jump gets its circle».
- *
- * **Таймер снимается при закрытии предпросмотра и перед каждой новой
- * отрисовкой**, и не заводится заново на узле, которого больше нет на
- * странице: иначе каждая перерисовка вкладки оставляла бы по кругу, тикающему
- * в отцепленном дереве.
+ * Подсветка места прыжка курсора (Н5, 2026-09-16). Гасит круг анимация, не таймер —
+ * уезжает с узлом. Круг мигает сам по кругу (2026-09-17): `fadeMs` жизни, `quietMs`
+ * тишины; при нуле — подряд. Таймер снимается при закрытии и перед перерисовкой и
+ * не заводится на отцепленном узле.
  */
 export const jumpFlashPreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "jump-flash-preview");
@@ -1415,45 +1032,31 @@ export const jumpFlashPreview: CustomRender = (host, ctx) => {
     const color = readText(ctx, "visual.jumpFlash.color", "");
     cssVar(row, "--io-jump-radius", (num(ctx, "visual.jumpFlash.radius") || 18) + "px");
     cssVar(row, "--io-jump-fade", (num(ctx, "visual.jumpFlash.fadeMs") || 450) + "ms");
-    /* Пусто — цвет берётся у темы, и это живёт на шве, а не в значении
-       (У-60): в `HexString` пустота не влезает. */
+    /* Пусто — цвет темы, на шве (У-60): в `HexString` пустота не влезает. */
     cssVar(row, "--io-jump-color", color || "var(--interactive-accent)");
 
     let shown: El | null = null;
     const pulse = (): void => {
-      /*
-       * Узел, снятый со страницы перерисовкой, к ней уже не относится
-       * (У-114): круг ему не нужен, и следующего такта тоже. Свойство
-       * спрашивается у самого узла, а не предполагается: заглушка DOM его не
-       * знает, и «не знаю» читается как «на странице» — там предпросмотр
-       * закрывают вызовом, а не отцеплением.
-       */
+      /* Снятый перерисовкой узел (У-114). `isConnected` спрашивается: заглушка DOM его не
+         знает, и «не знаю» читается как «на странице». */
       if ((row as { isConnected?: boolean }).isConnected === false) { timer = 0; return; }
-      /* Прежний круг снимается по ссылке, а не поиском в дереве: искать его
-         классом значило бы завести второе объявление того, что мы сами
-         только что положили. */
+      /* Прежний круг — по ссылке, не поиском классом (второе объявление). */
       if (shown) shown.remove();
       const spot = el(row, "span", "io-jumpflash");
       shown = spot;
-      /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
-         Место едет переменной: вид живёт в листе стилей (правило каталога Р7). */
+      /* Круг — на конец написанного; место переменной, вид в стилях (Р7). */
       cssVar(spot, "--io-jump-x", "calc(8px + " + line.length + "ch)");
       const fade = num(ctx, "visual.jumpFlash.fadeMs") || 450;
       const quiet = num(ctx, "visual.jumpFlash.quietMs");
       const next = setTimeout(pulse, fade + quiet) as unknown as { unref?: () => void };
-      /*
-       * В браузере у таймера нет `unref`, а в Node он держит процесс живым:
-       * предпросмотр, отрисованный проверкой и не закрытый ею, подвесил бы
-       * прогон навсегда. Спрашиваем у таймера, умеет ли он это, — не решаем
-       * за него.
-       */
+      /* В Node таймер без `unref` держит процесс — незакрытый в проверке предпросмотр
+         подвесил бы прогон. В браузере `unref` нет. */
       if (typeof next.unref === "function") next.unref();
       timer = next as unknown as number;
     };
     pulse();
 
-    /* Абзаца под предпросмотром нет, когда сказать нечего: пустой <p>
-       оставляет отступ, а строки в нём не видно. */
+    /* Пустой <p> оставил бы отступ. */
     if (text && text.note) {
       el(holder, "p", "io-preview__note", askText(ctx, previewKey("jump-flash-preview", "note"), text.note));
     }
@@ -1478,16 +1081,9 @@ const CARET_THEME_WIDTH = 1.2;
 const CARET_THEME_BLINK = 1200;
 
 /**
- * Скорость 1..10 в миллисекунды.
- *
- * Пятёрка — ровно то, чем Obsidian мерцает сейчас, поэтому она же умолчание
- * слайдера: включённый тумблер сам по себе мерцание не меняет, пока человек
- * не подвинул ползунок. Ноль сюда не доходит — он значит «не мигает вовсе»
- * и решается снятием анимации, а не длительностью (нулевая длительность в CSS
- * означает «мгновенно», а не «никогда»).
- *
- * Формула объявлена **здесь одним местом** и оттуда же попадает в блок стилей
- * заметки: два одинаковых пересчёта разошлись бы молча (У-32).
+ * Скорость 1..10 в мс. 5 — нынешнее мерцание Obsidian, оно же умолчание. Ноль сюда
+ * не доходит: «не мигает» снимает анимацию (0 в CSS — «мгновенно»). Формула одна и
+ * для стилей заметки (У-32).
  */
 export function caretBlinkMs(speed: number): number {
   const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
@@ -1495,16 +1091,8 @@ export function caretBlinkMs(speed: number): number {
 }
 
 /**
- * Каретка так, как она будет выглядеть в заметке (10.13.33 Ц8).
- *
- * Заказчик 2026-09-05: «добавь live preview в настройки, чтобы можно было
- * сразу понять как это будет выглядеть в строке». Показывает все три
- * настройки сразу — цвет, толщину и скорость, — и меняется под рукой: цвет и
- * толщина мгновенно, мерцание с началом нового круга анимации.
- *
- * П9 честно и здесь: рисует это панель, а не редактор. Мерцание сделано тем
- * же шагом, каким мерцает CodeMirror (`steps(1)`), поэтому картинка близка,
- * но каретка редактора живёт в его слое и сюда не доезжает.
+ * Каретка как в заметке (10.13.33 Ц8, 2026-09-05): цвет, толщина, скорость. П9: рисует
+ * панель; мерцание тем же `steps(1)`, что у CodeMirror.
  */
 export const caretPreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "caret-preview");
@@ -1520,15 +1108,13 @@ export const caretPreview: CustomRender = (host, ctx) => {
     const shaped = ctx.get("visual.caret.shapeEnabled") === true;
     const width = shaped ? (num(ctx, "visual.caret.width") || 2) : CARET_THEME_WIDTH;
     const speed = num(ctx, "visual.caret.blinkSpeed");
-    /* Цвет берётся только у включённого тумблера цвета: эти две половины
-       группы друг другу не подчинены. */
+    /* Цвет — только при включённом тумблере цвета: половины группы независимы. */
     const color = ctx.get("visual.caret.enabled") === true
       ? readText(ctx, "visual.caret.color", "")
       : "";
 
     cssVar(row, "--io-caret-width", width + "px");
-    /* Сдвиг равен половине толщины — тем же правилом, каким его ставит сам
-       Obsidian: без него каретка съезжает вправо тем сильнее, чем толще. */
+    /* Сдвиг на полтолщины — как у Obsidian, иначе толстая каретка съезжает вправо. */
     cssVar(row, "--io-caret-shift", (-width / 2) + "px");
     cssVar(row, "--io-caret-color", color || "var(--text-normal)");
     cssVar(row, "--io-caret-blink", (shaped ? caretBlinkMs(speed) : CARET_THEME_BLINK) + "ms");

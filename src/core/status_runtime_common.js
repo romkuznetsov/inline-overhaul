@@ -1,10 +1,6 @@
 "use strict";
 
-/*
- * Модуль дат приезжает литеральным `require` (У-89). Раньше он приходил
- * через мост модулей по пути внутри vault, и путь этот вместе с самой
- * зависимостью `loadVaultModule` передавал сюда каждый движок.
- */
+/* Модуль дат — литеральным `require` (У-89). */
 const __sharedUtils = require("./shared_utils.js");
 const dateRuntimeShared = require("./date_runtime_shared.js");
 const optionKeys = require("./pkm_option_keys.js");
@@ -12,15 +8,8 @@ const optionKeys = require("./pkm_option_keys.js");
 function createStatusRuntimeCommon(deps) {
   const d = deps && typeof deps === "object" ? deps : {};
   /*
-   * «Что такое объект» и «как нормализуется ключ Order» — правила с одним
-   * домом (10.13.135, 10.13.146), и фабрика спрашивает дом напрямую.
-   *
-   * Доводов `isObj` и `normalizeOrderKey` здесь больше нет, и это не сужение:
-   * все три звавших передавали переходник к тому же дому, а запасные тела за
-   * `?:` были безымянными копиями правила — той формой, к которой сторож
-   * копий слеп (У-126). Счётчик на всех местах цепочки: тело `isObj` не
-   * исполнялось ни разу, тело нормализатора — один раз, и оба только из
-   * проверки, которая довод не передавала (10.13.168).
+   * `isObj` и нормализация ключа Order — правила с одним домом (10.13.135,
+   * 10.13.146, 10.13.168); копии за `?:` слепы для сторожа копий (У-126).
    */
   const isObj = __sharedUtils.isObj;
   const normalizeOrderKey = __sharedUtils.normalizeOrderKey;
@@ -43,10 +32,8 @@ function createStatusRuntimeCommon(deps) {
     throw new Error("pkm_macro_shared unavailable: remapCursorByLineDiff");
   }
 
-  /* Запасной ход подменял правило **соседним**: не «устойчивый» пересчёт
-     курсора, а пересчёт по различию строк. Отказ здесь громкий, как и у
-     соседа; недостижимость снята пробоем при живом положительном контроле
-     «функция исполняется». */
+  /* Без запасного хода: подмена соседним правилом (пересчёт по различию строк)
+     не тот пересчёт. Отказ громкий. */
   function remapCursorStable(oldLine, newLine, oldCh) {
     const shared = globalThis.__inlinePkmMacroShared;
     if (!shared || typeof shared.remapCursorStable !== "function") {
@@ -93,11 +80,8 @@ function createStatusRuntimeCommon(deps) {
   }
 
   /**
-   * Правила, приехавшие **из настроек** (PRD 10.13.52, П-8; 2026-09-11).
-   *
-   * Своего разбора здесь нет: правило объявлено один раз, рядом с самим ключом
-   * (`pkm_option_keys.rulesFromSettings`), и панель TagWheel спрашивает его тем
-   * же вызовом. Три копии одного условия разошлись бы молча (У-32).
+   * Правила из настроек (10.13.52, П-8). Правило одно —
+   * `pkm_option_keys.rulesFromSettings`, его же зовёт панель TagWheel (У-32).
    */
   function rulesFromSettings(settings, key) {
     return optionKeys.rulesFromSettings(settings, key);
@@ -160,11 +144,8 @@ function createStatusRuntimeCommon(deps) {
   }
 
   /*
-   * Отказ здесь громкий, как у соседей. Прежде стояло `return "off"` — то есть
-   * при отсутствии общего модуля движок отвечал «свободного хода у этого Field
-   * нет», не глядя в настройки человека. Ответ выглядел как решение и решением
-   * не был: у того, кто поставил Field режим `full`, он молча становился `off`
-   * (ревизия 2026-09-11, заход 3).
+   * Отказ громкий: прежнее `return "off"` молча превращало режим `full`
+   * человека в `off` (ревизия 2026-09-11, заход 3).
    */
   function getFieldFreeRoamMode(orderCfg, fieldKey) {
     const shared = globalThis.__inlinePkmRulesHelpers;
@@ -174,12 +155,7 @@ function createStatusRuntimeCommon(deps) {
     throw new Error("pkm_rules_runtime_helpers unavailable: resolveFieldFreeRoamMode");
   }
 
-  /*
-   * И здесь тоже. Прежде за отказом стоял целый объект умолчаний — второе
-   * объявление того, что значит «свободный ход по умолчанию» (У-32). Совпадал
-   * он с настоящим ровно до первой правки правил и настройки человека не читал
-   * вовсе.
-   */
+  /* Отказ громкий: объект умолчаний был бы вторым объявлением правила (У-32). */
   function getFreeRoamBehavior(orderCfg) {
     const shared = globalThis.__inlinePkmRulesHelpers;
     if (shared && typeof shared.resolveFreeRoamBehavior === "function") {
@@ -242,9 +218,7 @@ function createStatusRuntimeCommon(deps) {
     for (const value of values) {
       if (!isObj(value) || typeof value.token !== "string" || !value.token || value.active === false) continue;
       const allowed = Array.isArray(value.allowedParentValues) ? value.allowedParentValues : [];
-      /* Родителя не назвали — отбирать не по чему: идут все значения
-         дочернего поля (его слово 2026-09-19). Прежде пустая строка не
-         совпадала ни с одним списком, и ответ выходил пустым. */
+      /* Родитель не назван — идут все значения дочернего поля (2026-09-19). */
       if (allowed.length && parentToken && !allowed.includes(parentToken)) continue;
       out.push(value);
     }
@@ -268,9 +242,8 @@ function createStatusRuntimeCommon(deps) {
       editor.setCursor({ line: nextLine, ch: nextCh });
     } catch (_) {
       /*
-       * Украшение: строка к этому моменту уже перезаписана, а курсор —
-       * последний штрих. Место могло уехать за конец строки или заметку успели
-       * закрыть; отменять из-за этого сделанную запись нельзя.
+       * Курсор — последний штрих после записи строки: место могло уехать или
+       * заметку закрыли; запись из-за этого не отменяется.
        */
     }
   }
@@ -301,22 +274,9 @@ function createStatusRuntimeCommon(deps) {
   }
 
   /**
-   * «Сейчас» — часами человека, а не часами Гринвича.
-   *
-   * **Договор этого модуля:** значение элемента разбирается `Date.UTC(...)`, а
-   * пишется `getUTC*`, то есть `Date` здесь несёт не момент времени, а
-   * настенные часы, разложенные по полям UTC. Ветка «единица — день и крупнее»
-   * так и устроена: `getTodayIso()` берёт **местную** дату, а
-   * `parseIsoDateSafe` кладёт её в поля UTC.
-   *
-   * **Ветка времени этот договор нарушала:** она отдавала `new Date()` — момент,
-   * — и `getUTC*` печатали его гринвичскими. На часовом поясе `+03:00` шаг по
-   * элементу писал время на три часа назад, а панель TagWheel в то же
-   * мгновение писала местное: у неё свой разбор форматов, и он весь на местных
-   * геттерах. Заказчик увидел это с другой стороны: «при `command due previous`
-   * время не исчезло, когда оно стало ниже текущего» — значение, записанное
-   * панелью, стояло на три часа выше той точки, от которой команда считает
-   * ноль, и до неё шаг не доходил (замечание `S15` 2026-09-12, У-150).
+   * «Сейчас» — часами человека. Договор модуля: `Date` несёт настенные часы в
+   * полях UTC (разбор `Date.UTC(...)`, запись `getUTC*`); `new Date()` здесь
+   * сдвинул бы время на пояс, а панель TagWheel пишет местное (S15, У-150).
    */
   function getNowAsWallClock() {
     const d = new Date();
@@ -471,8 +431,7 @@ function createStatusRuntimeCommon(deps) {
       const tk = tokens[i];
       if (!Number.isFinite(v)) return null;
       if (tk === "YYYY") y = v;
-      /* Двузначный год — двадцать первый век: на строке человека другого не
-         бывает, а сверка ниже всё равно потребует, чтобы дата сошлась. */
+      /* Двузначный год — XXI век; сверка ниже всё равно требует, чтобы дата сошлась. */
       else if (tk === "YY") y = 2000 + v;
       else if (tk === "MM") mo = v;
       else if (tk === "DD") d = v;
@@ -527,14 +486,9 @@ function createStatusRuntimeCommon(deps) {
   }
 
   /**
-   * Пробелы вокруг разделителя — по разделителю **человека**.
-   *
-   * Обе строки про разделитель стояли здесь с литеральным `||` (У-186): у
-   * того, кто выбрал свой, пробелы вокруг разделителя не приводились в
-   * порядок вовсе, а у выбравшего `||` приводились. Правил два, и они разные:
-   * первое сводит любой пробельный знак перед разделителем к одному пробелу
-   * (таб и перевод строки сюда приезжают вместе с вставленным значением),
-   * второе — то же после него.
+   * Пробелы вокруг разделителя — по разделителю человека, не литеральному `||`
+   * (У-186). Любой пробельный знак (таб, перевод строки из вставки) до и после
+   * сводится к одному пробелу.
    */
   function cleanupSpacing(text, rules) {
     const sepAlt = __sharedUtils.separatorAltSrc(rules, "status_runtime_common");
@@ -580,19 +534,12 @@ function createStatusRuntimeCommon(deps) {
     throw new Error("pkm_macro_shared unavailable: segmentHasToken");
   }
 
-  /* «Приставка плюс значение» — общий дом (10.13.152). Здесь тело не
-     удваивало уже стоящую приставку только потому, что звавшие возвращались
-     раньше; теперь не удваивает само правило. */
+  /* «Приставка плюс значение» — общий дом (10.13.152); уже стоящую приставку не удваивает. */
   function composeToken(prefix, rawToken) {
     return __sharedUtils.composeToken(prefix, rawToken);
   }
 
-  /*
-   * Двух функций-помощников в подписи больше нет: они кормили свою копию
-   * правила, а копия снята 2026-09-11 (В-103). Единица времени по формату
-   * объявлена один раз — в `shared_utils.js`, и нормализацию маски делает там
-   * же она сама.
-   */
+  /* Единица времени по формату — в `shared_utils.js` (В-103). */
   function detectDateUnit(format, sharedUtils) {
     const su = sharedUtils && typeof sharedUtils === "object" ? sharedUtils : null;
     if (su && typeof su.detectDateUnit === "function") return su.detectDateUnit(format);

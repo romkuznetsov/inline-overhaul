@@ -1,27 +1,10 @@
 /**
- * Выбиралка знака: эмодзи, символы Unicode, текстовые рожицы (`В-182`).
- *
- * Его пункты 9 и 10 от 2026-09-22: в окне новой команды Binder у `Inserts` —
- * «выпадающий список с вкладками… кликабельные примеры для упрощения выбора
- * (он по прежнему может вписать что угодно)», и то же у знака Field типа
- * `element`, только с одними эмодзи. Его ответ на `В-182` — «одна на оба
- * места», поэтому модуль один, а зовут его два блока.
- *
- * Вписать своё можно всегда: выбиралка только кладёт знак в поле, поле
- * остаётся полем.
- *
- * **Знаков — столько же, сколько в панели эмодзи Windows 11, и под рубриками**
- * (его слово 2026-09-23, тест 1 заметки). Эмодзи и символы лежат в
- * `pick_data.ts`, его пишет генератор `tools/build/gen_pick_data.js` из данных
- * Unicode; рожицы — здесь, их пишет человек. Рубрика — строка над знаками
- * внутри той же прокрутки, а не вкладка: «должна по прежнему остаться одна
- * скроллящаяся форма».
- *
- * У каждого знака есть английское имя. Оно же — подпись кнопки, слово для
- * поиска и имя команды, которое окно Binder предлагает само (его пункт 9.4:
- * «при `→` должно быть `Arrow right`»). Одно имя на три дела нарочно: имя,
- * которое человек видит при наведении, и имя, которое окно подставит, не
- * могут разойтись.
+ * Выбиралка знака: эмодзи, символы Unicode, рожицы (`В-182`, 2026-09-22) —
+ * одна на Binder и Field `element`; только кладёт знак в поле, поле остаётся
+ * полем. Эмодзи и символы — `pick_data.ts` (генератор
+ * `tools/build/gen_pick_data.js`), рубрики строками в одной прокрутке
+ * (2026-09-23). Английское имя знака — подпись, слово поиска и имя команды
+ * Binder (п. 9.4), одно на три дела.
  */
 
 import { el, btn, type El, type ElInput } from "./dom.ts";
@@ -66,11 +49,7 @@ export function pickName(text: string): string {
   return "";
 }
 
-/**
- * Что показать по запросу: знак или слово имени; пустой запрос — вся вкладка.
- * Рубрики остаются и в найденном — пустые уходят, — чтобы человек видел,
- * откуда знак.
- */
+/** Найденное по знаку или слову имени, с непустыми рубриками; пустой запрос — вся вкладка. */
 export function pickFilter(kinds: readonly PickKind[], tab: PickKind, query: string): readonly PickGroup[] {
   const q = String(query || "").trim().toLowerCase();
   if (!q) return PICK_SETS[tab];
@@ -90,11 +69,7 @@ export interface PickerOpts {
   /** Подписи: вкладки `PICK_EMOJI`/`PICK_SYMBOLS`/`PICK_FACES`, поиск `PICK_SEARCH`, пусто `PICK_EMPTY`. */
   say: (name: string) => string;
   onPick: (char: string, name: string) => void;
-  /**
-   * Взять `Escape` себе, пока выбиралка раскрыта: зовётся на раскрытии с тем,
-   * что делать по клавише, и возвращает, как отдать её обратно. Нет —
-   * `Escape` уходит окну, как до выбиралки (заглушка гейта, проверки).
-   */
+  /** Взять `Escape`, пока раскрыта; возвращает, как отдать обратно. Нет — клавиша окну. */
   holdKeys?: (onEscape: () => void) => () => void;
 }
 
@@ -104,14 +79,9 @@ type ScopeCtor = new (parent?: unknown) => ScopeLike;
 interface KeymapLike { pushScope(scope: unknown): void; popScope(scope: unknown): void }
 
 /**
- * Своя область клавиш поверх окна: `Escape` в ней сворачивает выбиралку и
- * дальше не идёт — обработчик, вернувший `false`, keymap Obsidian гасит
- * (`preventDefault` и `stopPropagation` в `onKeyEvent`, `app.js` 1.13.7).
- * Остальные клавиши уходят `parent`: у окна Binder это его собственная
- * область, у окна настроек — область приложения, где живут хоткеи.
- *
- * Нет класса или `keymap` — ответ «нет», и выбиралка остаётся без своей
- * клавиши (проба платформы: ответ «нет» — это ответ).
+ * Своя область клавиш: `Escape` сворачивает выбиралку и гаснет — keymap гасит
+ * обработчик, вернувший `false` (`onKeyEvent`, `app.js` 1.13.7). Остальное —
+ * `parent`. Нет `Scope`/`keymap` — проба, без своей клавиши.
  */
 export function escapeScope(Scope: unknown, app: unknown, parent?: unknown): PickerOpts["holdKeys"] {
   const keymap = (app as { keymap?: KeymapLike } | null | undefined)?.keymap;
@@ -124,10 +94,7 @@ export function escapeScope(Scope: unknown, app: unknown, parent?: unknown): Pic
   };
 }
 
-/**
- * Вкладки выбиралки знака — одни на Binder, Value списка и окно `Add a Field`.
- * Порядок — его слово 2026-09-30: `Emoji`, `Symbol`, `Kaomoji`, открывается первая.
- */
+/** Вкладки для всех мест; порядок задан 2026-09-30, открывается первая. */
 export const PICK_ALL: readonly PickKind[] = ["emoji", "symbols", "faces"];
 
 const TAB_TEXT: Readonly<Record<PickKind, string>> = {
@@ -137,37 +104,23 @@ const TAB_TEXT: Readonly<Record<PickKind, string>> = {
 };
 
 /**
- * Повесить выбиралку на поле ввода. Раскрывается под полем, когда в него
- * нажали или перешли клавишей (его пункт 10: «при нажатии на панель ввода»),
- * и сворачивается, когда знак выбран или фокус ушёл за пределы поля и
- * выбиралки.
- *
- * **`Escape` сворачивает одну выбиралку** (`В-196`, его ответ 2026-09-23), а
- * второй — окно. Клавиши Obsidian слушает на окне с перехватом
- * (`window.addEventListener("keydown", …, !0)` в `app.js` 1.13.7, класс
- * keymap) и отдаёт их **верхней** области — окну Binder или окну настроек —
- * раньше, чем событие дойдёт до поля; остановить его в поле нельзя. Поэтому,
- * пока выбиралка раскрыта, поверх ставится своя область (`holdKeys`), а
- * блоки платформы не знают: область собирает тот, кто знает, — помощником
- * `escapeScope` ниже.
- *
- * `host` — строка настройки: панель встаёт в неё последним ребёнком и
- * переносится на свою строчку, как подсказка (`flex-wrap` у `.io-item`).
- * Своего позиционирования у неё нет нарочно — выпадающий слой поверх окна
- * обрезается краем модального окна и панели настроек.
+ * Выбиралка под полем: раскрывается по нажатию или фокусу (п. 10),
+ * сворачивается выбором или уходом фокуса. `Escape` сворачивает её одну
+ * (`В-196`): keymap слушает `keydown` на окне с перехватом (`app.js` 1.13.7)
+ * раньше поля, поэтому поверх ставится своя область (`holdKeys`, `escapeScope`).
+ * `host` — строка настройки, панель встаёт последним ребёнком (`flex-wrap`);
+ * без позиционирования — слой поверх обрезался бы краем окна.
  */
 export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: () => void } {
   const panel = el(host, "div", "io-pick");
   panel.hidden = true;
-  /* Нажатие в промежуток между кнопками уводит фокус на саму панель, а не в
-     пустоту: иначе выбиралка закрывалась бы от промаха мимо знака. */
+  /* Промах между кнопками уводит фокус на панель, а не закрывает её. */
   panel.tabIndex = -1;
 
   let tab: PickKind = o.kinds[0] || "emoji";
   let query = "";
 
-  /* Кнопки вкладок заводятся один раз и не пересобираются: пересобранная
-     кнопка уносит фокус с собой, и уход фокуса наружу выбиралка бы не узнала. */
+  /* Вкладки не пересобираются: пересобранная кнопка уносит фокус. */
   const tabs = o.kinds.length > 1 ? el(panel, "div", "io-pick__tabs") : null;
   const tabButtons: Array<[PickKind, El]> = [];
   const search = panel.createEl("input", {
@@ -202,8 +155,7 @@ export function attachPicker(input: ElInput, host: El, o: PickerOpts): { close: 
     for (const g of groups) {
       if (g.title) el(grid, "div", "io-pick__head", g.title);
       for (const [char, name] of g.items) {
-        /* Широкая клетка — у рожицы, а не у длинной строки: эмодзи семьи или
-           профессии длиннее трёх кодовых единиц и остаётся одним знаком. */
+        /* Широкая — по списку рожиц, не по длине: эмодзи семьи длинный, но один знак. */
         const cell = btn(grid, "io-pick__item" + (WIDE.has(char) ? " io-pick__item--wide" : ""), {
           text: char,
           label: name,
@@ -232,11 +184,7 @@ type EventHost = {
   removeEventListener?: (type: string, f: () => void, capture: boolean) => void;
 };
 
-/**
- * Поведение раскрывающейся панели под полем — одно на выбиралку знака и
- * выбиралку Prefix: раскрыть по нажатию или фокусу, свернуть, когда фокус ушёл
- * за пределы поля и панели, и держать `Escape` у себя, пока раскрыта.
- */
+/** Раскрывающаяся панель под полем — одна на выбиралку знака и Prefix. */
 export function attachPopup(input: ElInput, panel: El, o: {
   draw: () => void;
   holdKeys?: (onEscape: () => void) => () => void;
@@ -253,8 +201,7 @@ export function attachPopup(input: ElInput, panel: El, o: {
       doc.addEventListener("mouseup", onRelease, true);
     }
   };
-  /* Сворачивание отдаёт `Escape` окну всегда, каким бы путём оно ни пришло:
-     забытая область глотала бы клавишу и после того, как окна не стало. */
+  /* Любое сворачивание отдаёт `Escape`: забытая область глотала бы клавишу. */
   const close = (): void => {
     panel.hidden = true;
     if (doc && typeof doc.removeEventListener === "function") {
@@ -271,19 +218,13 @@ export function attachPopup(input: ElInput, panel: El, o: {
   input.addEventListener("focus", open as never);
   input.addEventListener("click", open as never);
 
-  /* Фокус ушёл — закрыть, если только он не ушёл внутрь панели или обратно
-     в поле. `relatedTarget` — куда уходит фокус; спрашивается у браузера. */
+  /* `relatedTarget` — куда уходит фокус; в панель или поле — не закрывать. */
   const inside = (to: unknown): boolean => {
     const probe = panel as unknown as { contains?: (n: unknown) => boolean };
     return Boolean(to) && (to === input || (typeof probe.contains === "function" && probe.contains(to)));
   };
-  /*
-   * Фокус ушёл нажатием мыши — свернуть после щелчка, а не сразу: свёрнутая
-   * панель сжимает окно, и отпускание приходилось мимо кнопки, на которую
-   * нажали (BUGHUNT 2026-09-30, B19: `Cancel` с первого щелчка только
-   * сворачивал выбиралку; стенд `binder-add`). Нажатие слушается, пока
-   * панель раскрыта: `:active` в `focusout` ещё ложен.
-   */
+  /* Ушёл нажатием мыши — свернуть после щелчка: сжатое окно уводило отпускание
+     мимо кнопки (B19, стенд `binder-add`). `:active` в `focusout` ещё ложен. */
   const doc = (input as unknown as { ownerDocument?: EventHost }).ownerDocument || null;
   let pressed = false;
   const onPress = (): void => { pressed = true; };

@@ -1,17 +1,9 @@
 "use strict";
 
 /*
- * Видимый текст сообщения по ключу каталога (PRD 10.13.50).
- *
- * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
- * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
- *
- * **Литеральный `require` без запасного пути** — правило модулей
- * (У-89, У-90, A33). До 2026-09-09 здесь стояла заглушка на месте модуля, и
- * она **повторяла правило подстановки `{0}`** — то есты была третьей копией
- * того самого, от чего предупреждает комментарий выше. Модуль лежит в
- * бандле; не приехал — плагин обязан упасть громко, а не работать
- * наполовину и молчать.
+ * Видимый текст по ключу каталога (PRD 10.13.50) — через общий помощник
+ * `globalThis.__inlineSay`, своей копии нельзя (Б-11). Литеральный `require`
+ * без запасного пути (У-89, У-90, A33): не приехал — падаем громко.
  */
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
@@ -19,22 +11,14 @@ const __say = __sayModule.say;
 const __noticeKey = __sayModule.noticeKey;
 
 /*
- * И два остальных модуля — так же, литеральным `require`.
- *
- * У снятых заглушек была цена дороже молчания, и в обоих случаях они
- * были **вторым объявлением правила** (У-32):
- *
- *   * список `KEYS` был переписан рукой. Переименуй ключ в оригинале — и
- *     движок читал бы через заглушку чужой параметр;
- *   * `inferOrderFieldType: () => "tag"` отвечала «всегда тег», то есть молча
- *     перепутала бы тип каждого Field типа link и element.
+ * Остальные модули — так же; заглушки на их месте были вторым объявлением
+ * правила (У-32): рукописный `KEYS` и `inferOrderFieldType: () => "tag"`.
  */
 const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 
 const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 
-/* Правила для движков собираются из настроек — тем же модулем, из которого
-   собирается и служебная заметка (PRD 10.13.52, П-8, шаг второй). */
+/* Правила для движков — из настроек, тем же модулем, что служебная заметка (PRD 10.13.52, П-8). */
 const __rulesShape = require("../core/pkm_rules_shape.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 
@@ -44,13 +28,10 @@ function getBehaviorValue(cfg, key, dflt) {
 }
 
 /*
- * Разделители строки для перехода по заголовкам.
- *
- * Режим `End of your text` ставит курсор перед вторым Separator, а Separator —
- * настройка вкладки `Tags & PKM`, не `Navigation`. Ветка `jumpToHeader` их не
- * содержит, поэтому они передаются отдельным аргументом. Читаются из конфига,
- * а не из заметки правил: заметка сама пишется из конфига, и лишний разбор
- * файла на каждое нажатие клавиши не нужен.
+ * Разделители строки для перехода по заголовкам: `End of your text` ставит
+ * курсор перед вторым Separator, а он — настройка `Tags & PKM`, не ветки
+ * `jumpToHeader`. Из конфига, а не из заметки правил: без разбора файла на
+ * каждое нажатие.
  */
 function getLineFormat(cfg) {
   if (cfg && cfg.pkm && cfg.pkm.lineFormat && typeof cfg.pkm.lineFormat === "object") return cfg.pkm.lineFormat;
@@ -58,23 +39,15 @@ function getLineFormat(cfg) {
 }
 
 /*
- * Форма строки для прыжков: разделители **и метки элементов**.
- *
- * Метки нужны затем же, зачем шагу внутри строки: по ним общее правило
- * отличает хвост значений от текста человека. Без них прыжок «в конец вашего
- * текста» уезжал за дату (замечание `S4` 2026-09-12). Собирает их та же
- * функция, что и для шага, — второго объявления тут нет.
+ * Форма строки для прыжков: разделители и метки элементов — без меток прыжок
+ * «в конец текста» уезжал за дату (`S4`, 2026-09-12). Собирает та же функция, что для шага.
  */
 function getJumpLineShape(cfg, rt) {
   const lf = getLineFormat(cfg);
   const base = lf && typeof lf === "object" ? { ...lf } : {};
   /*
-   * **Без меток прыжок молча становится другим прыжком** (10.13.167). Тихий
-   * пропуск этого куска возвращал форму строки без меток элементов — то есть
-   * ровно то поведение, которым был замечен `S4`: «в конец вашего текста»
-   * уезжало за дату. Отличить это от честной работы человек не мог никак.
-   * Движок сюда доезжает — обе команды прыжка спрашивают его тем же вопросом
-   * и говорят человеку `Notice`, если не доехал.
+   * Без меток прыжок молча становится другим (10.13.167, `S4`): не пропускать.
+   * Обе команды прыжка спрашивают движок тем же вопросом и говорят `Notice`.
    */
   if (!rt || typeof rt.buildNavigateRules !== "function") {
     throw new Error("navigation_runtime unavailable: buildNavigateRules");
@@ -85,18 +58,14 @@ function getJumpLineShape(cfg, rt) {
 }
 
 /**
- * Имена макросов рантайма — контракт (`pkm_option_keys.js`), а ключ настройки
- * в конфиге версии 2 у формата дочернего тега другой: `childTagFormat` вместо
- * `subtagFormat` (PRD 8.1). Переводится здесь, одним местом.
+ * Имена макросов — контракт (`pkm_option_keys.js`), а ключ в конфиге v2 другой:
+ * `childTagFormat` вместо `subtagFormat` (PRD 8.1). Переводится здесь.
  */
 function getChildTagFormat(cfg) {
   return getBehaviorValue(cfg, "childTagFormat", "separate");
 }
 
-/**
- * Идентификаторы и имена команд живут одним модулем (PRD 7.2). Своей схемы
- * здесь больше нет: из трёх копий уже вырос дефект Б-11.
- */
+/** Идентификаторы и имена команд — один модуль (PRD 7.2, Б-11). */
 const __commandIds = require("./command_ids.js");
 
 function normalizeLabelPart(value, dflt) {
@@ -105,14 +74,9 @@ function normalizeLabelPart(value, dflt) {
 }
 
 /**
- * Шагу внутри строки нужна строка из соседней группы — `Cursor position after
- * jumping`.
- *
- * Так решил заказчик 2026-09-12: одна строка панели говорит, в начало или в
- * конец его текста садится курсор, и действует она на оба хода — на прыжок по
- * заголовкам и на шаг, входящий в текст из зоны значений. Значение здесь только
- * **передаётся**; что оно значит, решает `textEntryAnchor` в самом движке —
- * иначе ответ был бы объявлен дважды (У-32).
+ * Шагу внутри строки нужна `Cursor position after jumping` (2026-09-12): одна
+ * строка на прыжок и на шаг в текст. Здесь значение только передаётся; смысл —
+ * `textEntryAnchor` в движке (У-32).
  */
 function withTextEntry(nav) {
   const inline = nav && typeof nav.navigateInline === "object" ? nav.navigateInline : {};
@@ -122,15 +86,9 @@ function withTextEntry(nav) {
 
 function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   /*
-   * Команды `Open settings` здесь больше нет: снята 2026-09-06 вместе с
-   * вызовом `plugin.app.setting.open()` (T8, фаза 6 пункт 5). Настройки
-   * плагина человек открывает штатным путём Obsidian, а `app.setting` — не
-   * объявленное в `obsidian.d.ts` приватное API и типовая причина замечания на
-   * community review. **Обратно её не возвращать** (7.2, решение 2026-08-24).
-   *
-   * Единственное разрешённое место `app.setting` в плагине — колонка хоткея в
-   * справочнике команд (`custom/hotkeys.ts`, К-2): там оно за feature-detect и
-   * `try/catch`, и без него кнопка просто неактивна.
+   * Команды `Open settings` нет: `app.setting` — приватное API, повод замечания
+   * community review (T8; 7.2, решение 2026-08-24). Не возвращать. Единственное
+   * место `app.setting` — колонка хоткея (`custom/hotkeys.ts`, К-2).
    */
   const defs = [
     {
@@ -138,7 +96,7 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
       name: __commandIds.commandName("undo-last-settings-change"),
       run: () => {
         const ok = plugin.store.undo("command:undo");
-        /* Удача тоже говорит вслух (BUGHUNT S20): молчание читалось как «не сработало». */
+        /* Удача тоже говорит вслух (BUGHUNT S20). */
         if (!ok) plugin.notice(__say(__noticeKey("plugin", "nothing-to-undo"), "Nothing to undo"));
         else plugin.notice(__say(__noticeKey("plugin", "undone"), "Last settings change undone"));
       },
@@ -164,12 +122,7 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   return defs;
 }
 
-/*
- * Путь служебного файла правил сюда больше не приезжает (PRD 10.13.52, П-8,
- * шаг первый; 2026-09-11). Курсор внутри строки берёт правила из настроек —
- * `rt.buildNavigateRules(fullCfg)`, — и второй аргумент этой сборки стал не
- * нужен: путь остался у команд PKM, которым файл ещё нужен.
- */
+/* Пути файла правил нет: курсор внутри строки берёт правила из настроек — `rt.buildNavigateRules(fullCfg)` (PRD 10.13.52, П-8). */
 function buildNavigationCommandDefs(plugin) {
   return [
     {
@@ -209,8 +162,7 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "jump-back",
       name: __commandIds.commandName("jump-back"),
-      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
-         а не угадывает по идентификатору. */
+      /* Прыжок: подсветка Н5 спрашивает об этом здесь, а не по идентификатору. */
       jump: "jump",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
@@ -223,8 +175,7 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "jump-next",
       name: __commandIds.commandName("jump-next"),
-      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
-         а не угадывает по идентификатору. */
+      /* Прыжок: подсветка Н5 спрашивает об этом здесь, а не по идентификатору. */
       jump: "jump",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
@@ -237,8 +188,7 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "move-cursor-left-in-line",
       name: __commandIds.commandName("move-cursor-left-in-line"),
-      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
-         а не угадывает по идентификатору. */
+      /* Прыжок: подсветка Н5 спрашивает об этом здесь, а не по идентификатору. */
       jump: "inline",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
@@ -251,8 +201,7 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "move-cursor-right-in-line",
       name: __commandIds.commandName("move-cursor-right-in-line"),
-      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
-         а не угадывает по идентификатору. */
+      /* Прыжок: подсветка Н5 спрашивает об этом здесь, а не по идентификатору. */
       jump: "inline",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
@@ -271,8 +220,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   const order = typeof normalizePkmOrder === "function"
     ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null)
     : { left: [], right: [], strictNames: {}, types: {} };
-  /* Ключи и строгие имена — у `command_ids`: тот же список нужен разводке
-     идентификаторов Binder (BUGHUNT K1). */
+  /* Ключи и строгие имена — у `command_ids`: тот же список нужен Binder (BUGHUNT K1). */
   const seeds = __commandIds.pkmCommandSeeds(order);
 
   const strictNameForKey = (key) => {
@@ -282,10 +230,8 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   const typeForKey = (key) => {
     const raw = String(order && order.types ? order.types[key] || "" : "").trim().toLowerCase();
     if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
-    /* Тот же вопрос, что у `pkm_order_config.js`, и отвечать на него сама
-       регистрация команд не должна: запасное «всегда тег» молча перепутало бы
-       тип каждого Field типа link (У-159 — кто ещё отвечает на тот же
-       вопрос). */
+    /* Тот же вопрос, что у `pkm_order_config.js`; запасное «всегда тег» перепутало
+       бы тип каждого Field типа link (У-159). */
     if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferOrderFieldType !== "function") {
       throw new Error("pkm_domain_registry unavailable: inferOrderFieldType");
     }
@@ -306,9 +252,8 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   const buildActionSpec = (key, kind, dir) => {
     const direction = dir === "decrease" ? "decrease" : "increase";
     /*
-     * Field custom block шагает **по месту каретки** (PRD 10.13.260, правка
-     * 2026-09-24): это работа панели блока, а не движков Left/Right — те
-     * Field блока не видят вовсе.
+     * Field custom block шагает по месту каретки (PRD 10.13.260): это работа
+     * панели блока, движки Left/Right Field блока не видят.
      */
     if (blockOfKey(key)) {
       return {
@@ -338,10 +283,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
 
   const makeBase = (cfgInner) => ({
     /*
-     * Правила едут к движку **из настроек**, а не через файл на диске
-     * (PRD 10.13.52, П-8). Пути рядом больше нет: файла не существует, и
-     * возить его адрес значило бы оставлять движку ход, которого нет
-     * (шаг четвёртый).
+     * Правила — из настроек, а не через файл (PRD 10.13.52, П-8): файла нет.
      */
     [O.RULES_DATA]: __rulesShape.buildRulesForEngines(cfgInner),
     [O.CYCLE_END_BEHAVIOR]: getBehaviorValue(cfgInner, "cycleEndBehavior", "keep-bullet"),
@@ -350,10 +292,9 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   });
 
   /*
-   * Настройки панели custom block: её правила и её порядок — только Field
-   * блока, записанные левым Block (`scopeToBlock`); все блоки ради `Tab`;
-   * правила Left/Right ради `Values in the other Block`. Блок спрашивается у
-   * нынешнего конфига — у того, с которым команду позвали.
+   * Настройки панели custom block: правила и порядок — только Field блока,
+   * записанные левым Block (`scopeToBlock`); все блоки — ради `Tab`; правила
+   * Left/Right — ради `Values in the other Block`. Блок — из конфига вызова.
    */
   const customBase = (cfgInner, blockOf) => {
     const orderNow = typeof normalizePkmOrder === "function"
@@ -378,38 +319,23 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
 
   const defs = [];
   /*
-   * Идентификаторы команд полей разводятся между собой: `date_due` и
-   * `date-due` дают один kebab, и без разводки вторая команда затёрла бы
-   * первую. Набор занятых начинается с идентификаторов ядра — своя команда
-   * поля не должна затенять навигацию.
+   * Идентификаторы команд полей разводятся: `date_due` и `date-due` дают один
+   * kebab. Занятые начинаются с ядра — команда поля не затеняет навигацию.
    */
   const usedIds = __commandIds.reservedCommandIds(featureOrder);
   const pushDef = (strict, dir, orderKey, v2Command, makeExtra) => {
     const id = __commandIds.pkmFieldCommandId(strict, dir, usedIds);
     /*
-     * В имени команды — **строгое имя Field** (`Name`), а не короткое имя для
-     * TagWheel (`Name in TagWheel`).
-     *
-     * Так было не всегда: до 2026-09-04 имя собиралось из `labels`, то есть из
-     * короткого имени, и заказчик написал ровно это — «название хедера fields
-     * и название команд изменения родительского тега используются как в
-     * io-field-short, но это неправильно: они должны быть как name-strict;
-     * io-field-short должен влиять только на отображение field в TagWheel».
-     * Команды дочернего Field при этом выглядели верно, и это не совпадение:
-     * своего короткого имени у дочки нет, и `labels` для её ключа не
-     * заполнялся — она и падала на строгое имя.
-     *
-     * Идентификатор команды строится из того же строгого имени и не меняется,
-     * поэтому назначенный хоткей переименование по-прежнему переживает.
+     * В имени команды — строгое имя Field (`Name`), а не `Name in TagWheel`
+     * (2026-09-04). Идентификатор — из того же строгого имени и не меняется:
+     * хоткей переживает переименование.
      */
     const shown = normalizeLabelPart(strict, "field");
     const strictLabel = shown;
     /*
-     * Подпись и тип Field, под которым команду показывает справочник
-     * (замечание заказчика 2026-08-31). Берётся РОДИТЕЛЬСКИЙ ключ: команды
-     * дочернего Field стоят под тем же подзаголовком, что и родительские,
-     * и тип у него тот же. Подпись — то же строгое имя, что и в самой
-     * команде: иначе заголовок и строки под ним звали бы Field по-разному.
+     * Подпись и тип Field для справочника (2026-08-31) — по родительскому
+     * ключу: команды дочернего стоят под тем же подзаголовком. Подпись — то же
+     * строгое имя, что в команде.
      */
     const parentKey = String(orderKey || "").replace(/_sub$/, "");
     const groupLabel = normalizeLabelPart(strictNameForKey(parentKey), "")
@@ -417,8 +343,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     const dirLabel = __commandIds.directionLabel(dir);
     defs.push({
       id,
-      /* Поле, из которого команда выросла: по нему её находит поиск хоткея
-         (`detectDateFieldHotkeys`), а не по пересобранной строке. */
+      /* По нему команду находит поиск хоткея (`detectDateFieldHotkeys`). */
       orderKey: String(orderKey || ""),
       strictName: String(strict || ""),
       /* Для подзаголовка справочника: подпись Field и его тип. */
@@ -489,9 +414,8 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     }),
   });
   /*
-   * Команда custom block — по одной на блок (PRD 10.13.260): `tagWheel <имя
-   * блока>`. Идентификатор от `id`, имя от имени: переименование меняет имя,
-   * а хоткей держится за идентификатор.
+   * Команда custom block — по одной на блок (PRD 10.13.260): `tagWheel <имя>`.
+   * Идентификатор от `id`, имя от имени — хоткей переживает переименование.
    */
   for (const block of order.custom || []) {
     const blockId = String(block && block.id || "");
@@ -513,15 +437,9 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
 }
 
 /**
- * **Строки Binder, готовые стать командами.** Это не нормализация: она
- * живёт в `config_normalize.js` под тем же именем и делает **другое** —
- * выдумывает недостающие идентификаторы и заводит системную строку.
- * Здесь строки только отбираются: без `rowId` или `commandId` команду
- * заводить не из чего.
- *
- * Разница измерена 2026-09-15 на одном наборе строк: из четырёх на входе
- * нормализация отдаёт четыре (идентификаторы выдуманы), отбор — две.
- * Одно имя на два вопроса читается копией и ею не является (10.13.137).
+ * Строки Binder, готовые стать командами: только отбор (без `rowId` или
+ * `commandId` — нечего заводить). Не нормализация из `config_normalize.js` —
+ * та выдумывает идентификаторы и заводит системную строку (10.13.137).
  */
 function binderRowsReadyForCommands(rawRows) {
   const src = Array.isArray(rawRows) ? rawRows : [];
@@ -593,10 +511,9 @@ function runInsertBracketsCommand(plugin) {
       return;
     }
     /*
-     * Каретка внутри слова берёт слово в скобки, как выделение (его замечание
-     * к тесту 3 цикла 113: `Ma¦n1` давало `Ma[]n1`). Слово — отрезок без
-     * пробелов, как у custom block (`customWordSpan`), и без скобок: скобку
-     * у каретки листают ветки ниже. У края слова — по-прежнему пустые скобки.
+     * Каретка внутри слова берёт слово в скобки (тест 3 цикла 113: `Ma¦n1`).
+     * Слово — без пробелов, как `customWordSpan`, и без скобок: скобку у
+     * каретки листают ветки ниже. У края слова — пустые скобки.
      */
     const text = ed.getLine(from.line);
     const edge = /[\s[\]]/;
@@ -679,12 +596,8 @@ function buildBinderCommandDefs(cfgNow) {
 }
 
 /**
- * Есть ли у Field хоть одно Value, которое команда может написать.
- *
- * Команда Field без Value молча ничего не делала — тихий отказ на пути,
- * который человек начал нарочно (правило отказов, У-41): Field `AI` у него
- * заведён и не заполнен. Element своё значение строит сам и сюда не относится.
- * Спрашиваются правила движков — те же, с которыми команда и пойдёт.
+ * Есть ли у Field Value, которое команда может написать: иначе тихий отказ
+ * (У-41). Element строит значение сам. Спрашиваются правила движков.
  */
 function fieldHasValues(cfg, key) {
   const rules = __rulesShape.buildRulesForEngines(cfg);

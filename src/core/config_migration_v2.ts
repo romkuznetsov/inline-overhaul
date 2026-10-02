@@ -1,30 +1,14 @@
 /**
- * Миграция конфига v1 → v2 (PRD 8.1, 8.1а, 8.2).
+ * Миграция конфига v1 → v2 (PRD 8.1, 8.1а, 8.2). Чистая `migrate(raw)` и две
+ * границы: разовая копия (МГ4) и нечитаемый `data.json` (МГ6). Obsidian — только
+ * швами `VaultFiles` и `notify`. Вторая ступень `migrateConfig`, прогоняется на
+ * каждом патче.
  *
- * Что здесь есть и чего нет. Здесь — чистая функция `migrate(raw)` и две
- * границы с миром: разовая резервная копия (МГ4) и разбор нечитаемого
- * `data.json` (МГ6). Здесь нет ни одного обращения к Obsidian: файловые
- * операции приходят швом `VaultFiles`, уведомление — швом `notify`. Иначе
- * проверку пришлось бы гонять на подделке всего плагина.
- *
- * **Модуль подключён 2026-08-31**, второй ступенью `migrateConfig` в `main.js`,
- * тем же заходом, которым движки перешли на пути v2 (фаза 2, пункт 4).
- * Разделить это было нельзя: `migrateConfig` прогоняется на каждом патче, и
- * конфиг, переехавший наполовину, ломает и панель, и рантайм.
- *
- * Три вещи, о которые легко споткнуться при чтении карты маршрутов ниже.
- *
- * 1. **`leftMode` и `rightMode` — это не Left и Right Block.** Это списки
- *    определений Fields по типу: теги и ссылки. Поэтому по ответу В9 они
- *    переезжают в `pkm.fields.tags` и `pkm.fields.links` — имена названы по
- *    типу Field, чтобы ловушка не выстрелила в четвёртый раз.
- * 2. **Непрозрачные ветки переносятся целиком** (`whole`). Внутрь `order`,
- *    `byTag`, `taxonomy`, `binderRows` спускаться нельзя: там пользовательские
- *    ключи, и любой из них уехал бы в `_unmigrated`.
- * 3. **Прозрачность у значений тоже меняет единицы.** В v1 это доля `0..1`,
- *    в схеме v2 — проценты `0..100` (`settings_sections_renderer.js` делил на
- *    100 прямо в панели). Перенос без множителя дал бы полностью прозрачные
- *    теги.
+ * 1. `leftMode`/`rightMode` — не Left/Right Block, а списки Fields по типу:
+ *    переезжают в `pkm.fields.tags` и `pkm.fields.links` (В9).
+ * 2. Непрозрачные ветки (`order`, `byTag`, `taxonomy`, `binderRows`) — целиком
+ *    (`whole`): внутри пользовательские ключи.
+ * 3. Прозрачность: v1 — доля `0..1`, v2 — проценты `0..100`.
  */
 
 import { SCHEMA } from "../ui/settings/schema/index.ts";
@@ -38,9 +22,8 @@ export const CONFIG_FILE = "data.json";
 export const BACKUP_V1_FILE = "data.backup.v1.json";
 export const BROKEN_FILE = "data.broken.json";
 /**
- * Служебный файл правил. **Плагин его больше не пишет** (PRD 10.13.52, П-8,
- * шаг четвёртый); имена остались затем, чтобы прибрать за собой у тех, у кого
- * он лежит с прошлых версий.
+ * Служебный файл правил: плагин его не пишет (PRD 10.13.52, П-8); имена — чтобы
+ * прибрать за прошлыми версиями.
  */
 export const RULES_FILE = "generated_rules.md";
 /** Прежнее место того же файла — корень vault. */
@@ -69,15 +52,9 @@ function shareToPercent(v: unknown): unknown {
 /* ---- карта маршрутов -------------------------------------------------- */
 
 /**
- * Что делать с веткой v1.
- *
- * `to` — куда переносится (у `keep` совпадает с исходным путём);
- * `drop` — ветка удаляется (8.1, «Удаляются»);
- * `whole` — ветка непрозрачная, внутрь не спускаемся;
- * `cast` — значение по дороге меняет единицы измерения.
- *
- * Путь без маршрута — не ошибка, а развилка: объект разбирается дальше по
- * ключам, лист уезжает в `_unmigrated` (МГ3).
+ * Что делать с веткой v1: `to` — куда (у `keep` = исходный путь); `drop` —
+ * удалить (8.1); `whole` — непрозрачная; `cast` — меняет единицы. Пути без
+ * маршрута разбираются по ключам, лист — в `_unmigrated` (МГ3).
  */
 export interface Route {
   to?: string;
@@ -110,11 +87,8 @@ function drop(path: string): [string, Route] {
 }
 
 /**
- * Карта маршрутов наружу. Её читают две вещи, и обе — не панель: сборщик карты
- * чтений `tools/read_map_v1.js` и проверка МГ5. Мост `ui/settings/v1_bridge.ts`
- * снят в фазе 2 вместе с пунктом 4 (М-5): движки читают версию 2, схема тоже,
- * и переводить стало нечего. Второй копии этой карты в проекте быть не должно —
- * разойдутся.
+ * Карта маршрутов. Читают `tools/read_map_v1.js` и проверка МГ5; мост
+ * `v1_bridge.ts` снят (М-5). Второй копии быть не должно.
  */
 export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   /* --- модули: без изменений ------------------------------------------- */
@@ -129,14 +103,12 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveLine.headerMode"),
   keep("navigation.moveLine.crossSectionAllowed"),
   keep("navigation.moveLine.highlightMovedLines"),
-  /* Цвет подсветки перенесённых строк — его заказ цикла 118, пары в версии 1 нет. */
+  /* Цвет подсветки перенесённых строк (цикл 118): пары в v1 нет. */
   keepV2("navigation.moveLine.highlightColor"),
-  /* Прокрутка при перемещении строки заведена 2026-09-05 вместе с 10.13.36:
-     пары в версии 1 нет, поэтому `keepV2`, иначе ключ уезжает в
-     `_unmigrated` (МГ3). */
+  /* 10.13.36: пары в v1 нет — `keepV2`, иначе `_unmigrated` (МГ3). */
   keepV2("navigation.moveLine.keepInView"),
   keepV2("navigation.moveLine.viewPosition"),
-  /* 10.13.275, пары в версии 1 нет — `keepV2`. */
+  /* 10.13.275, пары в v1 нет — `keepV2`. */
   keepV2("navigation.moveLine.jumpNeighborTrees"),
   keep("navigation.moveSelection.enabled"),
   keep("navigation.moveSelection.inlineEnabled"),
@@ -148,25 +120,20 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveSelection.inlineMoveMode"),
   keep("navigation.moveSelection.cycleOrder", true),
   keepV2("navigation.moveSelection.rightCycles"),
-  /* Заведена вместе с новой панелью 2026-09-04: пары в версии 1 нет, поэтому
-     `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
+  /* Пары в v1 нет — `keepV2` (МГ3). */
   keepV2("navigation.moveSelection.inlineBoundaryJump"),
-  /* `Step out of the word` заведена 2026-09-08 по замечанию заказчика: пары в
-     версии 1 нет, поэтому `keepV2` (МГ3). */
+  /* `Step out of the word` (2026-09-08): пары в v1 нет (МГ3). */
   keepV2("navigation.moveSelection.inlineWordEscape"),
   keep("navigation.jumpToHeader.enabled"),
   keep("navigation.jumpToHeader.centerCursor"),
-  /* Место на экране после перехода заведено 2026-09-06 вместе с 10.13.37:
-     пары в версии 1 нет, поэтому `keepV2` (МГ3). */
+  /* 10.13.37: пары в v1 нет (МГ3). */
   keepV2("navigation.jumpToHeader.viewPosition"),
   keep("navigation.jumpToHeader.centerDelayMs"),
   keep("navigation.jumpToHeader.centerThrottleMs"),
   keep("navigation.jumpToHeader.jumpMode"),
   keep("navigation.jumpToHeader.edgeMode"),
   keep("navigation.jumpToHeader.jumpCursorPosition"),
-  /* Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16), с
-     2026-09-17 живёт на вкладке Visual и в ветке `visual.jumpFlash.*` —
-     маршруты её новых листьев стоят рядом с остальной вкладкой Visual. */
+  /* Подсветка прыжка (Н5) живёт в `visual.jumpFlash.*` — маршруты рядом с вкладкой Visual. */
   keep("navigation.navigateInline.enabled"),
   keep("navigation.navigateInline.stepMode"),
   keep("navigation.navigateInline.boundaryJump"),
@@ -191,9 +158,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("ui.orderShowDeepEditor"),
   keep("ui.orderShowColorSettings"),
   keep("ui.orderActiveCommandsCollapsed"),
-  /* Высота таблицы Fields в новой панели. Ветка `ui` осталась и в версии 2,
-     а сама настройка в файлах версии 1 не встречалась ни разу — она заведена
-     2026-09-12, поэтому `keepV2`, а не `keep`. */
+  /* Высота таблицы Fields (2026-09-12): в файлах v1 не встречалась — `keepV2`. */
   keepV2("ui.fieldsTableFixedHeight"),
 
   /* --- PKM: определения Fields (В9) ------------------------------------ */
@@ -202,12 +167,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   move("pkm.behavior.rightMode", "pkm.fields.links", { whole: true }),
   move("pkm.behavior.elements", "pkm.fields.elements", { whole: true }),
   /*
-   * Легаси-ветка дат. Маршрута у неё не было, и лист за листом она уехала бы в
-   * `_unmigrated` — то есть настройки полей-дат, заведённых до перехода на
-   * элементы, пропали бы из панели молча. Разбирает её третья ступень
-   * `migrateConfig` (`ensureBehaviorModesFromOrder`): она сворачивает
-   * `pkm.fields.dates` в `pkm.fields.elements` и удаляет ветку. Маршрут нужен
-   * ровно затем, чтобы ветка до неё доехала целиком.
+   * Легаси-ветка дат едет целиком, иначе лист за листом ушла бы в `_unmigrated`.
+   * Третья ступень (`ensureBehaviorModesFromOrder`) сворачивает её в
+   * `pkm.fields.elements`.
    */
   move("pkm.behavior.dates", "pkm.fields.dates", { whole: true }),
   move("pkm.taxonomy", "pkm.fields.taxonomy", { whole: true }),
@@ -224,7 +186,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("pkm.behavior.cursorPolicy"),
 
   /* --- PKM: как Field встаёт в строку ----------------------------------- */
-  /* Тумблер снят его словом 2026-10-01 (цикл 114): `Insert only` всегда ставит разделители. */
+  /* Снят 2026-10-01 (цикл 114): `Insert only` всегда ставит разделители. */
   drop("pkm.behavior.freeRoam.minimalSeparator"),
   move("pkm.behavior.freeRoam.minimalPrefix", "pkm.placement.fieldPrefixInsertOnly"),
   move("pkm.behavior.freeRoam.offPrefix", "pkm.placement.bulletInStrict"),
@@ -243,9 +205,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   drop("pkm.tagWheelConfigPath"),
   drop("pkm.tagWheelConfigTemplatePath"),
   drop("pkm.configExportMode"),
-  /* Путь служебного файла правил снят вместе с файлом (PRD 10.13.52, П-8,
-     шаг четвёртый): читать по нему нечего, а настройка, которой никто не
-     читает, — это обещание функции, которой нет (З8). */
+  /* Путь файла правил снят вместе с файлом (PRD 10.13.52, П-8; З8). */
   drop("pkm.generatedRulesPath"),
 
   /* --- PKM: удаляемое ---------------------------------------------------- */
@@ -262,8 +222,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   move("pkm.behavior.tagVisuals.byField", "visual.tags.byField", { whole: true }),
   move("pkm.behavior.tagVisuals.byTag", "visual.tags.byTag", { whole: true }),
   move("pkm.behavior.tagVisuals.userTags", "visual.tags.userTags", { whole: true }),
-  /* Цель этого переезда снята 2026-09-19 (вид старой панели), и потому ключ
-     версии 1 теперь просто удаляется, а не переносится в мёртвое место. */
+  /* Цель переезда снята 2026-09-19 — ключ v1 удаляется. */
   drop("pkm.behavior.tagVisuals.showColorSettings"),
 
   /* --- Tag Bars --------------------------------------------------------- */
@@ -290,8 +249,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   drop("visual.colors"),
 
   /* --- вид: уже написанное новой панелью в форме v2 ---------------------- */
-  /* Цвета гиперссылки — его замечание 2026-09-22 к тесту 4. Пары в версии 1
-     нет, поэтому `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
+  /* Цвета гиперссылки (2026-09-22): пары в v1 нет (МГ3). */
   keepV2("visual.tags.hyperlink.targetColor"),
   keepV2("visual.tags.hyperlink.bracketsColor"),
   keepV2("visual.tags.hyperlink.addressColor"),
@@ -319,21 +277,16 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tagWheel.showMarkers"),
   keepV2("visual.tagWheel.highlightLine"),
   keepV2("visual.tagWheel.textColor"),
-  /* Цвет ячейки с выбранным значением (его заказ 2026-09-17). Ветка новая —
-     пары в версии 1 у неё нет, и без маршрута форма v2 уехала бы в
-     `_unmigrated` (МГ3). */
+  /* Цвет ячейки выбранного значения (2026-09-17): пары в v1 нет (МГ3). */
   keepV2("visual.tagWheel.chosenValueColor"),
-  /* Полужирные имена всех Field (его заказ 2026-10-01): ветка новая, как и
-     цвет выше. */
+  /* Полужирные имена Field (2026-10-01): ветка новая. */
   keepV2("visual.tagWheel.boldFieldNames"),
   keepV2("visual.tagWheel.fillColor"),
   keepV2("visual.tagWheel.scroller.enabled"),
   keepV2("visual.tagWheel.scroller.direction"),
   keepV2("visual.tagWheel.scroller.labels"),
   keepV2("visual.tagWheel.scroller.size"),
-  /* Подсветка места, куда прыгнул курсор. Ветка целиком новая — пары в
-     версии 1 у неё нет, и без маршрута форма v2 уехала бы в `_unmigrated`
-     (МГ3). Её прежний адрес — в `MOVED_V2_KEYS` ниже. */
+  /* Подсветка прыжка: пары в v1 нет (МГ3); прежний адрес — в `MOVED_V2_KEYS`. */
   keepV2("visual.jumpFlash.enabled"),
   keepV2("visual.jumpFlash.color"),
   keepV2("visual.jumpFlash.radius"),
@@ -349,17 +302,14 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("transform.inline2note.yamlNoteFormat"),
   keep("transform.inline2note.smartRules", true),
   keepV2("transform.inline2note.placement.headerLevel"),
-  /* `At custom header` (З-4): обе строки новые, пары в версии 1 у них нет.
-     Без маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
+  /* `At custom header` (З-4): пары в v1 нет (МГ3). */
   keepV2("transform.inline2note.placement.targetHeader"),
   keepV2("transform.inline2note.placement.fallback"),
-  /* Ссылка на новую заметку в заметках, на которые ссылается строка (Н4, его
-     заказ 2026-09-16). Ветка целиком новая — пары в версии 1 у неё нет, и без
-     маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
+  /* Ссылка на новую заметку (Н4): пары в v1 нет (МГ3). */
   keepV2("transform.inline2note.backlink.enabled"),
   /* `Link to Navigator` и `Keep sub-fields` (PRD 10.13.272): ключи новые. */
   keepV2("transform.inline2note.backlink.navigator"),
-  /* `Add empty line before wikilink` — его заказ 2026-09-28: ключ новый. */
+  /* `Add empty line before wikilink` (2026-09-28): ключ новый. */
   keepV2("transform.inline2note.backlink.emptyLine"),
   keepV2("transform.inline2note.sourceProcessing.keepSubFields"),
   keepV2("transform.inline2note.backlink.placement.position"),
@@ -373,9 +323,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("transform.inline2note.preview.sampleLine"),
   keep("transform.inline2note.sourceProcessing.cleanupFieldIds", true),
   /*
-   * Ветка целиком — и три её листа отдельно: у каждого с 2026-09-01 есть свой
-   * контрол (10.13.12), а проверка `settings_paths_v2_tests.ts` спрашивает
-   * маршрут именно у пути контрола, не у ветки над ним.
+   * Ветка целиком — и три листа отдельно: у каждого свой контрол (10.13.12), а
+   * `settings_paths_v2_tests.ts` спрашивает маршрут у пути контрола.
    */
   keep("transform.inline2note.sourceProcessing.visual", true),
   keep("transform.inline2note.sourceProcessing.visual.enabled"),
@@ -400,15 +349,13 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("transform.inline2note.sourceProcessing.token"),
   keepV2("transform.inline2note.sourceProcessing.panel"),
   keepV2("transform.inline2note.sourceProcessing.replaceWithLink"),
-  /* Судьба текста исходной строки: своя настройка с 2026-09-01. Ключа нет в
-     старых файлах, и умолчание там выводит движок из `replaceWithLink`. */
+  /* Ключа нет в старых файлах; умолчание выводит движок из `replaceWithLink`. */
   keepV2("transform.inline2note.sourceProcessing.text"),
   keepV2("transform.inline2note.sourceProcessing.keepWords"),
   keepV2("transform.inline2note.openTarget"),
   keepV2("transform.inline2note.sublines"),
   keepV2("transform.inline2note.floatingButton"),
-  /* Отступ кнопки от текста: ключа нет в старых файлах, умолчание досыпает
-     схема (замечание заказчика 2026-09-04). */
+  /* Ключа нет в старых файлах; умолчание — из схемы. */
   keepV2("transform.inline2note.floatingButtonGap"),
 
   /* --- журнал применений заметки: снят вместе с ней (PRD 10.12) --------- */
@@ -430,46 +377,35 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("editor.selectAll.useDelay"),
   keepV2("editor.selectAll.delayMs"),
   keepV2("editor.selectAll.clearOnLast"),
-  /* Галочки режима `Custom` (З-3): ветка новая, пары в версии 1 у неё нет.
-     Целиком — форму ветки держит нормализация, а не карта маршрутов; без
-     маршрута она уехала бы в `_unmigrated` (МГ3). */
+  /* Галочки `Custom` (З-3): пары в v1 нет; форму ветки держит нормализация (МГ3). */
   keepV2("editor.selectAll.customSteps", true),
-  /* Заливка Left и Right Block (З-7): ветка новая, пары в версии 1 нет. */
+  /* Заливка Left и Right Block (З-7): пары в v1 нет. */
   keepV2("visual.tags.blockFill.enabled"),
   keepV2("visual.tags.blockFill.color"),
   keepV2("visual.tags.blockFill.opacity"),
-  /* На сколько подложка больше написанного (замечание по S7, 2026-09-09):
-     тоже новые, и пары в версии 1 у них нет. Высота стала долей свободного
-     места и переименована в `heightPct`; сам перевод делает третья ступень —
-     файл версии 2 эту карту не проходит. Маршрут прежнего имени остаётся,
-     чтобы файл версии 1 с этим ключом не уехал в `_unmigrated`. */
+  /* S7, 2026-09-09: высота стала `heightPct` (переводит третья ступень); маршрут
+     прежнего имени — чтобы файл v1 не уехал в `_unmigrated`. */
   keepV2("visual.tags.blockFill.heightPx"),
   keepV2("visual.tags.blockFill.heightPct"),
   keepV2("visual.tags.blockFill.widthPct"),
-  /* Сторона полосы (З-12, 2026-09-19): ветка новая, пары в версии 1 нет. */
+  /* Сторона полосы (З-12): пары в v1 нет. */
   keepV2("visual.tags.blockFill.direction"),
-  /* Автокопия настроек (З-11, 2026-09-19): ключ новый, пары в версии 1 нет. */
+  /* Автокопия (З-11): пары в v1 нет. */
   keepV2("advanced.backups.autosave"),
-  /* Предел автокопий (его заказ 2026-10-03): ключ новый, пары в версии 1 нет. */
+  /* Предел автокопий (10.13.304): пары в v1 нет. */
   keepV2("advanced.backups.autosaveKeep"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
-  /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание
-     досыпает схема (замечание заказчика 2026-09-04). */
+  /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание — схема. */
   keepV2("general.help.showCallouts"),
-  /* Язык панели (10.13.38): путь версии 2, пары в версии 1 нет. Без маршрута
-     форма v2 в конфиге считалась бы неизвестным ключом и уезжала в
-     `_unmigrated`. */
+  /* Язык панели (10.13.38): пары в v1 нет, иначе `_unmigrated`. */
   keepV2("general.language"),
   keepV2("advanced.newSettingsPane"),
-  /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
-     нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
-     заказчика не считалась неизвестным ключом и не уезжала в `_unmigrated`. */
+  /* Подпись id в подсказках (10.13.5): пары в v1 нет, маршрут — против `_unmigrated`. */
   keepV2("advanced.showSettingIds"),
-  /* Папка копий настроек (10.13.2, Б2): путь версии 2, в версии 1 его не было. */
+  /* Папка копий (10.13.2, Б2): в v1 не было. */
   keepV2("advanced.backups.folder"),
-  /* Копия перед восстановлением — тумблер с 2026-09-04 (замечание C56).
-     Тоже путь версии 2, пары в версии 1 нет. */
+  /* Копия перед восстановлением (C56): пары в v1 нет. */
   keepV2("advanced.backups.beforeRestore"),
   drop("advanced.generatedRulesPath"),
   keepV2("advanced.devMode.enabled"),
@@ -498,27 +434,19 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("pkm.prefixRules.priorityCheckboxes", true),
   keepV2("pkm.prefixRules.checkboxByFieldValue", true),
   drop("pkm.configNote"),
-  /* Флаг одноразового уведомления о смене ID команд (фаза 2, пункт 8). Это
-     состояние, а не настройка: контрола у него нет и быть не должно. */
+  /* Флаг уведомления о смене ID команд (фаза 2, пункт 8): состояние, контрола нет. */
   keepV2("viewState.commandIdsNotice"),
   /*
-   * `viewState.activeTab` и `viewState.fieldOrder.*` — вид **старой** панели, и
-   * маршрутов у них больше нет: они снимаются списком снятых ключей
-   * (2026-09-19, его заказ про мёртвые ветки). Нынешняя панель помнит вкладку
-   * ключом `ui.activeSettingsTab`, а раскрытые Fields — своим состоянием.
+   * `viewState.activeTab` и `viewState.fieldOrder.*` — вид старой панели,
+   * снимаются списком снятых ключей (2026-09-19).
    */
   keepV2("_unmigrated", true),
 ]);
 
 /**
- * Умолчания, которых нет в схеме, потому что контрола у них нет.
- *
- * Два источника, и оба обязательны. Пустые контейнеры — чтобы движок нашёл
- * объект, а не `undefined`, там где v1 всегда клал объект. Три значения
- * приоритета Prefix — из `getPrefixRulesFromCfg`, а **не** из схемы: 8.3
- * прямо требует этого, потому что у схемы там другие умолчания
- * (`auto` и `tag-over-subtag`), и обновление переписало бы вид уже
- * написанных строк тем, кто эти настройки не трогал.
+ * Умолчания без контрола, а значит без схемы: пустые контейнеры (движок ждёт
+ * объект) и три значения приоритета Prefix из `getPrefixRulesFromCfg` — не из
+ * схемы, у неё другие умолчания (8.3), и вид строк бы переписался.
  */
 const V2_SKELETON: Dict = {
   "pkm.fields.order": {},
@@ -539,9 +467,7 @@ const V2_SKELETON: Dict = {
   "visual.tags.byTag": {},
   "visual.tags.userTags": {},
   "editor.binder.rows": [],
-  /* Ветка состояния остаётся, пустой: в ней живут флаги «уже показывали» —
-     версия окна «что изменилось» и уведомление о смене ID команд. Вид старой
-     панели из неё снят 2026-09-19. */
+  /* Пустая ветка состояния: флаги «уже показывали». */
   "viewState": {},
 };
 
@@ -551,8 +477,7 @@ export interface MigrateReport {
   /** Ветки v1, для которых маршрута нет: сложены в `_unmigrated` (МГ3). */
   unknown: string[];
   /**
-   * Пути, за которые спорили обе формы. Победила форма v2, проигравшее
-   * значение v1 лежит в `_unmigrated` (МГ7).
+   * Пути, за которые спорили обе формы: победила v2, проигравшее v1 — в `_unmigrated` (МГ7).
    */
   contested: string[];
   /** Была ли выполнена ветка 1 → 2 или конфиг уже был версии 2. */
@@ -578,15 +503,10 @@ interface Walk {
 }
 
 /**
- * Приземления собираются в плоскую карту `путь → значение` и только потом
- * раскладываются в объект. Так спор двух источников за один путь виден и
- * решается правилом, а не порядком обхода.
- *
- * Правило: **побеждает форма v2**. До фазы 2 настройка с `path:` до движка не
- * доезжала, поэтому обе формы лежат в конфиге сразу; но значение в форме v2
- * попало туда только одним способом — человек нажал контрол в новой панели.
- * Значение v1 в таком споре чаще всего не выбор, а нетронутое умолчание.
- * Проигравшее не выбрасывается: оно ложится в `_unmigrated` (МГ7).
+ * Приземления — в плоскую карту `путь → значение`, потом в объект: спор за
+ * путь решается правилом, а не порядком обхода. Побеждает форма v2 — её пишет
+ * только контрол новой панели, а v1 в споре чаще нетронутое умолчание.
+ * Проигравшее — в `_unmigrated` (МГ7).
  */
 function collect(node: unknown, path: string, walk: Walk): void {
   const route = ROUTES.get(path);
@@ -627,9 +547,7 @@ function collect(node: unknown, path: string, walk: Walk): void {
 function migrateV1(raw: Dict, report: MigrateReport): Dict {
   const walk: Walk = { landings: new Map<string, Landing>(), losers: [], unknown: [] };
 
-  /* Переходник `rules.tagWheelPath` → путь служебного файла снят вместе с
-     самим путём (PRD 10.13.52, П-8, шаг четвёртый): переносить стало нечего и
-     некуда. Ветка `rules` по-прежнему выбрасывается целиком. */
+  /* Ветка `rules` выбрасывается целиком; путь файла правил снят (PRD 10.13.52, П-8). */
 
   for (const key of Object.keys(raw)) {
     if (key === "schemaVersion") continue;
@@ -668,11 +586,8 @@ function fillDefaults(cfg: Dict): Dict {
       if (getIn(cfg, path) === undefined) setIn(cfg, path, cloneJson(value));
     }
   };
-  /* Скелет идёт ПЕРВЫМ, и это не косметика. Три значения приоритета Prefix
-     обязаны прийти от движка, а не из схемы: у схемы там другие умолчания, и
-     заполнение схемой вперёд скелета переписало бы вид уже написанных строк
-     (8.3). Оба прохода заполняют только отсутствующее, поэтому порядок и
-     решает спор. */
+  /* Скелет первым: приоритет Prefix — от движка, не из схемы (8.3). Оба прохода
+     заполняют только отсутствующее, порядок и решает. */
   for (const path of Object.keys(V2_SKELETON)) {
     if (getIn(cfg, path) === undefined) setIn(cfg, path, cloneJson(V2_SKELETON[path]));
   }
@@ -688,60 +603,35 @@ export interface MigrateOptions {
 }
 
 /**
- * Ключи, снятые вместе со своей функцией, уходят из файла человека.
- *
- * **Маршрута мало.** Маршруты читает только переезд с версии 1; файл версии 2
- * переносится как есть, и снятый ключ жил бы в `data.json` вечно — настройкой,
- * которую никто не читает (З8). Здесь он снимается на каждом проходе, каким бы
- * ни была версия файла.
- *
- * Список короткий нарочно: это не свалка, а место для ключей, у которых
- * **снята сама функция**. Сейчас там один — путь служебного файла правил
- * (PRD 10.13.52, П-8, шаг четвёртый).
+ * Ключи, снятые вместе с функцией, уходят из файла человека на каждом проходе:
+ * маршруты читает только переезд с v1, файл v2 клонируется (З8, У-178). Только
+ * для ключей со снятой функцией.
  */
 const REMOVED_V2_KEYS: readonly string[] = [
   "advanced.generatedRulesPath",
   "pkm.generatedRulesPath",
   /*
-   * Разобранная конфиг-заметка TagWheel — кеш функции, снятой 2026-09-03 его
-   * решением В-28 (PRD 10.12). Ключ остался лежать в файле и **ввёл его в
-   * заблуждение**: 2026-09-19 он правил `wikilinks.…bySection.…defaults`
-   * внутри этой ветки и не увидел правки в панели. Правильно не увидел —
-   * ветку не читает никто, и это измерено: во всём `src` слово `taxonomy`
-   * встречается в двух файлах (эта карта и нормализация), а `bySection` — ни
-   * в одном. Значения Field, которые панель показывает, лежат в
-   * `pkm.fields.links.fields[].values[]`.
+   * Кеш конфиг-заметки TagWheel, снятой решением В-28 (PRD 10.12): ветку не
+   * читает никто, а правка в ней путала (2026-09-19). Значения Field —
+   * в `pkm.fields.links.fields[].values[]`.
    */
   "pkm.fields.taxonomy.tagWheelConfig",
   /*
-   * Три листа приставок формы версии 1. Живой близнец у них есть и он на
-   * другом пути: `pkm.prefixPriority.decideBy`, `.fieldOrderSource`,
-   * `.parentOrChild` — их пишет панель, и сборщик правил (`pkm_rules_shape`)
-   * **перекрывает** ими то, что лежит здесь. То есть значение в этих трёх
-   * ключах не читает никто, а выглядит оно настройкой — тот же класс, что
-   * кеш конфиг-заметки. Найдено обходом `node tools/dead_keys.js` по его
-   * заказу 2026-09-19. Остальная ветка `pkm.prefixRules` жива: цели приставки
-   * и карта чекбоксов по значению читаются как есть.
+   * Три листа приставок v1: их перекрывает `pkm.prefixPriority.*` в
+   * `pkm_rules_shape` — не читает никто (`tools/dead_keys.js`, 2026-09-19).
+   * Остальная `pkm.prefixRules` жива.
    */
   "pkm.prefixRules.priorityMode",
   "pkm.prefixRules.fieldsOrderMode",
   "pkm.prefixRules.tagSubtagPriority",
   /*
-   * **Состояние старой панели и конфиг-заметки.** Найдено тем же обходом
-   * 2026-09-19 по его заказу: у каждого из этих ключей нет читателя нигде,
-   * кроме нормализации, которая держала их форму, — то есть плагин сам
-   * поддерживал в его файле настройки, которых нет ни в одном контроле.
+   * Без читателя, кроме нормализации (`tools/dead_keys.js`, 2026-09-19):
    *
-   *   * `pkm.configNote.*` — путь, шаблон и подробность конфиг-заметки, снятой
-   *     2026-09-03 его решением В-28;
-   *   * `ui.visualSubTab`, `ui.hotkeysSubTab`, `ui.pkmSubTab` — подвкладки
-   *     старой панели: у новой их нет вовсе (10.13.197);
-   *   * `ui.orderShow*` и `ui.orderActiveCommandsCollapsed` — тумблеры вида
-   *     редактора Fields, снятые ещё в Ф15;
-   *   * `viewState.activeTab`, `viewState.fieldOrder.*` — вид старой панели;
-   *     нынешняя помнит вкладку ключом `ui.activeSettingsTab`;
-   *   * `advanced.newSettingsPane` — тумблер «новая панель», которым больше
-   *     ничего не переключается: панель одна.
+   *   * `pkm.configNote.*` — конфиг-заметка (В-28);
+   *   * `ui.visualSubTab`, `ui.hotkeysSubTab`, `ui.pkmSubTab` — подвкладки старой панели (10.13.197);
+   *   * `ui.orderShow*`, `ui.orderActiveCommandsCollapsed` — сняты в Ф15;
+   *   * `viewState.activeTab`, `viewState.fieldOrder.*` — вкладку помнит `ui.activeSettingsTab`;
+   *   * `advanced.newSettingsPane` — панель одна.
    */
   "pkm.configNote",
   "ui.visualSubTab",
@@ -755,38 +645,20 @@ const REMOVED_V2_KEYS: readonly string[] = [
   "viewState.fieldOrder",
   "advanced.newSettingsPane",
   /*
-   * Тумблер `Insert only: keep Separators` снят его словом 2026-10-01 (цикл
-   * 114, тест 6): `Insert only` всегда ставит разделители. Движок читает
-   * ключ как «не `false` — значит да», и без ключа отвечает «да».
+   * `Insert only: keep Separators` снят 2026-10-01 (цикл 114, тест 6). Движок
+   * читает «не `false` — да», без ключа — «да».
    */
   "pkm.placement.keepPrefixInsertOnly",
 ];
 
 /**
- * Ключи, сменившие адрес **внутри** версии 2.
- *
- * **Маршрута мало по той же причине, что и у снятых ключей** (У-178):
- * маршруты читает только переезд с версии 1, а файл версии 2 переносится как
- * есть. Значение, записанное по прежнему адресу, осталось бы лежать там, где
- * его больше никто не читает, а человек увидел бы в панели умолчание вместо
- * того, что он выбрал.
- *
- * Здесь один переезд: настройки подсветки прыжка ушли с вкладки Navigation на
- * Visual его словом 2026-09-17, и вместе с ними ушла ветка — иначе галочка
- * состава копии `Visual` не несла бы того, что на этой вкладке показано
- * (10.13.41).
- *
- * **Новый адрес сильнее старого.** Если по обоим что-то записано, значит
- * панель уже писала в новый, и старое — след вчерашнего файла.
- *
- * **Адресов у переезда бывает больше одного.** Настройка, разделённая надвое,
- * — это тот же переезд, только новых мест два, и прежнее значение уступает
- * **обоим** (У-17): иначе человек, выбравший кегль, получил бы умолчание.
- * Разводить это вторым списком и вторым обходом значило бы объявить одно
- * правило дважды (У-150).
+ * Ключи, сменившие адрес внутри v2 (У-178): файл v2 маршрутов не проходит,
+ * и значение осталось бы по старому адресу. Новый адрес сильнее старого.
+ * Адресов бывает несколько — прежнее значение уступает всем (У-17), одним
+ * списком (У-150). Сейчас: подсветка прыжка → Visual (2026-09-17, 10.13.41).
  */
 const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string | readonly string[]]> = [
-  /* Кегль Block разведён на две стороны — его слово 2026-09-19, пункт 2. */
+  /* Кегль Block разведён на две стороны (2026-09-19, пункт 2). */
   ["visual.tags.textSizePct", ["visual.tags.textSizePctLeft", "visual.tags.textSizePctRight"]],
   ["navigation.jumpToHeader.flash.enabled", "visual.jumpFlash.enabled"],
   ["navigation.jumpToHeader.flash.color", "visual.jumpFlash.color"],
@@ -797,41 +669,22 @@ const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string | readonly string[]]
 ];
 
 /**
- * Настройка, **разделившаяся** надвое: прежний адрес остаётся живым, новый
- * заводится от него.
- *
- * **Почему это не `MOVED_V2_KEYS`.** Там прежний адрес снимается — значение
- * уехало, и на старом месте его никто не читает. Здесь наоборот: обе пары
- * работают, у каждой свой предмет, и старый ключ остаётся настройкой. Два
- * разных ответа на похожий вопрос разводятся именами, а не сводятся телами
- * (правило 117).
- *
- * Пока здесь один случай: цвета ссылок разделены на wikilink и гиперссылку
- * его замечанием 2026-09-22. У того, кто цвет уже задал, гиперссылки
- * остаются того же цвета, каким были до разделения (У-17) — новая настройка
- * выводится из старого контрола, а не из умолчания схемы.
- *
- * **Заводится только отсутствующий ключ.** Пустая строка — законное значение
- * («взять у темы»), и она значит «человек уже решил»: переписать её значило
- * бы возвращать цвет, который он снял (У-188).
+ * Настройка, разделившаяся надвое: прежний адрес жив, новый заводится от него
+ * (не `MOVED_V2_KEYS`, правило 117). Цвета ссылок: wikilink и гиперссылка
+ * (2026-09-22, У-17). Заводится только отсутствующий ключ: пустая строка —
+ * законное «взять у темы» (У-188).
  */
 const SPLIT_V2_KEYS: ReadonlyArray<readonly [string, string]> = [
   ["visual.tags.linkAsWritten.targetColor", "visual.tags.hyperlink.targetColor"],
   ["visual.tags.linkAsWritten.bracketsColor", "visual.tags.hyperlink.bracketsColor"],
-  /* Адрес отделён от скобок 2026-09-22: до этого его красили они. */
+  /* Адрес отделён от скобок 2026-09-22. */
   ["visual.tags.hyperlink.bracketsColor", "visual.tags.hyperlink.addressColor"],
 ];
 
 /**
- * Снять лист по точечному пути и убрать за собой опустевшего родителя.
- *
- * **Имя своё, а не общее с копией настроек, и это не копия.** Помощник с
- * похожим делом живёт в `settings_backup.js`, и у него сказано прямо:
- * пустые объекты по дороге он не трогает — там путь принадлежит этому
- * устройству и завтра получит значение обратно. Здесь наоборот: адрес снят
- * насовсем, и пустой объект на его месте — та же настройка, которую никто
- * не читает, только без листьев. Два разных ответа на похожий вопрос
- * разводятся именами, а не сводятся телами (правило 117).
+ * Снять лист и опустевшего родителя. Не помощник из `settings_backup.js`: там
+ * пустые объекты остаются (путь устройства), здесь адрес снят насовсем
+ * (правило 117).
  */
 function dropMovedLeaf(cfg: Dict, path: string): void {
   const parts = path.split(".").filter((p) => p.length > 0);
@@ -846,8 +699,7 @@ function dropMovedLeaf(cfg: Dict, path: string): void {
   if (!isPlainObject(node)) return;
   chain.push(node as Dict);
   delete (node as Dict)[parts[parts.length - 1] as string];
-  /* Пустой объект на прежнем месте — та же настройка, которую никто не
-     читает, только без листьев: убираем и его. */
+  /* Пустой объект на прежнем месте — тоже мёртвая настройка. */
   for (let i = chain.length - 1; i > 0; i--) {
     const own = chain[i] as Dict;
     if (Object.keys(own).length) break;
@@ -868,12 +720,7 @@ function moveRenamedKeys(cfg: Dict): void {
   }
 }
 
-/**
- * Завести новую половину разделившейся настройки от её прежнего адреса.
- *
- * Идемпотентно по построению: после первого прохода новый ключ существует,
- * и второй проход его не трогает.
- */
+/** Завести новую половину разделившейся настройки; идемпотентно — второй проход ключ не трогает. */
 function seedSplitKeys(cfg: Dict): void {
   for (const pair of SPLIT_V2_KEYS) {
     const was = getIn(cfg, pair[0]);
@@ -898,11 +745,8 @@ function dropRemovedKeys(cfg: Dict): void {
 }
 
 /**
- * МГ1: `migrate(migrate(x))` даёт то же, что `migrate(x)`.
- *
- * Идемпотентность держится не сравнением, а версией: после первого прохода
- * `schemaVersion` равен 2, и ветка 1 → 2 больше не выполняется — остаётся
- * только досыпка умолчаний, которая сама по себе идемпотентна.
+ * МГ1: `migrate(migrate(x))` = `migrate(x)` — держится версией: после первого
+ * прохода ветка 1 → 2 не выполняется, досыпка умолчаний идемпотентна.
  */
 export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
   const report: MigrateReport = opts && opts.report
@@ -948,18 +792,15 @@ export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
 /* ---- границы с миром: МГ4 и МГ6 --------------------------------------- */
 
 /**
- * Файловые операции в папке плагина. Шов существует ровно затем, чтобы
- * проверка не подделывала весь плагин ради чтения одного файла: в Obsidian
- * сюда приходит `app.vault.adapter`, в проверке — карта в памяти.
- *
- * Почему не `plugin.saveData` — МГ4 требует именно независимого пути: копия
- * должна лечь рядом файлом, которого сам плагин потом не трогает.
+ * Файловые операции в папке плагина: в Obsidian — `app.vault.adapter`, в
+ * проверке — карта в памяти. Не `plugin.saveData`: МГ4 требует независимого
+ * файла рядом.
  */
 export interface VaultFiles {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, data: string): Promise<void>;
-  /** Удаление файла. Нужно одному месту — сироте в корне vault (В-39). */
+  /** Нужно одному месту — сироте в корне vault (В-39). */
   remove?(path: string): Promise<void>;
 }
 
@@ -969,9 +810,8 @@ function join(dir: string, name: string): string {
 }
 
 /**
- * МГ4. Разовая копия исходного `data.json` рядом с ним. Если копия уже есть —
- * не перезаписывается: вторая миграция затёрла бы единственный снимок до
- * переезда.
+ * МГ4: разовая копия исходного `data.json`. Существующая не перезаписывается —
+ * это единственный снимок до переезда.
  */
 export async function backupV1Once(files: VaultFiles, dir: string, originalText: string): Promise<"created" | "kept"> {
   const target = join(dir, BACKUP_V1_FILE);
@@ -981,23 +821,10 @@ export async function backupV1Once(files: VaultFiles, dir: string, originalText:
 }
 
 /**
- * Прибрать служебный файл правил (PRD 10.13.52, П-8, шаг четвёртый).
- *
- * **Почему убирает плагин, а не человек.** Файл писал плагин, читал плагин и
- * переписывал его целиком при каждом запуске; с этого шага его не пишет и не
- * читает никто. Заметка, которую никто не ведёт, но которая лежит в папке
- * плагина, — это мусор, оставленный обновлением, и убрать его — работа того,
- * кто его положил.
- *
- * **Адреса считаются, а не берутся литералом:** папка плагина зависит от
- * `vault.configDir`, а человек мог увести файл в свою папку — тогда адрес
- * приходит из его же конфига, прочитанного **до** миграции: маршрута у этого
- * ключа больше нет, и после миграции его в конфиге не будет.
- *
- * **Чужого не трогаем.** Перед удалением файл читается, и убирается он только
- * если внутри стоит блок, который писал сборщик (` ```tagwheel- `). Человек мог
- * положить по этому адресу свою заметку — например, вернуть путь к корню vault
- * и забыть.
+ * Прибрать служебный файл правил (PRD 10.13.52, П-8): его положил плагин.
+ * Адреса считаются: папка — от `vault.configDir`, свой путь — из конфига,
+ * прочитанного до миграции (маршрута у ключа нет). Чужого не трогаем:
+ * удаляется только с блоком сборщика (` ```tagwheel- `).
  */
 export async function removeGeneratedRulesFile(
   files: VaultFiles,
@@ -1037,7 +864,7 @@ export interface LoadResult {
   brokenSavedAs?: string;
   /** Куда положена копия v1 до переезда (МГ4). */
   backupSavedAs?: string;
-  /** Что убрано от снятого служебного файла правил (10.13.52, шаг четвёртый). */
+  /** Что убрано от снятого служебного файла правил (10.13.52). */
   generatedRulesRemoved?: string[];
   /** Положен ли стартовый набор Fields первой установке (ПЗ1). */
   starterSet?: boolean;
@@ -1045,13 +872,9 @@ export interface LoadResult {
 }
 
 /**
- * МГ6. Нечитаемый `data.json` не перезаписывается молча: файл сохраняется
- * рядом как `data.broken.json`, плагин стартует на значениях по умолчанию и
- * один раз сообщает об этом.
- *
- * Существующая копия не перезаписывается по той же причине, что и в МГ4:
- * первая копия ближе всего к настоящим настройкам пользователя. Куда легла
- * копия — сказано в уведомлении, а не только в консоли.
+ * МГ6: нечитаемый `data.json` сохраняется как `data.broken.json`, старт на
+ * умолчаниях, одно уведомление с адресом копии. Существующая копия не
+ * перезаписывается (как МГ4).
  */
 export async function loadConfig(
   files: VaultFiles,
@@ -1064,9 +887,8 @@ export async function loadConfig(
   const configPath = join(dir, CONFIG_FILE);
 
   /*
-   * Уборка снятого служебного файла делается **на каждом из трёх выходов**, а
-   * не на одном: конфига может не быть вовсе, он может не разобраться, а файл
-   * с прошлой версии при этом лежит.
+   * Уборка файла правил — на каждом из трёх выходов: конфига нет, не
+   * разобрался, а файл лежит.
    */
   let rawForCleanup: unknown = null;
   const withRulesPath = async (result: LoadResult): Promise<LoadResult> => {
@@ -1077,10 +899,8 @@ export async function loadConfig(
 
   if (!(await files.exists(configPath))) {
     /*
-     * ПЗ1: файла не было вовсе — значит, это первая установка, и человек
-     * получает стартовый набор Fields. Только здесь: у нечитаемого файла
-     * (`broken` ниже) настройки у человека были, и класть ему поверх аварии
-     * чужие Fields нельзя.
+     * ПЗ1: файла не было — первая установка, стартовый набор Fields. Не для
+     * `broken`: настройки у человека были.
      */
     const fresh = migrate(null, merged) as Dict;
     const seeded = applyStarterSet(fresh);
@@ -1093,14 +913,12 @@ export async function loadConfig(
   let raw: unknown;
   try {
     raw = JSON.parse(text);
-    /* Адрес файла берётся из **прочитанного** конфига: маршрута у этого ключа
-       больше нет, и после миграции его в конфиге не будет. */
+    /* Адрес — из прочитанного конфига: после миграции ключа нет. */
     rawForCleanup = raw;
   } catch (_err) {
     /*
-     * **Вторая поломка кладётся рядом, а не пропадает** (ревизия Д-9). Прежде
-     * занятое имя означало «не писать», и сообщение вело к копии прошлой
-     * поломки, а нынешний файл терялся. Занято — имя со временем поломки.
+     * Вторая поломка кладётся рядом с именем со временем (ревизия Д-9), а не
+     * теряется.
      */
     let target = join(dir, BROKEN_FILE);
     if (await files.exists(target)) {

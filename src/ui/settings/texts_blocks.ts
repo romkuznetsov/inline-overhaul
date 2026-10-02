@@ -1,25 +1,13 @@
 /**
- * Видимые тексты своих блоков — второй кусок каталога (PRD 10.13.47, В-67).
+ * Видимые тексты своих блоков — второй кусок каталога (10.13.47, В-67):
+ * редактор Fields, Smart Rules, Binder, свои теги, списки порядка.
  *
- * Первый кусок увёз в каталог всё, что панель берёт из схемы, плюс коллауты,
- * предпросмотры, справочник команд и окна кнопок. За ним осталась половина
- * вкладки `Tags & PKM`: редактор Fields, Smart Rules, Binder, свои теги и
- * списки порядка — блоки, у которых вся вёрстка своя и потому весь текст тоже
- * свой. Заказчик решил 2026-09-06: брать.
- *
- * **Устройство то же, что у окон** (`texts_dialogs.ts`), и это не совпадение,
- * а правило: у текста один дом, ключ строит одна функция, и её зовут оба
- * конца (У-82).
- *
- *   * таблица по владельцу — владелец здесь **сам блок**, и называется он тем
- *     же id, что стоит у записи `kind: "custom"` в схеме;
+ * Устройство то же, что у окон (`texts_dialogs.ts`, У-82):
+ *   * владелец — сам блок, тем же id, что у `kind: "custom"` в схеме;
  *   * ключ — `block.<владелец>.<имя>`;
- *   * строки, которые собираются по ходу, пишутся с `{0}`: по-русски то, что
- *     по-английски стоит в конце, встаёт в начало, и склейка через `+` этого
- *     не переживает.
+ *   * собираемые строки — с `{0}`, не склейкой через `+`: порядок слов в языках разный.
  *
- * **Место в файле каталога** — там, где блок стоит в схеме: `blockEntries`
- * в `texts_custom.ts` дописывает эти строки к строке своего блока.
+ * Место в файле каталога — у строки блока в схеме (`blockEntries` в `texts_custom.ts`).
  */
 
 /** Строки, которые рисует один блок. Порядок — порядок чтения на экране. */
@@ -28,18 +16,15 @@ export const BLOCK_TEXTS = {
   "field-editor": {
     /* Левая колонка: список Fields. */
     /*
-     * Смысл двух подписей сторон живёт здесь, а не у них самих: колонка
-     * списка шириной 188 точек, и тело подсказки встало бы в неё столбиком по
-     * два слова (У-105). Знака «?» у `Left Block` и `Right Block` поэтому нет,
-     * и это объявленное исключение, а не забывчивость — заказ заказчика
-     * 2026-09-08 был «tip у всех элементов».
+     * Смысл подписей сторон — здесь: колонка списка 188 точек, подсказка встала
+     * бы столбиком (У-105). Знака «?» у `Left Block`/`Right Block` нет —
+     * объявленное исключение из «tip у всех элементов» (2026-09-08).
      */
     LIST_TIP: "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
     EMPTY_SIDE: "nothing on this side",
     SIDE_LEFT: "Left Block",
     SIDE_RIGHT: "Right Block",
-    /* Родная подсказка Obsidian у подписи стороны: одна подсказка на узел, и
-       только `aria-label` (У-21). */
+    /* Родная подсказка Obsidian у подписи стороны: одна на узел, только `aria-label` (У-21). */
     SIDE_LEFT_ABOUT: "Everything in Left Block is written before your text on the line",
     SIDE_RIGHT_ABOUT: "Everything in Right Block is written after your text on the line",
     TYPE_TAG: "Tag",
@@ -47,7 +32,7 @@ export const BLOCK_TEXTS = {
     TYPE_ELEMENT: "Emoji",
     ADD_FIELD: "Add Field",
     ADD_FIELD_LABEL: "Add a Field",
-    /* Custom block (PRD 10.13.260): кнопка, подпись раздела и две его кнопки. */
+    /* Custom block (10.13.260): кнопка, подпись раздела и две его кнопки. */
     ADD_BLOCK: "Add Block",
     ADD_BLOCK_LABEL: "Add a custom block",
     NEW_BLOCK_NAME: "Custom block {0}",
@@ -57,9 +42,7 @@ export const BLOCK_TEXTS = {
     NO_FIELD_PICKED: "add a Field on the left to set it up here",
     LIST_ARIA: "the Fields list",
     COLUMN_ARIA: "this column",
-    /* Переключатель высоты таблицы. Подпись называет то, что случится по
-       нажатию, а не то, что стоит сейчас: кнопка одна, и её знак уже
-       показывает нынешний режим. */
+    /* Подпись называет то, что случится по нажатию: знак кнопки уже показывает режим. */
     HEIGHT_EXPAND: "Expand the Fields table to its full height",
     HEIGHT_COLLAPSE: "Collapse the Fields table to a fixed height",
     /* Подписи строк, собранные вокруг имени Field. */
@@ -140,15 +123,7 @@ export const BLOCK_TEXTS = {
     VALUE_TAG_TIP: "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
     VALUE_PREFIX_TIP: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
     VALUE_SHOWN_TIP: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
-    /*
-     * Три подсказки, заведённые 2026-09-08 по заказу заказчика: «добавь tip ко
-     * всем элементам, у которых еще нет, чтобы было универсально (например,
-     * fill, text, preview и т.д.)».
-     *
-     * Прежний довод — «у них подпись и есть объяснение» — не выдержал: `Text`
-     * читается как текст значения, а это цвет надписи, и предупреждение о
-     * контрасте живёт в `Preview`, о чём по одному слову не догадаться.
-     */
+    /* Подсказки 2026-09-08: `Text` — это цвет надписи, контраст — в `Preview`. */
     VALUE_FILL_TIP: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
     VALUE_TEXT_TIP: "The color of the writing inside that bubble — not the text of the Value, which is the <code>Value</code> column. If the two colors read badly together, <code>Preview</code> says so",
     VALUE_SIDE_TIP: "The color of the bubble outline. Untouched it comes from your theme. Pure white means no outline, and in <code>Fill</code> it means no fill",
@@ -161,27 +136,18 @@ export const BLOCK_TEXTS = {
     VALUE_MAKE_CHILD: "Make {0} a child Value",
     VALUE_PREFIX_NO: "no",
     VALUE_PREFIX_FOR: "Prefix for {0}",
-    /* Выбиралка Prefix — его пункт 2026-09-28: вид чекбокса рисует его тема. */
+    /* Выбиралка Prefix (2026-09-28): вид чекбокса рисует тема. */
     PREFIX_PICK_HINT: "How each checkbox looks with your theme. Click one to use it, or type your own",
     PREFIX_PICK_NONE: "No checkbox",
-    /*
-     * `VALUE_PREFIX_HINT` снята 2026-09-08 при разборе долга A46. Слово в
-     * слово то же, что `ERR_PREFIX_TOKEN` ниже, — и на экране показывается
-     * именно `ERR_PREFIX_TOKEN`, сообщением при негодном вводе. У этой строки
-     * места на экране не было ни одного дня: она попадала в файл языка, и
-     * человек переводил то, чего не увидит (У-71).
-     */
+    /* `VALUE_PREFIX_HINT` снята (A46, У-71): дубль `ERR_PREFIX_TOKEN`, на экране не было. */
     VALUE_SHOWN_FOR: "Show, for {0}",
     VALUE_CUSTOM_PLACEHOLDER: "printed instead",
     VALUE_CUSTOM_FOR: "Custom text for {0}",
     VALUE_FILL_COLOR: "Fill color",
     /*
-     * Три имени контролов строки Value **без** имени самого значения. Подписи
-     * рядом (`VALUE_SHOWN_FOR`, `VALUE_CUSTOM_FOR`) — это `aria-label` пикера,
-     * собранный вокруг имени значения; отдельно от них имя нужно тому, кто
-     * называет контрол в списке «что изменилось» заметки автокопии, где имя
-     * значения уже стоит строкой выше. `VALUE_TEXT_COLOR` заодно снял литерал
-     * у самого пикера: сосед рядом брал слово у каталога, а он нет.
+     * Имена контролов строки Value без имени значения — для «что изменилось»
+     * автокопии (значение там строкой выше). `VALUE_SHOWN_FOR`/`VALUE_CUSTOM_FOR` —
+     * `aria-label` пикера с именем значения.
      */
     VALUE_TEXT_COLOR: "Text color",
     VALUE_SIDE_COLOR: "Side color",
@@ -199,9 +165,8 @@ export const BLOCK_TEXTS = {
     ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
     ELEMENT_EMOJI_TIP: "This is how the Field is recognized: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the plugin takes the two for one",
     ELEMENT_EMOJI_HINT: "one character or emoji",
-    /* Выбиралка эмодзи под знаком (`В-182`, его пункт 10): вкладка одна, и
-       подписи ей не нужно. У Values Element-списка — три вкладки Binder (тест 4
-       цикла 104), подписи те же, что у Binder. */
+    /* Выбиралка эмодзи (`В-182`): вкладка одна, подпись не нужна; у Element-списка —
+       три вкладки Binder с теми же подписями. */
     PICK_EMOJI: "Emoji",
     PICK_SYMBOLS: "Symbol",
     PICK_FACES: "Kaomoji",
@@ -239,22 +204,16 @@ export const BLOCK_TEXTS = {
     ELEMENT_LIST_TIP: "Write each Value with its own emoji in front, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, or an emoji alone, such as <code>💡</code>. <code>next</code> after the last one removes the Value from the line, the way a tag ends its cycle",
     ELEMENT_LIST_FOR: "Values for {0}",
     /*
-     * Раздел `Commands` — его заказ `З-33`: «в `io-fields-detail` внизу —
-     * субхедер с командами этого Field и их хоткеями, как в справочнике
-     * команд; список обновляется сразу».
-     *
-     * Подписи колонок свои, а не взятые у справочника: там их три и одна из
-     * них — описание, а здесь колонки две. Общий дом у них — не текст, а
-     * способ спросить хоткей (`hotkeys.ts`).
+     * Раздел `Commands` (`З-33`): команды Field и их хоткеи. Подписи колонок
+     * свои (колонок две, у справочника три); общий дом — способ спросить
+     * хоткей (`hotkeys.ts`).
      */
     COMMANDS_HEAD: "Commands",
     COMMANDS_HEAD_TIP: "Every command this Field has right now, and the key each one is on. A Field gets a <code>next</code> and a <code>previous</code>; a child Field adds its own pair. Rename the Field or switch it off and this list follows at once — it is built from your setup, not written down. Press a key cell to open Obsidian’s own <code>Hotkeys</code> screen at that command; this plugin assigns no keys by itself",
     COMMANDS_COL_NAME: "Command",
     COMMANDS_COL_HOTKEY: "Hotkey",
     COMMANDS_EMPTY: "This Field has no commands right now",
-    /* Подписи кнопки хоткея. Свои у каждого блока — так устроен каталог:
-       владелец текста тот блок, в котором он нарисован (10.13.47), и у
-       справочника с Binder они тоже свои. */
+    /* Подписи кнопки хоткея — у каждого блока свои: владелец текста — блок, где он нарисован (10.13.47). */
     HOTKEY_NOT_SET: "not set",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
     HOTKEY_ASSIGN: "Assign a hotkey to {0}",
@@ -284,37 +243,28 @@ export const BLOCK_TEXTS = {
     YAML_PREVIEW_NAME: "Preview",
     YAML_PREVIEW_DESC: "How this Value will look like in YAML",
     YAML_PREVIEW_TIP: "It follows the three choices above and updates as you change them, and it shows what <b>this</b> Field writes. Two Fields can share one property name — then the note gets both of them in the same list, while each Field shows only its own part here",
-    /*
-     * Окна редактора.
-     *
-     * Три строки заведены 2026-09-08, при разборе долга A46: подписи `Name` и
-     * `Type` и кнопка `Cancel` стояли в окнах литералами, а в каталоге их не
-     * было вовсе. То есть человек не мог их перевести даже теоретически — не
-     * «перевод не доезжает», а «строки нет».
-     */
+    /* Окна редактора. `Name`, `Type`, `Cancel` в каталоге с 2026-09-08 (A46). */
     NEW_FIELD_TITLE: "Add a Field",
     NEW_FIELD_NAME: "Name",
     NEW_FIELD_TYPE: "Type",
     CANCEL: "Cancel",
     NEW_FIELD_NAME_LABEL: "What this Field is called here and in its commands",
-    /* `Field name`, а не пример имени: пример читался как уже набранное (его замечание к тесту 3 цикла 99). */
+    /* `Field name`, а не пример: пример читался как уже набранное. */
     NEW_FIELD_NAME_HINT: "Field name",
     NEW_FIELD_NAME_ARIA: "Name of the new Field",
-    /* «?» у полей окна `Add a Field` — его ответ 2026-09-23. */
+    /* «?» у полей окна `Add a Field` (2026-09-23). */
     NEW_FIELD_NAME_TIP: "The name shows in the Fields list and in tagWheel. You can rename the Field later from its heading",
     NEW_FIELD_TYPE_TAG: "Tag",
     NEW_FIELD_TYPE_LINK: "Link",
     NEW_FIELD_TYPE_ELEMENT: "Element",
     NEW_FIELD_MARKER: "Emoji",
     NEW_FIELD_MARKER_LABEL: "What stands in front of the Value in the line, such as <code>📅</code> or <code>⏰</code>",
-    /* Заглушка нейтральна: `📅` в поле читался как уже выбранный знак — его
-       замечание к тесту 3 цикла 98. */
+    /* Заглушка нейтральна: `📅` читался как уже выбранный знак. */
     NEW_FIELD_MARKER_HINT: "Pick or type",
     NEW_FIELD_MARKER_ARIA: "Emoji of the new Field",
     NEW_FIELD_MARKER_TIP: "An Element writes this emoji and its Value after it, such as <code>📅2026-08-27</code>. Without it tagWheel cannot tell the Value from your text, so the Field needs one from the start",
     NEW_FIELD_ADD: "Add Field",
-    /* Окно `Add a Field` с главным сразу и предпросмотром — его заказ 2026-09-27,
-       переложено по его замечаниям к тесту 3 цикла 98. */
+    /* Окно `Add a Field` с главным сразу и предпросмотром (2026-09-27). */
     NF_TYPE_TAG_DESC: "Your own #tags, each in its own colors",
     NF_TYPE_LINK_DESC: "A link to one of your notes",
     NF_TYPE_ELEMENT_DESC: "An emoji with a date, a time, a count or a random id",
@@ -365,7 +315,7 @@ export const BLOCK_TEXTS = {
     NF_FORMAT_DESC: "How the Value is spelled, such as <code>YYYY-MM-DD</code>",
     NF_FORMAT_COUNTER_DESC: "The first number; its digits set the width, such as <code>001</code>",
     NF_FORMAT_RANDOM_DESC: "As many characters as digits here, such as <code>0000</code>",
-    /* Одна подпись на любой формат: единица — самая мелкая в <code>Value format</code> (его замечание к тесту 3 цикла 99). */
+    /* Одна подпись на любой формат: единица — самая мелкая в <code>Value format</code>. */
     NF_STEP_DESC_UNIT: "How much one press adds to the smallest unit of <code>Value format</code>, such as a minute or a day",
     NF_STEP_DESC_COUNT: "How much one press adds",
     NF_PREVIEW: "Preview",
@@ -373,7 +323,7 @@ export const BLOCK_TEXTS = {
     NF_PREVIEW_NO_VALUES: "No Values yet",
     NF_PREVIEW_VALUE: "Value",
     NF_SAMPLE_TEXT: "lorem ipsum",
-    /* Link как MOC — его замечание к тесту 3 цикла 98: окно и правая колонка. */
+    /* Link как MOC: окно и правая колонка. */
     MOC_NAME: "Use as MOC",
     MOC_DESC: "Let <code>Link the notes you mention</code> file new notes into the notes of these Values",
     MOC_TIP: "With <code>Link the notes you mention</code> on, <code>Inline to note</code> writes a link to the new note into the note of every link Value on the line, so a project note slowly becomes the list of everything filed under it. <b>No</b> keeps this Field out of it: its notes get no links, even when that setting is on. Pick it for links that are not a place to collect things, such as people you mention",
@@ -381,7 +331,7 @@ export const BLOCK_TEXTS = {
     MOC_NO: "No",
     MOC_OF: "Use as MOC for {0}",
     NEW_FIELD_FAILED: "The Field was not added",
-    /* Переименование Value-ссылки называет цену — его пункт 2026-09-27 к тесту 7. */
+    /* Переименование Value-ссылки называет цену (2026-09-27). */
     LINK_RENAME_TITLE: "Rename the note too?",
     LINK_RENAME_NOTE_BODY: "The Value <code>{0}</code> has its own note, <code>{1}</code>. Rename the note to <code>{2}</code> as well, and Obsidian rewrites every link to it in your notes: {3} in {4}",
     LINK_RENAME_NOTE_ONLY: "<b>Only the Value</b> leaves those links on the old name: they keep opening <code>{1}</code>, and the next command writes the new name next to them",
@@ -420,7 +370,7 @@ export const BLOCK_TEXTS = {
     ERR_NAME_CHARS: "A Field name can only use letters, digits, spaces, hyphens and underscores",
     ERR_NAME_SUB: "Names ending in _sub are reserved for child Fields",
     ERR_NAME_TAKEN: "A Field with this name already exists",
-    /* Custom block и повтор Value (PRD 10.13.260, `В-209`). */
+    /* Custom block и повтор Value (10.13.260, `В-209`). */
     ERR_BLOCK_NAME_TAKEN: "A block with this name already exists",
     ERR_VALUE_TAKEN: "Another Field already has a Value written this way",
     /* Написание Value (BUGHUNT 2026-09-30, Q3). */
@@ -449,8 +399,7 @@ export const BLOCK_TEXTS = {
     RULE_FALLBACK_NAME: "Rule {0}",
     RULES_EMPTY: "no rules yet — the default template is used for every line",
     ADD_RULE: "Add rule",
-    /* Кнопка отказа в окне выбора условия. Заведена 2026-09-08: стояла
-       литералом, и в каталоге её не было вовсе (долг A46). */
+    /* Кнопка отказа в окне выбора условия (A46). */
     CANCEL: "Cancel",
     MATCH_ANY: "any",
     MATCH_OR: "or",
@@ -480,14 +429,11 @@ export const BLOCK_TEXTS = {
     RULE_REMOVE: "Remove {0}",
     CONDITION_REMOVE: "Remove {0}",
     /* ---- `Advanced settings` у правила (З-5) ------------------------------
-       Слова повторяют `Note content`, и это не копия текста, а вторая его
-       точка на экране: у правила свои строки и свои ключи каталога, а
-       переводятся они врозь. Читаются они здесь и нигде больше. */
+       Слова повторяют `Note content` нарочно: у правила свои ключи, переводятся врозь. */
     /* ---- свёрнутая карточка правила (З-6) ---------------------------- */
     RULE_COLLAPSE: "Collapse {0}",
     RULE_EXPAND: "Expand {0}",
-    /* Условий нет вовсе: такое правило движок выключает (`validateSmartRules`),
-       и «any line» было неправдой (BUGHUNT 2026-09-30, C16). */
+    /* Без условий движок правило выключает (`validateSmartRules`); «any line» было неправдой (BUGHUNT C16). */
     SUMMARY_ANY_LINE: "nothing yet, so the rule is not used",
     /* Жалобы на правило: вердикт движка, слова панели (C16). */
     CONFLICT_WITH: "Conflicts with {0}: a line can match both, so neither is used",
@@ -496,9 +442,7 @@ export const BLOCK_TEXTS = {
     CONDITION_TITLE_LINK: "Add a link",
     CONDITION_TITLE_FIELD: "Add a Field",
     CONFLICT_EMPTY: "No conditions yet: add a Tag, Element, Link or Field, or the rule is not used",
-    /* Подписи частей сводки. Двоеточие внутри строки нарочно: видимая подпись
-       переводится целиком, а где в языке стоит двоеточие и стоит ли перед ним
-       пробел — решает тот, кто переводит, а не наша склейка. */
+    /* Двоеточие внутри строки нарочно: его место в языке решает переводчик, не склейка. */
     SUMMARY_WHEN: "Use when:",
     SUMMARY_TEMPLATE: "Template:",
     SUMMARY_FOLDER: "Folder:",
@@ -530,9 +474,7 @@ export const BLOCK_TEXTS = {
     COL_COMMAND_NAME: "Command name",
     COL_DESCRIPTION: "Description",
     COL_HOTKEY: "Hotkey",
-    /* Подсказки колонок, заведены 2026-09-08 (заказ «tip у всех элементов»).
-       Раскрываются в слот под шапкой, во всю ширину таблицы: ячейка шапки тут
-       шириной в шесть десятков точек. */
+    /* Подсказки колонок раскрываются в слот под шапкой во всю ширину: ячейка шапки ~60 точек. */
     COL_INSERTS_TIP: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
     COL_COMMAND_NAME_TIP: "What the command is called in the command palette and on Obsidian’s <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
     COL_DESCRIPTION_TIP: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
@@ -552,9 +494,7 @@ export const BLOCK_TEXTS = {
     NEW_INSERTS_DESC: "The text this command drops in at the cursor",
     NEW_NAME_LABEL: "Command name",
     NEW_NAME_DESC: "What to call it in Obsidian’s list of hotkeys",
-    /* Имя, которое окно предлагает само, когда вставленного знака нет в
-       выбиралке (его пункт 9.4: «дефолтное название всегда должно быть
-       предложено»). У знака из выбиралки имя своё — `Arrow right` у `→`. */
+    /* Имя по умолчанию, когда знака нет в выбиралке (п. 9.4); у знака из выбиралки имя своё (`Arrow right` у `→`). */
     NEW_NAME_AUTO: "Insert {0}",
     /* Выбиралка знака под полем `Inserts` (`В-182`). */
     PICK_EMOJI: "Emoji",
@@ -569,13 +509,7 @@ export const BLOCK_TEXTS = {
     ROW_ARIA: "this row",
     ROW_DRAG: "{0} to reorder it",
     ROW_DESC_ARIA: "Description for {0}",
-    /*
-     * `ROW_HOTKEY_ARIA` снята 2026-09-08 при разборе долга A46. Она собирала
-     * подпись кнопки хоткея из двух половин — «{0} the hotkey for {1}», — а
-     * подпись давно приходит целой строкой: `HOTKEY_CHANGE` или
-     * `HOTKEY_ASSIGN`. Строка пережила свой предмет и попадала в файл языка,
-     * где человек переводил то, чего на экране нет (У-71).
-     */
+    /* `ROW_HOTKEY_ARIA` снята (A46, У-71): подпись приходит целой — `HOTKEY_CHANGE`/`HOTKEY_ASSIGN`. */
     ROW_REMOVE: "Remove {0}",
     ERR_TEXT_TAKEN: "A row with this text to insert already exists",
     ERR_NAME_TAKEN: "A row with this command name already exists",
@@ -595,9 +529,7 @@ export const BLOCK_TEXTS = {
     FILL_TIP: "The color of the bubble behind the tag",
     TEXT_TIP: "The color of the writing on the bubble",
     SIDE_TIP: "The color of the bubble outline. Pure white means no outline, and in <code>Fill</code> it means no fill",
-    /* Пятая колонка была единственной без подсказки (заказ заказчика
-       2026-09-08). Чип предпросмотра у своего тега свой, как в таблице
-       Values, и предупреждение о контрасте показывает он же. */
+    /* Чип предпросмотра своего тега — свой, как в Values; контраст показывает он (2026-09-08). */
     PREVIEW_TIP: "The tag drawn the way the editor will draw it, with both colors and the <code>Show</code> choice applied. A warning sign appears when the two colors are too close to read, with the contrast it measured",
     ADD_TAG: "Add tag",
     NEW_TAG_HINT: "#tag",
@@ -633,9 +565,7 @@ export const BLOCK_TEXTS = {
   "left-right-order": {
     MOVE_LEFT: "Move left",
     MOVE_RIGHT: "Move right",
-    /* Подсказки двух подписей, 2026-09-08 (заказ «tip у всех элементов»).
-       Тело раскрывается ПОД парой колонок: колонка тут от 268 точек, и прозе
-       в ней тесно — та же беда, что у подсказок шириной с имя настройки. */
+    /* Тело подсказки — ПОД парой колонок: колонка от 268 точек, прозе тесно. */
     MOVE_LEFT_TIP: "What the key does depends on the line, and the list is read top down: the first line that matches wins. This is a description of the command, not a setting — each of the three jobs is switched on and off by its own row further down",
     MOVE_RIGHT_TIP: "The mirror of <code>Move left</code>, read the same way. Whether the last line applies at all is decided by <code>Cycle in both directions</code> below: switch it off and <code>Move right</code> only ever changes the indent",
     WHEN_SELECTED: "part of a line is selected",
@@ -661,9 +591,7 @@ export const BLOCK_TEXTS = {
 
   /* ---- ступени расширенного `Ctrl+A`: режим `Custom` (З-3) ------------- */
   "select-all-custom": {
-    /* Имена ступеней — слова Obsidian и обычного языка, поэтому со
-       строчной (Р9). Заказчик и просил их именно так: `word, line, tree,
-       heading, note`. */
+    /* Имена ступеней — со строчной (Р9). */
     STEP_WORD: "word",
     STEP_WORD_ABOUT: "the word nearest the cursor",
     STEP_LINE: "line",
@@ -684,8 +612,7 @@ export const BLOCK_TEXTS = {
     COL_COMMAND: "Command",
     COL_DOES: "Description",
     COL_HOTKEY: "Hotkey",
-    /* Подсказки шапки и двух подписей частей, 2026-09-08. Шапка — в слот под
-       ней; подпись части занимает строку целиком, и знак стоит в ней самой. */
+    /* Шапка — в слот под ней; подпись части занимает строку, знак в ней самой (2026-09-08). */
     COL_COMMAND_TIP: "The command, without the area already written above it. In the command palette and on the <code>Hotkeys</code> screen it carries that area in front — <code>Navigation: Move up</code> — and pressing a key cell here opens that screen at exactly that name. Never translated: Obsidian takes the name from its own registry, and two lists of one command would not agree",
     COL_DOES_TIP: "What the command does, in one line. This column is the one thing in the table a language file can change — the names beside it cannot",
     COL_HOTKEY_TIP: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian’s own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself",
@@ -695,9 +622,8 @@ export const BLOCK_TEXTS = {
     HOTKEY_ASSIGN: "Assign a hotkey to {0}",
     HOTKEY_NOT_SET: "not set",
     HOTKEY_OPEN: "Open Obsidian’s Hotkeys settings at this command",
-    /* Кнопка в заголовке любого уровня — его заказ 2026-09-20, пункт 12.3.
-       Подпись говорит, чем именно отобрано: язык поиска Obsidian набора команд
-       не выражает, и человек увидит эту строку в самом поле поиска. */
+    /* Кнопка в заголовке любого уровня (2026-09-20, п. 12.3). Подпись говорит, чем
+       отобрано: поиск Obsidian набор команд не выражает, строку видно в поле поиска. */
     TO_HOTKEYS: "to hotkeys",
     TO_HOTKEYS_LABEL: "Open Obsidian’s Hotkeys screen for {0}, filtered by {1}",
   },
@@ -718,7 +644,7 @@ export function blockTextEntries(owner: string): ReadonlyArray<{ key: string; te
   return Object.entries(table).map(([name, text]) => ({ key: blockKey(owner, name), text }));
 }
 
-/** То же самое, когда имя приходит строкой: у `say` его знать неоткуда. */
+/** То же, когда имя приходит строкой (для `say`). */
 export const BLOCK_BY_NAME: Readonly<Record<string, Readonly<Record<string, string>>>> =
   BLOCK_TEXTS as unknown as Readonly<Record<string, Readonly<Record<string, string>>>>;
 

@@ -1,15 +1,8 @@
 /**
- * Smart Rules в новой панели (PRD 10.8, фаза 3c).
- *
- * Здесь только подключение: вёрстка в `smart_rules_view.ts`, записи в
- * `smart_rules_model.ts`, а этот файл сводит их с платформой. Разделение то
- * же, что у редактора Fields, и по той же причине: вёрстка обязана рисоваться
- * на заглушке DOM (гейт Г16), а `Modal` заглушке недоступен — окно выбора
- * значения открывается отсюда и приходит в блок обратным вызовом.
- *
- * Спор правил и список шаблонов считает движок: `validateSmartRules` и
- * `collectTemplateOptions` из `transform_feature.js`. Свой разбор того же
- * разошёлся бы с ним на первой правке — это П9 по смыслу.
+ * Smart Rules в панели (PRD 10.8): подключение к платформе. Вёрстка —
+ * `smart_rules_view.ts` (рисуется на заглушке DOM, Г16), записи —
+ * `smart_rules_model.ts`; `Modal` открывается отсюда. Спор правил и шаблоны
+ * считает движок `transform_feature.js` (П9).
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
@@ -25,8 +18,7 @@ import {
   renderSmartRules,
 } from "./smart_rules_view.ts";
 
-/* Помощники состояния дерева значений — тот же модуль, что берут редактор
-   Fields и раздел свойств заметки. Разбор снятия шва — в `fields_editor.ts`. */
+/* Общий с редактором Fields модуль; снятие шва — `fields_editor.ts`. */
 import deepStateModule from "../../../core/order_deep_editor_state.js";
 
 /* Движок Transform: тот же модуль, что грузит плагин. */
@@ -65,10 +57,7 @@ interface ModalCtor {
   };
 }
 
-/**
- * Окно «Add a tag / element / link»: сперва Field, потом его Value. Ввода
- * «через запятую» нет — С-5 требует выбор из того, что уже настроено.
- */
+/** Окно «Add a tag / element / link»: Field, потом Value — только из настроенного (С-5). */
 function askConditionModal(
   Modal: ModalCtor,
   app: unknown,
@@ -77,11 +66,7 @@ function askConditionModal(
     choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
     /** Fields, у которых условие «любое значение» в правиле уже есть. */
     fieldsTaken: readonly string[];
-    /**
-     * Что выбрали: значение или Field целиком (10.13.14). Вид ответа названа
-     * полем, а не угадывается по строке: id Field и токен значения бывают
-     * одинаковыми на вид, и разбирать их обратно значило бы гадать.
-     */
+    /** Значение или Field целиком (10.13.14); вид — полем: id и токен бывают равны. */
     done: (answer: { kind: "value" | "field"; id: string } | null) => void;
     /** Видимый текст по имени из каталога (10.13.47). */
     say: (name: string, ...args: readonly (string | number)[]) => string;
@@ -136,13 +121,8 @@ interface SuggestInstance {
 }
 type SuggestCtor = new (app: unknown, input: unknown) => SuggestInstance;
 
-/** Папки vault. Приватного API тут нет: `getAllFolders` — публичный. */
-/*
- * Список папок и подсказчик на поле — **один дом на панель**. С 2026-09-16
- * их спрашивает не только карточка правила, но и строки `Templates folder`
- * и `New notes folder`: там поле рисуем мы сами, ради крестика (В-131), и
- * своя копия подсказчика разошлась бы с этой на первой же правке (У-32).
- */
+/** Папки vault (`getAllFolders` — публичный API). */
+/* Один дом на панель: берут и `Templates folder`, `New notes folder` (В-131, У-32). */
 export function vaultFolders(app: unknown): string[] {
   try {
     const vault = (app as { vault?: { getAllFolders?: (root?: boolean) => Array<{ path?: unknown }> } }).vault;
@@ -159,12 +139,8 @@ export function vaultFolders(app: unknown): string[] {
 }
 
 /**
- * Подсказчик папок на поле своей папки правила.
- *
- * Рисует его **платформа**: `AbstractInputSuggest` — публичный API Obsidian с
- * 1.4.10, а `minAppVersion` у нас 1.13. Класса может не быть (у заглушки DOM
- * его нет), и тогда поле остаётся обычным полем ввода — папку вписывают
- * руками, и она создаётся при первом срабатывании правила.
+ * Подсказчик папок платформы (`AbstractInputSuggest`, с 1.4.10). Нет класса
+ * (заглушка DOM) — остаётся обычное поле.
  */
 export function attachFolderSuggest(ctor: unknown, app: unknown, input: ElInput, write: (value: string) => void): void {
   if (typeof ctor !== "function") return;
@@ -204,11 +180,7 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
   const Modal = p.Modal as ModalCtor;
   const app = (p.plugin as { app?: unknown }).app;
 
-  /**
-   * Шаблоны из vault. Список читает движок — та же функция, что выбирает
-   * шаблон при переносе строки. Vault может не ответить (в проверках его нет
-   * вовсе), и тогда список пуст: выбрать нечего, но блок работает.
-   */
+  /** Шаблоны из vault — функцией движка; vault не ответил — список пуст. */
   const templates = (): string[] => {
     try {
       const folder = String(ctx.get("transform.inline2note.templatesFolder") || "");
@@ -222,14 +194,8 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
   };
 
   /**
-   * Развёрнутые карточки правил (З-6). Состояние вида, в конфиг не пишется
-   * (О0): «открыта ли карточка» — это не настройка человека.
-   *
-   * Живёт оно ровно столько, сколько живёт блок: перерисовку переживает,
-   * переход между вкладками — нет. Это и есть то, что просил заказчик:
-   * «после создания и настройки smart rule оно должно по умолчанию быть в
-   * свёрнутом состоянии» — панель открывается со свёрнутыми правилами, а
-   * развёрнутое остаётся развёрнутым, пока человек на этой вкладке.
+   * Развёрнутые карточки (З-6) — состояние вида, не конфиг (О0). Живёт с
+   * блоком: перерисовку переживает, смену вкладки — нет (по умолчанию свёрнуты).
    */
   const expanded = new Set<string>();
 
@@ -254,39 +220,28 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
       renderSmartRules(next, {
         model,
         expanded,
-        /*
-         * **Подстановка текста передаётся блоку** (долг A46, 2026-09-08).
-         * Без неё вёрстка брала `PLAIN` — `say` без контекста, — и весь блок
-         * Smart Rules рисовался по-английски при любом языке. Статический
-         * обход имён этого не видел: имена спрашивались честно, только
-         * спрашивать было не у кого. Нашла поведенческая половина проверки —
-         * панель, отрисованная с переведённым каталогом.
-         */
+        /* Без подстановки вёрстка берёт `PLAIN` и рисует по-английски (A46). */
         say: sayIn("smart-rules-list", ctx),
         enabled: Boolean(ctx.get("transform.inline2note.enabled")),
         templates: templates(),
-        /* Имя папки нужно самой подписи: пустой список обязан сказать,
-           чего не хватает, теми же словами, что и `Default template`. */
+        /* Для подписи пустого списка, как у `Default template`. */
         templatesFolder: String(ctx.get("transform.inline2note.templatesFolder") || ""),
         redraw: () => { draw(); },
-        /* Выбор из подсказчика — это уже нажатие: значение пишется сразу, а
-           не ждёт, пока человек уйдёт из поля. */
+        /* Выбор из подсказчика пишется сразу, не по уходу из поля. */
         folderSuggest: (input, write) => attachFolderSuggest(
           p.AbstractInputSuggest, app, input,
           value => { input.value = value; write(value); }),
         askCondition: (kind, done) => askConditionModal(Modal, app, {
           kind,
           choices: model.choicesFor(kind),
-          /* Какие Fields уже стоят условием «любое значение»: их имя в окне
-             неактивно (10.13.14 Н4). Считается по правилам, а не по памяти. */
+          /* Fields с условием «любое значение» — неактивны в окне (10.13.14 Н4). */
           fieldsTaken: model.listRules().flatMap(r => r.conditions.fields),
           done,
           say: sayIn("smart-rules-list", ctx),
         }),
       });
     } catch (e) {
-      /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что
-         работало: так же устроен редактор Fields (замечание заказчика). */
+      /* Неудача выбрасывается, на экране остаётся прежнее (как в редакторе Fields). */
       next.remove();
       console.error("inline-overhaul: Smart Rules не отрисовались", e);
       return;

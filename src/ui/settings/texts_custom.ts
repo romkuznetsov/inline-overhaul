@@ -1,26 +1,9 @@
 /**
- * Ключи видимых текстов своих блоков (PRD 10.13.38, второй пласт первого
- * куска).
- *
- * У записи `kind: "custom"` нет ни `name`, ни `desc`: весь её текст живёт в
- * `schema/custom_texts.ts` — выгрузке из прототипа. Значит и ключи ему нужны
- * свои, и собираются они здесь, рядом с формой этих текстов, а не в общем
- * модуле каталога: тот про схему и про вкладки, и знать про коллауты и
- * предпросмотры ему нечего.
- *
- * Ключ строится по **пути внутри самой выгрузки**: `callout.general.head`,
- * `preview.line.cap`, `commands.0.list.3.does`. Так его можно прочесть, не
- * держа в голове второй словарь.
- *
- * **Место в файле — то же, что на экране** (10.13.46, замечание заказчика к
- * K1). Раньше все эти строки лежали одним разделом в конце: коллаут вкладки
- * `Visual` стоял через сотню строк от заголовков этой вкладки, и переводить
- * их приходилось врозь. Теперь каждый блок отдаёт свои тексты `catalogEntries`
- * там, где сам блок стоит в схеме.
- *
- * **Имена команд сюда не попадают** (Я2). Их показывает и палитра Obsidian,
- * а она берёт имя из реестра команд: переведи мы имя в справочнике, и два
- * списка одной и той же команды разошлись бы на экране.
+ * Ключи видимых текстов своих блоков (PRD 10.13.38). У `kind: "custom"` нет
+ * `name`/`desc`: тексты — в `schema/custom_texts.ts`, ключ — путь внутри неё
+ * (`callout.general.head`, `commands.0.list.3.does`).
+ * Тексты встают в файл там же, где блок на экране (10.13.46, замечание к K1).
+ * Имена команд не переводятся (Я2): палитра Obsidian берёт их из реестра команд.
  */
 
 import {
@@ -62,17 +45,9 @@ export const SINGLE_KEYS = {
 } as const;
 
 /**
- * Строки, у которых своего места в схеме нет.
- *
- * `calloutTipLabel` — подпись «?» у вводного коллаута: она читается вслух
- * экранным диктором и потому видима (`Show tip about this tab`).
- * `groupReset` — подпись кнопки сброса группы: кнопка одна на все группы.
- * `clearField` — подпись крестика, стирающего написанное в поле: он тоже
- * один на все такие поля, и читает его вслух экранный диктор (В-131).
- * `defaultOption` — приписка у того значения выпадающего списка, которое
- * стоит в схеме умолчанием (его заказ 2026-09-20, пункт 13): человеку не
- * видно, какой из вариантов стандартный, а перебрав список, он уже не помнит,
- * с чего начинал. Приписка одна на все списки, поэтому и ключ один.
+ * Строки без своего места в схеме, по одной на все блоки: `calloutTipLabel`
+ * (читает диктор), `groupReset`, `clearField` (В-131), `defaultOption` —
+ * приписка у умолчания в выпадающем списке (2026-09-20, п. 13).
  */
 export const SHARED_TEXTS: Readonly<Record<string, string>> = {
   [SINGLE_KEYS.previewExample]: PREVIEW_EXAMPLE,
@@ -86,13 +61,8 @@ export const SHARED_TEXTS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Строки самой панели, у которых нет ни строки настройки, ни окна: сброс
- * группы, подсказка «?» у заголовка, пустые состояния предпросмотров
- * (10.13.46).
- *
- * Ключ строится `frameKey`, и оба конца зовут его (У-82). Живут они здесь, а
- * не в `texts_dialogs.ts`: то — окна, которые открывает кнопка, а это то, что
- * панель рисует всегда.
+ * Строки самой панели без строки настройки и окна (10.13.46). Ключ — `frameKey`
+ * на обоих концах (У-82). Окна кнопок — в `texts_dialogs.ts`.
  */
 export const FRAME_TEXTS = {
   /* Сброс группы (Н3, Н5). */
@@ -112,14 +82,8 @@ export const FRAME_TEXTS = {
   MORE_ABOUT: "More about {0}",
   /* Полоса вкладок: её читает вслух программа чтения с экрана. */
   TAB_STRIP: "Settings areas",
-  /*
-   * `PREVIOUSLY_CALLED` снята 2026-09-08. Строка «Previously called …» не
-   * рисовалась никогда: шов в `describe.ts` был объявлен и не читался даже
-   * тем файлом. Прежние имена при этом работают и работали — они едут в
-   * `aliases` платформы из `searchTerms` схемы, и глобальный поиск Obsidian
-   * их учитывает (С4). То есть строка попадала в файл языка, человек её
-   * переводил, а увидеть не мог нигде (У-71).
-   */
+  /* `PREVIOUSLY_CALLED` снята 2026-09-08: не рисовалась; прежние имена идут в
+   * `aliases` из `searchTerms` (С4, У-71). */
   /* Тихий значок контраста (Н16): число говорит, далеко ли до нормы. */
   CONTRAST_WARNING: "This Value may be hard to read: contrast {0}:1, aim for {1}:1",
   /* Примерные Fields предпросмотра, пока своих нет (ПЗ2). */
@@ -140,9 +104,7 @@ export const FRAME_TEXTS = {
   PREVIEW_EMPTY_VALUE: "empty",
   PREVIEW_BEFORE: "Before",
   PREVIEW_AFTER: "After",
-  /* Подсказки двух половин предпросмотра `Source line`, 2026-09-08 (заказ
-     заказчика «tip у всех элементов»). Подпись половины занимает строку
-     целиком, поэтому знак «?» стоит в ней самой, а тело — сразу под ней. */
+  /* Подсказки половин `Source line` (2026-09-08): «?» в самой подписи, тело под ней. */
   PREVIEW_BEFORE_TIP: "The line as you wrote it, with the Fields you have set up, and two lines indented under it. This half never changes with the settings: it is the starting point the half below is measured against",
   PREVIEW_AFTER_TIP: "The same line once <code>Inline to note</code> has run, with every choice in this block applied: what happens to your text, which Values stay behind, whether a link takes their place, and whether the indented lines travel with it",
   PREVIEW_NO_FIELDS: "no Fields yet — set one up under <code>Tags &amp; PKM</code> and the example fills in",
@@ -190,8 +152,7 @@ function previewEntries(out: TextEntry[], id: string): void {
   push(out, previewKey(id, "element"), text.element);
   push(out, previewKey(id, "link"), text.link);
   push(out, previewKey(id, "note"), text.note);
-  /* Три формы ссылки из предпросмотра `Link view`: их человек читает так же,
-     как всё остальное на этой картинке, и мимо каталога им нельзя (Г25). */
+  /* Три формы ссылки `Link view` — тоже через каталог (Г25). */
   push(out, previewKey(id, "wikilink"), text.wikilink);
   push(out, previewKey(id, "label"), text.label);
   push(out, previewKey(id, "address"), text.address);
@@ -212,23 +173,14 @@ function commandEntries(out: TextEntry[]): void {
   });
 }
 
-/**
- * Тексты, которые рисует эта строка настройки.
- *
- * Вкладку коллаут берёт **у своей группы**, а не из своего id: у вкладки
- * `navigation` блок называется `nav-callout`, и вывод по имени разошёлся бы с
- * тем, что рисуется (У-82).
- */
+/** Тексты строки настройки. Коллаут — по группе, не по id: у `navigation` блок `nav-callout` (У-82). */
 export function blockEntries(tab: string, _group: SettingsGroup, it: SettingDef): readonly TextEntry[] {
   const out: TextEntry[] = [];
   const id = it.id;
   if (/-callout$/.test(id)) calloutEntries(out, tab);
   else if (PREVIEW_TEXTS[id]) previewEntries(out, id);
   else if (id === "command-list") commandEntries(out);
-  /*
-   * Своя вёрстка блока — свои тексты (10.13.47). Стоят они здесь же, а не
-   * разделом в конце: человек читает их на этом месте панели.
-   */
+  /* Своя вёрстка блока — свои тексты, на месте блока (10.13.47). */
   const own = blockTextEntries(id);
   own.forEach((entry, i) => out.push(i === 0 ? { ...entry, gap: true } : { ...entry }));
   return out;

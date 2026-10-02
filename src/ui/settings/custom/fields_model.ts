@@ -1,35 +1,15 @@
 /**
- * Модель редактора Fields (PRD 10.2, фаза 3b пункт 4).
- *
- * Зачем она есть. Пункт 4 переписывает вёрстку редактора по Ф1–Ф20, а записи
- * в конфиг обязан сохранить один в один: их семнадцать путей (Ф16) и они
- * закреплены картой `tests/fixtures/order_board_write_map.txt`. Если новая
- * вёрстка соберёт патчи заново, карта станет проверять не то, что было, а то,
- * что получилось — то есть перестанет быть проверкой.
- *
- * Поэтому записи вынесены сюда из доски **дословно**, а доска зовёт их отсюда.
- * Карта снимается с доски и обязана остаться прежней посимвольно: это и есть
- * доказательство, что вынос ничего не сдвинул. Новая вёрстка потом берёт те же
- * функции — и пишет ровно то же, ничего не переписывая.
- *
- * Что здесь есть и чего нет. Здесь только чтение конфига и сборка патчей: ни
- * одного обращения к DOM, ни одного `Notice`. Проверки, которые доска
- * показывала уведомлением, возвращаются кодом ошибки — текст остаётся у того,
- * кто рисует. Так модель одинаково работает и в доске, и в новой панели, и в
- * проверках на заглушке.
+ * Модель редактора Fields (PRD 10.2, фаза 3b п.4): чтение конфига и патчи,
+ * без DOM и `Notice` — ошибки возвращаются кодом. Записи вынесены из доски
+ * дословно (Ф16); их стережёт `tests/fixtures/order_board_write_map.txt`.
  */
 
 import { asObject, asArray } from "../types.ts";
 import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility, SubMode } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
-/*
- * Из движка нужна одна вещь: показательное значение элемента по формату поля.
- * Своя копия этого правила разошлась бы с разборщиком молча — и уже разошлась
- * (У-32).
- */
+/* Из движка — показательное значение элемента по формату поля; своя копия разошлась бы (У-32). */
 import transformFeature from "../../../features/transform_feature.js";
-/* «Это ссылка целиком» спрашивается у общего дома, а не пишется здесь вторым
-   образцом (У-32): ключом вида бывает и тег, и ссылка. */
+/* «Это ссылка целиком» — из общего дома (У-32): ключом вида бывает и тег, и ссылка. */
 import sharedUtils from "../../../core/shared_utils.js";
 
 const transformSample = transformFeature as unknown as {
@@ -39,44 +19,21 @@ const transformSample = transformFeature as unknown as {
 /** Английское проверок имён: слова живут в каталоге (10.13.47). */
 const SAY = BLOCK_TEXTS["field-editor"];
 
-/*
- * Динамическая форма. Перенесённый код ходит по конфигу и по дереву значений
- * произвольными ключами, и типизировать это строго значило бы переписать его,
- * а не перенести (Ф12). Настоящая форма конфига описана в `types.ts` (Ф16);
- * здесь — те же данные в том виде, в каком их читает перенесённый код.
- */
+/* Динамическая форма: строгие типы значили бы переписать перенесённый код (Ф12); форма конфига — `types.ts` (Ф16). */
 type Loose = any;
 
 /* ---- то, чего модель ждёт снаружи ------------------------------------- */
 
-/**
- * Плагин в том виде, в каком его зовёт редактор. Это не весь плагин: модель
- * специально видит от него только запись патча, чтение конфига и один вызов
- * наружу, который редактор делал и делает.
- */
+/** Плагин для редактора: запись патча, чтение конфига и один вызов наружу. */
 export interface FieldsPlugin {
   getConfig: () => PkmFieldsConfig;
   setConfigPatch: (patch: unknown, reason: string) => void;
 }
 
 /**
- * Помощники состояния из `src/core/order_deep_editor_state.js`: дерево
- * значений, применение дерева к Fields, нормализация значений. Модель их не
- * ищет сама — их отдаёт тот, кто её создаёт.
- *
- * **Все четыре обязательны, и отказ здесь громкий** (10.13.166). Прежде они
- * стояли необязательными, а каждое место спрашивало `typeof deep.X ===
- * "function"` и держало за этим свой ответ: пустое дерево, «ничего не
- * записали», своя нормализация. Отдаёт помощников один импорт
- * (`fields_editor.ts`, `order_lists.ts`, `preview_data.ts`, `smart_rules.ts`),
- * литеральный и разрешаемый всегда, — то есть ни один из этих ответов не
- * исполнялся ни разу, а обещание «без модуля мы переживём» было ложным:
- * человек получил бы редактор, который молча не сохраняет.
- *
- * Прежний довод «доска умеет откатиться на заглушку» перестал быть правдой
- * 2026-09-14, когда шов `fields_editor_legacy.js` сняли вместе с заглушкой.
- * Утверждение о состоянии живёт дольше состояния (У-64), и держало оно ровно
- * эти пять запасных ходов.
+ * Помощники из `src/core/order_deep_editor_state.js`, отдаёт создающий.
+ * Все четыре обязательны, отказ громкий (10.13.166, У-64): запасные ходы
+ * дали бы редактор, который молча не сохраняет.
  */
 export interface DeepState {
   normalizeToken: (raw: unknown, kind?: string) => string;
@@ -85,13 +42,7 @@ export interface DeepState {
   applyTagTreeToFields: (tree: Loose[], parentField: Loose, subField: Loose, kind: string) => Loose;
 }
 
-/**
- * Требования модели к помощникам — одним списком и вслух.
- *
- * Тот же приём, что у `need(...)` в `pkm_v2/field_relocation.js`: имя, которого
- * не хватает, называется в самом отказе, и спрашивается оно **один раз**, а не
- * в каждом месте вызова.
- */
+/** Требования к помощникам одним списком, как `need(...)` в `pkm_v2/field_relocation.js`: недостающее имя — в отказе. */
 function ensureDeepState(raw: DeepState | undefined): DeepState {
   const need: readonly (keyof DeepState)[] = [
     "normalizeToken",
@@ -123,16 +74,9 @@ export interface FieldsModelDeps {
 export interface WriteResult {
   ok: boolean;
   error?: string;
-  /**
-   * `false` — записи не было, потому что менять нечего. Отличать это от
-   * успеха приходится: перерисовка на пустом месте сбрасывает фокус в поле
-   * ввода, и человек теряет каретку посреди набора.
-   */
+  /** `false` — менять нечего: лишняя перерисовка сбросила бы фокус и каретку. */
   changed?: boolean;
-  /**
-   * Ключ, под которым Field лёг в конфиг. Имя из окна нормализуется, и
-   * вёрстке нужен именно итог: по нему она выбирает новый Field.
-   */
+  /** Ключ Field в конфиге после нормализации имени: по нему вёрстка выбирает новый Field. */
   key?: string;
 }
 
@@ -142,13 +86,13 @@ export interface WriteResult {
  */
 export type FieldSide = "left" | "right" | `custom:${string}`;
 
-/** Что окно `Add a Field` задаёт сразу (его заказ 2026-09-27). */
+/** Что окно `Add a Field` задаёт сразу (2026-09-27). */
 export interface NewFieldSetup {
   side?: FieldSide;
   values?: Array<{ token: string; fill?: string; text?: string }>;
   /** Как шагает Element: на величину, командой (момент, случайное) или по списку Values (`В-247`). */
   element?: { mode: "increment" | "command" | "list"; format: string; incrementBy?: number; command?: "now" | "randomN" | "randomE"; list?: string[] };
-  /** Link: `false` — не MOC (его замечание к тесту 3 цикла 98). */
+  /** Link: `false` — не MOC (тест 3 цикла 98). */
   moc?: boolean;
   /** Свойство YAML, в которое уходит Value. */
   property?: string;
@@ -190,13 +134,9 @@ export type YamlValueRule = "raw" | "clean";
 export type YamlCardinality = "auto" | "one" | "list";
 
 /**
- * Строка блока `Note properties` (10.9 Я1): Field, его свойство заметки и
- * то, из чего считается пример записи.
- *
- * Пример блок не считает сам: он собирает выдуманную строку из `lineToken`
- * и отдаёт её движку — `parseInlineLine`, `buildTransformContext`,
- * `buildYamlMapFromContext`. Поэтому здесь лежит не готовое значение
- * свойства, а токен так, как он встаёт в строку заметки.
+ * Строка блока `Note properties` (10.9 Я1). Пример считает движок
+ * (`parseInlineLine`, `buildTransformContext`, `buildYamlMapFromContext`)
+ * из выдуманной строки — поэтому здесь токен, а не значение свойства.
  */
 export interface YamlFieldRow {
   /** Ключ Order: им Field назван в панели и в картах Order. */
@@ -208,10 +148,7 @@ export interface YamlFieldRow {
   /** Свойство заметки у Field; пусто — Field не копируется. */
   property: string;
   cardinality: YamlCardinality;
-  /**
-   * Правило, по которому движок запишет значения этого Field. Если своего
-   * правила у Field нет, здесь стоит то, что движок возьмёт вместо него.
-   */
+  /** Правило записи значений Field; нет своего — то, что движок возьмёт вместо. */
   valueRule: YamlValueRule;
   /** Задано ли правило у самого Field, или это ещё общее значение. */
   valueRuleOwn: boolean;
@@ -222,12 +159,7 @@ export interface YamlFieldRow {
   lineToken: string;
 }
 
-/**
- * Field со всеми его значениями так, как они встают в строку (10.8 С-5).
- *
- * Нужно условиям Smart Rules: там выбирают Field, а потом одно из его
- * значений. У `element` значений нет — у него маркер, и он один.
- */
+/** Field со значениями, как они встают в строку (10.8 С-5), для условий Smart Rules; у `element` — один маркер. */
 export interface FieldTokens {
   key: string;
   label: string;
@@ -258,11 +190,7 @@ export interface ValueTreeRow {
   __ioParentFieldId?: string;
 }
 
-/**
- * Адрес строки в таблице Values. Значение опознаётся по себе и по родителю, а
- * не по номеру: между чтением и записью строка могла переехать, а токен —
- * это то, что человек видит и правит.
- */
+/** Адрес строки Values: по токену и родителю, не по номеру — строка могла переехать. */
 export interface ValueAt {
   /** 0 — Value верхнего уровня, 1 — дочернее (Ф8). */
   level: 0 | 1;
@@ -272,14 +200,8 @@ export interface ValueAt {
 }
 
 /**
- * Предусловие Field: Field, без которого он не показывается, и, если нужно,
- * конкретное значение того Field (10.13.4).
- *
- * В конфиг это ложится двумя ключами самого Field, и оба у рантайма давно
- * есть: `dependsOn` — Field, которого он ждёт (`isFieldEnabled` в
- * `tagwheel_core.js` выключает Field, пока у того значения нет), и
- * `enabledForParentValues` — список значений, при которых он включается. Мы
- * пишем в список ровно одно значение: человек выбирает одно.
+ * Предусловие Field (10.13.4): ключи `dependsOn` (`isFieldEnabled` в
+ * `tagwheel_core.js`) и `enabledForParentValues` — пишем одно значение.
  */
 export interface PrerequisiteState {
   /** Пусто — предусловия нет. */
@@ -299,11 +221,7 @@ export interface LinkParentChoice {
   tokens: Array<{ value: string; label: string }>;
 }
 
-/**
- * Редактор значений одного Field. Снимок: дерево и всё вокруг него читается
- * один раз, на отрисовке, — так это работало в доске, и от этого зависят
- * патчи, которые уходят в конфиг.
- */
+/** Редактор значений Field. Снимок на отрисовке: от этого зависят уходящие патчи. */
 export interface ValuesEditor {
   kind: FieldKind;
   parentFieldId: string;
@@ -367,20 +285,13 @@ const SUB_SUFFIX_RE = /_sub$/;
 
 
 
-/**
- * Ветка определений Fields: `pkm.fields` (PRD 8.1, 8.1а). Имя функции осталось
- * прежним — так её зовут полторы сотни строк ниже, — но читает она версию 2.
- */
+/** Ветка определений `pkm.fields` (PRD 8.1, 8.1а); имя функции прежнее, читает версию 2. */
 function behaviorOf(cfg: unknown): Record<string, unknown> {
   const pkm = asObject(asObject(cfg)["pkm"]);
   return asObject(pkm["fields"]);
 }
 
-/**
- * Сторона панели -> ветка конфига. В версии 2 ветки названы по **типу** Field:
- * `tags` и `links` вместо `leftMode` и `rightMode` (ответ В9). Наружу здесь
- * по-прежнему говорят про сторону, потому что про сторону говорит и панель.
- */
+/** Сторона панели → ветка конфига: в версии 2 `tags`/`links` вместо `leftMode`/`rightMode` (В9). */
 const MODE_BRANCH: Record<"leftMode" | "rightMode", "tags" | "links"> = {
   leftMode: "tags",
   rightMode: "links",
@@ -395,24 +306,15 @@ function idOf(row: unknown): string {
 }
 
 /*
- * **Одно написание Value — у одного Field** (`В-209`, его ответ 2026-09-24).
- * По написанию значение узнают и Left/Right, и custom block (пункт 13
- * постановки): два Field с одним `#todo` делали бы вопрос «чьё это»
- * неразрешимым. Сравнивается голое написание без регистра — так тег видит
- * Obsidian. Запрещается **новое** написание: уже стоящий повтор не
- * запирает правку остальных значений. Спрашивают редактор Values и окно
- * `Add a Field` (BUGHUNT A13: окно принимало занятое и теряло его молча).
+ * Одно написание Value — у одного Field (`В-209`, пункт 13 постановки).
+ * Без регистра, как тег видит Obsidian. Запрещается только новое написание;
+ * спрашивают редактор Values и окно `Add a Field` (BUGHUNT A13).
  */
 function valueBareOf(raw: unknown): string {
   return String(raw == null ? "" : raw).trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "").trim().toLowerCase();
 }
 
-/*
- * Сравнивается написание **в своём роде**: `#home` и `[[Home]]` в строке
- * пишутся по-разному, и вопроса «чьё это» между ними нет (BUGHUNT S5).
- * Прежде голое слово сравнивалось без рода, и Value-ссылку `Home` нельзя
- * было завести рядом с тегом `#home`. Ключ — `L:` или `T:` плюс написание.
- */
+/* Сравнение в своём роде: `#home` и `[[Home]]` не спорят (BUGHUNT S5). Ключ — `L:`/`T:` плюс написание. */
 function takenValues(fields: unknown[], skipIds: ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const f of fields) {
@@ -433,11 +335,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const { plugin, normalizePkmOrder, pkmOrderFields, cfg } = deps;
 
   const order = normalizePkmOrder(behaviorOf(cfg)["order"] ?? null);
-  /**
-   * Состояние Order, с которым работает вёрстка. Объект живой: доска меняет
-   * его на месте и перерисовывается из него, поэтому модель отдаёт тот же
-   * объект, а не копию. Копия развела бы два источника истины.
-   */
+  /** Состояние Order для вёрстки. Живой объект: доска меняет его на месте, копия развела бы источники. */
   const orderState: OrderState = normalizePkmOrder(order);
 
   const inferSubKey = (parentKey: string): string => {
@@ -473,17 +371,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Ключ дочернего Field. Есть у Field типа `tag` и `wikilink`; у `element`
-   * значений нет вовсе, и дочернего быть не может.
-   *
-   * История этой строки стоит того, чтобы её не переписывали заново. Ссылку
-   * сюда добавляли 2026-08-27, в тот же день убирали — стрелка уровня уносила
-   * значение, потому что ветка `wikilink` в `saveTree` писала только верхний
-   * уровень дерева, — и в тот же день вернули, когда стало ясно, что рантайм
-   * дочерние значения ссылки понимает: `getAllowedValues` берёт каталог из
-   * `field.values` для всего, кроме `projects`, и фильтрует значения дочернего
-   * Field по `allowedParentValues` одинаково для любого типа. Починена была не
-   * стрелка, а запись.
+   * Ключ дочернего Field: у `tag` и `wikilink`, у `element` нет. Рантайм
+   * понимает дочерние значения ссылки (`getAllowedValues`, `allowedParentValues`)
+   * — чинилась запись `saveTree`, не стрелка (2026-08-27).
    */
   const getSubKeyForParent = (k: string): string => {
     const kind = getFieldKind(k);
@@ -492,18 +382,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Включён ли дочерний Field. Читается там, где состояние и лежит — в картах
-   * `active` и `enabled`, — а не из списка Fields.
-   *
-   * Причина важная и куплена дефектом: настоящий `normalizePkmOrder` из
-   * `main.js` **выбрасывает ключи `_sub` из `left` и `right`** (там
-   * `normalizeList` пропускает всё, чего нет в наборе не-дочерних ключей).
-   * Поэтому `listFields()` в живой панели строки дочернего Field не отдаёт, и
-   * вёрстка, читавшая состояние оттуда, всегда видела «нет данных» и
-   * показывала `yes`, что бы человек ни выбрал.
-   *
-   * Значение по умолчанию — то же, что было у кнопки старой доски: нет записи
-   * в `active` — смотрим `enabled`, нет и его — считаем включённым.
+   * Включён ли дочерний Field — из карт `active`/`enabled`, не из списка:
+   * `normalizePkmOrder` выбрасывает `_sub` из `left`/`right`. Нет записи в
+   * `active` — `enabled`, нет и его — включён.
    */
   const getSubActive = (subKey: string): "yes" | "no" => {
     const key = String(subKey || "").trim();
@@ -516,21 +397,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Положение дочернего Field: `hide` — его нет нигде, `after-parent` — он
-   * появляется, когда у родителя есть значение (так было всегда), `always` —
-   * он работает и на строке без родителя (его слово 2026-09-19).
-   *
-   * Включённость по-прежнему живёт в `active`/`enabled` — её читает рантайм и
-   * читают соседние контролы; третье положение добавляет к ней одну булеву
-   * карту, а не заводит второй ответ на вопрос «включён ли».
+   * Положение дочернего Field: `hide`, `after-parent` (умолчание), `always`
+   * (2026-09-19). Включённость — в `active`/`enabled`; `always` — одна булева карта.
    */
   const getSubMode = (subKey: string): SubMode => {
     const key = String(subKey || "").trim();
     if (!key) return "after-parent";
     if (getSubActive(key) === "no") return "hide";
-    /* Четвёртое положение (`З-36`, его пункт 11 от 2026-09-22): `Show when
-       press Alt`. Спрашивается раньше `always`: оба ключа пишет одна запись,
-       и вместе они не стоят, но разобранный руками файл мог бы их свести. */
+    /* `Show when press Alt` (`З-36`) спрашивается раньше `always`: вместе не пишутся, но файл руками мог их свести. */
     if (orderState.subOnAlt && orderState.subOnAlt[key] === true) return "alt";
     return (orderState.subWithoutParent && orderState.subWithoutParent[key] === true)
       ? "always"
@@ -558,7 +432,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return !!(orderState.yamlNavigator && orderState.yamlNavigator[key] === true);
   };
 
-  /** Link как MOC: нет ключа — да (его замечание к тесту 3 цикла 98). */
+  /** Link как MOC: нет ключа — да (тест 3 цикла 98). */
   const getUseAsMoc = (key: string): boolean => {
     const k = String(key || "").trim();
     return !(orderState.useAsMoc && orderState.useAsMoc[k] === false);
@@ -573,17 +447,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
   };
 
-  /** Карты Order по ключу Field: одно перечисление на удаление и надгробия (ревизия У-4). */
+  /** Карты Order по ключу Field: одно перечисление на удаление и надгробия (У-4). */
   const ORDER_MAPS = [
     "lead", "labels", "strictNames", "types", "active", "freeRoam", "enabled",
     "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc", "propertiesByField",
   ] as const;
 
-  /**
-   * Запись Order. Перенесена дословно, вместе с надгробиями: ключ, исчезнувший
-   * из карты, обязан уйти в конфиг как `null`, иначе слияние патчей его
-   * воскресит. Ради этого `replace` и существует.
-   */
+  /** Запись Order с надгробиями: исчезнувший ключ уходит `null`, иначе слияние его воскресит. */
   const setOrderPatch = (
     patchObj: Partial<OrderState> | OrderState,
     reason: string,
@@ -595,11 +465,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const p = patchObj as Partial<OrderState>;
     const next = replace
       ? normalizePkmOrder(patchObj)
-      /*
-       * Карты сливаются с прежними, а не заменяют их: патч из одного ключа
-       * иначе выбрасывал бы все остальные (свойство заметки — дефект
-       * 2026-08-28). Список карт — `ORDER_MAPS` (ревизия У-4).
-       */
+      /* Карты сливаются с прежними: патч из одного ключа иначе выбросил бы остальные (2026-08-28). Список — `ORDER_MAPS` (У-4). */
       : normalizePkmOrder({
         ...current,
         ...patchObj,
@@ -623,28 +489,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const orderPatch = {
         ...next,
         lead: withTombstones(next.lead, current.lead),
-        /*
-         * Надгробие нужно и свойству заметки: стёртое имя исчезает из карты, а
-         * пустое место при `deepMerge` ничего не меняет — прежнее значение
-         * оставалось в конфиге, и панель честно показывала его дальше.
-         * Замечание заказчика 2026-08-28: «удалил значение, а в Preview
-         * прежнее». Проверено на настоящем пути записи.
-         */
+        /* Надгробие и свойству заметки: пустое место при `deepMerge` оставляло прежнее (2026-08-28). */
         propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField),
-        /* И имени дочернего Field: стёртое оставалось бы в конфиге (его заказ
-           2026-09-29, `io-field-short-sub`). */
+        /* И имени дочернего Field (`io-field-short-sub`, 2026-09-29). */
         labels: withTombstones(next.labels, current.labels),
       };
       plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
       return;
     }
-    /*
-     * **Надгробие — каждой карте Order** (ревизия Д-4, У-4). Замена ставила его
-     * семи картам из тринадцати: свойство заметки и карты дочерних настроек
-     * удалённого Field оставались в конфиге после слияния, и нормализация
-     * возвращала Field в Order — с типом `tag` и без определения. Список карт
-     * один — `ORDER_MAPS`.
-     */
+    /* Надгробие — каждой карте Order (Д-4, У-4), иначе нормализация возвращает удалённый Field. Список — `ORDER_MAPS`. */
     const orderPatch: Record<string, unknown> = { ...next };
     const nextMaps = next as unknown as Record<string, Record<string, unknown> | undefined>;
     const curMaps = current as unknown as Record<string, Record<string, unknown> | undefined>;
@@ -679,10 +532,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- перенос Field между Block и внутри Block (Ф1–Ф3) ---------------- */
 
-  /**
-   * Дочерний Field ходит за родителем и на другую сторону сам не попадает
-   * (Ф3, Ф20): в `moveKeys` он приписан к родителю, а не двигается отдельно.
-   */
+  /** Дочерний Field ходит за родителем (Ф3, Ф20): в `moveKeys` приписан к родителю. */
   const moveKey = (toPanel: FieldSide, key: string, beforeKey?: string): void => {
     if (!key) return;
     const moveKeys = [key];
@@ -715,8 +565,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   /** Новый пустой блок: имя `Custom block N` и `id` `bN` — первыми свободными. */
   const addBlock = (): WriteResult => {
     const list = listBlocks();
-    /* Имя ложится в конфиг и дальше принадлежит человеку: слово берётся у
-       каталога один раз, при создании. */
+    /* Имя дальше принадлежит человеку: слово из каталога — один раз, при создании. */
     const nameFor = (n: number): string => SAY.NEW_BLOCK_NAME.replace("{0}", String(n));
     let n = 1;
     while (list.some(b => b.name.toLowerCase() === nameFor(n).toLowerCase())) n++;
@@ -774,11 +623,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   });
 
   /**
-   * **Какое имя Field законно — одно объявление на заведение и переименование**
-   * (ревизия Д-5). Переименование знало знаки и занятость, но не знало
-   * суффикса `_sub`: Field можно было назвать `cat_sub` рядом с Field `cat`,
-   * хотя завести такое имя окно не давало. `selfKey` — свой ключ: своё имя
-   * занятым не считается.
+   * Законность имени Field — одно правило на заведение и переименование (Д-5),
+   * включая суффикс `_sub`. `selfKey` — своё имя занятым не считается.
    */
   const nameError = (name: string, selfKey: string): string => {
     if (!STRICT_NAME_RE.test(name)) return SAY.ERR_NAME_CHARS;
@@ -816,15 +662,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.freeRoam = { ...(orderState.freeRoam || {}), [key]: "off" };
     orderState.enabled = { ...(orderState.enabled || {}), [key]: true };
     /*
-     * Дочернему Field подпись не пишется, и это не пропуск. Своего короткого
-     * имени у него нет: контрола под него в панели тоже нет — строка дочернего
-     * Field недостижима по решению В7, — а имя для TagWheel выводится из имени
-     * родителя (`applyOrderToRules`, `shortNameFor`).
-     *
-     * Запись `labels[<ключ>_sub] = "<ключ> sub"` тут стояла до 2026-09-04 и
-     * никуда не доезжала: `normalizePkmOrder` перебирает `labels` только по
-     * родительским ключам и подпись дочки выбрасывает. Снята как обманчивая, а
-     * не как дефект — сам дефект D12 был в `applyOrderToRules`.
+     * Дочернему Field подпись не пишется: имя для TagWheel выводится из
+     * родителя (`applyOrderToRules`, `shortNameFor`; В7, D12), а
+     * `normalizePkmOrder` подпись дочки выбрасывает.
      */
     if (subKey) {
       orderState.active[subKey] = "no";
@@ -853,8 +693,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const behavior = behaviorOf(plugin.getConfig());
     const leftMode = modeFields(behavior, "leftMode");
     const rightMode = modeFields(behavior, "rightMode");
-    /* Знак Element — из окна добавления (BUGHUNT S4): Element без знака
-       выключал tagWheel целиком, а окно знака не спрашивало. */
+    /* Знак Element из окна добавления (BUGHUNT S4): без знака tagWheel не работал. */
     const marker = String(rawMarker || "").trim();
     if (kind === "element") {
       if (!rightMode.find(f => idOf(f) === key)) {
@@ -894,9 +733,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const curIncrement = asObject(cur["increment"]);
       byField[key] = {
         ...cur,
-        /* Знак из окна сильнее пустого: `migrateConfig` успевает завести новому
-           Field строку с `emoji: ""`, и прежнее «уже есть — оставить» теряло
-           введённый знак (найдено 2026-09-28 проверкой `new_field_setup_tests`). */
+        /* Знак из окна сильнее пустого: `migrateConfig` заводит строку с `emoji: ""` (`new_field_setup_tests`). */
         emoji: marker || (Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : ""),
         format: Object.prototype.hasOwnProperty.call(cur, "format") ? String(cur["format"] ?? "") : "",
         hotkey: {
@@ -921,11 +758,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- удаление Field (Ф6) --------------------------------------------- */
 
-  /**
-   * Удаление уже подтверждено: спрашивает тот, кто рисует. Модель только
-   * выносит Field из Order, из обоих Block и из элементов — тремя записями,
-   * как и раньше, потому что порядок записей виден в undo.
-   */
+  /** Удаление уже подтверждено. Три записи (Order, оба Block, элементы): порядок виден в undo. */
   const deleteField = (k: string): void => {
     const sub = getSubKeyForParent(k);
     const targets = [k].concat(sub ? [sub] : []);
@@ -972,11 +805,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
     const behavior = behaviorOf(plugin.getConfig());
     /*
-     * Предусловие, показывавшее на удалённый Field, снимается здесь же.
-     * Оставить его нельзя: `reconcileModeDependencies` в
-     * `pkm_rules_runtime_helpers.js`, не найдя `dependsOn` в своём списке,
-     * выключает Field целиком — человек удалил один Field, а замолчал другой,
-     * и в панели он при этом показан включённым.
+     * Предусловие на удалённый Field снимается: `reconcileModeDependencies`
+     * (`pkm_rules_runtime_helpers.js`) иначе выключит зависимый Field целиком.
      */
     const dropDangling = (row: unknown): unknown => {
       const obj = asObject(row);
@@ -988,17 +818,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return next;
     };
     /*
-     * Дочерний Field отсеивается с обеих сторон: у тега он лежит в
-     * `leftMode`, у ссылки — в `rightMode`.
-     *
-     * Оговорка, выясненная мутацией 2026-08-28: до этого места дочерний
-     * обычно уже не доживает. Патч Order выше идёт первым, а
-     * `ensureBehaviorModesFromOrder` держит `<name>_sub` только пока ключ
-     * родителя стоит в Order — и выбрасывает его на том же патче. Отсев
-     * оставлен страховкой на случай, если порядок двух патчей когда-нибудь
-     * поменяется, но считать его тем, что уносит дочерний Field, нельзя:
-     * гарантию даёт удаление ключа из Order
-     * (`fields_editor_config_roundtrip_tests.ts`).
+     * Дочерний отсеивается с обеих сторон (`leftMode` у тега, `rightMode` у
+     * ссылки). Страховка: обычно его уже убрал `ensureBehaviorModesFromOrder`
+     * на патче Order; гарантия — `fields_editor_config_roundtrip_tests.ts`.
      */
     const leftFields = modeFields(behavior, "leftMode")
       .filter(f => {
@@ -1029,11 +851,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- поля строки Field ------------------------------------------------ */
 
-  /**
-   * Системное имя. Оно же имя Field в заметке конфига, поэтому после записи
-   * идёт переименование в заметке — и идёт именно после, как было: сначала
-   * конфиг, потом заметка, иначе при отказе заметки конфиг остаётся старым.
-   */
+  /** Системное имя; затем переименование в заметке конфига — после, чтобы отказ заметки не оставил конфиг старым. */
   const setStrictName = (k: string, rawNext: string): WriteResult => {
     const oldName = String((orderState.strictNames && orderState.strictNames[k]) || k);
     const next = String(rawNext || "").replace(/\s+/g, " ").trim();
@@ -1043,21 +861,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.strictNames = { ...(orderState.strictNames || {}), [k]: next };
 
     /*
-     * Короткое имя идёт следом, если человек своего не задавал.
-     *
-     * Левая колонка редактора рисует `labels`, а не `strictNames`, и запись в
-     * `labels` есть у каждого Field всегда: заведение сажает туда ключ. Без
-     * этого переименование карандашом меняло имя в правой колонке, а слева
-     * оставалось старое (замечание заказчика B9, 2026-09-02).
-     *
-     * Своё короткое имя не трогается: оно на то и своё. Признак «своего» тот
-     * же, по которому строка `Name in TagWheel` показывает поле пустым, —
-     * подпись совпадает с системным именем.
-     *
-     * Подпись дочернего Field переименование не трогает вовсе: до конфига она
-     * не доезжает (`normalizePkmOrder` перебирает `labels` по родительским
-     * ключам), а имя дочки для TagWheel выводится из имени родителя в
-     * `applyOrderToRules` и доезжает само (D12).
+     * Короткое имя идёт следом, если своего нет: левая колонка рисует `labels`
+     * (B9, 2026-09-02). «Своё» — подпись не совпадает с системным именем.
+     * Подпись дочернего не трогается: из родителя в `applyOrderToRules` (D12).
      */
     const labels = { ...(orderState.labels || {}) };
     const patchLabels: Record<string, string> = {};
@@ -1085,21 +891,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Имя дочернего Field в tagWheel (его заказ 2026-09-29, строка
-   * `io-field-short-sub`). Лежит там же, где имя родителя, — `labels` под
-   * ключом дочки, и его уже читает `shortNameFor`. Пустое снимает своё имя:
-   * tagWheel снова выводит его из родителя.
+   * Имя дочернего Field в tagWheel (`io-field-short-sub`, 2026-09-29): `labels`
+   * под ключом дочки, читает `shortNameFor`. Пустое — снова из родителя.
    */
   const getSubLabel = (subKey: string): string => {
     const k = String(subKey || "").trim();
     const v = String((k && orderState.labels && orderState.labels[k]) || "").trim();
     return v === k ? "" : v;
   };
-  /**
-   * Что tagWheel покажет, пока своего имени нет, — `sub` у всех (его ответ
-   * интервью 2026-09-29 «всегда sub»). Запасной ответ `tagwheel_core.js` и
-   * `placeholder` дочки; здесь он только подсказка в пустом поле.
-   */
+  /** Что tagWheel покажет без своего имени — `sub` (2026-09-29); здесь только подсказка. */
   const subLabelShown = (): string => "sub";
   const setSubLabel = (subKey: string, rawValue: string): WriteResult => {
     const k = String(subKey || "").trim();
@@ -1113,11 +913,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return { ok: true };
   };
 
-  /**
-   * Свойство заметки у Field. Второй записью значение расходится по Values,
-   * которые его унаследовали: у кого стояло старое значение поля или ничего,
-   * тому проставляется новое. Тот, кто выставил своё, не трогается.
-   */
+  /** Свойство заметки у Field; вторая запись — унаследовавшим Values (старое или пусто), выставленное своё не трогается. */
   const setProperty = (k: string, rawNext: string): WriteResult => {
     const prev = String((orderState.propertiesByField && orderState.propertiesByField[k]) || "").trim();
     const next = String(rawNext || "").trim();
@@ -1184,13 +980,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Положение дочернего Field. Записей две, и порядок важен: сначала список
-   * Block, потом Order — так это работало кнопкой старой доски.
-   *
-   * Третье положение (`always`, его слово 2026-09-19) пишется той же записью
-   * в Order: включённость идёт в `active`/`enabled`, а «работает без
-   * родителя» — в `subWithoutParent`. Два ключа одной записью потому, что для
-   * человека это один выбор, и в отмене он обязан быть одной ступенью.
+   * Положение дочернего Field. Две записи, порядок важен: список Block, потом
+   * Order. `always` — `subWithoutParent` той же записью: один выбор — одна ступень отмены.
    */
   const setSubMode = (subKey: string, rawMode: string): WriteResult => {
     const mode: SubMode = rawMode === "always" || rawMode === "hide" || rawMode === "alt"
@@ -1292,12 +1083,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- чтение для вёрстки ----------------------------------------------- */
 
-  /**
-   * Список Fields обеими сторонами, дочерний сразу за родителем. Это ровно
-   * то, что рисует левая колонка: сторона строки и есть Block, в который
-   * Field пишется (Ф1), а дочерний идёт за родителем и своей стороны не
-   * имеет (Ф3).
-   */
+  /** Список Fields обеими сторонами, дочерний за родителем (Ф1, Ф3). */
   const listFields = (): FieldRow[] => {
     const out: FieldRow[] = [];
     const rowFor = (key: string, side: FieldSide, parent: string): FieldRow => {
@@ -1334,18 +1120,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         if (!key || SUB_SUFFIX_RE.test(key)) continue;
         out.push(rowFor(key, side, ""));
         /*
-         * Строка дочернего Field. Условие не выполняется никогда, и это
-         * решение заказчика от 2026-08-28 (вопрос В7), а не недосмотр:
-         * `normalizePkmOrder` выбрасывает ключи `<name>_sub` из `left` и
-         * `right`, и дочерности в списке Fields не место — она живёт уровнем
-         * значения в таблице Values, как и в прототипе.
-         *
-         * Ветка оставлена, потому что она же описывает форму строки, если
-         * решение когда-нибудь пересмотрят. Обработка дочерней строки в
-         * `fields_editor_view.ts` (перетаскивание за родителем, отсутствие
-         * стрелок) по той же причине сегодня недостижима.
-         *
-         * Закреплено проверкой в `fields_editor_view_tests.ts`.
+         * Строка дочернего Field — недостижима по решению В7: `normalizePkmOrder`
+         * выбрасывает `<name>_sub`. Ветка держит форму строки на случай пересмотра;
+         * закреплено в `fields_editor_view_tests.ts`.
          */
         const sub = getSubKeyForParent(key);
         if (sub && keys.includes(sub)) {
@@ -1358,11 +1135,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- свойства заметки: блок Note properties (10.9) ------------------- */
 
-  /**
-   * Определение Field по ключу Order. Ищется в обоих списках, потому что
-   * список определений — это не Block: `leftMode` держит теги, `rightMode` —
-   * ссылки и элементы, независимо от того, где Field пишется.
-   */
+  /** Определение Field по ключу Order — в обоих списках: `leftMode` теги, `rightMode` ссылки и элементы. */
   const defByOrderKey = (k: string): Loose => {
     const behavior = behaviorOf(plugin.getConfig());
     return findFieldByOrderKey(modeFields(behavior, "leftMode"), k)
@@ -1377,11 +1150,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return "";
   };
 
-  /**
-   * Тип свойства так, как его понимает движок. Значения `many` и `array`
-   * читаются наравне с `list`: `buildYamlMapFromContext` принимает все три,
-   * и конфиг, написанный не панелью, не должен читаться как `auto`.
-   */
+  /** Тип свойства: `many` и `array` читаются как `list`, как в `buildYamlMapFromContext`. */
   const normalizeCardinality = (raw: unknown): YamlCardinality => {
     const v = String(raw || "").trim().toLowerCase();
     if (v === "list" || v === "many" || v === "array") return "list";
@@ -1394,12 +1163,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return v === "raw" || v === "clean" ? v : "";
   };
 
-  /**
-   * Правило, которое движок возьмёт, когда своего у Field нет. Это тот же
-   * общий ключ, что читает `buildYamlMapFromContext`, и то же значение по
-   * умолчанию: контрола у него в новой панели нет (Я3), но конфиг заказчика
-   * его уже мог получить от старой панели.
-   */
+  /** Общее правило, когда своего нет — ключ и умолчание `buildYamlMapFromContext`; контрола нет (Я3). */
   const fallbackValueRule = (): YamlValueRule => {
     const cfgNow = asObject(plugin.getConfig());
     const i2n = asObject(asObject(cfgNow["transform"])["inline2note"]);
@@ -1407,27 +1171,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Токен Field так, как он встаёт в строку. Сложение повторяет движок
-   * поштучно: `fieldTokenCandidates` ставит Prefix перед значением тега,
-   * `fieldWikilinkCandidates` берёт имя без решётки, а элемент приходит в
-   * строку маркером и значением без пробела между ними
-   * (`${marker}${value}` в `status_date.js`).
-   *
-   * Проверка этого сложения — не чтение кода: блок отдаёт строку разборщику
-   * движка, и токен, сложенный не так, просто не совпадёт ни с одним Field.
+   * Токен Field в строке, как складывает движок: `fieldTokenCandidates` (Prefix
+   * перед тегом), `fieldWikilinkCandidates` (имя без решётки), элемент —
+   * `${marker}${value}` (`status_date.js`). Проверяет разборщик движка.
    */
   const lineTokenFor = (k: string, kind: FieldKind, def: Loose): string => {
     if (kind === "element") {
       const el = elementEditor(k);
       const marker = String(el.emoji || (def && def.marker) || "").trim();
-      /*
-       * Значение — настоящая дата по формату поля, а не сама маска.
-       *
-       * Здесь стояло `format.split(/\s+/)[0]`, то есть `📅YYYY-MM-DD`: маска,
-       * да ещё и обрезанная по первому пробелу. Разборщик движка читает
-       * значение элемента **по формату** и такой строки не узнаёт — пример
-       * молча пропадал бы, ровно как обещает комментарий выше (У-38).
-       */
+      /* Значение — дата по формату поля, не маска: маску разборщик не узнаёт (У-38). */
       const sample = String(transformSample.elementSampleValueFromFormat(el.format) || "");
       return marker && sample ? marker + sample : "";
     }
@@ -1448,15 +1200,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return "";
   };
 
-  /**
-   * Строки блока `Note properties`: по одной на Field верхнего уровня, в том
-   * же порядке, что и список Fields. Дочерних строк нет — дочерность живёт
-   * уровнем значения (решение заказчика 2026-08-28, вопрос В7).
-   */
+  /** Строки `Note properties`: по одной на Field верхнего уровня (В7). */
   const listYamlFields = (): YamlFieldRow[] => {
     const fallback = fallbackValueRule();
-    /* Тип свойства движок читает и из Order, хотя записать его туда нечем:
-       читается то же, что читает он. */
+    /* Тип свойства читается и из Order — как у движка. */
     const cardinalityByField = asObject(
       asObject(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"],
     );
@@ -1482,12 +1229,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return out;
   };
 
-  /**
-   * Запись ключа в определение Field. Правится тот список, в котором Field
-   * лежит, и только он: `setProperty` кладёт определение в оба и полагается
-   * на то, что лишнюю копию уберёт `ensureBehaviorModesFromOrder`, — здесь
-   * этого делать незачем, ключ у Field один.
-   */
+  /** Запись ключа в определение Field — только в тот список, где он лежит. */
   const writeDefKey = (k: string, patch: Record<string, unknown>, reason: string): WriteResult => {
     const pool = poolByOrderKey(k);
     if (!pool) return { ok: false, error: SAY.ERR_NO_FIELD.replace("{0}", k) };
@@ -1510,10 +1252,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Тип свойства: одно значение, список или `auto`. Ключ именно у Field, а
-   * не в Order: `normalizePkmOrder` строит Order из своих десяти ключей и
-   * чужие выбрасывает, поэтому запись в `order.yamlCardinalityByField` не
-   * пережила бы собственный патч — `migrateConfig` идёт на каждом.
+   * Тип свойства — ключ у Field, не в Order: `normalizePkmOrder` выбрасывает
+   * чужие ключи, и `migrateConfig` на каждом патче стёр бы запись.
    */
   const setYamlCardinality = (k: string, raw: string): WriteResult => {
     const next = normalizeCardinality(raw);
@@ -1524,12 +1264,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       "pkm:behavior:yaml:cardinality:" + k);
   };
 
-  /**
-   * Правило значения у Field (Я3, решение заказчика 2026-08-28). Правило
-   * одно на весь Field и применяется ко всем его значениям, включая
-   * дочерние: их определение `<name>_sub` берёт правило родителя по
-   * `dependsOn` — этим занят `ruleForFieldId` в `transform_feature.js`.
-   */
+  /** Правило значения у Field (Я3): одно на Field и дочерние — `ruleForFieldId` в `transform_feature.js`. */
   const setYamlValueRule = (k: string, raw: string): WriteResult => {
     const next = normalizeValueRule(raw);
     if (!next) return { ok: false, error: SAY.ERR_YAML_FORM };
@@ -1539,13 +1274,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Все значения каждого Field верхнего уровня (10.8 С-5).
-   *
-   * Формы значений — те же, что читает движок в условиях правил
-   * (`selectSmartTemplate`): у тега полный токен с Prefix, у ссылки имя без
-   * скобок (`normalizeRuleWikilink` снимает их и у правила, и у строки), у
-   * элемента — маркер. Второй разбор определений не заводится: значения
-   * читает тот же `valuesEditor`, что и таблица Values.
+   * Значения каждого Field верхнего уровня (10.8 С-5) в формах движка
+   * (`selectSmartTemplate`): тег с Prefix, ссылка без скобок
+   * (`normalizeRuleWikilink`), элемент — маркер. Читает `valuesEditor`.
    */
   const listFieldTokens = (): FieldTokens[] => {
     const out: FieldTokens[] = [];
@@ -1560,13 +1291,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         const push = (raw: unknown): void => {
           const token = String(raw || "").trim();
           if (!token) return;
-          /*
-           * Тег уже приходит с решёткой: `buildTagTree` нормализует токены,
-           * и второй раз её ставить нечему — ветка «дописать Prefix» была бы
-           * недостижимой, а мутационный прогон такую и не отличает от рабочей.
-           * У ссылки скобки снимаются: `normalizeRuleWikilink` в движке
-           * сравнивает имена без них — и у правила, и у строки.
-           */
+          /* Тег уже с решёткой (`buildTagTree`). У ссылки скобки снимаются, как в `normalizeRuleWikilink`. */
           const shown = row.kind === "wikilink"
             ? token.replace(/^\[\[|\]\]$/g, "").replace(/^#/, "").trim()
             : token;
@@ -1584,14 +1309,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   /* ---- предусловие Field (10.13.4) ----------------------------------- */
 
   /**
-   * В каком списке лежит определение Field. Это не сторона строки: `leftMode`
-   * держит определения тегов, `rightMode` — ссылок и элементов, независимо от
-   * того, в каком Block Field пишется (`ensureBehaviorModesFromOrder` в
-   * `main.js` раскладывает их именно так).
-   *
-   * Кого можно ждать, от списка не зависит: `reconcileModeDependencies` в
-   * `pkm_rules_runtime_helpers.js` ищет `dependsOn` обоих списков в обоих (его
-   * замечание к тесту 3 цикла 93, 2026-09-25). Список здесь нужен для записи.
+   * Список определения Field — не сторона строки (`ensureBehaviorModesFromOrder`).
+   * Кого ждать, от списка не зависит: `reconcileModeDependencies` ищет в обоих
+   * (тест 3 цикла 93). Список нужен для записи.
    */
   const poolOf = (fieldId: string): "leftMode" | "rightMode" | "" => {
     const behavior = behaviorOf(plugin.getConfig());
@@ -1613,10 +1333,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Ведёт ли цепочка `dependsOn` от `from` обратно к `to`. Петля здесь не
-   * косметика: `clearDependentSelections` в `status_line_runtime_unified.js`
-   * обходит детей рекурсивно и без списка пройденных, поэтому кольцо из двух
-   * Fields повесило бы Obsidian. Замкнуть его не даёт эта проверка.
+   * Ведёт ли цепочка `dependsOn` от `from` к `to`. Петля повесила бы Obsidian:
+   * `clearDependentSelections` (`status_line_runtime_unified.js`) рекурсивен без пройденных.
    */
   const dependsChainReaches = (from: string, to: string): boolean => {
     let at = String(from || "").trim();
@@ -1632,10 +1350,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Значения Field так, как их видит рантайм: `id`, а при его отсутствии —
-   * токен. Под каждым — его дочерние Values с отступом: ждать можно и их
-   * (его замечание к тесту 3 цикла 93). Отступ — неразрывные пробелы: у
-   * `<option>` своего отступа нет.
+   * Значения Field как у рантайма (`id` или токен), с дочерними под ними
+   * (тест 3 цикла 93). Отступ — неразрывные пробелы: у `<option>` своего нет.
    */
   const valueIdsOf = (fieldId: string): Array<{ value: string; label: string }> => {
     const out: Array<{ value: string; label: string }> = [];
@@ -1673,10 +1389,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       .filter(Boolean);
     const candidates: Array<{ key: string; label: string }> = [];
     for (const row of listFields()) {
-      /*
-       * Дочерний Field в предусловие не годится: его `dependsOn` уже занят
-       * родителем, и он сам показывается только под ним.
-       */
+      /* Дочерний Field в предусловие не годится: `dependsOn` занят родителем. */
       if (row.parent || row.key === key) continue;
       if (dependsChainReaches(row.key, key)) continue;
       candidates.push({ key: row.key, label: row.strictName || row.key });
@@ -1689,11 +1402,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
   };
 
-  /**
-   * Записать предусловие. Пустой `rawFieldId` снимает его целиком: остаться
-   * `enabledForParentValues` без `dependsOn` не может — рантайм читает его
-   * только вместе с ним, и повисший список однажды стал бы сюрпризом.
-   */
+  /** Записать предусловие; пустой `rawFieldId` снимает и `enabledForParentValues` — без `dependsOn` он не читается. */
   const setPrerequisite = (k: string, rawFieldId: string, rawValue: string): WriteResult => {
     const key = String(k || "").trim();
     const side = poolOf(key);
@@ -1754,12 +1463,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Запись цвета и видимости Value. Строка пишется целиком, а не по одному
-   * полю: недостающие берутся из текущей — так это работало, и от этого
-   * зависит, что уходит в конфиг.
-   *
-   * Цвета живут в `visual.tags.byTag` (версия 2, PRD 8.1). Ветка та же, что у
-   * своих тегов рядом, и читает её `getTagVisualsFromConfig` в `main.js`.
+   * Цвет и видимость Value — строкой целиком, недостающее из текущей.
+   * Ветка `visual.tags.byTag` (PRD 8.1), читает `getTagVisualsFromConfig`.
    */
   const setValueVisual = (
     fieldId: string,
@@ -1769,11 +1474,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   ): void => {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
-    /*
-     * Ключом вида бывает тег и ссылка (его заказ 2026-09-20, пункт 14):
-     * `#todo` и `[[Проект]]`. Всё остальное — не значение, и записывать его
-     * в ветку видов нечему.
-     */
+    /* Ключ вида — тег или ссылка (2026-09-20 п.14). */
     if (!fid || !tok) return;
     if (tok.charAt(0) !== "#" && !sharedUtils.isWikilinkToken(tok)) return;
     const visuals = asObject(asObject(asObject(plugin.getConfig())["visual"])["tags"]);
@@ -1798,21 +1499,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const deep: DeepState = ensureDeepState(deps.deepState);
   const normToken = (raw: unknown, kind: string): string => deep.normalizeToken(raw, kind);
   const normCheckbox = (raw: unknown): string => deep.normalizeCheckboxInput(raw);
-  /*
-   * **`denorm` — не запасной ход, а единственное объявление правила.**
-   *
-   * Стояло оно за вопросом `typeof deep.denormToken === "function"`, и вопрос
-   * этот отвечает «нет» **всегда**: `denormToken` модуль не экспортировал ни
-   * дня. То есть работала ровно эта строка, а охрана обещала дом, которого
-   * нет. Пробой это и показал: из шести запасных ходов вокруг `deep` красным
-   * стал один — этот (10.13.166).
-   */
+  /* `denorm` — единственное объявление: `denormToken` модуль не экспортировал (10.13.166). */
   const denorm = (raw: unknown): string => String(raw || "").trim().replace(/^#/, "");
 
-  /**
-   * Найти Field по ключу Order. Ищет и по системному имени: в конфиге Field
-   * может быть назван либо ключом, либо системным именем, и обе связи живые.
-   */
+  /** Field по ключу Order или по системному имени — обе связи живые. */
   const findFieldByOrderKey = (arr: Loose[], orderKey: string): Loose => {
     const key = String(orderKey || "").trim();
     if (!key) return null;
@@ -1850,10 +1540,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const normalizeCustomRaw = (text: string): string[] =>
     String(text || "").split(/\r?\n/).map(x => String(x || "").trim()).filter(Boolean);
 
-  /**
-   * Список шагов в том виде, в каком его читает рантайм: `2 (3)` значит шаг
-   * на два, три нажатия подряд. Если разобрать нечего, остаётся прежний.
-   */
+  /** Список шагов как у рантайма: `2 (3)` — шаг на два, три нажатия. Не разобрать — прежний. */
   const toNormalizedCustomIncrement = (rawList: Loose, fallbackList: Loose): number[] => {
     const src2 = Array.isArray(rawList) ? rawList : [];
     const out: number[] = [];
@@ -1871,11 +1558,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return fb.map((x: Loose) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x: number) => Number.isFinite(x));
   };
 
-  /**
-   * Редактор Field типа `element`. Снимок конфига берётся один раз: так вела
-   * себя доска, и от этого зависит, что уходит в патче — каждая запись несёт
-   * строку целиком, а не одно поле.
-   */
+  /** Редактор Field `element`. Снимок один раз; запись несёт строку целиком. */
   const elementEditor = (k: string): ElementEditor => {
     const behavior = behaviorOf(plugin.getConfig());
     const rightMode = modeFields(behavior, "rightMode");
@@ -1928,10 +1611,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         );
       },
       /*
-       * Строки без пустых; повторы снимает нормализация (`ensureBehaviorModesFromOrder`).
-       * Value списка — одно слово (BUGHUNT 2026-09-30, A5): строку движки делят
-       * по пробелам, и `✅ done` читалось двумя словами — круг копил половины в
-       * тексте человека. Спрашивается только новое: уже лежащее правок не запирает.
+       * Без пустых; повторы снимает `ensureBehaviorModesFromOrder`. Value списка —
+       * одно слово (BUGHUNT 2026-09-30, A5): движки делят по пробелам. Проверяется только новое.
        */
       setList: text => {
         const list = normalizeCustomRaw(text);
@@ -1944,11 +1625,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Редактор значений Field. Тоже снимок: дерево, поля Block и карта
-   * чекбоксов читаются один раз. Все записи собраны здесь, потому что
-   * значения — самая тонкая часть конфига: одно значение живёт сразу в
-   * четырёх местах (список Block, дочерний список, свойство заметки,
-   * префикс-чекбокс), и собирать это дважды нельзя.
+   * Редактор значений Field — снимок. Значение живёт в четырёх местах (список
+   * Block, дочерний список, свойство заметки, префикс-чекбокс) — записи только здесь.
    */
   const valuesEditor = (k: string): ValuesEditor => {
     const behavior = behaviorOf(plugin.getConfig());
@@ -2064,10 +1742,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return "";
     };
 
-    /**
-     * Патч префиксов-чекбоксов. Значение, у которого чекбокс сняли, уходит в
-     * конфиг как `null`: без надгробия слияние патчей вернуло бы прежний.
-     */
+    /** Патч префиксов-чекбоксов; снятый уходит `null` — без надгробия вернулся бы. */
     const buildCheckboxPatch = (nextTree: Loose[], merged: Loose): Loose => {
       const mergedMap = merged && merged.checkboxByToken && typeof merged.checkboxByToken === "object"
         ? merged.checkboxByToken
@@ -2128,10 +1803,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return "";
     };
     /*
-     * Написание Value (BUGHUNT 2026-09-30, Q3): тег — одно слово, иначе строка
-     * читает его двумя (A4); в своём Field — один раз без учёта регистра (A12).
-     * Спрашивается только новое против прежнего дерева: повтор, который уже
-     * лежит в конфиге, не запирает остальные правки.
+     * Написание Value (BUGHUNT Q3): тег — одно слово (A4); в Field — один раз без
+     * регистра (A12). Проверяется только новое против прежнего дерева.
      */
     const treeList = (t: Loose[]): string[] => (Array.isArray(t) ? t : [])
       .flatMap((p: Loose) => [p && p.token].concat((p && Array.isArray(p.children) ? p.children : []).map((c: Loose) => c && c.token)))
@@ -2174,11 +1847,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return null;
     };
 
-    /*
-     * Правки дерева вынесены сюда из вёрстки: обе вёрстки обязаны править
-     * дерево одинаково, иначе одно и то же нажатие даст разный конфиг, а
-     * карта записей этого не увидит — она снята с одной из них.
-     */
+    /* Правки дерева — здесь: обе вёрстки обязаны давать один конфиг, карта записей снята с одной. */
     const copyTree = (t: Loose[]): Loose[] =>
       (Array.isArray(t) ? t : []).map((p: Loose) => ({ ...p, children: (p.children || []).map((c: Loose) => ({ ...c })) }));
 
@@ -2217,11 +1886,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return nextTree;
     };
 
-    /**
-     * Уровень Value. Вниз — значение уходит дочерним к тому, что стоит над
-     * ним; вверх — встаёт сразу за своим родителем. Первое значение списка
-     * дочерним стать не может: над ним никого нет.
-     */
+    /** Уровень Value: вниз — дочерним к стоящему выше, вверх — за родителем. Первое дочерним не станет. */
     const toggleLevel = (t: Loose[], at: Loose): Loose[] => {
       const nextTree = copyTree(t);
       if (at.level === 0) {
@@ -2250,23 +1915,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       if (misspelt) return { ok: false, error: misspelt };
       if (kind === "wikilink") {
         /*
-         * Сохранение дерева значений ссылки.
-         *
-         * Дочерние значения тут такие же, как у тега, и рантайм их понимает:
-         * `getAllowedValues` в `tagwheel_core.js` берёт каталог значений из
-         * `field.values` для всего, что не `projects` (строка `base = ...`), а
-         * дальше фильтрует значения дочернего Field по `allowedParentValues`
-         * против выбранного значения родителя — и делает это одинаково для
-         * любого типа Field. Сам дочерний Field показывается, когда у родителя
-         * выбрано значение (`isFieldEnabled`, тоже без разбора типа).
-         *
-         * До 2026-08-27 эта ветка проходила **только верхний уровень** дерева,
-         * поэтому вложенная строка в запись не попадала и стрелка уровня
-         * выглядела как удаление значения (замечание заказчика).
-         *
-         * Ветка своя, а не общий `applyTagTreeToFields`, по одной причине: у
-         * значения ссылки есть метаданные, которых общий писатель не знает и
-         * которые он бы стёр — `prefixMode`, `checkboxToken` и старая привязка.
+         * Дерево значений ссылки. Дочерние понимает рантайм (`getAllowedValues`,
+         * `allowedParentValues`, `isFieldEnabled` — без разбора типа). Своя ветка, а не
+         * `applyTagTreeToFields`: тот стёр бы `prefixMode`, `checkboxToken` и привязку.
          */
         const prevVals: Loose[] = parentField && Array.isArray(parentField.values) ? parentField.values : [];
         const prevSubVals: Loose[] = subField && Array.isArray(subField.values) ? subField.values : [];
@@ -2315,19 +1966,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
             (subParents.get(ctok) as Set<string>).add(bare(tok));
             subRows.set(ctok, crow);
           }
-          /*
-           * У значения верхнего уровня `allowedParentValues` быть не может: этот
-           * список принадлежит дочерним значениям и говорит, под какими
-           * родителями их показывать.
-           *
-           * **Про общий путь тега.** Здесь стояло «он делает то же самое
-           * (`rebuildTagValues` в `main.js` его удаляет)» — утверждение о
-           * состоянии, и оно было неверным (У-64): ту функцию не звал
-           * никто, и снята она 2026-09-07. Предмета дефекта при этом нет:
-           * непустой список у значения верхнего уровня не заводит ни один
-           * путь панели — новое значение тега создаётся с пустым списком, а
-           * непустой пишется только дочернему.
-           */
+          /* У верхнего уровня `allowedParentValues` нет — список принадлежит дочерним (У-64). */
           const value = valueOf(row, tok, { subtags });
           delete value["allowedParentValues"];
           nextValues.push(value);
@@ -2361,11 +2000,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         else nextLeft = upsertField(nextLeft, fidParent, nextParent);
 
         /*
-         * Дочерний Field ссылки. Форма — та же, что заводит `addField` тегу, с
-         * поправкой на тип: у ссылки есть `source`, иначе рантайм напишет её
-         * значение как тег. `enabled` не ставится вовсе: включённость дочернего
-         * Field живёт в картах `active` и `enabled` Order, и отсутствие ключа
-         * там значит «включён» — так же читает и панель (`getSubActive`).
+         * Дочерний Field ссылки — форма `addField` с `source` (иначе пишется тегом).
+         * `enabled` не ставится: нет ключа в `active`/`enabled` — «включён» (`getSubActive`).
          */
         const subId = String(subFieldId || `${fidParent}_sub`).trim();
         if (nextSubValues.length || subField) {
@@ -2382,8 +2018,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
             dependsOn: fidParent,
             values: nextSubValues,
           };
-          /* Дочерний Field лежит там же, где родитель: `dependsOn` обязан
-             ссылаться на Field того же Block, иначе рантайм ругается. */
+          /* Дочерний — в том же Block: `dependsOn` обязан ссылаться на Field того же Block. */
           if (subInRight || inRight) nextRight = upsertField(nextRight, subId, nextSub);
           else nextLeft = upsertField(nextLeft, subId, nextSub);
         }
@@ -2392,11 +2027,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
           reason,
         );
-        /*
-         * Чекбокс Value-ссылки — ещё и в карту `prefixRules`, как у тега: её
-         * читает движок, а метаданные Value до правил не доезжают. Без этого
-         * Prefix у ссылки писался и не ставился в строку никогда (`В-248`).
-         */
+        /* Чекбокс Value-ссылки — и в `prefixRules`: метаданные Value до правил не доезжают (`В-248`). */
         const linkCheckboxes: Record<string, string> = {};
         for (const row of nextTree as Loose[]) {
           for (const r of [row, ...(Array.isArray(row && row.children) ? row.children : [])]) {
@@ -2482,10 +2113,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return { ok: true };
     };
 
-    /**
-     * Добавить значение. У ссылки свой путь: значение уходит прямо в список
-     * Block, минуя дерево, потому что у ссылки нет дочерних значений.
-     */
+    /** Добавить значение; у ссылки — прямо в список Block, минуя дерево. */
     const addToken = (raw: string): WriteResult => {
       const token = normToken(raw, kind);
       if (!token) return { ok: false, changed: false };
@@ -2590,13 +2218,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * **Донастройка только что заведённого Field из окна `Add a Field`** — его
-   * заказ 2026-09-27: «при создании field для каждого вида type давать сразу
-   * настроить ключевые настройки». Своих записей здесь нет: каждое действие —
-   * тот же путь, которым пишет правая колонка редактора (Block — `moveKey`,
-   * Values — `addToken`, цвет — `setValueVisual`, Element — `elementEditor`),
-   * и снимок каждый раз свежий: записи идут одна за другой.
-   * Ответ — первая ошибка Value, если была; Field при этом уже заведён.
+   * Донастройка Field из окна `Add a Field` (2026-09-27) — теми же путями, что
+   * правая колонка (`moveKey`, `addToken`, `setValueVisual`, `elementEditor`),
+   * снимок каждый раз свежий. Ответ — первая ошибка Value; Field уже заведён.
    */
   const configureNewField = (key: string, setup: NewFieldSetup): WriteResult => {
     const k = String(key || "").trim();
@@ -2622,9 +2246,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       else elementEditor(k).setFormat(e.format);
       if (e.mode === "list") { /* Values записаны выше, шага у списка нет. */ } else if (e.mode === "command") elementEditor(k).setCommand(e.command || "now");
       else elementEditor(k).setIncrementBy(Math.max(1, Math.trunc(Number(e.incrementBy) || 1)));
-      /* В YAML без знака, как стартовый Due (BUGHUNT 2026-09-30, C12): `Raw`
-         по Я3 пишет знак, а общее правило — `Raw`. У списка знак — само
-         значение (`💡`), снимать нечего. */
+      /* В YAML без знака, как стартовый Due (BUGHUNT C12, Я3). У списка знак — само значение. */
       if (e.mode !== "list") setYamlValueRule(k, "clean");
     }
     if (kind === "wikilink" && setup.moc === false) setUseAsMoc(k, false);
@@ -2632,7 +2254,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return error ? { ok: false, error } : { ok: true };
   };
 
-  /** Законно ли имя нового Field: то же правило, что у `addField` (ревизия Д-5). */
+  /** Законно ли имя нового Field — правило `addField` (Д-5). */
   const fieldNameError = (name: string): string => nameError(String(name || "").replace(/\s+/g, " ").trim(), "");
   /** Нового Field ещё нет: занято всё, что стоит у любого Field того же рода. */
   const valueTaken = (token: string, kind: FieldKind): boolean => {

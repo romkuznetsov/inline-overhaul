@@ -1,22 +1,9 @@
 /**
- * Модель Smart Rules (PRD 10.8, фаза 3c).
- *
- * Здесь только чтение конфига и сборка патчей: ни обращения к DOM, ни
- * `Notice`. Так же устроена модель редактора Fields, и по той же причине —
- * вёрстка обязана рисоваться на заглушке (гейт Г16).
- *
- * **Форма правила — движка, а не прототипа.** Прототип держит условия плоским
- * списком `{kind, value, op}` и шаблон в ключе `template`; движок читает три
- * массива в `conditions` и ключ `targetTemplate` (`normalizeSmartRules`,
- * `selectSmartTemplate` в `transform_feature.js`). Пишется то, что читает
- * движок: иначе правило выглядело бы настроенным и не срабатывало (З8).
- * Прототип нормативен по виду и поведению блока, а не по форме своих моков —
- * то же решение, что уже принято для дерева предпросмотра Bars (П13).
- *
- * **Оператора между условиями в конфиге нет.** Внутри одного типа условия
- * соединяются как ИЛИ, между типами — как И, и это свойство самого движка
- * (`selectSmartTemplate`), а не настройка. Чип `and` / `or` в вёрстке —
- * подпись, а не контрол (С-7). Выбор соединения внутри типа — работа фазы 5.
+ * Модель Smart Rules (PRD 10.8, фаза 3c): чтение конфига и патчи, без DOM и
+ * `Notice` (гейт Г16). Форма правила — движка (`conditions` из трёх массивов,
+ * `targetTemplate`; `normalizeSmartRules`, `selectSmartTemplate`), не моков
+ * прототипа (З8, П13). Оператора в конфиге нет: внутри типа ИЛИ, между
+ * типами И — свойство движка; чип `and`/`or` — подпись (С-7).
  */
 
 import { asObject, asArray } from "../types.ts";
@@ -30,12 +17,8 @@ export interface RulesPlugin {
 }
 
 /**
- * Виды условия — ровно те, что различает движок.
- *
- * `fields` — «любое значение Field» (10.13.7): в нём лежат **id Fields**, а не
- * токены. Заказчик просил добавлять Field целиком, а не накликивать значения
- * по одному, и разворота в список отдельных условий не будет: значение,
- * добавленное завтра, в такой список не попало бы (замечания 1.6.6.1, 1.4.4.1).
+ * Виды условия — те, что различает движок. `fields` (10.13.7) хранит id Fields,
+ * не токены: Field целиком, без разворота в значения (1.6.6.1, 1.4.4.1).
  */
 export type RuleKind = "tags" | "emojiFields" | "wikilinks" | "fields";
 
@@ -45,23 +28,10 @@ export const RULE_KINDS: readonly RuleKind[] = ["tags", "emojiFields", "wikilink
 export type RowKind = Exclude<RuleKind, "fields">;
 
 /**
- * Строки карточки правила. `fields` своей строки не имеет: Field попадает в
- * строку **своего типа** и читается там наравне со значениями, через `or`.
- *
- * Так решил заказчик 2026-09-03. Прежняя отдельная строка `Field` соединялась
- * с остальными через `and` — то есть Field требовался **вместе** с тегом, — а
- * просил он обратное: «вместо того, чтобы накликивать отдельные values `#/1`,
- * `#/2`». Ветка конфига при этом не менялась: условие по-прежнему лежит в
- * `conditions.fields` и хранит id Field (З1).
- *
- * **Список выводится из `RULE_KINDS`, а не пишется рядом** (ревизия
- * 2026-09-09). Раньше это были два рукописных перечисления одного и того же,
- * и второе из них — `RULE_KINDS` — не употреблялось нигде: то есть держать их
- * в согласии было нечем. Появись пятый вид условия, он попал бы в тип, в
- * движок и в конфиг, а своей строки в карточке не получил бы — и никто бы об
- * этом не сказал (У-111). Теперь строка заводится сама, а `KIND_OF_FIELD`
- * ниже требует её описать: `Record<RowKind, …>` без нового ключа не
- * соберётся.
+ * Строки карточки. У `fields` своей строки нет: Field стоит в строке своего
+ * типа через `or` (2026-09-03); в конфиге — `conditions.fields` с id (З1).
+ * Выводится из `RULE_KINDS` (У-111); `KIND_OF_FIELD` как `Record<RowKind, …>`
+ * требует описать новый вид.
  */
 export const ROW_KINDS: readonly RowKind[] =
   RULE_KINDS.filter((kind): kind is RowKind => kind !== "fields");
@@ -81,15 +51,9 @@ const ROW_OF_FIELD_KIND: Record<string, RowKind> = {
 };
 
 /**
- * Своя ветка `Note content` у правила (З-5, заказчик 2026-09-08).
- *
- * `default` — «как в `Note content`»; ветка при этом всё равно хранится, и
- * значения не теряются от переключения режима туда и обратно.
- *
- * **Умолчаний здесь нет намеренно.** Их знает движок
- * (`DEFAULT_INLINE2NOTE.placement`), и `normalizeSmartRules` идёт внутри
- * `migrateConfig`, то есть на каждом патче: вёрстка читает уже нормализованное.
- * Второй список умолчаний разошёлся бы с первым молча (У-32).
+ * Своя ветка `Note content` у правила (З-5). `default` — как в `Note content`,
+ * ветка при этом хранится. Умолчаний здесь нет: их знает движок
+ * (`DEFAULT_INLINE2NOTE.placement`), `normalizeSmartRules` идёт в `migrateConfig` (У-32).
  */
 export type RulePlacementMode = "default" | "custom";
 
@@ -142,11 +106,7 @@ export interface RuleRow {
 
 export interface RulesModelDeps {
   plugin: RulesPlugin;
-  /**
-   * Разбор правил движком: `validateSmartRules` из `transform_feature.js`.
-   * Приходит снаружи, а не импортом, по той же причине, что и остальное, —
-   * блок не должен зависеть от того, как загружен движок.
-   */
+  /** Разбор правил движком (`validateSmartRules`), снаружи: блок не зависит от загрузки движка. */
   validate: (rules: unknown[]) => unknown[];
   /** Значения Fields для условий: то же чтение, что у редактора. */
   fieldTokens: () => readonly FieldTokens[];
@@ -195,11 +155,7 @@ export function createRulesModel(deps: RulesModelDeps) {
 
   const rawRules = (): unknown[] => asArray(inline2note(plugin.getConfig())["smartRules"]);
 
-  /**
-   * Правила для вёрстки. Спор правил считает движок — та же
-   * `validateSmartRules`, которой он пользуется сам: второй разбор разошёлся
-   * бы с ним на первой же правке (П9 по смыслу).
-   */
+  /** Правила для вёрстки; спор считает `validateSmartRules` движка (П9). */
   const listRules = (): RuleRow[] => {
     const raw = rawRules();
     const checked = validate(raw);
@@ -212,13 +168,9 @@ export function createRulesModel(deps: RulesModelDeps) {
         id: String(r["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1),
         name: String(r["name"] || "").trim(),
         /*
-         * Состояние берётся у ХРАНИМОГО правила, а разбор — у проверенного.
-         * Разделение не формальность: `validateSmartRules` выключает правило,
-         * которое спорит с соседом или осталось без условий, и это его вывод,
-         * а не выбор человека. Пока эти два состояния были одним, любая правка
-         * записывала вывод движка обратно в конфиг — и простое перетаскивание
-         * молча выключало спорные правила навсегда. Найдено проверкой
-         * 2026-08-29.
+         * Состояние — у ХРАНИМОГО правила, разбор — у проверенного: `validateSmartRules`
+         * выключает спорные правила, и запись его вывода в конфиг выключала бы их
+         * навсегда (2026-08-29).
          */
         enabled: r["enabled"] !== false,
         targetTemplate: String(r["targetTemplate"] || "").trim(),
@@ -241,25 +193,12 @@ export function createRulesModel(deps: RulesModelDeps) {
     });
   };
 
-  /**
-   * Что можно выбрать условием этого вида: Field и его значения (С-5).
-   * Fields без значений в списке остаются — у них просто нечего выбрать, и
-   * это видно, а не скрыто.
-   */
+  /** Что можно выбрать условием: Field и его значения (С-5); Fields без значений остаются видны. */
   const choicesFor = (kind: RuleKind): Array<{ label: string; fieldId?: string; values: string[] }> => {
-    /*
-     * Своего окна у «любого значения Field» нет: Field выбирается нажатием на
-     * его имя в окне своей строки (10.13.14). Отдельная ветка здесь была
-     * нужна прежней строке `Field`, и вместе с ней ушла.
-     */
+    /* Своего окна у «любого значения Field» нет: Field выбирается по имени в окне строки (10.13.14). */
     if (kind === "fields") return [];
     const want = KIND_OF_FIELD[kind];
-    /*
-     * `fieldId` у группы — чтобы имя Field в окне выбора можно было нажать и
-     * завести условие «любое значение этого Field» (10.13.14, замечание
-     * заказчика B14 от 2026-09-02). Раньше имя было только подписью, и
-     * завести Field целиком можно было лишь через отдельную строку `Field`.
-     */
+    /* `fieldId` у группы — имя Field в окне нажимается как условие «любое значение» (10.13.14, B14). */
     return fieldTokens()
       .filter(f => f.kind === want)
       .map(f => ({ label: f.label, fieldId: f.key, values: f.tokens.slice() }));
@@ -272,12 +211,8 @@ export function createRulesModel(deps: RulesModelDeps) {
   };
 
   /**
-   * В какой строке карточки стоит условие «любое значение этого Field».
-   *
-   * Тип Field спрашивается у того же чтения, которым живут значения, — второй
-   * разбор того же формата разошёлся бы с первым (У-32). Field, которого в
-   * конфиге больше нет, строки не получает: показывать его негде, и молча
-   * блокировать правило он тоже не должен.
+   * Строка карточки для условия «любое значение Field»; тип — тем же чтением (У-32).
+   * Удалённый Field строки не получает и правило не блокирует.
    */
   const fieldRowKind = (key: string): RowKind | null => {
     const hit = fieldTokens().find(f => f.key === key);
@@ -287,11 +222,7 @@ export function createRulesModel(deps: RulesModelDeps) {
 
   /* ---- записи ----------------------------------------------------------- */
 
-  /**
-   * Запись правил целиком. Массив пишется целиком намеренно: `deepMerge`
-   * сливает объекты, а массив заменяет, и частичный патч правила оставил бы
-   * от удалённого условия хвост.
-   */
+  /** Запись правил целиком: `deepMerge` массив заменяет, частичный патч оставил бы хвост. */
   const save = (rules: RuleRow[], reason: string): void => {
     const out = rules.map(r => ({
       id: r.id,
@@ -331,7 +262,7 @@ export function createRulesModel(deps: RulesModelDeps) {
       targetTemplate: "",
       folderMode: "default",
       folder: "",
-      /* Новое правило ведёт себя как `Note content` — решение заказчика. */
+      /* Новое правило ведёт себя как `Note content`. */
       placementMode: "default",
       placement: { ...EMPTY_PLACEMENT },
       conditions: { tags: [], emojiFields: [], wikilinks: [], fields: [] },
@@ -371,13 +302,7 @@ export function createRulesModel(deps: RulesModelDeps) {
     const rules = listRules().map(r => {
       if (r.id !== id || r.conditions[kind].includes(v)) return r;
       const conditions = { ...r.conditions, [kind]: r.conditions[kind].concat(v) };
-      /*
-       * Состояние правила не трогается. Раньше здесь стояла починка «первое
-       * условие включает правило обратно»: новое правило рождается пустым,
-       * движок его тут же выключал, и оно оставалось выключенным навсегда.
-       * Причина была не тут, а в том, что панель записывала вывод движка в
-       * конфиг; починка сделана в `listRules`, и подпорка больше не нужна.
-       */
+      /* Состояние правила не трогается: починка — в `listRules`. */
       return { ...r, conditions };
     });
     save(rules, "transform:smart-rules:condition-add:" + id);
@@ -392,10 +317,7 @@ export function createRulesModel(deps: RulesModelDeps) {
     save(rules, "transform:smart-rules:condition-remove:" + id);
   };
 
-  /**
-   * Папка новой заметки у правила (10.13.8). Режим и путь пишутся вместе:
-   * путь без режима `folder` ничего не значит, а режим без пути — значит.
-   */
+  /** Папка новой заметки (10.13.8): режим и путь пишутся вместе. */
   const setFolder = (id: string, mode: RuleFolderMode, folder: string): void => {
     const rules = listRules().map(r => (r.id === id
       ? { ...r, folderMode: mode, folder: mode === "folder" ? String(folder || "").trim() : "" }
@@ -403,19 +325,9 @@ export function createRulesModel(deps: RulesModelDeps) {
     save(rules, "transform:smart-rules:folder:" + id);
   };
 
-  /**
-   * Своя ветка `Note content` у правила (З-5).
-   *
-   * Режим и значения пишутся врозь: переключение на `Default` не стирает то,
-   * что человек уже настроил, — иначе случайное переключение туда и обратно
-   * стоило бы ему всей ветки.
-   */
+  /** Своя ветка `Note content` (З-5). Режим и значения пишутся врозь: переключение не стирает ветку. */
   const setPlacementMode = (id: string, mode: RulePlacementMode): void => {
-    /*
-     * Ветка, которой человек не касался, открывается значениями `Note content`,
-     * а не умолчаниями (BUGHUNT 2026-09-30, C21: `Plain text` при общем 3).
-     * Настроенная ветка остаётся своей — см. абзац выше.
-     */
+    /* Нетронутая ветка открывается значениями `Note content`, не умолчаниями (BUGHUNT 2026-09-30, C21). */
     const rule = listRules().find(r => r.id === id);
     const blank = deps.blankPlacement ? readPlacement(deps.blankPlacement()) : null;
     const untouched = !!rule && !!blank && JSON.stringify(rule.placement) === JSON.stringify(blank);
@@ -431,10 +343,7 @@ export function createRulesModel(deps: RulesModelDeps) {
     save(rules, "transform:smart-rules:placement:" + id);
   };
 
-  /**
-   * Перенос правила. Порядок значим — правила читаются сверху вниз, и
-   * срабатывает первое подходящее (С-6), — поэтому это настройка, а не вид.
-   */
+  /** Перенос правила: срабатывает первое подходящее сверху (С-6), порядок — настройка. */
   const moveRule = (from: number, to: number): void => {
     const rules = listRules();
     if (from < 0 || from >= rules.length || to < 0 || to >= rules.length || from === to) return;

@@ -1,24 +1,11 @@
 /**
- * Конфиг: умолчания и единственный путь записи.
- *
- * `migrateConfig` — та самая функция, через которую `ConfigStore` прогоняет
- * **каждый** патч. Ступеней три, и порядок обязателен (У-13):
- *
- *   1. `normalizeConfigV1` — приём файла версии ниже второй. Только здесь
- *      живут переименования старой формы, и читают они исходный файл, а не
- *      слитый (У-14). Для патча из панели не выполняется.
- *   2. `config_migration_v2.migrate` — перенос по карте `ROUTES` плюс досыпка
- *      умолчаний из схемы.
- *   3. `normalizeConfigV2` — клампы, перечисления и структура на путях версии
- *      2. Идёт на каждом патче.
- *
- * Здесь же `DEFAULT_CONFIG`, константы вкладок панели и нормализация строк
- * Binder: всё это форма конфига, а не поведение плагина.
- *
- * **Откуда взялось.** Вынесено из `main.js` 2026-09-07, кусок третий разбора
- * A3 (PRD, раздел 11). Тела функций при переезде не правились.
- *
- * Модули — литеральным `require`, по одному на модуль (У-89).
+ * Конфиг: умолчания и единственный путь записи. `migrateConfig` прогоняет
+ * каждый патч `ConfigStore` тремя ступенями в обязательном порядке (У-13):
+ * `normalizeConfigV1` (только файл версии < 2, читает исходный файл, У-14) →
+ * `config_migration_v2.migrate` (`ROUTES` + умолчания схемы) →
+ * `normalizeConfigV2` (клампы и структура, на каждом патче).
+ * Здесь же `DEFAULT_CONFIG`, константы вкладок и строки Binder. Вынесено из
+ * `main.js` (разбор A3, PRD раздел 11). Модули — литеральным `require` (У-89).
  */
 const __sharedUtils = require("./shared_utils.js");
 const __compatProfile = require("./compat_profile.js");
@@ -36,17 +23,14 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
 function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
 function writeCfgPath(root, path, value) { return __sharedUtils.writeCfgPath(root, path, value); }
 
-/* Цвет проверяет тот же разбор, которым его читает слой оформления: два
-   объявления «что такое законный HEX» разошлись бы молча (У-32). */
+/* Цвет проверяет тот же разбор, что слой оформления (У-32). */
 const normalizeHexColorInput = __editorVisualsConfig.normalizeHexColorInput;
 
 /* Из модуля порядка — поштучно: тела ниже зовут эти имена без префикса. */
 const ensureBehaviorModesFromOrder = __pkmOrderConfig.ensureBehaviorModesFromOrder;
 const makeDefaultPkmOrder = __pkmOrderConfig.makeDefaultPkmOrder;
 
-/* Ленивые обёртки над модулями — ровно те же, что стояли в `main.js`: у
-   `getTransformFeature` заглушки нет нарочно (умолчания ветки Transform
-   ставит движок, а не схема — расхождения В-7). */
+/* Ленивые обёртки над модулями; у `getTransformFeature` заглушки нет нарочно (В-7). */
 function getTransformFeature() {
   return require("../features/transform_feature.js");
 }
@@ -81,36 +65,22 @@ const SETTINGS_TABS = [
   { id: "advanced", label: "Advanced" },
 ];
 
-/* Списки подвкладок старой панели сняты 2026-09-19 вместе с их ключами: у
-   новой панели подвкладок нет вовсе, и держать их было нечем, кроме
-   нормализации, которая сама себя и кормила. */
+/* Списки подвкладок старой панели сняты 2026-09-19. */
 
 const BINDER_SMART_BRACKET_COMMAND_ID = __commandIds.SMART_BRACKET_COMMAND_ID;
-/* Описание строки Smart bracket: пишется в конфиг на каждом проходе — его слово 2026-09-28. */
+/* Описание строки Smart bracket пишется в конфиг на каждом проходе (2026-09-28). */
 const SMART_BRACKET_DESCRIPTION = "Cycle the brackets on cursor: text → [text] → [[text]] → text";
 
-/**
- * Идентификатор строки Binder. Схема живёт в `command_ids.js`: своей копии
- * здесь больше нет, потому что она уже разошлась однажды с копией в реестре.
- */
+/** Идентификатор строки Binder; схема — в `command_ids.js`. */
 function makeBinderCommandId(seedText, used) {
   return __commandIds.binderCommandId(seedText, used);
 }
 
 /**
- * Строки Binder: форма, идентификаторы команд и системная строка.
- *
- * **Про перевод идентификаторов (фаза 2, пункт 8).** Идентификатор строки лежит
- * в конфиге, а не только в памяти, и после перехода на kebab-case старая форма
- * `inlineOverhaul_Binder_<Suffix>` в нём остаётся. Такой идентификатор считается
- * **отсутствующим** и пересобирается из имени строки: это тот самый разрыв
- * хоткеев, о котором Р3 предупреждает и о котором плагин один раз сообщает.
- * Оставить старую форму было нельзя — команда с префиксом плагина не отвечает
- * T7, а держать две формы одновременно значит держать две схемы.
- *
- * Набор занятых начинается с идентификаторов ядра и команд Field: строка
- * Binder, названная `Move left` или `Priority next`, не должна затенять чужую
- * команду (BUGHUNT K1). `order` — Order этого же конфига.
+ * Строки Binder: форма, идентификаторы команд и системная строка. Старая форма
+ * id `inlineOverhaul_Binder_<Suffix>` считается отсутствующей и пересобирается из
+ * имени (фаза 2, п. 8; Р3, T7) — хоткей при этом рвётся. Занятые id начинаются с
+ * ядра и команд Field (BUGHUNT K1). `order` — Order этого же конфига.
  */
 function normalizeBinderRows(rawRows, order) {
   const source = Array.isArray(rawRows) ? rawRows : [];
@@ -200,27 +170,21 @@ const DEFAULT_CONFIG = {
       cycleOrder: ["#", "##", "###", "####", "#####", "1. ", "", "- "],
       inlineMoveMode: "auto",
       inlineBoundaryJump: true,
-      /*
-       * Часть слова уезжает за пределы своего слова (замечание заказчика
-       * 2026-09-08). Умолчание **выключено** — его решение: тумблер даёт
-       * разрешение, а не меняет поведение всем. Читает ключ только режим
-       * `auto`: у `char` и `word` такого отказа нет вовсе.
-       */
+      /* Часть слова уезжает за пределы слова (2026-09-08); умолчание выключено.
+       * Читает только режим `auto`. */
       inlineWordEscape: false,
     },
     jumpToHeader: {
       enabled: true,
       centerCursor: true,
-      /* Место на экране после перехода (10.13.37). Умолчание `center` — это
-         ровно то, что делал прежний `centerCursor`, поэтому у тех, кто ничего
-         не трогал, поведение не меняется. */
+      /* Место на экране после перехода (10.13.37); `center` — поведение прежнего `centerCursor`. */
       viewPosition: "center",
       centerDelayMs: 60,
       centerThrottleMs: 200,
       jumpMode: "edge",
       edgeMode: "start-end",
-      /* Умолчание `End of your text` — заказ заказчика 2026-09-04, вечер.
-         Совпадение с умолчанием схемы сторожит `settings_paths_v2_tests.ts`. */
+      /* Умолчание `End of your text` (2026-09-04); совпадение со схемой сторожит
+       * `settings_paths_v2_tests.ts`. */
       jumpCursorPosition: "section-end",
       /* Подсветка места, куда прыгнул курсор, переехала на вкладку Visual
          его словом 2026-09-17 и живёт теперь в `visual.jumpFlash.*`.
@@ -313,19 +277,9 @@ const DEFAULT_CONFIG = {
   meta: {},
   ui: {
     activeSettingsTab: "general",
-    /*
-     * **Подвкладок и тумблеров вида здесь больше нет** (2026-09-19). Их читала
-     * только эта нормализация: у новой панели подвкладок нет вовсе, а тумблеры
-     * вида редактора Fields сняты ещё в Ф15. Плагин держал их в файле человека
-     * годами — и они выглядели настройками (его заказ про мёртвые ветки).
-     */
-    /*
-     * Высота таблицы Fields в панели: `false` — развёрнутая, как было всегда,
-     * `true` — заданная со скроллингом (заказ заказчика 2026-09-12).
-     * Состояние взгляда, но запомненное: переключатель стоит в шапке таблицы,
-     * и человек, выбравший обычный режим, не должен выбирать его заново при
-     * каждом открытии панели.
-     */
+    /* Подвкладки и тумблеры вида (Ф15) сняты 2026-09-19 (мёртвые ветки). */
+    /* Высота таблицы Fields: `false` — развёрнутая, `true` — со скроллингом
+     * (2026-09-12). Запоминается между открытиями панели. */
     fieldsTableFixedHeight: false,
     binderRows: [
       {
@@ -349,9 +303,7 @@ const DEFAULT_CONFIG = {
 function normalizePkmTopLevelConfig(cfg) {
   if (!isObj(cfg.pkm)) cfg.pkm = cloneJson(DEFAULT_CONFIG.pkm);
   cfg.pkm.executionBackend = PKM_BACKENDS.internalV2;
-  /* Путь служебного файла правил снят вместе с файлом (PRD 10.13.52, П-8,
-     шаг четвёртый): здесь стояла досыпка умолчания и переходник со старой
-     ветки `rules.tagWheelPath`. Досыпать стало нечего. */
+  /* Путь служебного файла правил снят (PRD 10.13.52, П-8). */
   delete cfg.pkm.generatedRulesPath;
   const deprecatedPkm = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.pkm)
     ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm
@@ -360,23 +312,10 @@ function normalizePkmTopLevelConfig(cfg) {
 }
 
 /**
- * Приёмник старой формы: доводит любой конфиг, написанный до версии 2, до
- * ровной формы версии 1.
- *
- * Раньше это и был `migrateConfig` целиком. После пункта 4 фазы 2 он стал
- * первой из трёх ступеней (`migrateConfig` ниже), и у него осталась ровно
- * одна работа — принять старый файл: переименования вида `leftToRight` →
- * `cycleOrder`, `tagSizePct` → `tagTextSizePct`, `logSize` → `generateAiLog`
- * живут только здесь, и без них обновление со старой версии теряло бы
- * настройки молча.
- *
- * **Ступень обязана идти до миграции, а не после.** Она же ставит умолчания
- * движка — те самые девятнадцать, которыми умолчание схемы отличается от
- * умолчания движка (В-7). Досыпка умолчаний в миграции заполняет только
- * отсутствующее, поэтому пока эта ступень идёт первой, продуктовый вопрос
- * «Transform включён из коробки?» остаётся открытым, а не решается молча
- * порядком вызовов. Пин на этот порядок приезжает вместе с подключением
- * миграции: пока её нет, закреплять нечего.
+ * Ступень 1: доводит конфиг версии < 2 до ровной формы версии 1. Только здесь
+ * переименования старой формы (`leftToRight` → `cycleOrder`, `tagSizePct` →
+ * `tagTextSizePct`, `logSize` → `generateAiLog`). Идёт до миграции: ставит
+ * умолчания движка, а досыпка миграции заполняет только отсутствующее (В-7).
  */
 function normalizeConfigV1(raw) {
   const source = isObj(raw) ? raw : {};
@@ -384,17 +323,9 @@ function normalizeConfigV1(raw) {
   const ver = Number(cfg.schemaVersion) || 0;
 
   /**
-   * Значение из **исходного файла**, а не из слитого с умолчаниями.
-   *
-   * Без этого переименования старой формы были мертвы, и это не догадка:
-   * `deepMerge(DEFAULT_CONFIG, source)` кладёт новый ключ раньше, чем код
-   * успевает спросить старый. Проверка «нового значения нет» на слитом конфиге
-   * никогда не срабатывала — умолчание уже стояло на месте. Человек,
-   * обновившийся с версии до переименования, терял свой цикл Prefix, размер
-   * тегов, задержку и режим прыжка: молча, на первой же загрузке.
-   *
-   * Найдено 2026-08-31 при попытке закрепить порядок ступеней пином: пин не
-   * встал, и оказалось, что закреплять было нечего.
+   * Значение из исходного файла, а не слитого с умолчаниями: `deepMerge` кладёт
+   * новый ключ раньше, и проверка «нового нет» на слитом не срабатывает никогда
+   * (найдено 2026-08-31).
    */
   const fromFile = (dotted) => {
     let node = source;
@@ -587,8 +518,7 @@ function normalizeConfigV1(raw) {
     if (typeof visuals.showColorSettings !== "boolean") {
       visuals.showColorSettings = DEFAULT_CONFIG.pkm.behavior.tagVisuals.showColorSettings;
     }
-    /* Старое имя берётся из файла, новое — тоже: иначе умолчание, которое уже
-       положил `deepMerge`, всегда выигрывает у выбора человека. */
+    /* Старое и новое имя — из файла: иначе умолчание `deepMerge` выигрывает у выбора. */
     const clampPct = (n) => Math.max(80, Math.min(140, n));
     const pickPct = (ownPath, legacyPaths, fallback) => {
       const own = Math.trunc(Number(fromFile(ownPath)));
@@ -626,10 +556,8 @@ function normalizeConfigV1(raw) {
     visuals.opacity.left = normOpacity(visuals.opacity.left, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.left);
     visuals.opacity.right = normOpacity(visuals.opacity.right, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.right);
 
-    /* Карты `byField`, `byTag` и `userTags` вместе с полосой нормализуются
-       третьей ступенью на путях версии 2 (`normalizeTagVisualMapsV2`): они
-       обязаны отрабатывать на каждом патче, а первая ступень идёт только для
-       файла версии ниже второй. */
+    /* `byField`, `byTag`, `userTags` и полоса нормализуются ступенью 3
+     * (`normalizeTagVisualMapsV2`): на каждом патче. */
     if (isObj(visuals.line)) delete visuals.line;
 
     cfg.pkm.behavior.tagVisuals = visuals;
@@ -652,10 +580,8 @@ function normalizeConfigV1(raw) {
       ? place
       : DEFAULT_CONFIG.pkm.behavior.freeRoam.fullPlacement;
   }
-  /* Order, определения Fields и формы чекбоксов Prefix нормализуются
-     третьей ступенью на путях версии 2: `normalizePkmOrder`,
-     `ensureBehaviorModesFromOrder` и `normalizePkmBehaviorShape` читают
-     `pkm.fields.*` и `pkm.prefixRules.*`, которых в форме версии 1 нет. */
+  /* Order, Fields и чекбоксы Prefix нормализуются ступенью 3: их пути
+   * (`pkm.fields.*`, `pkm.prefixRules.*`) есть только в версии 2. */
 
   if (!isObj(cfg.backups)) cfg.backups = cloneJson(DEFAULT_CONFIG.backups);
 
@@ -691,16 +617,13 @@ function normalizeConfigV1(raw) {
 }
 
 /**
- * Миграция `1 → 2` берётся синхронным `require`, а не ленивым загрузчиком с
- * заглушкой. Заглушка здесь означала бы конфиг, не прошедший миграцию, — то
- * есть половину настроек, которых движок не найдёт. Путь с расширением `.ts`
- * работает и в Node 24 (стирание типов), и в сборке esbuild
+ * Миграция `1 → 2` — синхронным `require`, без заглушки: заглушка дала бы
+ * немигрированный конфиг. Путь `.ts` работает в Node 24 и в esbuild
  * (`resolveExtensions` в `build/release.js`).
  */
 let __configMigrationV2 = null;
 
-/* Единственная правка тела на переезде: путь считался от `main.js`.
-   Литерал остаётся литералом — иначе esbuild модуль не найдёт (У-89). */
+/* Литерал пути остаётся литералом — иначе esbuild модуль не найдёт (У-89). */
 function getConfigMigrationV2Module() {
   if (__configMigrationV2) return __configMigrationV2;
   __configMigrationV2 = require("./config_migration_v2.ts");
@@ -710,13 +633,8 @@ function getConfigMigrationV2Module() {
 let __engineDefaultsV2 = null;
 
 /**
- * Умолчания **движка** в форме версии 2.
- *
- * Считаются один раз прогоном первых двух ступеней на пустом конфиге, а не
- * выписываются рядом списком: второй список умолчаний разошёлся бы с первым на
- * первой же правке. Схема сюда не заглядывает намеренно — девятнадцать
- * расхождений умолчаний схемы и движка (В-7) остаются продуктовым вопросом
- * заказчика, и порядок вызовов их не решает.
+ * Умолчания движка в форме версии 2: прогон ступеней 1–2 на пустом конфиге, не
+ * второй список. Схема сюда не заглядывает намеренно (В-7).
  */
 function getEngineDefaultsV2() {
   if (__engineDefaultsV2) return __engineDefaultsV2;
@@ -725,30 +643,13 @@ function getEngineDefaultsV2() {
   return __engineDefaultsV2;
 }
 
+/** Карты вида тегов на путях версии 2 (`visual.tags.byField`, `.byTag`, `.userTags`) — в
+ * ступени 3: панель правит их на каждом патче. */
 /**
- * Карты вида тегов на путях версии 2: `visual.tags.byField`, `.byTag`,
- * `.userTags`.
- *
- * Живут в третьей ступени, а не в первой, потому что панель правит их на
- * каждом патче, а первая ступень идёт только для файла версии ниже второй.
- */
-/**
- * Высота подложки блоков: точки → доля свободного места (`heightPx` →
- * `heightPct`, 2026-09-09, третий заход по S7).
- *
- * **Переименование в форме версии 2, и потому оно здесь**, а не в карте
- * `ROUTES`: файл, у которого `schemaVersion` уже два, карту маршрутов не
- * проходит вовсе — `migrate` его только клонирует и досыпает умолчания. То же
- * место, где живёт такое же переименование у плавающей кнопки Transform.
- *
- * **Условие — наличие старого ключа, а не пустота нового.** Новый к этому
- * моменту всегда заполнен: умолчание схемы досыпает вторая ступень, и ветка
- * «если нового нет» была бы недостижима (У-55). Старый ключ снимается, поэтому
- * перевод случается ровно один раз, и следующая правка ползунка человеком его
- * не отменяет.
- *
- * Множитель — двадцать: прежняя шкала имела пять делений, новая сотню, и то,
- * что стояло у человека, остаётся тем же на экране.
+ * Высота подложки блоков: `heightPx` → `heightPct` (2026-09-09, S7). Здесь, а не
+ * в `ROUTES`: файл версии 2 карту маршрутов не проходит. Условие — наличие
+ * старого ключа: новый всегда заполнен умолчанием (У-55); старый снимается, и
+ * перевод однократный. Множитель 20: пять делений старой шкалы → сто новой.
  */
 function renameBlockFillHeightToPercent(cfg) {
   const fill = readCfgPath(cfg, "visual.tags.blockFill");
@@ -765,14 +666,8 @@ function normalizeTagVisualMapsV2(cfg) {
   writeCfgPath(cfg, "visual.tags", tags);
 
   /**
-   * Что годится ключом карты **видов значений**: тег или ссылка.
-   *
-   * Вопрос объявлен один раз — `isVisualTokenKey` рядом со слоем оформления,
-   * который этим же ключом вид и ищет. Своё сравнение с решёткой стояло здесь
-   * и выбрасывало ключ `[[имя]]` молча: панель писала вид значения-ссылки, а
-   * после миграции его не оставалось, и контрол `Show` возвращался в
-   * `default` (его замечание 2026-09-20 по тесту 7). Это У-237 в лоб —
-   * настройка едет через перечни, и незнакомое они выбрасывают без звука.
+   * Ключ карты видов значений — тег или ссылка: вопрос объявлен один раз,
+   * `isVisualTokenKey` у слоя оформления (2026-09-20, тест 7; У-237).
    */
   const normalizeTagToken = (token) => {
     const src = String(token || "").trim();
@@ -834,11 +729,9 @@ function normalizeTagVisualMapsV2(cfg) {
     const token = normalizeUserTagToken(rawToken);
     if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
     /*
-     * Надгробие. Единственный шов записи у панели -- setConfigPatch, а он
-     * идёт через deepMerge, который ключ карты убрать не умеет: на месте
-     * удалённого остаётся null. Раньше null превращался здесь в строку с
-     * цветами темы, и удалённый тег возвращался в список на первой же
-     * перерисовке -- то есть удаление своего тега не работало вовсе.
+     * Надгробие: `setConfigPatch` идёт через `deepMerge`, который ключ убрать не
+     * умеет — на месте удалённого остаётся null. Без этой строки удалённый тег
+     * возвращался бы в список.
      */
     if (userTagsIn[rawToken] === null) continue;
     userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
@@ -847,15 +740,9 @@ function normalizeTagVisualMapsV2(cfg) {
 }
 
 /**
- * Третья ступень: клампы, перечисления и структура на путях версии 2.
- *
- * Идёт на **каждом** патче, в том числе на записи из панели. Первая ступень
- * (`normalizeConfigV1`) в это время молчит: её работа — принять файл, который
- * лежал на диске в старой форме, и она выполняется один раз за обновление.
- *
- * Умолчание, которым здесь заменяется испорченное значение, берётся у
- * **движка** (`getEngineDefaultsV2`), а не у схемы. Иначе третья ступень тихо
- * решила бы девятнадцать расхождений В-7 в пользу прототипа.
+ * Ступень 3: клампы, перечисления и структура на путях версии 2, на каждом
+ * патче. Испорченное значение заменяется умолчанием движка
+ * (`getEngineDefaultsV2`), не схемы (В-7).
  */
 function normalizeConfigV2(cfg) {
   if (!isObj(cfg)) return cfg;
@@ -914,8 +801,8 @@ function normalizeConfigV2(cfg) {
   writeCfgPath(cfg, "pkm.behavior.cycleEndBehavior",
     normalizeCycleEndBehaviorLegacy(readCfgPath(cfg, "pkm.behavior.cycleEndBehavior")));
   oneOf("pkm.behavior.cursorPolicy", ["text_end", "current_position", "line_end"]);
-  /* Метка отмеченной строки (`done-marker`): шкала панели — «насколько погасить»
-     0…80, хранится «сколько осталось», то есть 20…100. */
+  /* `done-marker`: шкала панели «насколько погасить» 0…80, хранится «сколько
+   * осталось» — 20…100. */
   text("pkm.behavior.doneMarker.token");
   oneOf("pkm.behavior.doneMarker.panel", ["left", "right"]);
   bool("pkm.behavior.doneMarker.strike");
@@ -935,8 +822,7 @@ function normalizeConfigV2(cfg) {
   bool("navigation.moveLine.crossSectionAllowed");
   bool("navigation.moveLine.highlightMovedLines");
   hex("navigation.moveLine.highlightColor");
-  /* Прокрутка при перемещении строки (10.13.36). До этого её не было вовсе:
-     свой код до платформы не доезжал, и прыжок решала она. */
+  /* Прокрутка при перемещении строки (10.13.36). */
   bool("navigation.moveLine.keepInView");
   /* Дерево перескакивает соседнее дерево целиком (10.13.275). */
   bool("navigation.moveLine.jumpNeighborTrees");
@@ -956,8 +842,7 @@ function normalizeConfigV2(cfg) {
   oneOf("navigation.jumpToHeader.edgeMode", ["start-end", "start", "end"]);
   oneOf("navigation.jumpToHeader.jumpCursorPosition", ["start", "end", "section-start", "section-end"]);
   bool("navigation.jumpToHeader.centerCursor");
-  /* Место на экране после перехода по заголовкам (10.13.37): те же три
-     положения, что у перемещения строки. */
+  /* Место после перехода по заголовкам (10.13.37): три положения, как у строки. */
   oneOf("navigation.jumpToHeader.viewPosition", ["center", "top", "bottom"]);
   int("navigation.jumpToHeader.centerDelayMs", 0, 2000);
   int("navigation.jumpToHeader.centerThrottleMs", 0, 5000);
@@ -967,12 +852,9 @@ function normalizeConfigV2(cfg) {
 
   /* --- «выделить всё» и Binder ------------------------------------------ */
   bool("editor.selectAll.enabled");
-  /* Список режимов и список ступеней объявлены один раз — в
-     `select_all_steps.js`; второй перечень здесь разошёлся бы с движком
-     молча (У-32). */
+  /* Режимы и ступени — из `select_all_steps.js` (У-32). */
   oneOf("editor.selectAll.mode", __selectAllSteps.SELECT_ALL_MODE_IDS);
-  /* Галочки режима `Custom` (З-3). Умолчания у схемы нет: строку рисует свой
-     блок, а у записи `kind: "custom"` ни пути, ни умолчания не бывает. */
+  /* Галочки `Custom` (З-3): умолчания у схемы нет — строку рисует свой блок. */
   writeCfgPath(cfg, "editor.selectAll.customSteps",
     __selectAllSteps.normalizeCustomSteps(readCfgPath(cfg, "editor.selectAll.customSteps")));
   bool("editor.selectAll.useDelay");
@@ -983,21 +865,15 @@ function normalizeConfigV2(cfg) {
   bool("editor.smartDelete.dropPrefix");
   bool("editor.smartDelete.onBackspace");
   bool("editor.smartDelete.joinWithSpace");
-  /* Smart Enter (10.13.88). Клавиша принадлежит Obsidian, поэтому умолчание
-     выключено — как у обеих соседних. */
+  /* Smart Enter (10.13.88): клавиша Obsidian, умолчание выключено. */
   bool("editor.smartEnter.enabled");
-  /* Три положения знака на новой строке — решение заказчика 2026-09-13
-     (10.13.88). Умолчание `same`: новая строка повторяет знак, как это делает
-     сам Obsidian. */
+  /* Знак на новой строке (10.13.88); `same` — как у Obsidian. */
   oneOf("editor.smartEnter.newLinePrefix", ["same", "none", "number-only"]);
-  /* Где работает клавиша — заказ заказчика 2026-09-13 (10.13.91). Умолчание
-     `line`: это поведение, которое у него уже стоит, плюс починка правого
-     Block. */
+  /* Где работает клавиша (10.13.91); умолчание `line`. */
   oneOf("editor.smartEnter.scope", ["line", "text"]);
   bool("editor.smartEnter.shiftPlainEnter");
   bool("editor.smartEnter.useShift");
-  /* Smart paste (`З-31`, `З-32`). Умолчание выключено — как у трёх соседних
-     разделов `Global hotkeys`: клавиша принадлежит Obsidian. */
+  /* Smart paste (`З-31`, `З-32`): клавиша Obsidian, умолчание выключено. */
   bool("editor.smartPaste.enabled");
   writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows"), readCfgPath(cfg, "pkm.fields.order")));
 
@@ -1010,54 +886,39 @@ function normalizeConfigV2(cfg) {
   int("visual.tags.bubbleHeightPct", 20, 140);
   int("visual.tags.emptyBubblePct", 10, 180);
   int("visual.tags.cornersPct", 0, 100);
-  /* Заливка Left и Right Block (З-7). Цвет пустой значит «взять у темы»,
-     и `hex` возвращает пустую строку для чего угодно непохожего. */
+  /* Заливка Left и Right Block (З-7). Пустой цвет — у темы; `hex` даёт пусто для
+   * непохожего. */
   bool("visual.tags.blockFill.enabled");
   hex("visual.tags.blockFill.color");
-  /* Два цвета ссылки, показанной как написано (`З-37`). Пусто значит
-     «взять у темы», и это законное значение — смысл на шве (У-60). */
+  /* Два цвета ссылки как написано (`З-37`); пусто — у темы (У-60). */
   hex("visual.tags.linkAsWritten.targetColor");
   hex("visual.tags.linkAsWritten.bracketsColor");
-  /* Та же пара у гиперссылки — его замечание 2026-09-22 к тесту 4: предмет
-     другой, значит и ветка другая. Прежнее значение переносит в неё один раз
-     `seedSplitKeys` в `config_migration_v2` (У-17). */
+  /* Та же пара у гиперссылки (2026-09-22, тест 4); перенос — `seedSplitKeys` (У-17). */
   hex("visual.tags.hyperlink.targetColor");
   hex("visual.tags.hyperlink.bracketsColor");
   hex("visual.tags.hyperlink.addressColor");
   int("visual.tags.blockFill.opacity", 0, 100);
-  /* На сколько подложка выходит за написанное (замечание по S7). Обе шкалы — в
-     долях измеренного: высота — свободного места до краёв зрительной строки,
-     ширина — расстояния до разделителя. Границы держит нормализация, а не
-     панель: рукописный `data.json` иначе уехал бы за шкалу и слой получил бы
-     прямоугольник в пол-экрана. */
+  /* Выход подложки за написанное (S7): высота и ширина — доли измеренного.
+   * Границы держит нормализация, иначе рукописный `data.json` уедет за шкалу. */
   renameBlockFillHeightToPercent(cfg);
   int("visual.tags.blockFill.heightPct", 0, 100);
   int("visual.tags.blockFill.widthPct", 0, 100);
-  /* Какой Block получает полосу (З-12). Список значений — тот же, которым
-     спрашивает движок: имена зон разбора строки. */
+  /* Какой Block получает полосу (З-12): имена зон разбора строки. */
   oneOf("visual.tags.blockFill.direction", ["left", "right", "both"]);
   normalizeTagVisualMapsV2(cfg);
 
   /* --- каретка: цвет, толщина, мерцание (10.13.33) ---------------------- */
   bool("visual.caret.enabled");
-  /* Пусто = взять у темы, и `hex` возвращает пустую строку для чего угодно,
-     что не похоже на цвет (то же правило, что у цветов TagWheel). */
+  /* Пусто — у темы; `hex` даёт пусто для непохожего на цвет. */
   hex("visual.caret.color");
   /* Форма — своя половина группы, со своим тумблером (Ц6). */
   bool("visual.caret.shapeEnabled");
   int("visual.caret.width", 1, 8);
-  /* Ноль — законное значение и значит «не мигает вовсе», поэтому нижняя
-     граница здесь 0, а не 1 (Ц7). */
+  /* 0 — «не мигает», поэтому нижняя граница 0 (Ц7). */
   int("visual.caret.blinkSpeed", 0, 10);
 
-  /*
-   * Подсветка места, куда прыгнул курсор (Н5). Границы те же, что у ползунков
-   * в панели: панель их показывает, а движок обязан их же соблюдать — иначе
-   * рукописный `data.json` уедет за шкалу. Стоят они здесь, а не в первой
-   * ступени: та не выполняется ни для файла версии 2, ни для патча из панели
-   * (У-13), и кламп там оказался бы недостижим — нашла это проверка
-   * границ ползунков, а не чтение.
-   */
+  /* Подсветка прыжка (Н5): границы как у ползунков панели. Здесь, не в ступени
+   * 1 — та не идёт для версии 2 и патча (У-13). */
   bool("visual.jumpFlash.enabled");
   bool("visual.jumpFlash.inLine");
   hex("visual.jumpFlash.color");
@@ -1075,47 +936,27 @@ function normalizeConfigV2(cfg) {
   bool("visual.tagWheel.showMarkers");
   bool("visual.tagWheel.highlightLine");
   bool("visual.tagWheel.boldFieldNames");
-  /* Чем подписано значение в самой полосе панели (его заказ 2026-09-21, `З-38`).
-     Умолчание `default` — прежнее поведение; варианты названы его словами. */
+  /* Подпись значения в полосе панели (2026-09-21, `З-38`); `default` — прежнее. */
   oneOf("visual.tagWheel.valueNames", ["default", "custom", "both"]);
   bool("visual.tagWheel.scroller.enabled");
   oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
-  /* Чем подписаны соседние значения в коробке (его заказ 2026-09-20; третье
-     положение `both` — его слово 2026-09-21, вечер, тем же вопросом, что и
-     `visual.tagWheel.valueNames` выше). */
+  /* Подписи соседних значений в коробке (2026-09-20; `both` — 2026-09-21). */
   oneOf("visual.tagWheel.scroller.labels", ["value", "custom", "both"]);
   int("visual.tagWheel.scroller.size", 1, 20);
-  /* Цвета скроллера (10.13.15). Пустое значение — «взять у темы», и `hex`
-     оставляет его пустым: второго смысла у пустоты в панели быть не должно. */
+  /* Цвета скроллера (10.13.15); пусто — у темы. */
   hex("visual.tagWheel.scroller.fillColor");
   hex("visual.tagWheel.scroller.textColor");
-  /* Что делает стрелка на краю Block (10.13.35). Умолчание прежнее
-     поведение: менять его всем без спроса нельзя. */
+  /* Стрелка на краю Block (10.13.35); умолчание — прежнее поведение. */
   oneOf("visual.tagWheel.edgeMode", ["stay", "next-block"]);
-  /* Значения противоположного Block, пока панель открыта (10.13.87). Умолчание
-     `hide` — прежнее поведение, и это его же слово: «первый прятать
-     (текущий)». */
+  /* Значения противоположного Block при открытой панели (10.13.87); `hide` — прежнее. */
   oneOf("visual.tagWheel.oppositeBlock", ["hide", "keep"]);
-  /* На каком Field открывается панель (10.13.76). Имя поля — текст: его
-     проверяет сам движок, и Field человек может переименовать или увести
-     в другой Block. */
+  /* На каком Field открывается панель (10.13.76). Имя — текстом: его проверяет движок. */
   oneOf("visual.tagWheel.activeField.mode", ["first", "middle", "custom"]);
   text("visual.tagWheel.activeField.left");
   text("visual.tagWheel.activeField.right");
   /*
-   * **Выбор, указывающий на Field из другого Block, снимается** — его решение
-   * В-134, 2026-09-16: «очищай».
-   *
-   * Это второе попадание того же класса, что и шаблон при смене папки (В-127):
-   * настройка ссылается на его же данные, а данные он меняет. У него
-   * `Left Block active Field` = `type`, а `type` он перетащил в правый Block;
-   * видно этого не было только потому, что режим стоит `First Field`.
-   *
-   * Снимается **в нормализации**, то есть на каждом патче и при загрузке: так
-   * выбор не переживёт перетаскивание Field ни на одной из дорог. И то же
-   * самое обещал человеку текст самой настройки — «a Field you later move to
-   * the other Block stops being the one it lands on», — а код этого не делал
-   * (У-64: пин ловит имена, а не утверждения о состоянии).
+   * Выбор Field из другого Block снимается (В-134; тот же класс, что В-127) — в
+   * нормализации, то есть на каждой дороге. Это обещает и текст настройки (У-64).
    */
   for (const side of ["left", "right"]) {
     const chosen = String(readCfgPath(cfg, "visual.tagWheel.activeField." + side) || "").trim();
@@ -1129,24 +970,16 @@ function normalizeConfigV2(cfg) {
   hex("visual.tagWheel.chosenValueColor");
 
   /* --- запомненное состояние панели -------------------------------------- */
-  /* Высота таблицы Fields. Ступень третья, а не первая: переключатель пишет
-     патч из панели, а патч первую ступень не проходит вовсе (У-13, У-40). */
+  /* Высота таблицы Fields: ступень 3 — патч из панели ступень 1 не проходит (У-13, У-40). */
   bool("ui.fieldsTableFixedHeight");
 
-  /*
-   * Снятый ключ уходит из файла человека на первом же патче.
-   *
-   * Путь служебного файла правил (`advanced.generatedRulesPath`) снят вместе с
-   * файлом (PRD 10.13.52, П-8, шаг четвёртый). Маршрут миграции его выбрасывает
-   * только у файлов версии 1: файл версии 2 переносится как есть, и без этой
-   * строки ключ жил бы в `data.json` вечно — настройкой, которой никто не
-   * читает.
-   */
+  /* Снятый `advanced.generatedRulesPath` (PRD 10.13.52, П-8): миграция выбрасывает
+   * его только у версии 1, здесь — у версии 2. */
   if (isObj(cfg.advanced)) delete cfg.advanced.generatedRulesPath;
 
   /* --- режим разработчика ------------------------------------------------ */
-  /* Предел автокопий — поле ввода; ввод чистит плагин (его слово В-118): только
-     цифры, без ведущих нулей, ноль — пусто. */
+  /* Предел автокопий: ввод чистит плагин (В-118) — только цифры, без ведущих
+   * нулей, ноль — пусто. */
   writeCfgPath(cfg, "advanced.backups.autosaveKeep",
     String(readCfgPath(cfg, "advanced.backups.autosaveKeep") ?? "").replace(/\D/g, "").replace(/^0+/, ""));
   bool("advanced.devMode.enabled");
@@ -1155,27 +988,12 @@ function normalizeConfigV2(cfg) {
   text("advanced.devMode.logPath");
 
 
-  /*
-   * Ветка Transform: клампы, перечисления и снятие решёток с текстбоксов.
-   *
-   * Этот вызов стоял **только** в первой ступени, то есть работал ровно для
-   * файла версии ниже второй. Для файла версии 2 и для любого патча из панели
-   * ветка Transform не нормализовалась вовсе — а третья ступень обязана идти
-   * на каждом патче (У-13). Видно это стало на решётках: решение 1.6.4.1 от
-   * 2026-08-31 убирает `#` из `Text of the line above` в пользу
-   * `Line above is header`, снятие написано в `normalizeInline2Note`, а в
-   * конфиге заказчика по-прежнему лежало `### Inline transformed`
-   * (замечание B16, 2026-09-02).
-   */
+  /* Ветка Transform — в ступени 3, на каждом патче (У-13): иначе решётки
+   * 1.6.4.1 не снимались у версии 2 (B16). */
   cfg = getTransformFeature().normalizeTransformConfig(cfg);
 
-  /*
-   * Tag Bars на Field, которого нет, — выбор снимается (его ответ `В-265`,
-   * BUGHUNT D13). Field удалён в панели или выборочным восстановлением — Bars
-   * молча не рисовались, а список показывал пустоту. Здесь, а не в каждой
-   * дороге удаления: этот шаг идёт на каждом патче (У-13). Ключи Field при
-   * переименовании не меняются — снимается только удалённое.
-   */
+  /* Tag Bars на удалённом Field — выбор снимается (`В-265`, BUGHUNT D13), здесь —
+   * на каждом патче (У-13). Ключи Field при переименовании не меняются. */
   const barsField = String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim();
   const tagDefs = readCfgPath(cfg, "pkm.fields.tags.fields");
   if (barsField && Array.isArray(tagDefs)
@@ -1188,26 +1006,13 @@ function normalizeConfigV2(cfg) {
 }
 
 /**
- * Единственный путь записи: `ConfigStore` прогоняет через него **каждый**
- * патч, а не только загрузку.
- *
- * Ступеней три, и порядок у них обязательный:
- *
- * 1. `normalizeConfigV1` — приём старой формы. Идёт только для файла версии
- *    ниже второй: у патча из панели форма уже вторая, и гнать его через
- *    приёмник значило бы каждый раз заново создавать ветки версии 1 из
- *    `DEFAULT_CONFIG` и стравливать их с тем, что человек только что нажал.
- * 2. миграция `1 → 2` — перенос по карте `ROUTES` плюс досыпка умолчаний.
- * 3. `normalizeConfigV2` — клампы, перечисления и структура на путях версии 2.
- *
- * **Почему первая ступень идёт до второй, а не после.** Умолчания движка
- * ставит первая ступень; досыпка умолчаний внутри миграции берёт значения из
- * схемы и заполняет только отсутствующее. Пока порядок такой, девятнадцать
- * расхождений схемы и движка (В-7) остаются продуктовым вопросом заказчика.
- * Переставь ступени местами — и на свежей установке победит прототип: Transform
- * включится из коробки, папка шаблонов станет `Templates`, созданная заметка
- * начнёт открываться сама. То есть продуктовое решение примет порядок вызовов.
- * Закреплено проверкой `tests/regression/migrate_stage_order_tests.ts`.
+ * Единственный путь записи: каждый патч `ConfigStore`. Ступени:
+ * 1. `normalizeConfigV1` — только для файла версии < 2: патч из панели уже во
+ *    второй форме, и приёмник стравил бы его с ветками `DEFAULT_CONFIG`.
+ * 2. миграция `1 → 2` — `ROUTES` плюс досыпка умолчаний.
+ * 3. `normalizeConfigV2` — клампы, перечисления, структура.
+ * Ступень 1 до 2: переставь — и на свежей установке победит схема (В-7).
+ * Порядок закреплён `tests/regression/migrate_stage_order_tests.ts`.
  */
 function migrateConfig(raw) {
   const source = isObj(raw) ? raw : {};
@@ -1218,15 +1023,7 @@ function migrateConfig(raw) {
   return normalizeConfigV2(getConfigMigrationV2Module().migrate(accepted));
 }
 
-/**
- * Старое написание «что делать в конце цикла» — в нынешнее.
- *
- * Читают её обе ступени нормализации, и обе — здесь. **Где она лежала до
- * 2026-09-07:** в самом конце `main.js`, ниже `module.exports`, с отступом в
- * два пробела — то есть выглядела вложенной, а была объявлением верхнего
- * уровня, и работала только на подъёме объявлений. Позвать её из модуля было
- * нельзя вовсе: `module.exports` уже отдан.
- */
+/** Старое написание «что делать в конце цикла» — в нынешнее; читают обе ступени. */
 function normalizeCycleEndBehaviorLegacy(value) {
   const s = String(value || "").trim().toLowerCase();
   if (!s) return "keep-bullet";

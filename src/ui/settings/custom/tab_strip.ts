@@ -1,36 +1,14 @@
 /**
- * Полоса вкладок панели настроек (решение заказчика 2026-08-24, PRD 10.13.13).
+ * Полоса вкладок панели настроек (2026-08-24, PRD 10.13.13). Не в
+ * `obsidian_tab.ts`: пакет `obsidian` в Node не подключается (`custom/dom.ts`).
  *
- * Живёт здесь, а не в `obsidian_tab.ts`, ровно по причине из `custom/dom.ts`:
- * пакет `obsidian` в Node не подключается вовсе (`"main": ""`), и всё, что его
- * импортирует, проверке недоступно — пин на такой файл остаётся пином по
- * исходнику. Полосе платформа не нужна: ей хватает узла и `findScrollHost`.
+ * Полоса — свой узел в родителе прокрутки (`.vertical-tab-content-container`):
+ * `sticky` в строке уезжал с группой, а узел строки платформа возвращает на
+ * место (`app.js` 1.13.7: `i6` — `listEl.setChildrenInPlace`, `e6` —
+ * `containerEl.setChildrenInPlace`). Детей этого контейнера она не переписывает
+ * и опустошает на `openTab`. Прокрутки нет — полоса в своей строке.
  *
- * **Почему полоса рисуется не в своей строке, а рядом с прокруткой.**
- * Заказчик трижды написал, что полоса уезжает при прокрутке. `position:
- * sticky` прилипает к краю только пока в виду **родитель** элемента, а
- * родитель строки настроек — список строк одной группы. Переставить узел
- * строки насовсем нельзя: он принадлежит платформе, и та возвращает его на
- * место дважды за отрисовку (`app.js` 1.13.7):
- *
- *   - `i6` заканчивает каждую группу вызовом
- *     `listEl.setChildrenInPlace(<узлы своих строк>)` — узел строки среди них,
- *     и он втягивается обратно в список группы;
- *   - `e6` заканчивает отрисовку вызовом
- *     `containerEl.setChildrenInPlace(<узлы групп>)` — всё, что положено прямо
- *     в прокрутку, из неё удаляется.
- *
- * Поэтому полоса — **свой** узел, и живёт он в родителе прокрутки: у платформы
- * это `.vertical-tab-content-container`, чьих детей она не переписывает, а на
- * переключении вкладки просто опустошает (`openTab`) — то есть уборка за нами
- * уже сделана. Родитель становится колонкой, полоса встаёт над прокруткой, и
- * уезжать ей больше некуда.
- *
- * Прокрутки не нашлось (проверки, дымовой прогон, незнакомая разметка) —
- * полоса рисуется в своей строке, как раньше.
- *
- * Полоса наша — значит и клавиатура наша (5.4): это `tablist`, между вкладками
- * ходят стрелками, в обход табуляции остаётся только активная.
+ * Клавиатура (5.4): `tablist`, стрелки между вкладками, в табуляции — только активная.
  */
 
 import { findScrollHost, type El, type ScrollProbe } from "./dom.ts";
@@ -77,11 +55,7 @@ export function tabStripRow<Id extends string>(state: TabStripState<Id>): {
       const scroll = findScrollHost(row as unknown as ScrollProbe) as unknown as StripHost | null;
       const outer = scroll && scroll.parentElement ? scroll.parentElement : null;
 
-      /*
-       * Куда рисуем. Свой узел рядом с прокруткой, если она нашлась; иначе
-       * своя строка. Прежний экземпляр снимается: строка рисуется заново на
-       * каждой отрисовке, и без уборки полосы копились бы.
-       */
+      /* Свой узел у прокрутки, если нашлась, иначе строка. Прежний экземпляр снимается — отрисовка повторная. */
       let box: El = row;
       if (outer && typeof outer.createDiv === "function" && typeof outer.insertBefore === "function") {
         const kids = Array.from(outer.children || []);
@@ -95,8 +69,7 @@ export function tabStripRow<Id extends string>(state: TabStripState<Id>): {
         const made = outer.createDiv({ cls: "io-tabsbar" });
         outer.insertBefore(made, outer.firstChild || null);
         box = made;
-        /* Строка платформы остаётся пустой и скрытой: она нужна затем, чтобы
-           полоса пересобиралась на каждой отрисовке. */
+        /* Пустая скрытая строка платформы нужна, чтобы полоса пересобиралась на каждой отрисовке. */
         row.addClass("io-tabsrow--parked");
       }
 
@@ -114,7 +87,7 @@ export function tabStripRow<Id extends string>(state: TabStripState<Id>): {
         btn.setAttribute("aria-selected", isActive ? "true" : "false");
         btn.tabIndex = isActive ? 0 : -1;
         if (tab.desc) btn.setAttribute("aria-description", tab.desc);
-        /* Щелчок по открытой вкладке — наверх её настроек (его слово 2026-09-28). */
+        /* Щелчок по открытой вкладке — наверх её настроек (2026-09-28). */
         btn.addEventListener("click", (() => {
           if (isActive && scroll) scroll.scrollTop = 0;
           else state.pick(tab.id);

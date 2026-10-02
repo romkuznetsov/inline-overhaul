@@ -1,24 +1,16 @@
 /**
  * Порядок Prefix: три списка (PRD 10.7, фаза 3c).
  *
- *   * `cycle-order` — цикл, по которому `Move left` и `Move right` меняют
- *     Prefix строки. Путь `navigation.moveSelection.cycleOrder`, его читает
- *     `cycleLineTypeRaw` в `navigation_runtime.js`.
- *   * `field-order-list` — порядок Fields, когда приоритет решается ими.
- *     Путь `pkm.prefixRules.priorityTargets`, читает
- *     `pkm_line_finalize_unified.js` через `getPrefixRulesFromCfg`.
- *   * `prefix-order-list` — порядок самих Prefix. Путь
- *     `pkm.prefixRules.priorityCheckboxes`, читает он же.
+ *   * `cycle-order` — цикл `Move left`/`Move right`; `navigation.moveSelection.cycleOrder`,
+ *     читает `cycleLineTypeRaw` в `navigation_runtime.js`.
+ *   * `field-order-list` — порядок Fields; `pkm.prefixRules.priorityTargets`,
+ *     читает `pkm_line_finalize_unified.js` через `getPrefixRulesFromCfg`.
+ *   * `prefix-order-list` — порядок Prefix; `pkm.prefixRules.priorityCheckboxes`, он же.
  *
- * Все три пути настоящие и живые: это установлено в 8.3 и перепроверено здесь
- * перед написанием блока. Записи идут швом `platform.plugin.setConfigPatch` —
- * тем же, которым пишут редактор Fields и Smart Rules: у ветки `prefixRules`
- * контролов в схеме нет, там лежат данные правил, а не настройки.
- *
- * Ц1: пустая строка в цикле — это «обычная строка без Prefix», и она подписана
- * словами, а не оставлена пустой. Ц2: из двух списков приоритета виден тот,
- * который выбран в `Decide by`, — второй скрыт предикатом `visible` схемы, а
- * не выключен. Ц3: оба переупорядочиваются перетаскиванием и стрелками.
+ * Запись швом `platform.plugin.setConfigPatch`: у `prefixRules` контролов в
+ * схеме нет — там данные правил. Ц1: пустая строка цикла подписана словами.
+ * Ц2: второй список приоритета скрыт предикатом `visible`, а не выключен.
+ * Ц3: перетаскивание и стрелки.
  */
 
 import { asObject } from "../types.ts";
@@ -28,8 +20,7 @@ import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 
-/* Помощники состояния — тот же модуль, что берут остальные блоки. Разбор
-   снятия шва стоит в `fields_editor.ts` и второй раз не пишется. */
+/* Помощники состояния — общий модуль; снятие шва разобрано в `fields_editor.ts`. */
 import deepStateModule from "../../../core/order_deep_editor_state.js";
 import { sayIn } from "../texts_blocks.ts";
 
@@ -37,12 +28,7 @@ const deepState = deepStateModule as unknown as DeepState;
 
 /* ---- тексты ------------------------------------------------------------ */
 
-/*
- * Сняты с прототипа (Приложение B, 10.7), а живут в каталоге (10.13.47): у
- * видимого текста один дом. `no Prefix (plain text)` — это Ц1, пустая строка
- * в цикле остаётся обычной строкой, и это сказано словами; пустой список
- * объясняет себя, а не молчит (ПЗ2).
- */
+/* Тексты живут в каталоге (10.13.47); пустой список объясняет себя (Ц1, ПЗ2). */
 type Say = (name: string, ...args: readonly (string | number)[]) => string;
 
 const words = (ctx: SettingsCtx): Say => sayIn("field-order-list", ctx);
@@ -59,7 +45,6 @@ function prefixRules(cfg: unknown): Record<string, unknown> {
   return asObject(asObject(asObject(cfg)["pkm"])["prefixRules"]);
 }
 
-/** Перестановка внутри списка: та же, что у остальных перетаскиваний. */
 function moved(list: readonly string[], from: number, to: number): string[] {
   const out = list.slice();
   if (from < 0 || from >= out.length || to < 0 || to >= out.length || from === to) return out;
@@ -84,11 +69,8 @@ interface ListOpts {
 }
 
 /**
- * Список с ручкой, номером, стрелками и (если дано) удалением. Один помощник
- * на три списка: они отличаются только тем, что стоит в строке.
- *
- * Стрелки не украшение: клавиатурой перетащить нельзя, а Ф17 требует, чтобы
- * порядок менялся и с клавиатуры. Место под них занято всегда.
+ * Список с ручкой, номером, стрелками и (если дано) удалением — один на три
+ * списка. Стрелки — порядок с клавиатуры (Ф17); место под них занято всегда.
  */
 function sortableList(host: El, o: ListOpts, say: Say): void {
   const box = el(host, "div", "io-sortable" + (o.enabled ? "" : " io-sortable--off"));
@@ -100,8 +82,7 @@ function sortableList(host: El, o: ListOpts, say: Say): void {
 
   o.rows.forEach((value, i) => {
     const row = el(box, "div", "io-sortrow");
-    /* Перетаскивание — общий дом (`Р-11`): правило было объявлено дважды, и
-       расхождение перед сведением измерено, ноль. */
+    /* Перетаскивание — общий дом (`Р-11`). */
     attachRowDrag({
       row,
       index: i,
@@ -132,15 +113,10 @@ function sortableList(host: El, o: ListOpts, say: Say): void {
 }
 
 /**
- * Общая обвязка: своё поддерево, перерисовка с возвратом скролла (A8).
- *
- * `fill` получает `commit` — им и делается запись. Иначе список после правки
- * остаётся прежним, и следующая правка идёт по устаревшему: добавленная строка
- * теряется. Дефект найден проверкой 2026-08-29.
- *
- * Перерисовка идёт в `finally`: `setConfigPatch` после самой записи делает
- * многое, и исключение оттуда не должно оставлять экран прежним — это уже
- * стоило одного замечания заказчика в разделе свойств заметки.
+ * Своё поддерево, перерисовка с возвратом скролла (A8). Запись — только через
+ * `commit`, иначе следующая правка идёт по устаревшему списку (2026-08-29).
+ * Перерисовка в `finally`: исключение из `setConfigPatch` не должно оставлять
+ * экран прежним.
  */
 function block(
   host: El,
@@ -185,7 +161,6 @@ function block(
 
 /* ---- цикл Prefix (Ц1) --------------------------------------------------- */
 
-/** Пути, от которых зависит цикл Prefix. */
 const CYCLE_PATHS = ["navigation.moveSelection.prefixCyclerEnabled"] as const;
 
 export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
@@ -199,10 +174,7 @@ export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
     const cfg = p.getConfig();
     const move = asObject(asObject(asObject(cfg)["navigation"])["moveSelection"]);
     const rows = strings(move["cycleOrder"]);
-    /*
-     * Цикл включается своим тумблером, и выключенный он не редактируется:
-     * иначе человек правит список, который никто не читает.
-     */
+    /* Выключенный цикл не редактируется: этот список никто не читает. */
     const enabled = Boolean(ctx.get("navigation.moveSelection.prefixCyclerEnabled"));
 
     const save = (next: readonly string[], reason: string): void => {
@@ -223,7 +195,7 @@ export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
       cell: (row, value, i) => {
         const input = textInput(row, "io-text io-text--mono io-sortrow__text", {
           value,
-          /* Ц1: пустая строка — это обычная строка, и подпись это говорит. */
+          /* Ц1: пустая строка — обычная строка без Prefix. */
           placeholder: say("NO_PREFIX"),
           label: say("PREFIX_ROW", i + 1),
         });
@@ -260,7 +232,7 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
   /** Имена строк каталога, а не слова: у видимого текста один дом (10.13.47). */
   note: string;
   empty: string;
-  /** Строки списка и как их подписать; Fields читаются моделью редактора. */
+  /** Строки списка и подписи; Fields читаются моделью редактора. */
   rowsOf: (cfg: unknown) => Array<{ value: string; label: string }>;
   cell: (row: El, item: { value: string; label: string }) => void;
   /** Что ещё перерисовывает список, кроме выключателя модуля. */
@@ -304,16 +276,14 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
 }
 
 /**
- * Порядок Fields (Ц2). Список ведёт `prefixRules.priorityTargets`; Fields,
- * которых там ещё нет, дописываются в конец — так их видит и рантайм
- * (`pkm_line_finalize_unified.js` заполняет пустой список левым Block).
+ * Порядок Fields (Ц2), `prefixRules.priorityTargets`; Fields, которых там нет,
+ * дописываются в конец — так их видит и рантайм.
  */
 export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   priorityBlock(host, ctx, {
     cls: "io-fieldorder",
     key: "priorityTargets",
-    /* Fields удаляют, заводят и переименовывают на той же вкладке: без этого
-       список рисовал удалённый Field до перехода по вкладкам (BUGHUNT A15). */
+    /* Fields правят на той же вкладке — без этого виден удалённый Field (BUGHUNT A15). */
     deps: ["pkm.fields.order"],
     note: "FIELDS_TIP",
     empty: "FIELDS_EMPTY",
@@ -337,9 +307,8 @@ export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   });
 
 /**
- * Порядок Prefix (Ц2). Значения — токены чекбоксов в том виде, в каком их
- * хранит конфиг (`[ ]`, `[x]`): `normalizePkmBehaviorShape` нормализует их
- * именно так, и показывать другое значило бы показывать не то, что записано.
+ * Порядок Prefix (Ц2). Токены в виде конфига (`[ ]`, `[x]`) — так их
+ * нормализует `normalizePkmBehaviorShape`.
  */
 export const prefixOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   priorityBlock(host, ctx, {

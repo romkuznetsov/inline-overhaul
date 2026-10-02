@@ -4,17 +4,7 @@ let CYCLE_END_BEHAVIOR = "Cycle end behavior";
 let CURSOR_POLICY = "Cursor policy";
 let ORDER_CONFIG = "Order config";
 let DATE_RUNTIME_CONFIG = "Date runtime config";
-/*
- * Модули приезжают литеральным `require` — по одному на модуль (У-89).
- *
- * Было: шесть путей внутри vault и шесть асинхронных `ensure*Loaded` со
- * своими проверками годности; путь шёл через макро-рантайм в мост модулей,
- * а мост искал его в реестре забандленных. У реестра домена рядом лежала
- * запаска литеральным `require` — и в сборке работала именно она.
- *
- * Проверки годности сняты вместе с загрузкой: они отвечали на «приехал не
- * тот модуль», а из графа сборки приехать не тот не может.
- */
+/* Модули — литеральным `require`, по одному на модуль (У-89); проверки годности не нужны: из графа сборки не тот модуль не приедет. */
 const __sharedUtils = require("../core/shared_utils.js");
 const __activeEditorMod = require("../core/active_editor.js");
 const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
@@ -33,47 +23,23 @@ let __statusRuntimeCommonFns = null;
 const DATE_ACTION_OPTIONS = [];
 
 /*
- * Видимый текст сообщения по ключу каталога (PRD 10.13.50, ответ на В-74).
- * Английское стоит на месте вызова вторым аргументом: слой настроек может не
- * загрузиться, и тогда человек обязан увидеть сообщение, а не ключ.
- * Ключ собирает функция, а не литерал (У-82).
+ * Видимый текст сообщения по ключу каталога (10.13.50, В-74). Английское —
+ * на месте вызова: слой настроек может не загрузиться. Ключ — функцией (У-82).
  */
 function statusDateNoticeKey(name) {
   return __sayModule.noticeKey('rules', name);
 }
 
-/*
- * Спрашивает общий код и своей копии не держит (В-100, 2026-09-10, тридцать
- * седьмое исключение к З3).
- *
- * **Что было.** Здесь лежала своя реализация того же правила: спросить шов,
- * при отказе остаться на английском, подставить `{0}`. Дом у правила есть —
- * `src/core/say.js`, — и объявлено оно было **четыре раза**: там и в трёх
- * движках. Расходятся такие копии молча, и из ровно такой копии выросло
- * «31 февраля читается как 3 марта» (первый кусок В-97).
- *
- * Отказ шва молчит в общем коде, и объяснение стоит там же.
- */
+/* Правило — `src/core/say.js`, своей копии нет (В-100, исключение № 37 к З3, В-97). */
 function sayStatusDate(key, english, ...args) {
   return __say(key, english, ...args);
 }
 
 /*
- * Показ сообщения человеку — одно место на файл (третий кусок В-97).
- *
- * **Что было.** Четыре копии `try { new Notice(…) } catch (_) {}` подряд, и в
- * каждой отказ показа проглатывался молча — то есть одно правило было
- * объявлено четыре раза (У-32), и все четыре раза неверно.
- *
- * **Почему молчать нельзя.** Два из четырёх сообщений — отчёты о сбое: файл
- * правил не прочитан и правила не сходятся после применения порядка. После
- * обоих работа прекращается, и если показать сообщение не удалось, человек
- * остаётся и без результата, и без причины. Это второй вид отказа, а не
- * третий: он уезжает в журнал разработчика — `console.error` с приставкой
- * плагина.
- *
- * `Notice` — глобальное имя платформы, поэтому импорта у движка нет: Obsidian
- * ставит его сам (`window.Notice = …` в `app.js` 1.13.7, спрошено у архива).
+ * Показ сообщения — одно место на файл (В-97, У-32). Отказ показа не молчит:
+ * два сообщения — отчёты о сбое, после которых работа прекращается; уходит в
+ * журнал (`console.error`, второй вид отказа). `Notice` — глобальное имя
+ * платформы (`window.Notice` в `app.js` 1.13.7), импорта нет.
  */
 function showStatusDateNotice(text) {
   const message = String(text == null ? '' : text);
@@ -95,11 +61,7 @@ function applyPkmOptionKeys(mod) {
   DATE_RUNTIME_CONFIG = String(keys.DATE_RUNTIME_CONFIG || DATE_RUNTIME_CONFIG);
 }
 
-/*
- * Довода «вот мой нормализатор ключа Order» здесь больше нет (10.13.168):
- * переходник к дому передавался через пять слоёв, и каждое «иначе своё» на
- * каждом слое вело в тот же дом — `normalizeOrderKey` в `shared_utils.js`.
- */
+/* Нормализатор ключа Order — `normalizeOrderKey` в `shared_utils.js`, доводом не передаётся (10.13.168). */
 async function loadMacroRuntime(app_) {
   const globalGetter = globalThis.__inlineGetPkmMacroRuntime;
   if (typeof globalGetter === "function") {
@@ -127,9 +89,7 @@ function getDomainRegistry() {
   return __pkmDomainRegistry;
 }
 
-/* Ответ даёт реестр доменов, и только он: запасной ход «ответим сами» был
-   второй копией правила на молчаливом ходу, и не исполнялся ни разу — реестр
-   приезжает литеральным `require` (A33, У-90, разбор — 10.13.161). */
+/* Ответ даёт только реестр доменов: он приезжает литеральным `require` (A33, У-90, 10.13.161). */
 function resolveOrderKeyFromFieldId(fieldId) {
   const reg = getDomainRegistry();
   if (!reg || typeof reg.resolveOrderKeyFromFieldId !== "function") {
@@ -140,9 +100,7 @@ function resolveOrderKeyFromFieldId(fieldId) {
 
 function resolveDateFieldIdFromOrderKey(orderKey) {
   const reg = getDomainRegistry();
-  /* Сосед выше отказывает громко, а здесь стоял тихий пропуск: ключ Order
-     уходил дальше как идентификатор поля, и на паре ключей это разные вещи
-     (10.13.167). */
+  /* Отказ громкий: ключ Order — не идентификатор поля (10.13.167). */
   if (!reg || typeof reg.resolveRightFieldIdByOrderKey !== "function") {
     throw new Error("pkm_domain_registry unavailable: resolveRightFieldIdByOrderKey");
   }
@@ -150,20 +108,14 @@ function resolveDateFieldIdFromOrderKey(orderKey) {
 }
 
 function isObj(x) {
-  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
-     возвращала сам аргумент (10.13.135). */
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js` (10.13.135). */
   return __sharedUtils.isObj(x);
 }
 
 /*
- * Общие помощники приезжают литеральным `require`, как и все остальные модули
- * (У-89), а не со шва `globalThis.__inlineOverhaulSharedUtils`.
- *
- * Шов держался порядком загрузки: его ставит `main.js` на уровне модуля, и
- * пока движок зовут через него, шов на месте. Но проверка поведения зовёт
- * движок напрямую — и там шва не было ни дня, то есть выполнялась своя копия
- * правила, а не общий модуль. Копии сняты 2026-09-11 (В-103), и разойтись
- * двум ответам больше не на чем: ответ один и тот же в обоих случаях.
+ * Общие помощники — литеральным `require` (У-89), не со шва
+ * `globalThis.__inlineOverhaulSharedUtils`: проверки зовут движок напрямую,
+ * где шва нет (В-103).
  */
 function getSharedUtils() {
   return __sharedUtils;
@@ -180,12 +132,9 @@ function ensureStatusRuntimeCommonLoaded() {
 }
 
 /**
- * **Перестановка значений по Order — то же правило, что у команд тегов и у
- * панели** (`field_relocation.js`, PRD 10.13.131).
- *
- * Экземпляр свой: общий рантайм у этого движка отвечает «справа» там, где у
- * команд тегов «слева», и подставить чужой значило бы сменить поведение
- * молча.
+ * Перестановка значений по Order — то же правило, что у команд тегов и панели
+ * (`field_relocation.js`, 10.13.131). Экземпляр свой: общий рантайм здесь
+ * отвечает «справа», у команд тегов — «слева».
  */
 let __fieldRelocationFns = null;
 function __relocation() {
@@ -220,13 +169,7 @@ function buildTokenFactsFromLine(rawLine, rules) {
   return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
 }
 
-/*
- * Поиск Field по идентификатору живёт в общем модуле, и здесь его зовут прямо.
- * Прежде рядом лежала копия, сравнивавшая `f.id === id` без приведения к
- * строке и без охраны пустого значения: на пустом `id` она отдавала Field, у
- * которого `id` не задан вовсе. Доставалась копия, только если общая
- * реализация бросила, — то есть отвечала иначе и молча (У-32).
- */
+/* Поиск Field по id — общий модуль (У-32). */
 function getField(mode, id) {
   return getStatusRuntimeCommon().getFieldById(mode, id);
 }
@@ -271,24 +214,14 @@ function getReferenceDateForUnit(unit) {
   return getStatusRuntimeCommon().getReferenceDateForUnit(unit);
 }
 
-/* Предел перебора спрашивает сам дом смещения (10.13.159): здешний
-   переходник остался бы мёртвым. */
+/* Предел перебора спрашивает дом смещения (10.13.159). */
 
-/*
- * Разбор даты по маске живёт в общем модуле, и здесь его зовут прямо.
- * Копия рядом отличалась по существу: она **не сверяла результат обратно** и
- * потому принимала несуществующую дату — `2026-02-31` молча становилось третьим
- * марта, — а год по умолчанию брала нынешний вместо 1970.
- */
+/* Разбор даты по маске — общий модуль: он сверяет результат обратно (`2026-02-31` не дата), год по умолчанию 1970. */
 function parseDateByFormat(text, format) {
   return getStatusRuntimeCommon().parseDateByFormat(text, format, normalizeFormatMask, escapeRx);
 }
 
-/*
- * Сборка даты по маске живёт в общем модуле, и здесь её зовут прямо. Копия
- * рядом проверяла аргумент утиным способом (`dt.getTime`) и на объекте без
- * этого метода бросала, тогда как общая отдаёт пустую строку.
- */
+/* Сборка даты по маске — общий модуль; на не-дате отдаёт пустую строку. */
 function formatDateByFormat(dt, format) {
   return getStatusRuntimeCommon().formatDateByFormat(dt, format, normalizeFormatMask);
 }
@@ -323,9 +256,8 @@ function parseTokenlessProgress(value, format) {
   throw new Error("shared_utils unavailable: parseTokenlessProgress");
 }
 
-/* Алгоритм объявлен один раз — `resolveOffsetByFormatValue` в
-   `shared_utils.js` (10.13.159). Здесь остаётся календарное основание этой
-   дороги: опора, сложение и печать по Гринвичу. */
+/* Алгоритм — `resolveOffsetByFormatValue` в `shared_utils.js` (10.13.159); здесь календарное
+   основание этой дороги: опора, сложение и печать по Гринвичу. */
 function resolveDateOffsetByFormatValue(rawValue, format, maxDays) {
   return getSharedUtils().resolveOffsetByFormatValue(rawValue, format, maxDays, {
     reference: (unit) => getReferenceDateForUnit(unit),
@@ -607,12 +539,7 @@ function reorderRightDateTokensByOrder(line, rules, orderCfg, markers) {
   return linePipeline.buildFromSegments(seg, rules);
 }
 
-/*
- * Формат значение не узнал — спрашиваем тем же общим образцом, каким его
- * узнаёт уборка. Прежде тут стоял рукописный ISO в одно слово, и значение
- * `YYYY-MM-DD hh:mm` бралось наполовину: переносилась дата, время
- * оставалось в прежнем сегменте (PRD 10.13.71).
- */
+/* Не узнанное форматом значение — тем же общим образцом, что у уборки: значение в два слова (10.13.71). */
 function takeFirstDateToken(text, marker, format) {
   const byFmt = firstDateByMarkerAndFormat(text, marker, format);
   if (byFmt) return String(marker || "") + byFmt;
@@ -878,30 +805,12 @@ function hydrateGenericElementFromRawLine(rawLine, rules, state, field, marker, 
 }
 
 /*
- * **Следующий токен цикла, и вход здесь — значения поля**, а не готовые
- * токены. Это не копия одноимённого прежде `nextCycleTokenByDirection` в
- * `status_tags.js`: имена разведены 2026-09-15, потому что вопросы разные
- * (10.13.154).
- *
- * Расхождение измерено до разведения — **24 пары из 156**, — и **ни одна из
- * них в продукте не достижима**: все 24 стоят на входах, которых ни одна
- * дорога не производит. Их два рода, и оба от формы входа, а не от смысла:
- *
- *   - **текущий токен с пробелами по краям.** Здесь он обрезается, там нет.
- *     В `status_tags.js` он приезжает из совпадения в строке
- *     (`extractCurrentPriorityToken`), то есть обрезанным всегда;
- *   - **пустая запись в самом цикле.** Здесь она считается значением с пустым
- *     токеном, там отбрасывается. Пустые записи в его конфиге **есть** — у
- *     полей `date_due`, `Random` и `test2` значением стоит голая пустая
- *     строка, — но до `status_tags.js` они не доезжают: обе его сборки цикла
- *     (`buildPriorityCycleTokens` и `buildPriorityCycleTokensFromRules`)
- *     пустое отбрасывают сами.
- *
- * Сводить их нельзя не потому, что рискованно, а потому, что предмета для
- * сведения нет: у одной вход — список значений и булево «вперёд», у другой —
- * список токенов и слово. Лечится это именем (У-159, правило 117), и
- * единственный звавший здесь один — запасной ход по циклу, когда шаг по
- * формату ничего не дал.
+ * Следующий токен цикла; вход — значения поля, а не токены. Не копия
+ * `nextCycleTokenByDirection` в `status_tags.js`: вопросы разные (10.13.154,
+ * У-159, правило 117). Расхождение 24 пары из 156, все на недостижимых входах:
+ * здесь токен обрезается и пустая запись цикла — значение; там токен приезжает
+ * обрезанным, а пустое отбрасывают сборки цикла. Зовёт один запасной ход по
+ * циклу, когда шаг по формату ничего не дал.
  */
 function nextCycleTokenFromValues(cycleVals, currentToken, increase) {
   const arr = Array.isArray(cycleVals) ? cycleVals : [];
@@ -1023,12 +932,9 @@ function mutateDateOffsetByFormat(state, fieldId, format, inc, stepRaw) {
 }
 
 module.exports = {
-  /* «Какое поле отвечает этому ключу Order» отдаётся наружу ради меры: у
-     имени два объявления, и расхождение между ними считает программа. */
+  /* Наружу ради меры: у имени два объявления, расхождение считает программа. */
   resolveDateFieldIdByOrderKey,
-  /* «Во сколько единиц смещения это значение» отдаётся наружу затем, чтобы
-     расхождение с одноимённым объявлением у ядра панели меряла программа,
-     а не чтение (`node tools/form_divergence.js`). Поведения не меняет. */
+  /* Наружу ради меры расхождения с ядром панели (`node tools/form_divergence.js`). */
   resolveDateOffsetByFormatValue,
   settings: {
     name: "Status: date & time field logic",
@@ -1071,11 +977,7 @@ module.exports = {
     if (!editor) return;
 
     await callRuntimeApi(app_, "loadRulesRuntimeHelpers");
-    /*
-     * Свои модули уже приехали `require` при загрузке файла. Остаются
-     * только те, что публикуют себя в `globalThis`: оттуда их читают
-     * `status_runtime_common` и TagWheel.
-     */
+    /* Свои модули приехали `require`; остаются публикующие себя в `globalThis` — для `status_runtime_common` и TagWheel. */
     await callRuntimeApi(app_, "loadMacroShared");
     await callRuntimeApi(app_, "loadLinePipeline");
     const lineFinalize = (__lineFinalizeUnified && typeof __lineFinalizeUnified === "object")
@@ -1111,14 +1013,7 @@ module.exports = {
     const core = __tagwheelCore;
 
     const statusCommon = getStatusRuntimeCommon();
-    /*
-     * **Правила приезжают из настроек** (PRD 10.13.52, П-8; 2026-09-11).
-     *
-     * **Запасного хода через служебный файл больше нет** (шаг третий,
-     * 2026-09-13): файла не читает ни один движок, и разбора заметки в
-     * продукте не осталось. Ключа нет — движок отказывается вслух: работать по
-     * правилам, которых человек не задавал, хуже, чем не сработать (Д-4).
-     */
+    /* Правила из настроек (10.13.52, П-8); файла нет, ключа нет — отказ вслух (Д-4). */
     const rules = statusCommon.rulesFromSettings(settings, RULES_DATA);
     if (!rules) {
       showStatusDateNotice(sayStatusDate(statusDateNoticeKey('rules-missing'),
@@ -1419,19 +1314,10 @@ module.exports = {
     }
 
     /**
-     * **Значение чужого поля встаёт в свой Block — так же, как у команд тегов
-     * и у панели** (PRD 10.13.125, найдено обходом строки 2026-09-15).
-     *
-     * До этого места правило звали двое из трёх движков, и оттого у человека
-     * на строке `- [ ] текст :: #work` значение `#work` после команды
-     * элемента оставалось в чужой зоне, а после любой другой команды или
-     * панели уезжало в свой Block. Окажется ли значение на своём месте,
-     * зависело от того, какой кнопкой человек это сделал.
-     *
-     * Поля берутся те же, что у команд тегов: переставляются значения-теги,
-     * а свою метку элемент переносит сам — `relocateDateTokenByPanel` ниже.
-     * Имя поля действия передаётся, чтобы правило не искало его значение в
-     * строке: его только что выбрал человек.
+     * Значение чужого поля встаёт в свой Block — как у команд тегов и панели
+     * (10.13.125). Поля те же, что у команд тегов; свою метку элемент переносит
+     * сам (`relocateDateTokenByPanel` ниже). Имя поля действия передаётся: его
+     * значение только что выбрал человек.
      */
     let finalLine = __relocation().relocateCoreTagsByOrder(
       rawLine,
@@ -1498,11 +1384,7 @@ module.exports = {
       if (typeof linePipeline.enforceTextSegmentForLeftTag !== "function") {
         throw new Error("line_pipeline unavailable: enforceTextSegmentForLeftTag");
       }
-      /*
-       * Хвост каждой метки приезжает из формата её поля. Здесь стояла
-       * рукописная пара «дата» и «время» — она и теряла вторую половину
-       * значения, объявляя её текстом человека (PRD 10.13.71).
-       */
+      /* Хвост каждой метки — из формата её поля (10.13.71). */
       const originalTextClean = linePipeline.cleanOriginalTextForLeftDate({
         rawLine,
         rules,
@@ -1563,16 +1445,9 @@ module.exports = {
     finalLine = String(cyclePost?.finalLine ?? finalLine);
     finalParsed = core.parseLine(finalLine, rules);
     /*
-     * Настройка «Strict: add a bullet» — одна на все способы поставить
-     * значение, и спрашивается она одним объявлением
-     * (`resolveOffPrefixFlagsUnified` внутри). Шаг по тегу и панель спрашивали
-     * её всегда, шаг по элементу — не спрашивал вовсе: на пустой строке буллит
-     * появлялся от одного способа и не появлялся от другого (`S12`
-     * 2026-09-12).
-     *
-     * У элемента своего знака начала строки нет, поэтому `hasOwnCheckbox`
-     * здесь `false`, а готовый префикс не передаётся: его подставит само
-     * правило, если настройка велит.
+     * «Strict: add a bullet» — одно объявление на все способы (`resolveOffPrefixFlagsUnified`, S12).
+     * Своего знака начала строки у элемента нет: `hasOwnCheckbox` — `false`,
+     * префикс подставит правило.
      */
     if (typeof lineFinalize.enforceOffModeFinalPrefixUnified !== "function") {
       throw new Error("pkm_line_finalize_unified unavailable: enforceOffModeFinalPrefixUnified");

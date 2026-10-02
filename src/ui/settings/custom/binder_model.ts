@@ -1,21 +1,10 @@
 /**
- * Модель Binder (PRD 10.4, фаза 3c).
- *
- * Только чтение конфига и сборка патчей — ни DOM, ни `Notice`: вёрстка обязана
- * рисоваться на заглушке (гейт Г16). Путь `editor.binder.rows` — версии 2
- * (PRD 8.1): его читает `buildBinderCommandDefs`
- * (`src/features/command_registry.js`) и нормализует `normalizeBinderRows`
- * внутри третьей ступени `migrateConfig` (`main.js`).
- *
- * **Идентификатор команды здесь не выдумывается.** `normalizeBinderRows`
- * умеет его выдать: пустой `commandId` она заменяет на
- * kebab-case из имени строки и разводит совпадения. Она идёт на каждом
- * патче, поэтому новой строке достаточно родиться без идентификатора — его
- * поставит та функция, с которой начинается работа. Старая панель считала его
- * своей копией той же логики (`buildId`), и копия эта могла разойтись.
- *
- * **`rowId` остаётся на `Date.now()` и `Math.random()`** — так требует Б7, и
- * так же его делает `normalizeBinderRows`.
+ * Модель Binder (PRD 10.4, фаза 3c): конфиг и патчи, без DOM (Г16). Путь
+ * `editor.binder.rows` (PRD 8.1) читает `buildBinderCommandDefs`
+ * (`command_registry.js`), нормализует `normalizeBinderRows` в третьей ступени
+ * `migrateConfig`. `commandId` здесь не выдумывается: пустой ставит
+ * `normalizeBinderRows` на каждом патче. `rowId` — `Date.now()` и
+ * `Math.random()` (Б7).
  */
 
 /** Плагин в том виде, в каком его зовёт блок. */
@@ -26,12 +15,7 @@ export interface BinderPlugin {
   registerBinderCommands?: () => void;
 }
 
-/**
- * Системная строка `Smart bracket`. `normalizeBinderRows` возвращает её на
- * место, если её нет, и переписывает её текст и описание своими: Б5, и
- * заодно причина, по которой её описание в панели не редактируется — правка
- * не пережила бы ближайший патч (З8).
- */
+/** Системная `Smart bracket`: `normalizeBinderRows` возвращает её и переписывает текст (Б5), поэтому не редактируется (З8). */
 export const SYSTEM_ROW_ID = "binder-system-smart-bracket";
 
 /** Одна строка таблицы так, как её читает вёрстка. */
@@ -60,20 +44,14 @@ export interface BinderWriteResult {
   error?: string;
 }
 
-/*
- * Тексты отказов. Видимые строки, поэтому без точки в конце (Р10) и поэтому
- * же живут в каталоге (10.13.47) — здесь только имя.
- */
+/* Тексты отказов — в каталоге (10.13.47), без точки (Р10). */
 import { asObject } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
 
 export const DUPLICATE_INSERT = BLOCK_TEXTS["binder-table"].ERR_TEXT_TAKEN;
 export const DUPLICATE_NAME = BLOCK_TEXTS["binder-table"].ERR_NAME_TAKEN;
 
-/**
- * Совпадение с уже заведённой строкой: какое поле повторяется и что об этом
- * сказать. Поле нужно окну — сообщение встаёт под ним, а не над панелью.
- */
+/** Совпадение с заведённой строкой: поле — чтобы окно сказало под ним. */
 export interface BinderClash {
   field: "insertText" | "commandName";
   error: string;
@@ -84,29 +62,15 @@ export interface BinderModel {
   setDescription(rowId: string, text: string): void;
   remove(rowId: string): void;
   move(from: number, to: number): void;
-  /**
-   * Повторяет ли черновик уже заведённую строку. Спрашивает окно заведения,
-   * пока человек печатает: до 2026-09-02 отказ приходил всплывающим
-   * сообщением Obsidian **после** закрытия окна и перерисовки блока — «меня
-   * выбрасывает во вкладку Keyboard» (C13).
-   */
+  /** Повторяет ли черновик строку; окно спрашивает, пока человек печатает (C13). */
   duplicateOf(draft: BinderDraft): BinderClash | null;
-  /**
-   * Завести строку. Отказ приходит причиной, а не тишиной: до 2026-09-02
-   * повтор заводился молча, а `normalizeBinderRows` разводила совпавшие
-   * идентификаторы — и получались две команды с одной подписью (C13).
-   */
+  /** Завести строку; отказ — с причиной (C13). */
   add(draft: BinderDraft): BinderWriteResult;
 }
 
 export interface BinderModelDeps {
   plugin: BinderPlugin;
-  /**
-   * Имена команд от реестра: `buildBinderCommandDefs` из
-   * `command_registry.js` — та самая функция, по которой плагин их и
-   * регистрирует. Своё построение имени разошлось бы с ней, а по имени
-   * человек ищет команду в списке хоткеев.
-   */
+  /** Имена команд — `buildBinderCommandDefs`, по которой плагин их регистрирует. */
   commandDefs: (cfg: unknown) => ReadonlyArray<{ id: string; name: string }>;
 }
 
@@ -131,11 +95,7 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
 
   const read = (): Array<Record<string, unknown>> => storedRows(plugin.getConfig());
 
-  /**
-   * Запись. `registerCommands` пропускается там, где набор команд не менялся:
-   * описание строки командой не является. Перерегистрация не обязана быть —
-   * без неё новая команда появится после перезапуска, и это не повод падать.
-   */
+  /** Запись; `registerCommands` — если менялся набор команд. Без перерегистрации — после перезапуска. */
   const save = (rows: unknown[], reason: string, registerCommands: boolean): void => {
     plugin.setConfigPatch({ editor: { binder: { rows } } }, reason);
     if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
@@ -147,23 +107,8 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
   };
 
   const duplicateOf = (draft: BinderDraft): BinderClash | null => {
-    /*
-     * Повтор: одно объявление на обоих, кто про него спрашивает (У-32).
-     *
-     * Спрашивают двое: окно заведения — пока человек печатает, чтобы
-     * сказать причину под тем полем, которое повторяется, и погасить `Add`;
-     * и `add` — последней преградой, потому что записать строку можно и не
-     * через окно.
-     *
-     * Заказчик завёл строку с теми же полями и получил две одинаковые
-     * команды: сверки не было вовсе, а `normalizeBinderRows` развела
-     * совпавшие идентификаторы — молча и на уровне ниже, где о человеке уже
-     * не рассказать. Сверяются оба поля, которыми человек команду и узнаёт:
-     * текст вставки и имя (C13, 2026-09-02).
-     *
-     * Сравнение по видимому значению: пробелы по краям и регистр человек
-     * различать не обязан, а Obsidian ищет команду по подписи.
-     */
+    /* Одно объявление для окна и `add` (У-32). Сверяются текст вставки и имя
+       (C13) по видимому: без краевых пробелов и регистра. */
     const same = (a: string, b: string): boolean =>
       a.trim().toLowerCase() === b.trim().toLowerCase() && a.trim() !== "";
     const insertText = String(draft && draft.insertText || "");
@@ -237,7 +182,7 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
 
     add(draft) {
       const insertText = String(draft && draft.insertText || "");
-      /* Строка без текста вставки не делает ничего: команда пуста (З8). */
+      /* Без текста вставки команда пуста (З8). */
       if (!insertText.trim()) return { ok: false };
 
       const clash = duplicateOf(draft);
@@ -248,7 +193,7 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
         insertText,
         commandName: String(draft && draft.commandName || "").trim(),
         description: String(draft && draft.description || "").trim(),
-        /* Пусто: идентификатор поставит `normalizeBinderRows` на этом же патче. */
+        /* Поставит `normalizeBinderRows` на этом патче. */
         commandId: "",
       }]);
       save(next, "settings:binder:add", true);

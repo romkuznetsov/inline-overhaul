@@ -3,18 +3,10 @@
 const __editorVisualsConfig = require("../core/editor_visuals_config.js");
 
 /*
- * Имена классов коробки — **одно объявление на код и стили** (правило
- * каталога Р7, 2026-09-09). Правила лежат в `styles.css`, разделом
- * «Оверлей скроллера TagWheel».
- *
- * **Показ и сокрытие — тоже класс**, а не свойство узла: `display` стоял
- * в восьми местах, и каждое было своим объявлением одного и того же
- * правила «коробка видна» (У-32).
- *
- * Вычисленное — цвета из настроек, ширина и положение — в класс не
- * переносится вовсе: значение известно только на отрисовке. Цвета едут
- * переменными `--io-twscroller-*` — тот же канал, что у полос тегов
- * (У-68), и умолчание «взять у темы» живёт в самом правиле.
+ * Имена классов коробки — одно объявление на код и стили (Р7); правила в
+ * `styles.css`, раздел «Оверлей скроллера TagWheel». Показ — тоже класс (У-32).
+ * Вычисленное (ширина, положение) — на отрисовке; цвета — переменными
+ * `--io-twscroller-*` (У-68), умолчание «у темы» — в самом правиле.
  */
 let SCROLLER_BOX_CLASS = "io-twscroller";
 let SCROLLER_SHOWN_CLASS = "io-twscroller--shown";
@@ -54,8 +46,7 @@ function getAnchorRect(editor, lineNumber, controlLine) {
     if (!editor || typeof editor.posToOffset !== "function") return null;
     let cm = editor.cm;
     if (!cm || typeof cm.coordsAtPos !== "function") return null;
-    /* Активная ячейка панели — общего дома: свой образец обрывался на первой `]`
-       и промахивался по ячейке со ссылкой (найдено сторожем чекбокса, 2026-10-01). */
+    /* Активная ячейка — из общего дома: свой образец обрывался на первой `]` (сторож чекбокса, 2026-10-01). */
     let activeTokenMatch = String(controlLine || "").match(__editorVisualsConfig.TAGWHEEL_ACTIVE_CELL_RE);
     let activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
     let cmDom = cm && cm.dom ? cm.dom : null;
@@ -69,10 +60,8 @@ function getAnchorRect(editor, lineNumber, controlLine) {
           if (lineCoords && isFinite(lineCoords.top)) targetY = Number(lineCoords.top);
         } catch (_) {
           /*
-           * Проба: спросили редактор о координатах положения, которого он
-           * может не знать: строка бывает вне отрисованного. Ответ «не знаю»
-           * здесь и есть ответ: `targetY` остаётся пустым, и коробка выберёт
-           * якорь по порядку, а не по близости к строке.
+           * Проба: строка бывает вне отрисованного, и координат редактор не знает —
+           * `targetY` пуст, якорь выбирается по порядку.
            */
         }
         let best = null;
@@ -125,11 +114,7 @@ function getAnchorRect(editor, lineNumber, controlLine) {
   }
 }
 
-/**
- * Цвет из настроек или пусто. Пустое значение означает «взять у темы», и
- * тогда стиль не задаётся вовсе: подставить сюда свой цвет значило бы решить
- * за тему (PRD 10.13.15 Н2, замечание заказчика D6 от 2026-09-02).
- */
+/** Цвет из настроек или пусто — «взять у темы», стиль не задаётся (PRD 10.13.15 Н2, D6). */
 function pickColor(value) {
   let s = String(value == null ? "" : value).trim().toLowerCase();
   return /^#[0-9a-f]{6}$/.test(s) ? s : "";
@@ -139,8 +124,7 @@ function createRoot(colors) {
   let c = colors && typeof colors === "object" ? colors : {};
   let root = document.createElement("div");
   root.className = SCROLLER_BOX_CLASS;
-  /* Свой фон, если он задан; иначе — фон поповера темы, как было.
-     Умолчание живёт в правиле, а не здесь: так его может перебить тема. */
+  /* Свой фон, если задан; умолчание — в правиле, чтобы его перебивала тема. */
   if (c.fill) root.style.setProperty("--io-twscroller-fill", c.fill);
 
   let list = document.createElement("div");
@@ -150,7 +134,7 @@ function createRoot(colors) {
   return { root: root, list: list, colors: { fill: c.fill || "", text: c.text || "" } };
 }
 
-/** Коробка видна или нет — одно место на все восемь прежних (У-32). */
+/** Коробка видна или нет — одно место (У-32). */
 function setBoxShown(target, shown) {
   if (!target || !target.root || !target.root.classList) return;
   if (shown) target.root.classList.add(SCROLLER_SHOWN_CLASS);
@@ -167,8 +151,7 @@ function createTagWheelScrollerOverlay(options) {
     fill: pickColor(cfg.fillColor),
     text: pickColor(cfg.textColor),
   };
-  /* Своя заливка без своего цвета текста — текст читаемый на ней, а не цвет
-     темы: в тёмной теме тот светлый и сливался со светлой заливкой. */
+  /* Своя заливка без своего цвета текста — читаемый текст, не цвет темы (в тёмной теме сливался). */
   if (colors.fill && !colors.text) colors.text = __editorVisualsConfig.readableTextOn(colors.fill);
   let boxPrimary = createRoot(colors);
   let boxSecondary = createRoot(colors);
@@ -179,13 +162,7 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   function measureLongest(rows) {
-    /*
-     * Мерка длины строки обязана быть того же начертания, что сама
-     * коробка, иначе ширина считается не по тому, что человек увидит.
-     * Прежде кегль и шрифт списывались с свойств узла коробки; теперь
-     * начертание объявлено **одним правилом на два селектора** — коробку и
-     * мерку, — и разошесться им не на чем (У-32).
-     */
+    /* Мерка длины строки того же начертания, что коробка: одно правило на два селектора (У-32). */
     let probe = document.createElement("span");
     probe.className = SCROLLER_PROBE_CLASS;
     document.body.appendChild(probe);
@@ -200,27 +177,13 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   /*
-   * Строки коробки. Свой цвет текста, если он задан; иначе — цвет темы, как
-   * было (10.13.15 Н1, Н2).
-   *
-   * Текущего значения в коробке нет: она показывает **соседние** значения, а
-   * то, в котором человек стоит, нарисовано в самой строке. Поэтому третий
-   * цвет, о котором просил заказчик, живёт не здесь, а у панели
-   * (`visual.tagWheel.activeTextColor`).
+   * Строки коробки: свой цвет текста или цвет темы (10.13.15 Н1, Н2). Текущего
+   * значения в коробке нет — его цвет у панели (`visual.tagWheel.activeTextColor`).
    */
   function renderRows(target, rows) {
     /*
-     * Чистка списка — **не через `innerHTML`** (правило каталога Obsidian, Р1
-     * списка расхождений, 2026-09-08). Здесь строка и правда пустая, то есть
-     * разметку никто не вставляет, — но правило каталога про само свойство, а
-     * не про его значение: место, где однажды написали `innerHTML = ""`,
-     * рано или поздно получает `innerHTML = что-то`.
-     *
-     * Правило называет `el.empty()` — помощник, которым Obsidian надстраивает
-     * `HTMLElement`. Здесь снятие детей написано вручную, и это не упрямство:
-     * коробка создаётся через `document.createElement`, а её проверка гоняется
-     * на заглушке DOM, у которой надстройки платформы нет. Заглушка добрее
-     * браузера не бывает — но и требовать от неё чужих методов незачем (У-45).
+     * Не `innerHTML` (Р1, 2026-09-08). Не `el.empty()`: коробка из
+     * `document.createElement`, а заглушка DOM надстроек Obsidian не имеет (У-45).
      */
     while (target.list.firstChild) target.list.removeChild(target.list.firstChild);
     let colors = target.colors || {};
@@ -261,17 +224,10 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   /*
-   * **Коробка приклеена к панели, а не к экрану** (его замечание 2026-09-24:
-   * «если проскроллить экран, то scroller следует за экраном, а должен быть
-   * приклеен к панели tagwheel»). Узел стоит `position: fixed` и ставится по
-   * координатам якоря на каждое обновление панели, а прокрутка заметки
-   * обновлением не была: якорь уезжал, коробка оставалась. Теперь последний
-   * вызов запоминается, и прокрутка ставит коробку заново тем же `update`.
-   * Слушатель — на прокручиваемом узле самой заметки (`cm.scrollDOM`, он же
-   * `.cm-scroller`): прокручивается именно он, и слушатель на `document`
-   * мимо `registerDomEvent` запрещён правилом каталога
-   * (`catalog_rules_tests.ts`). Узел берётся у редактора из вызова и
-   * меняется вместе с ним; снимается при `destroy`.
+   * Коробка приклеена к панели (2026-09-24): узел `position: fixed`, прокрутка
+   * повторяет последний `update`. Слушатель на `cm.scrollDOM` (`.cm-scroller`):
+   * `document` мимо `registerDomEvent` запрещён (`catalog_rules_tests.ts`).
+   * Снимается при `destroy`.
    */
   let lastPayload = null;
   let framePending = false;
@@ -296,12 +252,7 @@ function createTagWheelScrollerOverlay(options) {
     if (scrollHost) scrollHost.addEventListener("scroll", onScroll, { passive: true });
   }
 
-  /*
-   * Якорь, уехавший за край области заметки, коробку не держит: иначе прижим
-   * `placeBox` к краю окна оставлял бы её висеть у края экрана — то самое
-   * «следует за экраном». Край берётся у прокручиваемого узла редактора, а
-   * без него — у окна.
-   */
+  /* Якорь за краем области заметки коробку не держит, иначе `placeBox` прижмёт её к краю окна. Край — у `scrollDOM`, иначе у окна. */
   function anchorOutOfView(editor, anchor) {
     let top = 0;
     let bottom = window.innerHeight || 1;
@@ -378,11 +329,8 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   /**
-   * Снять коробку с страницы — одно место на две коробки (Д-4, У-32).
-   *
-   * Уборка: снимается то, чего может уже не быть — страницу пересобрали,
-   * узел ушёл вместе с ней. Цель достигнута в любом случае: коробки на
-   * экране нет.
+   * Снять коробку со страницы (Д-4, У-32). Уборка: узла может уже не быть —
+   * коробки на экране нет в любом случае.
    */
   function dropBox(target) {
     try {
@@ -390,7 +338,7 @@ function createTagWheelScrollerOverlay(options) {
         target.root.parentNode.removeChild(target.root);
       }
     } catch (_) {
-      /* См. выше: уборка чего-то, чего может уже не быть. */
+      /* Уборка: узла может уже не быть. */
     }
   }
 

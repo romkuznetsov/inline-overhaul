@@ -1,14 +1,8 @@
 "use strict";
 
 /*
- * Здесь стояла заглушка на месте `pkm_domain_registry.js`, и **её результат не
- * читало ни одно место файла** — мёртвое объявление с тихим отказом внутри
- * (Д-4, снято 2026-09-09).
- *
- * **Почему линтер не сказал.** `no-unused-vars` разрешает неиспользованными
- * имена, начинающиеся с подчёркивания, а модули в этом проекте как раз так и
- * называются — `__module`. То есть указатель на мёртвое, о котором говорит
- * `CLAUDE.md`, к модульным именам слеп по уговору самого проекта.
+ * Мёртвая заглушка `pkm_domain_registry.js` снята (Д-4, 2026-09-09).
+ * `no-unused-vars` слеп к именам `__module` по уговору проекта.
  */
 
 function defaultIsObj(x) {
@@ -61,16 +55,12 @@ function normalizeField(field, modeName, idx, options) {
     enabledForParentValues: Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues.slice() : null,
     disabledForParentValues: Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues.slice() : null,
     /*
-     * Два разрешения дочернего Field (его слово 2026-09-19): работает ли он на
-     * строке без значения у родителя и дописывать ли тогда родителя. Список
-     * здесь — **перечень**, а не копия: свойства, которого в нём нет, движки
-     * не увидят вовсе, и настройка тихо перестанет доезжать (У-192). Держит
-     * это `rules_from_settings_tests.ts`.
+     * Разрешения дочернего Field (2026-09-19). Список — перечень: свойства не
+     * из него движки не увидят (У-192); держит `rules_from_settings_tests.ts`.
      */
     freeOfParent: field.freeOfParent === true,
     addsParentValue: field.addsParentValue === true,
-    /* Видно в tagWheel только пока зажат `Alt` (`З-36`). Тот же перечень: нет
-       свойства здесь — панель его не узнает. */
+    /* Видно в tagWheel только при зажатом `Alt` (`З-36`). Тот же перечень. */
     showOnAlt: field.showOnAlt === true,
     /* Родительские Values — навигатор (PRD 10.13.269). Тот же перечень. */
     parentIsNavigator: field.parentIsNavigator === true,

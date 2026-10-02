@@ -1,21 +1,9 @@
 /**
- * `Which Fields stay on the line` — какие Values остаются на исходной строке
- * после `inline2note` (замечание заказчика 1.6.5.1, решение 2026-09-01).
- *
- * **Настройка не новая, новый только контрол.** Движок читает
- * `transform.inline2note.sourceProcessing.cleanupFieldIds` с самого начала:
- * `applySourceCleanupByFieldIds` убирает со строки Values всех Fields, **кроме**
- * перечисленных. Контрола к ней не было ни в новой панели, ни в старой — ключ
- * можно было задать только заметкой конфигурации или руками. Заказчик помнил
- * поведение и не мог найти настройку; он был прав, а З2 нарушен: настройку
- * потеряли при переносе, а не убрали решением.
- *
- * **Отмечено — значит остаётся.** Имя ключа говорит обратное («cleanup»), но
- * движок именно так его и читает, а имя ключа менять нельзя (З1). Поэтому
- * подпись контрола говорит правду, а не повторяет ключ.
- *
- * Пусто — не ошибка, а умолчание: со строки уходят все Values, и получается
- * первый из двух примеров заказчика.
+ * `Which Fields stay on the line` — Values, остающиеся на строке после
+ * `inline2note` (1.6.5.1, 2026-09-01). Контрол к давнему ключу, потерянному
+ * при переносе (З2): `applySourceCleanupByFieldIds` убирает всё, кроме
+ * перечисленных. Отмечено — остаётся, вопреки имени «cleanup» (З1). Пусто —
+ * уходят все Values.
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
@@ -27,10 +15,7 @@ import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 /** Путь ключа. Он же причина записи: по ней сверяются карты записей (М-4). */
 export const KEEP_PATH = "transform.inline2note.sourceProcessing.cleanupFieldIds";
 
-/*
- * Пустые состояния: приглашение, а не пустое место (ПЗ2), и умолчание,
- * которое означает вполне определённое. Слова живут в каталоге (10.13.47).
- */
+/* Пустые состояния (ПЗ2); слова в каталоге (10.13.47). */
 const T = BLOCK_TEXTS["source-fields"];
 
 export const NO_FIELDS = T.NO_FIELDS;
@@ -65,10 +50,7 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
   };
 
   const fill = (mount: El): void => {
-    /*
-     * Fields читаются тем же чтением, что и предпросмотры: второй разбор того
-     * же формата разошёлся бы с первым (П11).
-     */
+    /* Тем же чтением, что предпросмотры (П11). */
     const fields = realFields(ctx);
     const kept = new Set(keptIds(ctx));
     const enabled = Boolean(ctx.get("transform.inline2note.enabled"));
@@ -93,11 +75,7 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
         const now = new Set(keptIds(ctx));
         if (input.checked) now.add(f.id);
         else now.delete(f.id);
-        /*
-         * Пишется список в порядке Fields, а не в порядке нажатий: иначе одно
-         * и то же множество давало бы разный конфиг, и «сброс группы» считал
-         * бы настройку изменённой на ровном месте.
-         */
+        /* В порядке Fields, не нажатий: одно множество — один конфиг (для сброса группы). */
         const ordered = fields.map(x => x.id).filter(id => now.has(id));
         void ctx.set(KEEP_PATH, ordered);
         draw();
@@ -106,7 +84,7 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
       el(row, "span", "io-keepfields__kind", f.kind === "link" ? "link" : f.kind);
     }
 
-    /* Ни одного отмеченного — сказать, что это значит, а не молчать. */
+    /* Ничего не отмечено — объяснить, что это значит. */
     if (!kept.size) el(mount, "p", "io-preview__note", NONE_KEPT);
 
     const actions = el(mount, "div", "io-rowactions");
@@ -133,11 +111,7 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
   };
 
   draw();
-  /*
-   * Список зависит и от Fields, и от самой настройки: Field, заведённый на
-   * соседней вкладке, обязан появиться здесь без перехода по вкладкам —
-   * это тот же дефект 1.4.1.1.3, только в другом блоке.
-   */
+  /* И от Fields: заведённый на соседней вкладке появляется сразу (1.4.1.1.3). */
   const stop = ctx.watch([KEEP_PATH, "pkm.fields", "transform.inline2note.enabled"], draw);
   return () => {
     stop();

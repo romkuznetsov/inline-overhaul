@@ -1,32 +1,9 @@
 /**
- * `Color your Tags` — цвета тегов, не принадлежащих ни одному Field.
- *
- * Блок возвращён решением заказчика (PRD 10.11а, разбор фазы 3b) и размещён своей
- * группой на вкладке Visual решением 2026-08-29. В старой панели он жил внутри
- * доски Order за двумя тумблерами вида, которых в новой панели нет (Ф15): к
- * Fields эти цвета отношения не имеют, а без блока ветка конфига стала бы
- * недостижимой, и старую панель нельзя было бы удалить.
- *
- * Путь — `visual.tags.userTags.<#tag>` (версия 2, PRD 8.1). До 2026-09-03 в
- * эту ветку писала ещё и конфиг-заметка; с её снятием (10.12) единственный
- * автор ветки — эта строка панели.
- *
- * Строка устроена как строка таблицы Values (решение заказчика): те же
- * контролы и те же подписи, чтобы человек не учил их дважды. Отличий два, и
- * оба от конфига, а не от вкуса:
- *
- *   * показ у своего тега бывает только `default` или `empty` — `custom`
- *     конфиг для этой ветки не хранит, и показывать его значило бы показывать
- *     контрол, который не работает (З8);
- *   * колонки `Level` и `Prefix` не нужны: у своего тега нет родителя, и
- *     маркер строки он не меняет — разбор ниже, у самой отрисовки.
- *
- * **Чип предпросмотра у него свой**, как в таблице Values: `bubble` рисует
- * тег выбранными цветами, а рядом встаёт значок контраста, если пара читается
- * плохо (П9). До 2026-09-08 здесь стояло обратное — «отдельного чипа
- * предпросмотра нет, имя тега и есть предпросмотр», — и это было верно ровно
- * до того дня, когда колонка `Preview` появилась. Объяснение, пережившее свой
- * предмет, врёт тише всего (У-71).
+ * `Color your Tags` — цвета тегов вне Fields (PRD 10.11а, Ф15; Visual с
+ * 2026-08-29). Путь `visual.tags.userTags.<#tag>` (PRD 8.1), единственный
+ * автор ветки с 10.12. Строка — как в таблице Values, но показ только
+ * `default`/`empty` (`custom` ветка не хранит, З8) и без `Level`/`Prefix`.
+ * Предпросмотр `bubble` со значком контраста (П9, У-71).
  */
 
 import { asObject } from "../types.ts";
@@ -42,35 +19,24 @@ import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 /* Порядок колонок — как в таблице Values, без `Level` и `Prefix` (1.5.2.2). */
 export const HEAD = ["Tag", "Show", "Fill", "Text", "Side", "Preview", ""] as const;
 
-/**
- * Имена строк каталога для подсказок колонок: слова живут в `texts_blocks.ts`
- * (10.13.47), здесь только адрес. Смысл тот же, что у одноимённых колонок
- * таблицы Values.
- */
+/** Подсказки колонок — имена строк `texts_blocks.ts` (10.13.47). */
 const COLUMN_TIPS: Readonly<Record<string, string>> = {
   Tag: "TAG_TIP",
   Show: "SHOWN_TIP",
   Fill: "FILL_TIP",
   Text: "TEXT_TIP",
   Side: "SIDE_TIP",
-  /* `Preview` была единственной подписанной колонкой без подсказки — заказ
-     заказчика 2026-09-08: «tip ко всем элементам, у которых еще нет». */
+  /* Подсказка всем колонкам (2026-09-08). */
   Preview: "PREVIEW_TIP",
 };
 
-/*
- * Английское этих строк живёт в каталоге (10.13.47) — отсюда их читают
- * проверки, а панель спрашивает по ключу. Второго объявления нет (У-32).
- */
+/* Английское — из каталога (10.13.47, У-32); отсюда читают проверки. */
 export const ADD_TAG = BLOCK_TEXTS["user-tag-list"].ADD_TAG;
 export const ADD_LABEL = BLOCK_TEXTS["user-tag-list"].NEW_TAG_ARIA;
 /** Список пуст: приглашение, а не пустое место (ПЗ2). */
 export const EMPTY_LIST = BLOCK_TEXTS["user-tag-list"].EMPTY;
 
-/**
- * Показ своего тега. Третьего значения (`custom`) в этой ветке конфига нет:
- * `visibility` здесь принимает только эти два.
- */
+/** Показ своего тега: `custom` эта ветка не хранит. */
 const SHOWN_OPTIONS = [
   { value: "default", name: "SHOWN_DEFAULT" },
   { value: "empty", name: "SHOWN_EMPTY" },
@@ -109,11 +75,7 @@ function userTagsOf(cfg: unknown): Record<string, unknown> {
   return asObject(asObject(asObject(asObject(cfg)["visual"])["tags"])["userTags"]);
 }
 
-/**
- * Токен в том виде, в каком его хранит конфиг: с решёткой. Пустой ответ
- * означает «это не тег» — такие ключи в ветке встречаются, и разрешение цвета
- * их тоже отбрасывает.
- */
+/** Токен как в конфиге, с решёткой; `""` — не тег (такие ключи бывают). */
 function tokenOf(raw: string): string {
   const s = String(raw || "").trim();
   const withHash = s.charAt(0) === "#" ? s : "#" + s.replace(/^#+/, "");
@@ -130,11 +92,7 @@ export interface UserTagsModel {
 }
 
 export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
-  /**
-   * Строка пишется целиком, а не по одному полю: недостающие берутся из
-   * текущей. Так это работало в старой панели, и от этого зависит, что
-   * оказывается в конфиге.
-   */
+  /** Строка пишется целиком; недостающие поля — из текущей. */
   const write = (token: string, next: Omit<UserTagRow, "token">, reason: string): void => {
     plugin.setConfigPatch(
       { visual: { tags: { userTags: { [token]: next } } } },
@@ -148,7 +106,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
       const out: UserTagRow[] = [];
       for (const key of Object.keys(map)) {
         const token = tokenOf(key);
-        /* Ключ не тег — не наш: чужие ключи мы не рисуем и не трогаем. */
+        /* Не тег — не наш, не трогаем. */
         if (!token || token !== key.trim()) continue;
         const row = asObject(map[key]);
         out.push({
@@ -178,11 +136,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
     remove(token) {
       const tok = tokenOf(token);
       if (!tok) return;
-      /*
-       * Надгробие: `deepMerge` сливает объекты, и ключ уходит только по
-       * `null`. Записать пустую строку значило бы оставить тег в конфиге без
-       * цветов — он бы вернулся в список на следующей перерисовке.
-       */
+      /* Надгробие: `deepMerge` снимает ключ только по `null`. */
       plugin.setConfigPatch(
         { visual: { tags: { userTags: { [tok]: null } } } },
         "pkm:visuals:user-tags:delete",
@@ -197,11 +151,7 @@ export function createUserTagsModel(plugin: TagPlugin): UserTagsModel {
       /* Занятое имя не отбирается у того, кто его уже носит. */
       if (Object.prototype.hasOwnProperty.call(map, now)) return;
       const current = asObject(map[was]);
-      /*
-       * Одним патчем: новый ключ и надгробие старому. Двумя записями это
-       * стало бы двумя шагами «отменить», и один из них оставлял бы тег
-       * либо в двух местах, либо ни в одном.
-       */
+      /* Одним патчем — один шаг «отменить». */
       plugin.setConfigPatch(
         { visual: { tags: { userTags: {
           [now]: {
@@ -247,22 +197,9 @@ export interface UserTagsViewOpts {
 }
 
 /**
- * Таблица своих тегов — **та же, что Values у Field типа tag**, за вычетом
- * колонок `Level` и `Prefix` (замечание заказчика 1.5.2.2). Прежняя своя
- * вёрстка ему не понравилась, и по делу: таблицу Values человек уже выучил, а
- * вторая, похожая, но другая, заставляла учить её заново.
- *
- * Чего в этой таблице нет и почему:
- *
- *   * `Level` — у своего тега нет родителя: он не принадлежит ни одному Field;
- *   * `Prefix` — маркер строки ставит Value Field, а свой тег его не меняет;
- *   * ручки перетаскивания — у Values порядок это порядок команд `next` и
- *     `previous`, а своим тегам порядок не нужен, и ручка, которая ничего не
- *     переставляет, хуже её отсутствия (З8).
- *
- * Имя тега правится на месте, как `Value` в таблице Values. Переименование —
- * это перенос ключа: старый уходит, новый приходит с теми же цветами, и обе
- * записи идут одним патчем, чтобы «отменить» возвращало тег целиком.
+ * Таблица своих тегов — как Values у Field типа tag (1.5.2.2), без `Level`
+ * (нет родителя), `Prefix` (маркер не меняет) и ручек (порядок не нужен, З8).
+ * Имя правится на месте; переименование — перенос ключа одним патчем.
  */
 export function renderUserTags(host: El, o: UserTagsViewOpts): void {
   const box = el(host, "div", "io-vals io-vals--tags");
@@ -322,8 +259,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
 
     const color = (key: "fillColor" | "textColor" | "borderColor", label: string, reason: string): void => {
       const wrap = el(line, "div");
-      /* Пока своего цвета нет, в образце стоит цвет темы — тот, которым тема
-         и рисует тег. Разбор общий с проверкой контраста (C31, C39). */
+      /* Без своего цвета — цвет темы, как у проверки контраста (C31, C39). */
       const own = row[key];
       const fromTheme = toHexColor(key === "fillColor" ? theme.fill : key === "textColor" ? (row.fillColor ? theme.onFill : theme.text) : theme.side);
       const input = wrap.createEl("input", {
@@ -365,11 +301,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     }
 
     const tools = el(line, "div", "io-valtools");
-    /*
-     * Обратно к цвету темы. Пикер такого сказать не умеет — у него всегда
-     * какой-то цвет, — и без этой кнопки выбранный однажды цвет оставался бы
-     * у тега навсегда и при смене темы не подстраивался.
-     */
+    /* Обратно к цвету темы: пикер «нет цвета» сказать не умеет. */
     if (row.fillColor || row.textColor || row.borderColor) {
       const back = btn(tools, "io-icon", {
         text: "\u21BA",
@@ -381,7 +313,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
         o.onVisual(row, { fillColor: "", textColor: "", borderColor: "" }, "pkm:visuals:user-tags:color-reset");
       }) as never);
     }
-    /* Удаление красное: единственная кнопка строки, которая уносит данные. */
+    /* Красная: единственная, что уносит данные. */
     const del = btn(tools, "io-icon io-icon--danger", {
       text: "\u2715",
       label: say("REMOVE", row.token),
@@ -394,7 +326,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
   }
 
   const foot = el(box, "div", "io-rowactions");
-  /* Решётка не обязательна: тег читается одинаково с ней и без неё. */
+  /* Решётка не обязательна. */
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
     placeholder: say("NEW_TAG_HINT"),
@@ -441,10 +373,7 @@ export const userTagColors: CustomRender = (host: El, ctx: SettingsCtx) => {
       const model = createUserTagsModel(p.plugin as never);
       /* Подсказки колонок снимаются вместе с узлом (С5). */
       const closers: Array<() => void> = [];
-      /*
-       * Запись и перерисовка. Перерисовка в `finally`: исключение из
-       * `setConfigPatch` не должно оставлять на экране прежнее.
-       */
+      /* Перерисовка в `finally`: и после исключения `setConfigPatch`. */
       const commit = (write: () => void): void => {
         try { write(); }
         catch (e) { console.error("inline-overhaul: запись цвета своего тега не удалась", e); }
@@ -466,8 +395,7 @@ export const userTagColors: CustomRender = (host: El, ctx: SettingsCtx) => {
 
       });
     } catch (e) {
-      /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что
-         работало: так же устроены остальные свои блоки. */
+      /* Неудача выбрасывается, на экране остаётся прежнее. */
       next.remove();
       console.error("inline-overhaul: цвета своих тегов не отрисовались", e);
       return;

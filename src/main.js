@@ -37,11 +37,7 @@ function getSmartPasteEngine() {
 
 
 class InlineOverhaulPlugin extends Plugin {
-  /**
-   * Загрузка: порядок и состояние живут в `src/features/plugin_bootstrap.js`
-   * (кусок четвёртый разбора A3). Здесь остался вызов — им Obsidian и
-   * запускает плагин.
-   */
+  /** Загрузка — в `src/features/plugin_bootstrap.js` (A3); здесь вызов, которым Obsidian запускает плагин. */
   async onload() {
     return __bootstrap.load(this);
   }
@@ -51,16 +47,8 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   /**
-   * Один шаг выгрузки — одно правило на все шаги (Д-4, 2026-09-09).
-   *
-   * Шаги выгрузки независимы, и отказ одного не должен отменять
-   * остальные: иначе одна сломанная уборка оставит висеть остальные.
-   *
-   * **Но молчать об отказе тут нельзя.** Неснятый перехват `keydown`
-   * панели TagWheel — тот самый дефект Д-2, из-за которого человек терял
-   * стрелки и Enter до перезагрузки окна. Тихий отказ здесь возвращал бы
-   * его обратно и невидимо (правило отказов, второй вид: сломалось
-   * невидимое).
+   * Один шаг выгрузки (Д-4): шаги независимы, отказ одного не отменяет остальные,
+   * но не молчит — неснятый `keydown` TagWheel отнимал стрелки и Enter (Д-2).
    */
   __unloadStep(what, step) {
     try {
@@ -73,19 +61,9 @@ class InlineOverhaulPlugin extends Plugin {
 
   onunload() {
     /*
-     * Первым шагом — отложенная запись настроек (CS7, разбор
-     * `docs/dev/AUDIT_2026-09-18.md` 4.1). `ConfigStore.scheduleSave` откладывает
-     * её на четверть секунды, а `store.unload()` ниже тот же таймер снимает:
-     * без этого шага правка, сделанная перед выключением плагина, пропадала
-     * молча, и сказать об этом человеку было нечем.
-     *
-     * **Записывается «как получится», и это названо нарочно:** `saveData`
-     * асинхронна, и при закрытии окна платформа её не ждёт. Для выключения,
-     * обновления и перезагрузки плагина шаг работает; гарантией на выключение
-     * компьютера он не является.
-     *
-     * Отказ здесь молчать не имеет права: это настройки человека, и второй вид
-     * отказа — «сломалось невидимое» — ровно про этот случай.
+     * Первым — отложенная запись настроек (CS7, `docs/dev/AUDIT_2026-09-18.md` 4.1):
+     * `store.unload()` ниже снимает таймер `scheduleSave`. `saveData` асинхронна, и
+     * при закрытии окна её не ждут — гарантии на выключение компьютера нет.
      */
     this.__unloadStep("config-flush", () => {
       if (!this.store) return;
@@ -98,11 +76,9 @@ class InlineOverhaulPlugin extends Plugin {
       }
     });
     this.__unloadStep("dev-log", () => this.closeDevLogSession(this.getConfig()));
-    /* Открытая панель TagWheel держит перехват `keydown` на всём окне, и без
-       этой строки он живёт до перезагрузки окна (Д-2). */
+    /* Открытый TagWheel держит `keydown` на всём окне до перезагрузки (Д-2). */
     this.__unloadStep("tagwheel-session", () => __pluginCommands.closeTagWheelSession());
-    /* Подписка панели настроек на хранилище: договор был написан и не
-       исполнялся (`docs/dev/AUDIT_2026-09-18.md`, 4.5). */
+    /* Подписка панели настроек на хранилище (`docs/dev/AUDIT_2026-09-18.md`, 4.5). */
     this.__unloadStep("settings-pane", () => __bootstrap.disposeSettingTab(this));
     __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
@@ -113,16 +89,10 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   /**
-   * Заново собрать то, что плагин строит из конфига один раз — при загрузке.
-   *
-   * Зовётся одним местом — восстановлением копии настроек (10.13.40), потому
-   * что только там конфиг меняется целиком и разом. Дело осталось одно: набор
-   * команд PKM строится из Fields конфига (У-79), и без этого вызова новый
-   * набор Fields получает команды только после перезапуска, а хоткей из копии
-   * ложится на команду, которой ещё нет. Второе дело — место служебного файла
-   * правил — ушло вместе с самим файлом (PRD 10.13.52, П-8, шаг четвёртый).
-   *
-   * Отказ не отменяет восстановления: настройки уже записаны.
+   * Пересобрать построенное из конфига при загрузке — зовёт восстановление копии
+   * (10.13.40): команды PKM строятся из Fields (У-79), иначе хоткей из копии ляжет
+   * на ещё несуществующую команду. Служебный файл правил снят (10.13.52, П-8).
+   * Отказ не отменяет восстановления.
    */
   async rebuildFromConfig() {
     try {
@@ -144,12 +114,7 @@ class InlineOverhaulPlugin extends Plugin {
     return getSmartDeleteEngine().handleSmartDeleteKeymap(this);
   }
 
-  /*
-   * Тот же шов, что у двух соседей выше, и охраны у него быть не должно
-   * (10.13.166): `false` отсюда значит «клавиша не наша», то есть
-   * `Backspace` просто не срабатывал бы по своим правилам и молча. Модуль
-   * приезжает литеральным `require`, и запасного пути у загрузки нет.
-   */
+  /* Без охраны (10.13.166): `false` значит «клавиша не наша» — `Backspace` молча не сработал бы. */
   handleSmartBackspaceKeymap() {
     return getSmartDeleteEngine().handleSmartBackspaceKeymap(this);
   }
@@ -162,11 +127,7 @@ class InlineOverhaulPlugin extends Plugin {
     return getSmartEnterEngine().handlePlainEnterKeymap(this, runEnter);
   }
 
-  /*
-   * Тот же шов, но вход у него не клавиша, а событие платформы
-   * (`editor-paste`): `Ctrl+V` до keymap не доходит, вставку Obsidian отдаёт
-   * своим событием. `false` значит «вставка обычная».
-   */
+  /* Вход — событие `editor-paste`: `Ctrl+V` до keymap не доходит. `false` — вставка обычная. */
   handleSmartPaste(evt, editor) {
     return getSmartPasteEngine().handleSmartPaste(this, evt, editor);
   }
@@ -199,22 +160,14 @@ class InlineOverhaulPlugin extends Plugin {
     return __bootstrap.createSettingTab(this);
   }
 
-  /**
-   * Папка плагина в vault. Нужна только для двух файлов рядом с `data.json`:
-   * резервной копии версии 1 (МГ4) и нечитаемого файла (МГ6).
-   */
+  /** Папка плагина: рядом с `data.json` — резерв версии 1 (МГ4) и нечитаемый файл (МГ6). */
   pluginFolderPath() {
     const configDir = String((this.app && this.app.vault && this.app.vault.configDir) || ".obsidian");
     const id = String((this.manifest && this.manifest.id) || "inline-overhaul");
     return configDir + "/plugins/" + id;
   }
 
-  /*
-   * Журнал разработчика уехал в `src/core/dev_log.js` (кусок четвёртый разбора
-   * `main.js`). Здесь остались три шва, и каждый нужен по своей причине:
-   * `devLogEvent` зовут слой редактора и TagWheel через сам объект плагина, а
-   * два других — точка входа, выгрузка и запись патча конфига.
-   */
+  /* Журнал — в `src/core/dev_log.js`; `devLogEvent` зовут слой редактора и TagWheel через плагин. */
   devLogEvent(eventName, payload, level, cfg) {
     return __devLog.event(this, eventName, payload, level, cfg);
   }
@@ -237,32 +190,18 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   /**
-   * `data.json` изменён снаружи — синхронизацией, вторым компьютером, правкой
-   * руками (Р-2, разбор `docs/dev/AUDIT_2026-09-18.md` 4.2).
-   *
-   * **Метод обязан существовать именно с этим именем.** Платформа не просто
-   * зовёт его, а по его наличию решает, следить ли за файлом вовсе: в `app.js`
-   * 1.13.7 и `loadData`, и `_onConfigFileChange` первым же действием
-   * спрашивают `this.onExternalSettingsChange` и без него не делают ничего.
-   * Пока метода не было, плагин затирал принесённое ближайшей отложенной
-   * записью.
-   *
-   * Работа — в `config_write.applyExternalChange`; здесь шов, как и у
-   * остальных методов точки входа.
+   * `data.json` изменён снаружи (Р-2, `docs/dev/AUDIT_2026-09-18.md` 4.2). Имя
+   * обязательно: `app.js` 1.13.7 (`loadData`, `_onConfigFileChange`) по наличию
+   * метода решает, следить ли за файлом. Работа — `config_write.applyExternalChange`.
    */
   async onExternalSettingsChange() {
     return __configWrite.applyExternalChange(this);
   }
 
   /*
-   * Здесь стояли четыре метода, которых не звал никто, — три записи открытой
-   * вкладки настроек (`setActiveSettingsTab`, `setVisualSubTab`,
-   * `setHotkeysSubTab`) и `isFeatureEnabled`. Первые три — остаток старой
-   * панели, снятой 2026-08-29: новая держит открытую вкладку в себе и в конфиг
-   * её не пишет. Сами ключи `ui.*` в конфиге остались — их нормализуют и
-   * переносят, и не читает никто; что с ними делать, решает заказчик
-   * (`docs/dev/AUDIT_2026-09-18.md`, Р-4). Возвращаться этому классу не даёт
-   * `tests/regression/dead_methods_tests.js`.
+   * Снятые мёртвые методы (`setActiveSettingsTab`, `setVisualSubTab`,
+   * `setHotkeysSubTab`, `isFeatureEnabled`); ключи `ui.*` — Р-4
+   * (`docs/dev/AUDIT_2026-09-18.md`). Сторож — `tests/regression/dead_methods_tests.js`.
    */
 }
 

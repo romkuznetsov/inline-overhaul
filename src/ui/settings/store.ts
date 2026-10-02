@@ -1,23 +1,15 @@
 /**
- * Хранилище настроек и шов с платформой (PRD 5.5 CS9, 5.3 П-1).
- *
- * Платформа читает и пишет значения через `getControlValue` и
- * `setControlValue` вкладки, а те идут сюда. Это единственный шов, который
- * позволяет сохранить undo, склейку записей и оповещение движков: если
- * отдать персистентность Obsidian, всё это придётся выбросить.
+ * Хранилище настроек и шов с платформой (PRD 5.5 CS9, 5.3 П-1). Платформа
+ * пишет через `getControlValue`/`setControlValue` вкладки сюда — только так
+ * живут undo, склейка записей и оповещение движков.
  */
 
 import type { SetOpts, SettingsStore } from "./types.ts";
 import { getIn, setIn } from "./types.ts";
 
 /**
- * Пути, значения которых различаются. Обходятся оба дерева: путь, который
- * появился или исчез, — тоже изменение.
- *
- * Зачем это здесь, а не в причине записи: причину пишет тот, кто пишет, и у
- * патча своего блока она не путь (`pkm:behavior:order:deep:rename:status`).
- * Сравнение снимков даёт точные пути для **любой** записи, и подписчик
- * будится только тот, чьи пути и правда изменились.
+ * Пути с разными значениями в обоих деревьях (появился/исчез — тоже изменение).
+ * Сравнение снимков, а не причина записи: у патча блока причина не путь.
  */
 export function changedPaths(
   before: unknown,
@@ -28,7 +20,7 @@ export function changedPaths(
   const plain = (v: unknown): boolean =>
     Boolean(v) && typeof v === "object" && !Array.isArray(v);
   if (!plain(before) || !plain(after)) {
-    /* Лист, массив или смена формы: сравниваются целиком. */
+    /* Лист, массив или смена формы — целиком. */
     if (JSON.stringify(before) !== JSON.stringify(after) && prefix) out.push(prefix);
     return out;
   }
@@ -44,10 +36,7 @@ export function changedPaths(
 export interface ConfigStoreLike {
   getConfig(): Record<string, unknown>;
   /**
-   * Оповещение подписчиков. Есть и у `ConfigStore`, и у встроенной копии в
-   * `main.js`, но объявлено необязательным: без него панель не падает, а
-   * говорит об этом в консоль (З8) — иначе третий store однажды отнимет
-   * живое обновление молча.
+   * Необязателен: без него панель не падает, а говорит в консоль (З8).
    */
   subscribe?(listener: (payload: unknown) => void): () => void;
   update(
@@ -57,11 +46,7 @@ export interface ConfigStoreLike {
   ): Promise<void> | void;
 }
 
-/**
- * Обёртка над настоящим ConfigStore. Пока он на JS и живёт в
- * `src/core/config_store.js`; когда переедет на TS (5.5), обёртка
- * останется той же — она зависит только от формы выше.
- */
+/** Обёртка над `src/core/config_store.js`; зависит только от формы выше (5.5). */
 export class ConfigStoreAdapter implements SettingsStore {
   private store: ConfigStoreLike;
 
@@ -70,12 +55,8 @@ export class ConfigStoreAdapter implements SettingsStore {
   }
 
   /*
-   * Путь схемы и путь конфига — один и тот же. Так стало в фазе 2, пункт 4:
-   * движки читают версию 2, миграция подключена, и мост `v1_bridge.ts`,
-   * переводивший путь на чтении и на записи, снят целиком (М-5).
-   *
-   * Причина записи по-прежнему называется путём схемы: по ней узнают контрол,
-   * а не ветку конфига, и по ней сверяются карты записей (М-4).
+   * Путь схемы = путь конфига (М-5). Причина записи — путь схемы: по ней
+   * узнают контрол и сверяют карты записей (М-4).
    */
   get(path: string): unknown {
     return getIn(this.store.getConfig(), path);
@@ -90,8 +71,7 @@ export class ConfigStoreAdapter implements SettingsStore {
   }
 
   /**
-   * Кто изменился, а не почему. Снимок держится здесь: `ConfigStore` отдаёт
-   * подписчику причину и новый конфиг, а прошлого не помнит никто.
+   * Кто изменился, а не почему. Снимок держится здесь: `ConfigStore` прошлого не помнит.
    */
   subscribe(listener: (paths: readonly string[]) => void): () => void {
     if (typeof this.store.subscribe !== "function") {
@@ -134,9 +114,7 @@ export class MemoryStore implements SettingsStore {
   }
 
   /**
-   * Оповещение есть и у хранилища в памяти: иначе проверки гоняли бы не тот
-   * путь, которым панель просыпается в Obsidian, и дефект 1.4.1.1.3 вернулся
-   * бы незамеченным.
+   * Оповещение и в памяти: иначе проверки шли бы не тем путём (дефект 1.4.1.1.3).
    */
   subscribe(listener: (paths: readonly string[]) => void): () => void {
     this.listeners.add(listener);
