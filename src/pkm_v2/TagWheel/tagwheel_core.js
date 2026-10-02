@@ -1778,7 +1778,8 @@ function resolveElementSelectionFromRaw(state, field, rawValue, cfgDate) {
       return raw
     }
     var progress = parseTokenlessProgress(raw, cfgDate ? cfgDate.format : '')
-    if (progress !== null && isFinite(progress)) return String(Math.max(0, Math.trunc(progress)))
+    /* Ниже начала формата-числа прогресс отрицательный и таким остаётся (`В-268`). */
+    if (progress !== null && isFinite(progress)) return String(Math.trunc(progress))
   }
   return raw
 }
@@ -1892,6 +1893,11 @@ function mutateDateSelectionByFormat(state, fieldId, format, direction, stepRaw)
     }
   } else if (val === null || isNaN(val)) {
     state.selected[fieldId] = ''
+    return
+  }
+  /* Ниже начала формата-числа — счёт от числа на строке, как у команды (`В-268`). */
+  if (val < 0) {
+    state.selected[fieldId] = getSharedUtils().stepBelowNumberStart(format, Math.trunc(val), direction > 0, step)
     return
   }
 

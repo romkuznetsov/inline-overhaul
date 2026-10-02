@@ -1,0 +1,721 @@
+{
+  "pkm": {
+    "fields": {
+      "order": {
+        "left": [
+          "Status",
+          "Priority"
+        ],
+        "right": [
+          "Due",
+          "Project",
+          "When",
+          "Cnt",
+          "Rid"
+        ],
+        "lead": {},
+        "active": {
+          "Status": "yes",
+          "Priority": "yes",
+          "Due": "yes",
+          "Project": "yes",
+          "When": "yes",
+          "Cnt": "yes",
+          "Rid": "yes",
+          "Status_sub": "yes",
+          "Priority_sub": "no",
+          "Project_sub": "yes"
+        },
+        "freeRoam": {
+          "Status": "off",
+          "Priority": "off",
+          "Due": "off",
+          "Project": "off",
+          "When": "off",
+          "Cnt": "off",
+          "Rid": "off",
+          "Status_sub": "off",
+          "Priority_sub": "off",
+          "Project_sub": "off"
+        },
+        "enabled": {
+          "Status": true,
+          "Priority": true,
+          "Due": true,
+          "Project": true,
+          "When": true,
+          "Cnt": true,
+          "Rid": true,
+          "Status_sub": true,
+          "Priority_sub": false,
+          "Project_sub": true
+        },
+        "subWithoutParent": {},
+        "subAddsParent": {},
+        "subOnAlt": {},
+        "subNavigator": {
+          "Project_sub": true
+        },
+        "yamlNavigator": {},
+        "useAsMoc": {},
+        "types": {
+          "Status": "tag",
+          "Priority": "tag",
+          "Due": "element",
+          "Project": "wikilink",
+          "When": "element",
+          "Cnt": "element",
+          "Rid": "element"
+        },
+        "labels": {
+          "Status": "Status",
+          "Priority": "Priority",
+          "Due": "Due",
+          "Project": "Project",
+          "When": "When",
+          "Cnt": "Cnt",
+          "Rid": "Rid"
+        },
+        "strictNames": {
+          "Status": "Status",
+          "Priority": "Priority",
+          "Due": "Due",
+          "Project": "Project",
+          "When": "When",
+          "Cnt": "Cnt",
+          "Rid": "Rid"
+        },
+        "propertiesByField": {},
+        "custom": []
+      },
+      "tags": {
+        "fields": [
+          {
+            "id": "Status",
+            "prefix": "#",
+            "placeholder": "Status",
+            "values": [
+              {
+                "token": "todo",
+                "subtags": [
+                  "urgent",
+                  "later"
+                ],
+                "active": true
+              },
+              {
+                "token": "doing",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "done",
+                "subtags": [],
+                "active": true
+              }
+            ],
+            "yamlValueRule": "raw"
+          },
+          {
+            "id": "Status_sub",
+            "prefix": "#",
+            "enabled": true,
+            "dependsOn": "Status",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": [
+              {
+                "token": "urgent",
+                "subtags": [],
+                "active": true,
+                "allowedParentValues": [
+                  "todo"
+                ]
+              },
+              {
+                "token": "later",
+                "subtags": [],
+                "active": true,
+                "allowedParentValues": [
+                  "todo"
+                ]
+              }
+            ],
+            "freeOfParent": false,
+            "addsParentValue": false,
+            "showOnAlt": false,
+            "parentIsNavigator": false,
+            "yamlNavigator": false
+          },
+          {
+            "id": "Priority",
+            "prefix": "#",
+            "placeholder": "Priority",
+            "values": [
+              {
+                "token": "low",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "med",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "high",
+                "subtags": [],
+                "active": true
+              }
+            ],
+            "yamlValueRule": "raw"
+          },
+          {
+            "id": "Priority_sub",
+            "prefix": "#",
+            "enabled": false,
+            "dependsOn": "Priority",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": [],
+            "freeOfParent": false,
+            "addsParentValue": false,
+            "showOnAlt": false,
+            "parentIsNavigator": false,
+            "yamlNavigator": false
+          }
+        ]
+      },
+      "links": {
+        "fields": [
+          {
+            "id": "Due",
+            "kind": "genericElement",
+            "marker": "📅",
+            "placeholder": "Due",
+            "values": [
+              ""
+            ],
+            "yamlValueRule": "clean"
+          },
+          {
+            "id": "Project",
+            "prefix": "#",
+            "source": "wikilinks:Project",
+            "placeholder": "Project",
+            "values": [
+              {
+                "token": "Project A",
+                "allowedParentValues": [],
+                "__ioParentBinding": "",
+                "__ioParentFieldId": "",
+                "active": true,
+                "subtags": [
+                  "Task1",
+                  "Task2"
+                ]
+              },
+              {
+                "token": "Project B",
+                "allowedParentValues": [],
+                "__ioParentBinding": "",
+                "__ioParentFieldId": "",
+                "active": true
+              }
+            ],
+            "yamlValueRule": "raw"
+          },
+          {
+            "id": "Project_sub",
+            "prefix": "#",
+            "source": "wikilinks:Project_sub",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": [
+              {
+                "token": "Task1",
+                "allowedParentValues": [
+                  "Project A"
+                ],
+                "active": true
+              },
+              {
+                "token": "Task2",
+                "allowedParentValues": [
+                  "Project A"
+                ],
+                "active": true
+              }
+            ],
+            "enabled": true,
+            "dependsOn": "Project",
+            "freeOfParent": false,
+            "addsParentValue": false,
+            "showOnAlt": false,
+            "parentIsNavigator": true,
+            "yamlNavigator": false
+          },
+          {
+            "id": "When",
+            "kind": "genericElement",
+            "marker": "⏰",
+            "placeholder": "When",
+            "values": [
+              ""
+            ],
+            "yamlValueRule": "clean"
+          },
+          {
+            "id": "Cnt",
+            "kind": "genericElement",
+            "marker": "🔢",
+            "placeholder": "Cnt",
+            "values": [
+              ""
+            ],
+            "yamlValueRule": "clean"
+          },
+          {
+            "id": "Rid",
+            "kind": "genericElement",
+            "marker": "🆔",
+            "placeholder": "Rid",
+            "values": [
+              ""
+            ],
+            "yamlValueRule": "clean"
+          }
+        ]
+      },
+      "elements": {
+        "fields": [
+          "Due",
+          "When",
+          "Cnt",
+          "Rid"
+        ],
+        "byField": {
+          "Due": {
+            "emoji": "📅",
+            "format": "YYYY-MM-DD",
+            "increment": {
+              "mode": "standard",
+              "incrementBy": 1,
+              "command": "now",
+              "customRaw": [],
+              "custom": []
+            }
+          },
+          "When": {
+            "emoji": "⏰",
+            "format": "YYYY-MM-DD HH:mm",
+            "increment": {
+              "mode": "standard",
+              "incrementBy": 15,
+              "command": "now",
+              "customRaw": [],
+              "custom": []
+            }
+          },
+          "Cnt": {
+            "emoji": "🔢",
+            "format": "098",
+            "increment": {
+              "mode": "standard",
+              "incrementBy": 1,
+              "command": "now",
+              "customRaw": [],
+              "custom": []
+            }
+          },
+          "Rid": {
+            "emoji": "🆔",
+            "format": "0000",
+            "increment": {
+              "mode": "command",
+              "incrementBy": 1,
+              "command": "randomN",
+              "customRaw": [],
+              "custom": []
+            }
+          }
+        }
+      },
+      "taxonomy": {},
+      "checkboxByValue": {},
+      "defaultBlock": "left",
+      "projects": {}
+    },
+    "prefixRules": {
+      "resolver": "priority-first",
+      "priorityTargets": [],
+      "priorityCheckboxes": [],
+      "checkboxByFieldValue": {}
+    },
+    "prefixPriority": {
+      "decideBy": "by-section",
+      "fieldOrderSource": "manual",
+      "parentOrChild": "subtag-over-tag"
+    },
+    "lineFormat": {
+      "separator1": "||",
+      "separator2": "||"
+    },
+    "behavior": {
+      "childTagFormat": "separate",
+      "cycleEndBehavior": "keep-bullet",
+      "cursorPolicy": "text_end",
+      "doneMarker": {
+        "token": "",
+        "panel": "right",
+        "strike": false,
+        "visual": {
+          "enabled": false,
+          "opacity": 65,
+          "color": ""
+        }
+      }
+    },
+    "placement": {
+      "bulletInStrict": false,
+      "fieldPrefixInsertOnly": true,
+      "typedTagsStayText": true,
+      "freeInsertPosition": "smart"
+    }
+  },
+  "visual": {
+    "tags": {
+      "byField": {},
+      "byTag": {
+        "Status": {
+          "#todo": {
+            "fillColor": "#3b6fd4",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          },
+          "#doing": {
+            "fillColor": "#c77b26",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          },
+          "#done": {
+            "fillColor": "#2f8a4c",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          }
+        },
+        "Priority": {
+          "#low": {
+            "fillColor": "#6b7280",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          },
+          "#med": {
+            "fillColor": "#b07d10",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          },
+          "#high": {
+            "fillColor": "#c0392b",
+            "textColor": "#ffffff",
+            "borderColor": "",
+            "visibility": "default",
+            "customText": ""
+          }
+        }
+      },
+      "userTags": {},
+      "opacityLeft": 100,
+      "opacityRight": 100,
+      "textSizePctLeft": 100,
+      "textSizePctRight": 100,
+      "blockFill": {
+        "enabled": false,
+        "direction": "both",
+        "color": "",
+        "opacity": 12,
+        "heightPct": 60,
+        "widthPct": 50
+      },
+      "bubbleWidthPct": 100,
+      "bubbleHeightPct": 100,
+      "cornersPct": 0,
+      "emptyBubblePct": 100,
+      "linkShown": {
+        "hoverPreview": false,
+        "draggable": false
+      },
+      "linkAsWritten": {
+        "targetColor": "",
+        "bracketsColor": ""
+      },
+      "hyperlink": {
+        "targetColor": "",
+        "bracketsColor": "",
+        "addressColor": ""
+      }
+    },
+    "tagWheel": {
+      "activeField": {
+        "mode": "first",
+        "left": "",
+        "right": ""
+      },
+      "oppositeBlock": "hide",
+      "edgeMode": "stay",
+      "customTab": false,
+      "showMarkers": true,
+      "valueNames": "default",
+      "highlightLine": true,
+      "textColor": "",
+      "boldFieldNames": false,
+      "activeTextColor": "",
+      "chosenValueColor": "",
+      "fillColor": "",
+      "scroller": {
+        "enabled": false,
+        "direction": "full",
+        "labels": "value",
+        "fillColor": "",
+        "textColor": "",
+        "size": 3
+      }
+    },
+    "tagBars": {
+      "active": false,
+      "fieldId": "",
+      "tagVisibility": true,
+      "hideSeparatorWhenOnlyStripToken": false,
+      "mode": "default",
+      "stripesToShow": 2,
+      "thickness": 2,
+      "spacing": 20,
+      "childOffset": 12,
+      "lineGap": 2,
+      "joinTree": true,
+      "drawWholeTree": true
+    },
+    "caret": {
+      "enabled": false,
+      "color": "",
+      "shapeEnabled": false,
+      "width": 2,
+      "blinkSpeed": 5
+    },
+    "jumpFlash": {
+      "enabled": false,
+      "color": "",
+      "radius": 18,
+      "fadeMs": 450,
+      "quietMs": 0,
+      "inLine": false
+    }
+  },
+  "editor": {
+    "binder": {
+      "rows": [
+        {
+          "rowId": "binder-system-smart-bracket",
+          "insertText": "[]",
+          "commandName": "Smart bracket",
+          "description": "Cycle the brackets on cursor: text → [text] → [[text]] → text",
+          "commandId": "smart-bracket"
+        }
+      ]
+    },
+    "selectAll": {
+      "enabled": false,
+      "mode": "line-note",
+      "useDelay": false,
+      "delayMs": 700,
+      "clearOnLast": false,
+      "customSteps": {
+        "word": false,
+        "line": true,
+        "tree": false,
+        "heading": false,
+        "note": true
+      }
+    },
+    "smartDelete": {
+      "enabled": true,
+      "onBackspace": true,
+      "dropPrefix": true,
+      "joinWithSpace": true
+    },
+    "smartEnter": {
+      "enabled": false,
+      "scope": "line",
+      "newLinePrefix": "same",
+      "shiftPlainEnter": false
+    },
+    "smartPaste": {
+      "enabled": false
+    }
+  },
+  "viewState": {
+    "releaseNotesShownFor": "0.12.0"
+  },
+  "general": {
+    "language": "en",
+    "help": {
+      "showCallouts": true,
+      "showTips": true
+    }
+  },
+  "features": {
+    "navigation": {
+      "enabled": true
+    },
+    "pkm": {
+      "enabled": true
+    },
+    "transform": {
+      "enabled": true
+    },
+    "visual": {
+      "enabled": true
+    }
+  },
+  "navigation": {
+    "moveLine": {
+      "enabled": true,
+      "noSelectionMode": "line-only",
+      "jumpNeighborTrees": false,
+      "headerMode": "move-as-line",
+      "crossSectionAllowed": true,
+      "highlightMovedLines": false,
+      "keepInView": true,
+      "viewPosition": "center"
+    },
+    "moveSelection": {
+      "inlineEnabled": true,
+      "inlineMoveMode": "auto",
+      "inlineWordEscape": false,
+      "inlineBoundaryJump": true,
+      "prefixCyclerEnabled": true,
+      "rightCycles": true,
+      "onCycleEnd": "indent",
+      "indentFallbackEnabled": true,
+      "indentWithChildren": false,
+      "enabled": true,
+      "cycleOrder": [
+        "#",
+        "##",
+        "###",
+        "####",
+        "#####",
+        "1. ",
+        "",
+        "- "
+      ]
+    },
+    "navigateInline": {
+      "enabled": true,
+      "stepMode": "word",
+      "boundaryJump": false,
+      "onBoundary": "wrap"
+    },
+    "jumpToHeader": {
+      "enabled": true,
+      "jumpMode": "edge",
+      "edgeMode": "start-end",
+      "jumpCursorPosition": "section-end",
+      "centerCursor": true,
+      "viewPosition": "center",
+      "centerDelayMs": 60,
+      "centerThrottleMs": 200
+    }
+  },
+  "transform": {
+    "inline2note": {
+      "enabled": true,
+      "templatesFolder": "",
+      "outputFolder": "",
+      "defaultTemplate": "",
+      "smartRules": [],
+      "noteName": {
+        "mode": "auto",
+        "delimiters": "[]",
+        "wordCount": 6,
+        "preferHeaderTitle": true
+      },
+      "nameCollision": {
+        "mode": "new_note"
+      },
+      "placement": {
+        "position": "end",
+        "targetHeader": "",
+        "fallback": "end",
+        "headerMode": "datetime",
+        "customHeader": "Captured",
+        "datetimeFormat": "YYYY-MM-DD HH:mm",
+        "headerLevel": "3"
+      },
+      "sourceProcessing": {
+        "cleanupFieldIds": [
+          "Status",
+          "Project"
+        ],
+        "keepSubFields": true,
+        "token": "#processed",
+        "panel": "right",
+        "replaceWithLink": true,
+        "text": "remove",
+        "keepWords": 3,
+        "visual": {
+          "enabled": false,
+          "color": "",
+          "opacity": 65
+        }
+      },
+      "preview": {
+        "sampleLine": "- [ ] #/1 #todo #context"
+      },
+      "backlink": {
+        "enabled": true,
+        "navigator": true,
+        "emptyLine": true,
+        "placement": {
+          "position": "end",
+          "targetHeader": "",
+          "fallback": "end"
+        }
+      },
+      "yamlNoteFormat": "raw",
+      "openTarget": false,
+      "sublines": "stay",
+      "floatingButton": false,
+      "floatingButtonGap": 12
+    }
+  },
+  "advanced": {
+    "backups": {
+      "folder": "inlineOverhaul/Backups",
+      "autosave": false,
+      "beforeRestore": true
+    },
+    "showSettingIds": false,
+    "devMode": {
+      "enabled": false,
+      "aiLog": false,
+      "logPath": "InlineOverhaul_DevLog",
+      "traceTagVisualLine": false
+    }
+  },
+  "schemaVersion": 2,
+  "ui": {
+    "fieldsTableFixedHeight": false,
+    "activeSettingsTab": "transform"
+  }
+}

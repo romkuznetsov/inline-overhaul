@@ -848,7 +848,8 @@ function hydrateGenericElementFromRawLine(rawLine, rules, state, field, marker, 
     if (hasFormatTokens(fmt)) progress = resolveDateOffsetByFormatValue(hit.value, fmt, 3660);
     else progress = parseTokenlessProgress(hit.value, fmt);
     if (progress !== null && Number.isFinite(progress)) {
-      state.selected[field.id] = String(Math.max(0, Math.trunc(progress)));
+      /* Ниже начала формата-числа прогресс отрицательный и таким остаётся (`В-268`). */
+      state.selected[field.id] = String(hasFormatTokens(fmt) ? Math.max(0, Math.trunc(progress)) : Math.trunc(progress));
       return;
     }
   }
@@ -969,12 +970,13 @@ function buildGenericElementTokenFromState(field, state, marker, format, cycleVa
   }
   const fmt = String(format || "").trim() || "1";
   const asNum = Number(raw);
-  const progress = Number.isFinite(asNum) ? Math.max(0, Math.trunc(asNum)) : null;
+  /* Отрицательный прогресс бывает только у формата-числа (`В-268`); у даты — нет. */
+  const progress = Number.isFinite(asNum) ? Math.trunc(asNum) : null;
   if (hasFormatTokens(fmt)) {
     if (progress === null) return `${marker}${raw}`;
     const unit = detectDateUnit(fmt);
     const base = getReferenceDateForUnit(unit);
-    const dt = addByUnitUtc(base, unit, progress);
+    const dt = addByUnitUtc(base, unit, Math.max(0, progress));
     const value = formatDateByFormat(dt, fmt) || "";
     return value ? `${marker}${value}` : `${marker}${raw}`;
   }
@@ -1002,6 +1004,11 @@ function mutateDateOffsetByFormat(state, fieldId, format, inc, stepRaw) {
     }
   } else if (val === null || isNaN(val)) {
     state.selected[fieldId] = "";
+    return;
+  }
+  /* Ниже начала формата-числа — счёт от числа на строке (`В-268`). */
+  if (val < 0) {
+    state.selected[fieldId] = getSharedUtils().stepBelowNumberStart(format, Math.trunc(val), inc, step);
     return;
   }
   const curNum = Math.max(0, Math.trunc(Number(val || 0)));

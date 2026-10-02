@@ -63,6 +63,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 40. 🐛 **Insert-only mode keeps your quote and your checkbox.** `> ` and `- [ ]` stay at the start of the line; only the tag changes.
 41. 🐛 **Smaller fixes:** a button of a window with the symbol picker open works at the first click, “… is switched off” says where to turn the module on, restoring hotkeys counts the keys, the backup list goes by the date in the backup, and `What changed` names the Binder instead of a settings path.
 42. 🐛 **The command of a Field without Values says so** instead of doing nothing.
+43. 🐛 **Plugin commands leave your text alone while you type in note properties or the note title,** the way Obsidian’s own editor commands do.
+44. 🐛 **tagWheel shows a link with its own text whole** under `Custom + default`: `[PA Project A]`, not `[PA [[Project A]`.
+45. 🐛 **A date in tagWheel steps down through today,** as `Due previous` does, and a counter steps down from `099` to `098`.
+46. 🐛 **A counter goes on from the number on the line:** with the format `098`, `🔢7` becomes `🔢008` instead of `🔢106`, tagWheel no longer rewrites it when you change another Field, and `🔢999` steps to `🔢1000`.
+47. 🐛 **Panel controls reach an open note at once,** `Empty tag bubble width` and `Preview on hover` included, without touching the note first.
+48. 🐛 **A Field dropped on the row below it takes that row’s place,** as rules and Binder rows do.
+49. 🐛 **A backup of every hotkey in the vault keeps the way back:** the backup taken before restoring it holds the other commands’ keys too, and the restore window says when only hotkeys changed.
 
 ## 0.12.0
 

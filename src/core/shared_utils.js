@@ -85,8 +85,38 @@ function parseNumericPatternSpec(format) {
   return { format: f, slots, width: baseDigits.length, base };
 }
 
+/*
+ * **Формат из одних цифр — это число**: начало счёта и наименьшая ширина, а не
+ * маска ровно из стольких цифр (его ответ `В-268`, 2026-10-02: «продолжать от
+ * числа»). Счётчик с форматом `098` узнаёт на строке `🔢7` и `🔢1000`, а не
+ * только трёхзначные: прежде такое значение не узнавалось, обе дороги брали
+ * сырые цифры за прогресс, и `🔢7` становилось `🔢106` (прогон 2026-10-02,
+ * H2.1). Прогресс ниже начала — отрицательный.
+ *
+ * ponytail: признак «\d+» шире прежнего — у Element без знака он узнаёт любое
+ * число строки; знак у Element заводит окно `Add a Field`, и без знака
+ * счётчиков у него нет. Сузить, если такой появится.
+ */
+function isPlainNumberFormat(spec) {
+  return !!spec && Array.isArray(spec.slots) && spec.slots.length > 0 && spec.slots.every(Boolean);
+}
+
+/**
+ * Шаг счётчика, который стоит ниже начала своего формата-числа (`В-268`):
+ * счёт идёт от числа на строке, а ниже нуля значение снимается. Ответ — новый
+ * выбор (прогресс от начала) или пустая строка. Один дом на команду и панель.
+ */
+function stepBelowNumberStart(format, progress, up, step) {
+  const spec = parseNumericPatternSpec(format);
+  const base = spec ? spec.base : 0;
+  const by = Math.max(1, Math.trunc(Number(step || 1)) || 1);
+  const next = up ? progress + by : progress - by;
+  return base + next < 0 ? "" : String(next);
+}
+
 function buildNumericPatternRegexSource(spec) {
   if (!spec || !Array.isArray(spec.slots)) return "";
+  if (isPlainNumberFormat(spec)) return "\\d+";
   const chars = Array.from(String(spec.format || ""));
   let out = "";
   for (let i = 0; i < chars.length; i++) out += spec.slots[i] ? "\\d" : escapeRe(chars[i]);
@@ -95,6 +125,12 @@ function buildNumericPatternRegexSource(spec) {
 
 function renderNumericPatternValue(spec, progressRaw) {
   if (!spec) return "";
+  /* Число пишется целиком и не уже формата: `🔢7` → `🔢007`, `🔢1000` остаётся
+     четырьмя цифрами, а не `000` (`В-268`). */
+  if (isPlainNumberFormat(spec)) {
+    const v = Math.max(0, spec.base + (Math.trunc(Number(progressRaw || 0)) || 0));
+    return String(v).padStart(spec.width, "0");
+  }
   const p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
   const value = spec.base + p;
   let digits = String(value);
@@ -113,6 +149,7 @@ function renderNumericPatternValue(spec, progressRaw) {
 function parseNumericPatternProgress(value, spec) {
   if (!spec) return null;
   const raw = String(value || "").trim();
+  if (isPlainNumberFormat(spec)) return /^\d+$/.test(raw) ? Math.trunc(Number(raw)) - spec.base : null;
   const rxSrc = buildNumericPatternRegexSource(spec);
   if (!rxSrc) return null;
   const re = new RegExp(`^${rxSrc}$`, "u");
@@ -1709,6 +1746,8 @@ module.exports = {
   buildNumericPatternRegexSource,
   renderNumericPatternValue,
   parseNumericPatternProgress,
+  isPlainNumberFormat,
+  stepBelowNumberStart,
   renderTokenlessValueByProgress,
   buildTokenlessValueRegexSource,
   parseTokenlessProgress,
