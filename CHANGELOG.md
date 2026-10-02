@@ -19,7 +19,18 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.13.0
+
+_2026-10-02 · [all changes since 0.12.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.12.0...0.13.0)_
+
+> [!NOTE]
+> 🐛 **45** bug fixes · 🎨 **6** changes you can see · ✨ **4** new things
+>
+> **New in this release**
+> - **A mark for a ticked line**
+> - **`Move left/right` can take the tree along**
+> - **`Bold Field names` in tagWheel**
+> - **`Moved lines color`**
 
 1. ✨ **A mark for a ticked line.** `Mark ticked line`, in `Writing rules`, adds a tag or emoji such as `#done` or `✅` when you tick `- [ ]` into `- [x]` and takes it off when you untick; `Where the tick mark goes` picks the Block, a mark that is a Value of one of your Fields goes where that Field stands, and `Dim ticked line` fades the line, and `Strike through ticked line` crosses it out.
 2. 🐛 **Note properties, divider lines and tables are left alone.** Field commands, tagWheel, `Inline to note`, `Smart Enter`, `Delete` and `Backspace` skip the frontmatter, a `---` line and a table, and a line starting with your separator is an ordinary line again.
