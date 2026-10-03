@@ -716,8 +716,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tablefoot { padding: 8px 12px; border-top: 1px solid var(--background-modifier-border); }
 
 .io-grip { color: var(--text-faint); cursor: grab; font-size: 12px; user-select: none; }
+/* Компактно: тип читается, имя Field не перекрывает (его пункт «Новое» 2026-10-03). */
 .io-chip {
-  display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 20px;
+  display: inline-block; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 20px;
   background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
   color: var(--text-muted); white-space: nowrap;
 }
@@ -1805,43 +1806,61 @@ body.theme-dark {
 
 
 /* Command Field: категории и пресеты (постановка command-field.md, 4.1). Те же классы, что в styles.css. */
-.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 1.6fr) 48px; }
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 2.4fr) 48px; }
 /* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
-.io-cats__inner { min-width: 330px; }
-/* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
-.io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
-.io-cats__type { position: relative; flex: 1 1 96px; min-width: 0; }
-.io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
-  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding: 2px 8px; justify-content: flex-start; font-size: var(--font-ui-smaller);
-  color: rgb(var(--io-callout-rgb, 120, 120, 120)); background: rgba(var(--io-callout-rgb, 120, 120, 120), 0.1);
-  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); cursor: pointer;
-}
-.io-cats .io-cats__titem { border: none; border-radius: 0; }
-.io-cats .io-cats__titem--on { font-weight: 600; }
-.io-cats__ticon { display: inline-flex; width: 14px; justify-content: center; flex: none; }
-.io-cats__tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.io-cats__tlist { margin-top: 2px; max-height: 260px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 1px; padding: 3px; background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); }
+.io-cats__inner { min-width: 300px; }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
 .io-cats__eye--off { color: var(--text-faint); }
 .io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
-.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
-/* Вставка блока (6.3): содержимое во всю ширину настроек, текстовые поля пресета — по месту. */
+/*
+ * Колонки пресета (его 💬 к тесту 2 цикла 126): ячейка на параметр, подпись
+ * колонки — над контролом первого пресета; узко — ячейки переносятся вместе с ней.
+ */
+.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: flex-end; min-width: 0; }
+/* Ячейка не уже своей подписи: в узком окне она переносится целиком, а не режется (снимок стенда). */
+.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 64px; }
+.io-cats__cell--wide { flex-basis: 100%; }
+.io-cats__cap { flex: 0 0 100%; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Вставка блока (6.3): содержимое во всю ширину, текстовые поля пресета — по месту. И в редакторе Fields, и в окне `Add a Field`. */
 .io-cats .io-cats__set .io-cats__content,
 .io-fields .io-cats .io-cats__set .io-cats__content,
 .io-nf .io-cats .io-cats__set .io-cats__content { flex: 1 1 100%; width: 100%; min-height: 3em; resize: vertical; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
 .io-cats .io-cats__set .io-cats__prop,
 .io-fields .io-cats .io-cats__set .io-cats__prop,
-.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 90px; width: auto; min-width: 0; }
-.io-cats__keep { padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); cursor: pointer; }
-.io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
+.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 80px; width: auto; min-width: 0; }
+.io-cats .io-cats__keep { height: auto; padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); box-shadow: none; cursor: pointer; }
+.io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
-.io-cats .io-select.io-select--unset { color: var(--text-faint); }
-.io-cats .io-select.io-select--unset option { color: var(--text-normal); }
+/* Выбор списком: значок и цвет темы у типа коллаута (`--callout-color` — «r, g, b»), список под кнопкой. */
+.io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
+.io-cats__type { position: relative; flex: 1 0 auto; }
+.io-cats__pick { flex: 1 1 160px; min-width: 0; }
+.io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: auto; min-height: 26px; padding: 2px 8px;
+  justify-content: flex-start; font-size: var(--font-ui-smaller); box-shadow: none;
+  color: var(--text-normal); background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+}
+/* Тип коллаута — цветом темы; остальные выборы — как поле ввода рядом, иначе читаются выключенными (снимок стенда). */
+.io-cats .io-cats__typed { color: rgb(var(--io-callout-rgb, var(--mono-rgb-100))); background: rgba(var(--io-callout-rgb, var(--mono-rgb-100)), 0.1); }
+/* Стрелка — это список, а не поле. */
+.io-cats .io-cats__tbtn::after { content: "▾"; margin-left: auto; padding-left: 4px; color: var(--text-faint); }
+.io-cats .io-cats__titem { border: none; border-radius: 0; }
+.io-cats .io-cats__titem--on { font-weight: 600; }
+/* Пустой выбор — серым, как `not set` у хоткея; варианты списка — обычным цветом. */
+.io-cats .io-cats__tbtn--unset { color: var(--text-faint); }
+.io-cats__ticon { display: inline-flex; width: 14px; height: 14px; flex: none; }
+.io-cats__ticon svg { width: 14px; height: 14px; }
+.io-cats__tname { white-space: nowrap; }
+.io-cats__tlist {
+  /* В потоке ячейки: у таблицы `overflow: hidden`, всплывающий список она обрезала (стенд). */
+  margin-top: 2px; max-height: 260px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1px; padding: 3px;
+  background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s);
+}
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -3608,7 +3627,7 @@ const SCHEMA = [
 /* Подпись типа. `Emoji` вместо `Element`: чип шириной в слово `Element`
    съедал имя Field в узкой левой колонке — «444» превращалось в «4...»
    (замечание заказчика 2026-08-27). В конфиге тип остаётся `element` (З1). */
-const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji", command: "Command" };
+const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji", command: "Action" };
 /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в custom
    block, и у Field в Left/Right остаются два положения. */
 const BEHAVIORS = ["Strict", "Insert only"];
@@ -3677,26 +3696,68 @@ const FIELDS = [
  * в `src/features/command_field.js`; здесь — мокданные (Р8).
  */
 const CF_CATEGORIES = [
-  { id:"callouts", name:"Callouts", params:["callout-type", "fold"],
+  { id:"callouts", name:"Insert callout", params:["callout-type", "fold"],
     desc:"Wraps the line and its tree, or the selected lines, in a callout; inside one, steps through the presets and then takes the callout off",
     defaults:[{ name:"Note", type:"note", fold:"" }, { name:"Tip", type:"tip", fold:"" }, { name:"Warning", type:"warning", fold:"" }] },
   { id:"cleanup", name:"Cleanup", params:["fields"],
     desc:"Takes the Values of your Fields off the line or the selected lines, except the Fields you keep",
     defaults:[{ name:"", keep:[] }] },
-  { id:"block", name:"Insert block", params:["block-content", "block-heading", "block-callout"],
-    desc:"On an empty line, inserts your text, such as a code block of another plugin, under a heading or in a callout; inside it, steps through the presets and then takes the block off, keeping the lines you added",
-    defaults:[{ name:"Contents", content:"```table-of-contents\n```", heading:true, headingText:"Contents", headingLevel:2, callout:true, type:"note", fold:"-", title:"Contents" }] },
+  { id:"block", name:"Insert codeblock", params:["block-mode", "block-wrap", "block-content"],
+    desc:"On an empty line, inserts your text, such as a code block of another plugin, as it is, under a heading or in a callout; inside it, steps through the presets and then takes the block off, keeping the lines you added",
+    defaults:[{ name:"Contents", content:"```table-of-contents\n```", mode:"heading", headingText:"Contents", level:"auto", type:"note", fold:"-", title:"Contents" }] },
   { id:"section", name:"Tree ↔ section", params:["heading-level", "section-place", "code-blocks", "tables"],
     desc:"On a list item, turns it and its tree into a section under a heading; on a heading, turns the section back into a list item with its tree. Your Fields stay in the heading",
     defaults:[{ name:"", level:"auto", place:"after-list", code:"nest", tables:"after" }] }
 ];
+/* Варианты выбора: подпись и подсказка при наведении (его пункт «Новое» 2026-10-03). */
+const CF_LEVELS = [{ value:"auto", label:"Auto", tip:"One level below the heading above the line; H1 when there is none, never deeper than H6" }]
+  .concat([1, 2, 3, 4, 5, 6].map(n => ({ value:String(n), label:"H" + n, tip:"This level wherever the line is" })));
+const CF_FOLDS = [
+  { value:"", label:"Open", tip:"The callout shows its text" },
+  { value:"-", label:"Closed", tip:"The callout starts folded: only its title shows until you click it" }
+];
+/* Обёртка вставки — одна из трёх (его 💬 к тесту 6 цикла 126). */
+const CF_MODES = [
+  { value:"plain", label:"Plain", tip:"Inserts your text as it is" },
+  { value:"heading", label:"Heading", tip:"Inserts a heading and your text under it" },
+  { value:"callout", label:"Callout", tip:"Inserts a callout with your text inside it" }
+];
 /* Выборы пресета Дерево ↔ раздел (6.4): первое значение — умолчание постановки. */
 const CF_SECTION_CHOICES = {
-  "heading-level": { field:"level", aria:"Heading level of {0}", options:[{ value:"auto", label:"One below the heading above" }].concat([1, 2, 3, 4, 5, 6].map(n => ({ value:String(n), label:"H" + n }))) },
-  "section-place": { field:"place", aria:"Where the section of {0} goes", options:[{ value:"after-list", label:"After the list" }, { value:"in-place", label:"In place" }, { value:"section-end", label:"At the section end" }] },
-  "code-blocks": { field:"code", aria:"Code blocks of {0}", options:[{ value:"nest", label:"Code nested" }, { value:"after", label:"Code after the tree" }] },
-  "tables": { field:"tables", aria:"Tables of {0}", options:[{ value:"after", label:"Tables after the tree" }, { value:"keep", label:"Tables in place" }] }
+  "heading-level": { field:"level", aria:"Heading level of {0}", options:CF_LEVELS },
+  "section-place": { field:"place", aria:"Where the section of {0} goes", options:[
+    { value:"after-list", label:"After list", tip:"The section goes right after the list the item is in" },
+    { value:"in-place", label:"In place", tip:"The section takes the place of the item; the lines after its tree become the body of the section" },
+    { value:"section-end", label:"Section end", tip:"The section goes at the end of the section the item is in, before the next heading of the same level" }] },
+  "code-blocks": { field:"code", aria:"Code blocks of {0}", options:[
+    { value:"nest", label:"Nested", tip:"Code blocks go into the tree, indented under their item" },
+    { value:"after", label:"After tree", tip:"Code blocks go after the tree as they are" }] },
+  "tables": { field:"tables", aria:"Tables of {0}", options:[
+    { value:"after", label:"After tree", tip:"Tables go after the tree: Obsidian does not draw a table inside a list item" },
+    { value:"keep", label:"In place", tip:"Tables stay where they are, without an indent" }] }
 };
+/* Колонки пресета — по роду параметра, подпись над контролом первого пресета (его 💬 к тесту 2 цикла 126). */
+const CF_COLUMNS = {
+  "callout-type": { cap:"Type", tip:"The kind of callout; its icon and color come from your theme" },
+  "fold": { cap:"Fold", tip:"Whether the callout starts open or folded" },
+  "fields": { cap:"Keep", tip:"The Fields whose Values stay on the line; the Values of all other Fields are taken off" },
+  "heading-level": { cap:"Heading", tip:"The level of the heading the list item becomes" },
+  "section-place": { cap:"Where", tip:"Where the new section goes" },
+  "code-blocks": { cap:"Code blocks", tip:"What happens to the code blocks of a section when it turns back into a tree" },
+  "tables": { cap:"Tables", tip:"What happens to the tables of a section when it turns back into a tree" },
+  "block-mode": { cap:"Wrap", tip:"What goes around your text: nothing, a heading above it or a callout around it" },
+  "block-wrap": { cap:"Wrap settings", tip:"For a heading its text and level, for a callout its type, fold and title", weight:3 },
+  "block-content": { cap:"Text", tip:"What the preset inserts, such as a code block of another plugin", wide:true }
+};
+/* Обёртка пресета — одна из трёх; прежняя форма — по флагам, коллаут старше. */
+function cfBlockMode(p) {
+  if (p.mode === "plain" || p.mode === "heading" || p.mode === "callout") return p.mode;
+  return p.callout ? "callout" : p.heading ? "heading" : "plain";
+}
+function cfBlockLevel(p) {
+  const n = Math.trunc(Number(p.level != null ? p.level : p.headingLevel));
+  return n >= 1 && n <= 6 ? String(n) : "auto";
+}
 const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
 /* Значок и цвет коллаута — как у темы по умолчанию; в плагине их отдаёт сама тема
    (`--callout-icon`, `--callout-color`), здесь — мокданные (Р8). */
@@ -3705,8 +3766,6 @@ const CALLOUT_LOOK = {
   tip: ["🔥", "0, 191, 188"], success: ["✓", "8, 185, 78"], question: ["?", "236, 117, 0"], warning: ["⚠", "236, 117, 0"],
   failure: ["✕", "233, 49, 71"], danger: ["⚡", "233, 49, 71"], bug: ["🐞", "233, 49, 71"], example: ["☰", "120, 82, 238"], quote: ["❝", "158, 158, 158"]
 };
-/* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
-const CALLOUT_FOLDS = [{ value:"", label:"Open" }, { value:"-", label:"Closed" }];
 
 /* The properties this vault already uses, with the type Obsidian has for
    them. In the plugin this list comes from the metadata cache. */
@@ -6176,23 +6235,65 @@ function cfPresetName(c, p) {
   }
   if (c.id === "block") {
     const first = String(p.content || "").split("\n").find(l => l.trim()) || "";
-    return String(p.heading && p.headingText || "").trim() || String(p.callout && p.title || "").trim() || first.trim().slice(0, 24) || "Block";
+    const mode = cfBlockMode(p);
+    return String(mode === "heading" && p.headingText || "").trim() || String(mode === "callout" && p.title || "").trim() || first.trim().slice(0, 24) || "Block";
   }
   const kept = (p.keep || []).map(id => (field(id) || { name:id }).name);
   return kept.length ? "Keep " + kept.join(", ") : "Clear all";
 }
 function cfPresetSignature(c, p) {
   if (c.id === "section") return [p.level || "auto", p.place || "after-list", p.code || "nest", p.tables || "after"].join("|");
-  if (c.id === "block") return JSON.stringify([p.content || "", p.heading ? [p.headingText, p.headingLevel] : 0, p.callout ? [p.type, p.fold, p.title] : 0]);
+  if (c.id === "block") {
+    const mode = cfBlockMode(p);
+    return JSON.stringify([mode, p.content || ""].concat(mode === "heading" ? [p.headingText, cfBlockLevel(p)] : mode === "callout" ? [p.type, p.fold || "", p.title] : []));
+  }
   return c.id === "callouts" ? String(p.type || "").toLowerCase() + "|" + (p.fold || "") : (p.keep || []).slice().sort().join(",");
 }
 let cfDrag = null;
+/*
+ * Выбор списком: кнопка и варианты под ней, у каждого подсказка при наведении
+ * (его пункт «Новое» 2026-10-03); у типа коллаута — значок и цвет (его 💬 к
+ * тесту 1 цикла 125). Без значения — `placeholder` серым.
+ */
+function cfPicker(host, items, value, aria, placeholder, pick) {
+  const paint = (node, it) => {
+    if (it.paint) {
+      const look = CALLOUT_LOOK[it.value] || ["", ""];
+      node.classList.add("io-cats__typed");
+      if (look[1]) cssVar(node, "--io-callout-rgb", look[1]);
+      el("span", "io-cats__ticon", node, look[0]);
+    }
+    el("span", "io-cats__tname", node, it.label);
+  };
+  const now = items.find(i => i.value === value);
+  const wrap = el("div", "io-cats__type", host);
+  const b = el("button", "io-cats__tbtn" + (now ? "" : " io-cats__tbtn--unset"), wrap);
+  b.type = "button";
+  b.setAttribute("aria-label", aria);
+  b.setAttribute("aria-haspopup", "listbox");
+  if (now && now.tip) b.title = now.label + " — " + now.tip;
+  if (now) paint(b, now); else el("span", "io-cats__tname", b, placeholder);
+  b.addEventListener("click", () => {
+    const open = wrap.querySelector && wrap.querySelector(".io-cats__tlist");
+    if (open) { open.remove(); return; }
+    const list = el("div", "io-cats__tlist", wrap);
+    list.setAttribute("role", "listbox");
+    items.forEach(it => {
+      const item = el("button", "io-cats__titem" + (it.value === value ? " io-cats__titem--on" : ""), list);
+      item.type = "button";
+      item.setAttribute("role", "option");
+      if (it.tip) item.title = it.tip;
+      paint(item, it);
+      item.addEventListener("click", () => { list.remove(); if (it.value !== value) pick(it.value); });
+    });
+  });
+}
 function commandCategoriesTable(host, f) {
   const vh = el("div", "io-sub io-item__namerow", host);
   foldableSub(vh, "categories", "Categories", subPaints);
   el("span", null, vh, "Categories");
   attachTipItem(vh, host, { name:"Categories",
-    tip:"A category is a kind of edit, such as <b>Callouts</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands. Outside its result <code>next</code> applies the first visible preset and <code>previous</code> the last; inside it they step through the presets, and one step past the end takes the result off again. Nothing here is written into the line as a Value" });
+    tip:"A category is a kind of edit, such as <b>Insert callout</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands. Outside its result <code>next</code> applies the first visible preset and <code>previous</code> the last; inside it they step through the presets, and one step past the end takes the result off again. Nothing here is written into the line as a Value" });
   subComment(vh, host, "categories/header");
   cfTable(host, f, renderContent);
 }
@@ -6207,7 +6308,7 @@ function cfTable(host, f, redraw) {
   const head = el("div", "io-vals__head io-cats__row", inner);
   const COLTIP = {
     Name: "What tagWheel and its scroller call this category or preset. Leave it empty to use the name built from its settings",
-    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line, for <b>Insert block</b> the text it inserts and whether a heading or a callout goes around it, for <b>Tree ↔ section</b> the heading level, where the section goes and what happens to code blocks and tables"
+    Settings: "What the preset does. Each category names its settings in the row under it; point at a choice to see what it does"
   };
   const tipSlot = el("div", "io-vals__tipslot", inner);
   ["", "", "Name", "Settings", ""].forEach(t => {
@@ -6270,83 +6371,55 @@ function cfTable(host, f, redraw) {
       const pname = textEl(prow, p.name || "", cfPresetName(c, { ...p, name:"" }), "Name of the preset " + cfPresetName(c, p), "io-text");
       pname.addEventListener("change", () => { p.name = pname.value.trim(); renderContent(); });
       const set = el("div", "io-cats__set", prow);
-      const part = (on, text, label, flip) => {
-        const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), set, text);
-        chip.type = "button";
-        chip.setAttribute("aria-pressed", String(on));
-        chip.setAttribute("aria-label", label);
-        chip.addEventListener("click", () => { flip(); renderContent(); });
-        return on;
+      const pn = cfPresetName(c, p);
+      /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
+      const cell = kind => {
+        const col = CF_COLUMNS[kind];
+        const node = el("div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : ""), set);
+        if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+        if (col && pi === 0) el("span", "io-cats__cap", node, col.cap).title = col.tip;
+        return node;
       };
-      const prop = (value, placeholder, label, write) => {
-        const t = textEl(set, value, placeholder, label, "io-text io-cats__prop");
+      const choose = (box, options, value, aria, write) => cfPicker(box, options,
+        options.some(o => o.value === value) ? value : options[0].value, aria, "", v => { write(v); renderContent(); });
+      const types = box => cfPicker(box, CALLOUT_TYPES.map(type => ({ value:type, label:type, paint:true })), p.type || "note",
+        "Callout type of " + pn, "", v => { p.type = v; renderContent(); });
+      const folds = box => choose(box, CF_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + pn, v => { p.fold = v; });
+      const prop = (box, value, placeholder, label, write) => {
+        const t = textEl(box, value, placeholder, label, "io-text io-cats__prop");
         t.addEventListener("change", () => { write(t.value.trim()); renderContent(); });
       };
-      const pn = cfPresetName(c, p);
-      const kinds = [];
       reg.params.forEach(kind => {
-        if (kind === "block-content") {
-          const area = el("textarea", "io-text io-cats__content", set);
+        const box = cell(kind);
+        if (kind === "callout-type") types(box);
+        else if (kind === "fold") folds(box);
+        else if (kind === "block-mode") choose(box, CF_MODES, cfBlockMode(p), "Wrap of " + pn, v => { p.mode = v; });
+        else if (kind === "block-wrap") {
+          /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
+          const mode = cfBlockMode(p);
+          if (mode === "heading") {
+            prop(box, p.headingText || "", "Heading", "Heading text of " + pn, v => { p.headingText = v; });
+            choose(box, CF_LEVELS, cfBlockLevel(p), "Heading level of " + pn, v => { p.level = v; });
+          } else if (mode === "callout") {
+            types(box);
+            folds(box);
+            prop(box, p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
+          }
+        } else if (kind === "block-content") {
+          const area = el("textarea", "io-text io-cats__content", box);
           area.value = p.content || "";
           area.rows = 2;
           area.placeholder = "Text or a code block to insert";
           area.setAttribute("aria-label", "Text that " + pn + " inserts");
           area.addEventListener("change", () => { p.content = area.value; renderContent(); });
-        } else if (kind === "block-heading") {
-          if (part(!!p.heading, "Heading", "Heading above " + pn, () => { p.heading = !p.heading; })) {
-            prop(p.headingText || "", "Heading", "Heading text of " + pn, v => { p.headingText = v; });
-            const lv = selectEl(set, [1, 2, 3, 4, 5, 6].map(n => ({ value:String(n), label:"H" + n })), String(p.headingLevel || 2), "Heading level of " + pn, "io-select");
-            lv.addEventListener("change", () => { p.headingLevel = Number(lv.value); renderContent(); });
-          }
-        } else if (kind === "block-callout") {
-          if (part(!!p.callout, "Callout", "Callout around " + pn, () => { p.callout = !p.callout; })) {
-            kinds.push("callout-type", "fold", "callout-title");
-          }
-        } else kinds.push(kind);
-      });
-      kinds.forEach(kind => {
-        if (kind === "callout-type") {
-          /* Значок и цвет рядом с типом (его 💬 к тесту 1 цикла 125): обычный select их не рисует. */
-          const paint = (host, type) => {
-            const look = CALLOUT_LOOK[type] || ["", ""];
-            if (look[1]) cssVar(host, "--io-callout-rgb", look[1]);
-            el("span", "io-cats__ticon", host, look[0]);
-            el("span", "io-cats__tname", host, type);
-          };
-          const wrap = el("div", "io-cats__type", set);
-          const b = el("button", "io-cats__tbtn", wrap);
-          b.type = "button";
-          b.setAttribute("aria-label", "Callout type of " + cfPresetName(c, p));
-          b.setAttribute("aria-haspopup", "listbox");
-          paint(b, p.type || "note");
-          b.addEventListener("click", () => {
-            const open = wrap.querySelector && wrap.querySelector(".io-cats__tlist");
-            if (open) { open.remove(); return; }
-            const list = el("div", "io-cats__tlist", wrap);
-            list.setAttribute("role", "listbox");
-            CALLOUT_TYPES.forEach(type => {
-              const item = el("button", "io-cats__titem" + (type === (p.type || "note") ? " io-cats__titem--on" : ""), list);
-              item.type = "button";
-              item.setAttribute("role", "option");
-              paint(item, type);
-              item.addEventListener("click", () => { p.type = type; renderContent(); });
-            });
-          });
-        } else if (kind === "fold") {
-          const fo = selectEl(set, CALLOUT_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + cfPresetName(c, p), "io-select");
-          fo.addEventListener("change", () => { p.fold = fo.value; renderContent(); });
         } else if (CF_SECTION_CHOICES[kind]) {
           const ch = CF_SECTION_CHOICES[kind];
-          const now = String(p[ch.field] || "");
-          const sel = selectEl(set, ch.options, ch.options.some(o => o.value === now) ? now : ch.options[0].value, ch.aria.replace("{0}", pn), "io-select");
-          sel.addEventListener("change", () => { p[ch.field] = sel.value; renderContent(); });
-        } else if (kind === "callout-title") {
-          prop(p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
+          choose(box, ch.options, String(p[ch.field] || ""), ch.aria.replace("{0}", pn), v => { p[ch.field] = v; });
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);
           lineFields().forEach(lf => {
             const on = keep.indexOf(lf.id) >= 0;
-            const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), set, lf.name);
+            const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), box, lf.name);
             chip.type = "button";
             chip.setAttribute("aria-pressed", String(on));
             chip.setAttribute("aria-label", "Keep the Values of " + lf.name);
@@ -6355,7 +6428,7 @@ function cfTable(host, f, redraw) {
         }
       });
       const sig = cfPresetSignature(c, p);
-      if (!p.hidden && seen.has(sig)) el("span", "io-cats__same", set, "same as " + seen.get(sig) + " — that one is used");
+      if (!p.hidden && seen.has(sig)) el("span", "io-cats__same io-cats__cell--wide", set, "same as " + seen.get(sig) + " — that one is used");
       else if (!p.hidden) seen.set(sig, cfPresetName(c, p));
       const ptools = el("div", "io-valtools", prow);
       const pclone = iconBtn(ptools, "⧉", "Clone the preset " + cfPresetName(c, p));
@@ -6369,18 +6442,20 @@ function cfTable(host, f, redraw) {
     });
   });
   const foot = el("div", "io-vals__foot", box);
-  /* Ничего не выбрано заранее — серый `Select here` (его 💬 к тесту 1 цикла 125). */
-  const pick = selectEl(foot, [{ value:"", label:"Select here" }].concat(CF_CATEGORIES.map(r => ({ value:r.id, label:r.name }))), "", "Category to add to " + f.name, "io-select io-select--unset");
+  /* Ничего не выбрано заранее — серый прочерк (его пункт «Новое» 2026-10-03); подсказка категории — её описание. */
+  let chosen = "";
+  const pickHost = el("div", "io-cats__pick", foot);
   const add = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add category");
   add.type = "button";
   add.disabled = true;
-  pick.addEventListener("change", () => {
-    const chosen = CF_CATEGORIES.some(r => r.id === pick.value);
-    pick.classList.toggle("io-select--unset", !chosen);
-    add.disabled = !chosen;
-  });
+  const drawPick = () => {
+    pickHost.textContent = "";
+    cfPicker(pickHost, CF_CATEGORIES.map(r => ({ value:r.id, label:r.name, tip:r.desc })), chosen, "Category to add to " + f.name, "—",
+      v => { chosen = v; add.disabled = !CF_CATEGORIES.some(r => r.id === v); drawPick(); });
+  };
+  drawPick();
   add.addEventListener("click", () => {
-    const reg = CF_CATEGORIES.find(r => r.id === pick.value);
+    const reg = CF_CATEGORIES.find(r => r.id === chosen);
     if (!reg) return;
     let key = reg.id, n = 2;
     while (cats.some(x => x.key === key)) key = reg.id + "-" + n++;

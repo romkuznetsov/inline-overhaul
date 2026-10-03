@@ -110,7 +110,7 @@ async function run() {
   {
     const r = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, UP, ENTER]);
     assert.ok(/\[Fmt\]|Fmt/.test(r.seen[0]), "ячейки Command Field нет: " + r.seen[0]);
-    assert.ok(r.seen.slice(1, 5).some((l) => /Callouts/.test(String(l))), "категория не видна в ячейке: " + JSON.stringify(r.seen));
+    assert.ok(r.seen.slice(1, 5).some((l) => /Insert callout/.test(String(l))), "категория не видна в ячейке: " + JSON.stringify(r.seen));
     assert.equal(r.doc, "> [!tip]\n> - Research plan\n> \t- read papers\n- buy bread", "Enter на Tip не применил его");
     assert.deepEqual(r.said, []);
     ok("ячейка Command Field: категория → пресет → Enter оборачивает строку с деревом");
@@ -141,14 +141,14 @@ async function run() {
   /* 4. Enter на обычном Field: выбор Command Field в строку не пишется. */
   {
     const r = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, { key: "Tab" }, UP, ENTER]);
-    assert.ok(!/Callouts|Note/.test(r.doc.split("\n")[0]), "Command Field записан в строку: " + r.doc.split("\n")[0]);
+    assert.ok(!/Insert callout|Note/.test(r.doc.split("\n")[0]), "Command Field записан в строку: " + r.doc.split("\n")[0]);
     assert.ok(/#todo/.test(r.doc.split("\n")[0]), "обычный Field не записался: " + r.doc.split("\n")[0]);
     /* Повтор команды закрывает колесо как Enter (тот же путь, что печать и щелчок, `В-237`), но пресет не пишет. */
     const typed = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, OPEN]);
-    assert.ok(!/Callouts|Note|> \[!/.test(typed.doc), "повтор команды на ячейке Command Field записал его: " + typed.doc.split("\n")[0]);
+    assert.ok(!/Insert callout|Note|> \[!/.test(typed.doc), "повтор команды на ячейке Command Field записал его: " + typed.doc.split("\n")[0]);
     /* В левом Block пишутся все выбранные теги — там уборка обязательна. */
     const left = await drive(config({ left: true }), DOC, [{ run: "open-tagwheel-left" }, RIGHT, UP, RIGHT, UP, { run: "open-tagwheel-left" }]);
-    assert.ok(!/Callouts|Note|> \[!/.test(left.doc), "в левом Block Command Field записан: " + left.doc.split("\n")[0]);
+    assert.ok(!/Insert callout|Note|> \[!/.test(left.doc), "в левом Block Command Field записан: " + left.doc.split("\n")[0]);
     ok("выбор Command Field не пишется обычным Enter и повтором команды");
   }
 
@@ -167,7 +167,7 @@ async function run() {
   {
     const inside = "> [!note]\n> - Research plan\n- buy bread";
     const r = await drive(config(), inside, [OPEN, RIGHT, UP, ENTER], { line: 1, ch: 4 });
-    assert.ok(/Callouts/.test(r.seen[0]) && /Note/.test(r.seen[0]), "в коллауте колесо не показало выбранное: " + r.seen[0]);
+    assert.ok(/Insert callout/.test(r.seen[0]) && /Note/.test(r.seen[0]), "в коллауте колесо не показало выбранное: " + r.seen[0]);
     assert.equal(r.doc, "> [!tip]\n> - Research plan\n- buy bread", "шаг от выбранного Note не дал Tip");
     ok("в коллауте колесо открывается на его категории и пресете");
   }
@@ -190,14 +190,14 @@ async function run() {
     assert.ok(/Fmt/.test(r.seen[0]), "ячейки Command Field в custom block нет: " + r.seen[0]);
     assert.equal(r.doc, "> [!note]\n> - Research plan\n> \t- read papers\n- buy bread", "пресет из custom block не применён");
     const mood = await drive(config({ custom: true }), DOC, [B1, RIGHT, UP, { key: "ArrowLeft" }, UP, ENTER]);
-    assert.ok(/#calm/.test(mood.doc) && !/Callouts|Note|> \[!/.test(mood.doc), "custom block записал выбор Command Field: " + mood.doc);
+    assert.ok(/#calm/.test(mood.doc) && !/Insert callout|Note|> \[!/.test(mood.doc), "custom block записал выбор Command Field: " + mood.doc);
     const ring = await drive(config({ custom: true }), DOC,
       [{ run: "open-tagwheel-custom-b2" }, { key: "Tab" }, { key: "Tab" }, { key: "Tab" }, RIGHT, UP, RIGHT, UP, UP, ENTER]);
     assert.equal((String(ring.seen[3]).match(/Fmt/g) || []).length, 1, "после Tab по кругу ячейка Command Field задвоилась: " + ring.seen[3]);
     assert.equal(ring.doc.split("\n")[0], "> [!tip]", "после Tab пресет не применился");
     const inside = "> [!note]\n> - Research plan\n- buy bread";
     const hyd = await drive(config({ custom: true }), inside, [B1], { line: 1, ch: 4 });
-    assert.ok(/Callouts/.test(hyd.seen[0]) && /Note/.test(hyd.seen[0]), "в коллауте custom block не показал выбранное: " + hyd.seen[0]);
+    assert.ok(/Insert callout/.test(hyd.seen[0]) && /Note/.test(hyd.seen[0]), "в коллауте custom block не показал выбранное: " + hyd.seen[0]);
     ok("custom block: ячейка, пресет, Field блока без Command Field, Tab без двойных ячеек, выбранное в коллауте");
   }
 

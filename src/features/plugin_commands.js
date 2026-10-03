@@ -292,6 +292,8 @@ function registerPkm(plugin) {
       name,
       callback: async () => {
         if (textCommandBlocked(plugin)) return;
+        /* Вставка блока снимается изнутри своего блока кода (6.3, стенд `command-field-block`): охрана кода её не держит. */
+        const own = d.commandField ? __commandField.fieldCategories(plugin.getConfig(), d.commandField.key).find((c) => c.key === d.commandField.category) : null;
         await runPkmGuard(plugin, async (cfg) => {
           /* Определение — из нынешнего конфига: Field мог переехать в custom block. */
           const fresh = registry.buildPkmCommandDefs(
@@ -307,7 +309,7 @@ function registerPkm(plugin) {
           }
           const macroSettings = fresh.makeSettings(cfg);
           await runPkmRuntime(plugin, fresh.v2Command, cfg, macroSettings);
-        });
+        }, { codeOk: !!own && own.id === "block" });
       },
     });
     plugin._registeredPkmCommandIds.add(id);
@@ -467,7 +469,7 @@ function onCodeOrTableLine(ed) {
   return __sharedUtils.isCodeOrTableLine((n) => ed.getLine(n), ed.getCursor().line);
 }
 
-async function runPkmGuard(plugin, action) {
+async function runPkmGuard(plugin, action, opts) {
   const cfg = plugin.getConfig();
   if (!cfg.features.pkm.enabled) {
     new Notice(__say(__noticeKey("pkm", "module-off"), "Tags & PKM is switched off: turn it on in General → Modules"));
@@ -479,7 +481,7 @@ async function runPkmGuard(plugin, action) {
     return;
   }
   /* Блок кода и таблица — не строка текста: значения туда не пишутся (BUGHUNT F8). */
-  if (onCodeOrTableLine(ed)) {
+  if (!(opts && opts.codeOk) && onCodeOrTableLine(ed)) {
     new Notice(__say(__noticeKey("pkm", "code-line"), "Tags & PKM does not work in a code block, a table, note properties or a divider line"));
     return;
   }

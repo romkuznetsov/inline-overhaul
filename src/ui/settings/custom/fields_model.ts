@@ -110,8 +110,8 @@ export interface CustomBlock {
 /** Пресет категории Command Field: имя, глаз и параметры по `params` реестра. */
 export interface CommandPreset {
   name?: string; hidden?: boolean; type?: string; fold?: string; keep?: string[];
-  /* Вставка блока (6.3): содержимое, заголовок, коллаут и его заголовок. */
-  content?: string; heading?: boolean; headingText?: string; headingLevel?: number; callout?: boolean; title?: string;
+  /* Вставка блока (6.3): содержимое, обёртка (`plain`/`heading`/`callout`; прежняя форма — флаги), заголовок, коллаут и его заголовок. */
+  mode?: string; content?: string; heading?: boolean; headingText?: string; headingLevel?: number; callout?: boolean; title?: string;
   /* Дерево ↔ раздел (6.4): уровень (`auto` или 1–6), положение, блоки кода, таблицы. */
   level?: string; place?: string; code?: string; tables?: string;
 }

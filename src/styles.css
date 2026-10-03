@@ -1052,10 +1052,12 @@ body.theme-dark {
 }
 .io-icon:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 
+/* Компактно: тип читается, имя Field не перекрывает (его пункт «Новое» 2026-10-03). */
 .io-chip {
   display: inline-block;
-  font-size: 11px;
-  padding: 1px 8px;
+  font-size: 10px;
+  line-height: 14px;
+  padding: 0 5px;
   border-radius: 20px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
@@ -3703,55 +3705,61 @@ body.theme-dark {
 
 /* ---- Command Field: категории и пресеты (постановка command-field.md, 4.1) ----
    Таблица — та же `io-vals`, своя сетка колонок; вид — прототип. */
-.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 1.6fr) 48px; }
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 2.4fr) 48px; }
 /* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
-.io-cats__inner { min-width: 330px; }
-/* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
-/* И в редакторе Fields, и в окне `Add a Field`: правила ширины у обоих свои. */
-.io-cats .io-cats__set .io-select,
-.io-fields .io-cats .io-cats__set .io-select,
-.io-nf .io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
+.io-cats__inner { min-width: 300px; }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
 .io-cats__eye--off { color: var(--text-faint); }
 .io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
-.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
-/* Вставка блока (6.3): содержимое во всю ширину настроек, текстовые поля пресета — по месту. */
+/*
+ * Колонки пресета (его 💬 к тесту 2 цикла 126): ячейка на параметр, подпись
+ * колонки — над контролом первого пресета; узко — ячейки переносятся вместе с ней.
+ */
+.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: flex-end; min-width: 0; }
+/* Ячейка не уже своей подписи: в узком окне она переносится целиком, а не режется (снимок стенда). */
+.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 64px; }
+.io-cats__cell--wide { flex-basis: 100%; }
+.io-cats__cap { flex: 0 0 100%; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Вставка блока (6.3): содержимое во всю ширину, текстовые поля пресета — по месту. И в редакторе Fields, и в окне `Add a Field`. */
 .io-cats .io-cats__set .io-cats__content,
 .io-fields .io-cats .io-cats__set .io-cats__content,
 .io-nf .io-cats .io-cats__set .io-cats__content { flex: 1 1 100%; width: 100%; min-height: 3em; resize: vertical; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
 .io-cats .io-cats__set .io-cats__prop,
 .io-fields .io-cats .io-cats__set .io-cats__prop,
-.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 90px; width: auto; min-width: 0; }
+.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 80px; width: auto; min-width: 0; }
 .io-cats .io-cats__keep { height: auto; padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); box-shadow: none; cursor: pointer; }
 .io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
-/* Выбор типа коллаута: значок и цвет темы (`--callout-color` — «r, g, b»), список под кнопкой. */
+/* Выбор списком: значок и цвет темы у типа коллаута (`--callout-color` — «r, g, b»), список под кнопкой. */
 .io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
-.io-cats__type { position: relative; flex: 1 1 96px; min-width: 0; }
+.io-cats__type { position: relative; flex: 1 0 auto; }
+.io-cats__pick { flex: 1 1 160px; min-width: 0; }
 .io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
   display: flex; align-items: center; gap: 6px; width: 100%; height: auto; min-height: 26px; padding: 2px 8px;
   justify-content: flex-start; font-size: var(--font-ui-smaller); box-shadow: none;
-  color: rgb(var(--io-callout-rgb, var(--mono-rgb-100))); background: rgba(var(--io-callout-rgb, var(--mono-rgb-100)), 0.1);
+  color: var(--text-normal); background: var(--background-primary);
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
 }
+/* Тип коллаута — цветом темы; остальные выборы — как поле ввода рядом, иначе читаются выключенными (снимок стенда). */
+.io-cats .io-cats__typed { color: rgb(var(--io-callout-rgb, var(--mono-rgb-100))); background: rgba(var(--io-callout-rgb, var(--mono-rgb-100)), 0.1); }
+/* Стрелка — это список, а не поле. */
+.io-cats .io-cats__tbtn::after { content: "▾"; margin-left: auto; padding-left: 4px; color: var(--text-faint); }
 .io-cats .io-cats__titem { border: none; border-radius: 0; }
 .io-cats .io-cats__titem--on { font-weight: 600; }
+/* Пустой выбор — серым, как `not set` у хоткея; варианты списка — обычным цветом. */
+.io-cats .io-cats__tbtn--unset { color: var(--text-faint); }
 .io-cats__ticon { display: inline-flex; width: 14px; height: 14px; flex: none; }
 .io-cats__ticon svg { width: 14px; height: 14px; }
-.io-cats__tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-cats__tname { white-space: nowrap; }
 .io-cats__tlist {
   /* В потоке ячейки: у таблицы `overflow: hidden`, всплывающий список она обрезала (стенд). */
   margin-top: 2px; max-height: 260px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 1px; padding: 3px;
   background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s);
 }
-/* Выбор категории до выбора — серым, как `not set` у хоткея; варианты списка — обычным цветом. */
-.io-cats .io-select.io-select--unset { color: var(--text-faint); }
-.io-cats .io-select.io-select--unset option { color: var(--text-normal); }
-
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);

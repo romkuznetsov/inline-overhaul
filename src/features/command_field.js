@@ -142,7 +142,8 @@ function wrapWith(ctx, preset) {
 
 const callouts = {
   id: "callouts",
-  name: "Callouts",
+  /* Его слово (пункт «Новое» 2026-10-03): `Callouts` → `Insert callout`; callout — слово Obsidian, со строчной (Р9). */
+  name: "Insert callout",
   /* Контролы пресета в панели — по роду параметра, без правок UI (4.3). */
   params: ["callout-type", "fold"],
   /** Имя по умолчанию — из параметров (4.1): `Note · folded`. */
@@ -259,44 +260,62 @@ const cleanup = {
 
 const HEADING_RE = /^(#{1,6})[\t ]+(.*?)[\t ]*#*[\t ]*$/;
 
-function headingLevel(p) {
-  const n = Math.trunc(Number(p.headingLevel));
-  return n >= 1 && n <= 6 ? n : 2;
+/**
+ * Обёртка пресета — одна из трёх (его `💬` к тесту 6 цикла 126): `plain`,
+ * `heading`, `callout`. Пресет прежней формы — по флагам, коллаут старше.
+ */
+function blockMode(p) {
+  if (p.mode === "plain" || p.mode === "heading" || p.mode === "callout") return p.mode;
+  return p.callout ? "callout" : p.heading ? "heading" : "plain";
+}
+
+/** Уровень заголовка: `"1"`…`"6"` или `auto` — на один глубже заголовка выше, как у раздела (6.4). */
+function blockLevel(p) {
+  const n = Math.trunc(Number(p.level != null ? p.level : p.headingLevel));
+  return n >= 1 && n <= 6 ? String(n) : "auto";
+}
+
+/** Уровень заголовка пресета на строке `at`. */
+function levelAt(lines, at, p) {
+  return sectionLevel(lines, fenceMask(lines), at, { level: blockLevel(p) });
 }
 
 function blockBody(p) {
   return String(p.content || "").replace(/\r/g, "").split("\n");
 }
 
-/** Обёртка пресета: строка заголовка и строка `[!type]` — какие включены. */
-function blockWrap(p) {
-  const out = [];
+/** Строка обёртки: заголовок уровня `level` или `[!type]`; у `plain` — никакой. */
+function blockWrap(p, level) {
+  const mode = blockMode(p);
   const heading = String(p.headingText || "").trim();
-  if (p.heading && heading) out.push("#".repeat(headingLevel(p)) + " " + heading);
-  if (p.callout) out.push(calloutHead("> ", { type: p.type || "note", fold: p.fold }, String(p.title || "").trim()));
-  return out;
+  if (mode === "heading" && heading) return ["#".repeat(level) + " " + heading];
+  if (mode === "callout") return [calloutHead("> ", { type: p.type || "note", fold: p.fold }, String(p.title || "").trim())];
+  return [];
 }
 
-/** Строки, которые вставляет пресет: заголовок, коллаут, содержимое (6.3). */
-function blockLines(p) {
+/** Строки, которые вставляет пресет: обёртка и содержимое (6.3). */
+function blockLines(p, level) {
   const body = blockBody(p);
-  return blockWrap(p).concat(p.callout ? body.map((l) => (l ? "> " + l : ">")) : body);
+  return blockWrap(p, level).concat(blockMode(p) === "callout" ? body.map((l) => (l ? "> " + l : ">")) : body);
 }
 
 /**
  * Вставленный блок пресета, в котором стоит каретка: узнаётся обёрткой и первой
  * строкой содержимого, правки внутри не мешают (6.3). `{ from, to, extras }`,
- * `extras` — дописанные строки (в порядке, без `> `) или `null`.
+ * `extras` — дописанные строки (в порядке, без `> `) или `null`. Заголовок `auto`
+ * узнаётся на любом уровне.
  */
 function blockAt(lines, at, p) {
-  const built = blockLines(p);
-  const wrapN = blockWrap(p).length;
-  const prefix = built.slice(0, wrapN + 1);
   const body = blockBody(p);
+  const callout = blockMode(p) === "callout";
   for (let s = at; s >= 0; s--) {
-    if (prefix.some((l, i) => lines[s + i] !== l)) continue;
+    const own = String(lines[s]).match(/^(#{1,6})[\t ]/);
+    const level = blockLevel(p) === "auto" && own ? own[1].length : Number(blockLevel(p)) || 1;
+    const built = blockLines(p, level);
+    const wrapN = blockWrap(p, level).length;
+    if (built.slice(0, wrapN + 1).some((l, i) => lines[s + i] !== l)) continue;
     let end = s + wrapN;
-    if (p.callout) {
+    if (callout) {
       while (end + 1 < lines.length && quoteDepth(lines[end + 1]) >= 1) end += 1;
     } else if (body.length > 1) {
       const last = body[body.length - 1];
@@ -309,7 +328,7 @@ function blockAt(lines, at, p) {
     const extras = [];
     let j = 0;
     for (let i = s + wrapN; i <= end; i++) {
-      const l = p.callout ? stripQuoteLevel(lines[i], 1) : String(lines[i]);
+      const l = callout ? stripQuoteLevel(lines[i], 1) : String(lines[i]);
       if (j < body.length && l === body[j]) j += 1;
       else extras.push(l);
     }
@@ -339,8 +358,8 @@ function unwrapBlock(box) {
 }
 
 /** Смена пресета: блок другого пресета на том же месте, дописанное — следом. */
-function recastBlock(box, preset) {
-  const out = blockLines(preset).concat(box.extras);
+function recastBlock(lines, box, preset) {
+  const out = blockLines(preset, levelAt(lines, box.from, preset)).concat(box.extras);
   return { from: box.from, to: box.to, lines: out, cursor: { line: box.from, ch: 0 } };
 }
 
@@ -349,27 +368,37 @@ function insertBlock(ctx, preset) {
   const { lines, cursor } = ctx;
   if (String(lines[cursor.line]).trim() !== "") return { refuse: "block-not-empty" };
   const heading = String(preset.headingText || "").trim();
-  if (preset.heading && heading && lines.some((l) => {
+  if (blockMode(preset) === "heading" && heading && lines.some((l) => {
     const m = String(l).match(HEADING_RE);
     return m && m[2].trim() === heading;
   })) return { refuse: "block-heading-exists", args: [heading] };
-  const out = blockLines(preset);
+  const out = blockLines(preset, levelAt(lines, cursor.line, preset));
   return { from: cursor.line, to: cursor.line, lines: out, cursor: { line: cursor.line + out.length - 1, ch: out[out.length - 1].length } };
+}
+
+/** Что делает пресет неотличимым на тексте (В-281): режим, содержимое и настройки своей обёртки. */
+function blockSignature(p) {
+  const mode = blockMode(p);
+  const wrap = mode === "heading" ? [String(p.headingText || "").trim(), blockLevel(p)]
+    : mode === "callout" ? [String(p.type || "note").toLowerCase(), p.fold || "", String(p.title || "").trim()] : [];
+  return JSON.stringify([mode, String(p.content || "")].concat(wrap));
 }
 
 const insertBlockCategory = {
   id: "block",
-  name: "Insert block",
-  params: ["block-content", "block-heading", "block-callout"],
+  /* Имя — его слово (пункт «Новое» 2026-10-03): `Insert block` → `Insert codeblock`. */
+  name: "Insert codeblock",
+  params: ["block-mode", "block-wrap", "block-content"],
   defaultName(p) {
+    const mode = blockMode(p);
     const first = blockBody(p).find((l) => l.trim()) || "";
-    return String(p.heading && p.headingText || "").trim() || String(p.callout && p.title || "").trim()
+    return String(mode === "heading" && p.headingText || "").trim() || String(mode === "callout" && p.title || "").trim()
       || first.trim().slice(0, 24) || "Block";
   },
-  signature: (p) => blockLines(p).join("\n"),
-  /* Пример постановки 6.3: оглавление стороннего плагина под заголовком, в свёрнутом коллауте. */
-  defaults: [{ name: "Contents", content: "```table-of-contents\n```", heading: true, headingText: "Contents", headingLevel: 2,
-    callout: true, type: "note", fold: "-", title: "Contents" }],
+  signature: blockSignature,
+  /* Пример постановки 6.3 — оглавление стороннего плагина; обёртка одна, заголовок на уровень ниже заголовка выше. */
+  defaults: [{ name: "Contents", content: "```table-of-contents\n```", mode: "heading", headingText: "Contents", level: "auto",
+    type: "note", fold: "-", title: "Contents" }],
   hasRevert: true,
   recognize(ctx, presets) {
     const hit = blockOf(ctx.lines, ctx.cursor.line, presets);
@@ -383,8 +412,8 @@ const insertBlockCategory = {
   apply(ctx, preset) {
     const hit = blockOf(ctx.lines, ctx.cursor.line, ctx.presets || [preset]);
     if (!hit) return insertBlock(ctx, preset);
-    if (blockLines(ctx.presets[hit.index]).join("\n") === blockLines(preset).join("\n")) return null;
-    return recastBlock(hit.box, preset);
+    if (blockSignature(ctx.presets[hit.index]) === blockSignature(preset)) return null;
+    return recastBlock(ctx.lines, hit.box, preset);
   },
   /** Как у коллаутов (6.3, «перебор»): вне блока `next` — первый, `previous` — последний; внутри — цикл с 0. */
   run(ctx, presets, step) {
@@ -399,7 +428,7 @@ const insertBlockCategory = {
     if (!hit) return insertBlock(ctx, step < 0 ? list[list.length - 1] : list[0]);
     const next = hit.index + step;
     if (next < 0 || next >= list.length) return unwrapBlock(hit.box);
-    return recastBlock(hit.box, list[next]);
+    return recastBlock(ctx.lines, hit.box, list[next]);
   },
 };
 
@@ -716,6 +745,8 @@ function runInEditor(ed, cfg, fieldKey, categoryId, step) {
 
 module.exports = {
   refusalText,
+  blockMode,
+  blockLevel,
   CALLOUT_TYPES,
   CATEGORIES,
   categoryById,

@@ -166,21 +166,24 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   const doc = ["# Note", "", "tail"];
   const r = runB(doc, 1, 1);
   let lines = apply(doc, r);
-  assert.deepEqual(lines, ["# Note", "## Contents", "> [!note]- Contents", "> ```table-of-contents", "> ```", "tail"], "пример 6.3");
+  assert.deepEqual(lines, ["# Note", "## Contents", "```table-of-contents", "```", "tail"], "пример 6.3: заголовок на уровень ниже заголовка выше");
   assert.deepEqual(apply(lines, runB(lines, 3, -1)), doc, "R-2: previous на единственном пресете не снял блок");
   assert.deepEqual(runB(["text"], 0, 1), { refuse: "block-not-empty" }, "непустая строка не отказала");
   assert.deepEqual(runB(["## Contents", ""], 1, 1), { refuse: "block-heading-exists", args: ["Contents"] }, "такой же заголовок не отказал");
-  /* Четыре обёртки — корректный markdown. */
-  const base = { content: "```x\n```", headingText: "H", headingLevel: 3, type: "tip", fold: "", title: "" };
-  const shapes = [[false, false], [true, false], [false, true], [true, true]].map(([h, c]) =>
-    apply([""], runB([""], 0, 1, [{ ...base, heading: h, callout: c }])).join("|"));
-  assert.deepEqual(shapes, ["```x|```", "### H|```x|```", "> [!tip]|> ```x|> ```", "### H|> [!tip]|> ```x|> ```"]);
+  /* Обёртка — одна из трёх (его 💬 к тесту 6 цикла 126); прежний пресет с двумя флагами — коллаут. */
+  const base = { content: "```x\n```", headingText: "H", level: "3", type: "tip", fold: "", title: "" };
+  const shapes = ["plain", "heading", "callout"].map((mode) => apply([""], runB([""], 0, 1, [{ ...base, mode }])).join("|"));
+  assert.deepEqual(shapes, ["```x|```", "### H|```x|```", "> [!tip]|> ```x|> ```"]);
+  assert.equal(apply([""], runB([""], 0, 1, [{ ...base, heading: true, callout: true }])).join("|"), "> [!tip]|> ```x|> ```", "прежняя форма пресета");
+  assert.equal(apply(["### A", ""], runB(["### A", ""], 1, 1, [{ ...base, mode: "heading", level: "auto" }]))[1], "#### H", "auto не на уровень ниже");
   /* Правка внутри не мешает распознаванию; снятие оставляет дописанное текстом (его ответ 10). */
-  const edited = ["## Contents", "> [!note]- Contents", "> ```table-of-contents", "> my line", "> ```", "after"];
-  assert.equal(block.recognize({ lines: edited, cursor: { line: 3, ch: 0 } }, [toc]), 0, "отредактированный блок не узнан");
-  assert.deepEqual(apply(edited, runB(edited, 3, 1)), ["my line", "after"], "снятие унесло дописанное");
+  const boxed = { ...toc, mode: "callout" };
+  const edited = ["> [!note]- Contents", "> ```table-of-contents", "> my line", "> ```", "after"];
+  assert.equal(block.recognize({ lines: edited, cursor: { line: 2, ch: 0 } }, [boxed]), 0, "отредактированный блок не узнан");
+  assert.deepEqual(apply(edited, runB(edited, 2, 1, [boxed])), ["my line", "after"], "снятие унесло дописанное");
+  assert.equal(block.recognize({ lines: ["#### Contents", "```table-of-contents", "```"], cursor: { line: 1, ch: 0 } }, [toc]), 0, "заголовок auto не узнан на другом уровне");
   /* Два пресета: круг 0 → 1 → 2 → 0; блок без коллаута узнаётся до последней строки содержимого. */
-  const two = [{ ...base, heading: false, callout: false, content: "A\nB" }, { ...base, heading: true, callout: false, content: "A\nB" }];
+  const two = [{ ...base, mode: "plain", content: "A\nB" }, { ...base, mode: "heading", content: "A\nB" }];
   lines = apply([""], runB([""], 0, 1, two));
   assert.deepEqual(lines, ["A", "B"]);
   lines = apply(lines, runB(lines, 1, 1, two));
@@ -193,8 +196,8 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   const got = CF.runInEditor(ed, cfg, "F", "block", 1);
   assert.deepEqual(got, { refuse: "block-heading-exists", args: ["Contents"] });
   assert.equal(edits, 0, "отказ всё же правил текст");
-  assert.equal(CF.refusalText(got, "F · Insert block"), "F · Insert block: the note already has the heading Contents");
-  ok("вставка блока: пример 6.3, отказы, четыре обёртки, правка внутри, снятие с дописанным, круг пресетов, отказ командой");
+  assert.equal(CF.refusalText(got, "F · Insert codeblock"), "F · Insert codeblock: the note already has the heading Contents");
+  ok("вставка блока: пример 6.3, отказы, три обёртки, правка внутри, снятие с дописанным, круг пресетов, отказ командой");
 }
 
 /* 11. Дерево ↔ раздел (6.4): переключатель (ответ 7), пример постановки, уровень, три положения, обратный путь. */

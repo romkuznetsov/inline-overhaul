@@ -156,24 +156,25 @@ check('у Command Field нет Values и свойства заметки',
   run('(() => { const n = ' + inContent("io-sub") + '.map(x => x.children.map(c => c._text).filter(Boolean).join("")); return n.join(","); })()'),
   '▾Categories?,▾Behavior?,▾Commands');
 check('пара команд на каждую категорию', run(inContent("io-cmd__name") + '.map(n => n._text).join(";")'),
-  'Format · Callouts next;Format · Callouts previous;Format · Cleanup next;Format · Cleanup previous');
+  'Format · Insert callout next;Format · Insert callout previous;Format · Cleanup next;Format · Cleanup previous');
 /* Клон совпадает с оригиналом — помечен, перебор узнаёт первый (В-281). */
 run('(() => { const b = ' + inContent("io-icon") + '.find(n => String(n.getAttribute("aria-label")) === "Clone the preset Note"); b.dispatch("click", { target: b }); return true; })()');
 check('клон пресета помечен как совпавший', run(inContent("io-cats__same") + '.map(n => n._text).join()'), 'same as Note — that one is used');
-/* До выбора — серый `Select here`, кнопка выключена (его 💬 к тесту 1 цикла 125). */
-check('выбор категории: Select here серым, Add category выключена', run('(() => { const s = ' + inContent("io-select--unset") + '[0]; const b = ' + inContent("io-btn") + '.find(n => n._text === "Add category"); return (s ? s.value === "" : "нет") + "/" + b.disabled; })()'), 'true/true');
-const choose = (root, id) => run('(() => { const s = ' + root + '.find(n => String(n.getAttribute("aria-label")).indexOf("Category to add to") === 0); s.value = ' + JSON.stringify(id) + '; s.dispatch("change", { target: s }); return true; })()');
-choose(inContent("io-select"), "callouts");
+/* До выбора — серый прочерк, кнопка выключена (его пункт «Новое» 2026-10-03). */
+check('выбор категории: прочерк серым, Add category выключена', run('(() => { const s = ' + inContent("io-cats__tbtn--unset") + '[0]; const b = ' + inContent("io-btn") + '.find(n => n._text === "Add category"); return (s ? s.children[0]._text : "нет") + "/" + b.disabled; })()'), '—/true');
+/* Выбор списком: открыть кнопку и нажать вариант по его подписи. */
+const choose = (root, name) => run('(() => { const s = ' + root + '.find(n => String(n.getAttribute("aria-label")).indexOf("Category to add to") === 0); s.dispatch("click", { target: s }); const all = []; const go = n => { all.push(n); n.children.forEach(go); }; go(s.parentNode || s.parent); const it = all.find(n => String(n.className).split(" ").includes("io-cats__titem") && n.children.some(c => c._text === ' + JSON.stringify(name) + ')); it.dispatch("click", { target: it }); return true; })()');
+choose(inContent("io-cats__tbtn"), "Insert callout");
 run('(() => { const b = ' + inContent("io-btn") + '.find(n => n._text === "Add category"); b.dispatch("click", { target: b }); return true; })()');
 check('Add category заводит категорию с её пресетами', run('field("format").categories.map(c => c.key + ":" + c.presets.length).join()'), 'callouts:4,cleanup:1,callouts-2:3');
 /* Категории — прямо в окне Add a Field (его 💬 к тесту 1 цикла 125). */
 clickText('Add Field');
 run('(() => { ' + inScrim("io-nf__type") + ' found[3].dispatch("pointerdown", { target: found[3] }); return true; })()');
 run('(() => { let input = null; const go = n => { if (n.tagName === "INPUT" && !input) input = n; n.children.forEach(go); }; go(' + scrim + '[0]); input.value = "Wrap"; input.dispatch("input", { target: input }); return true; })()');
-choose('(() => { const f = []; const go = n => { f.push(n); n.children.forEach(go); }; go(' + scrim + '[0]); return f; })()', "callouts");
+choose('(() => { const f = []; const go = n => { f.push(n); n.children.forEach(go); }; go(' + scrim + '[0]); return f; })()', "Insert callout");
 run('(() => { let b = null; const go = n => { if (String(n._text) === "Add category") b = n; n.children.forEach(go); }; go(' + scrim + '[0]); b.dispatch("click", { target: b }); return true; })()');
 check('окно Command: категория с пресетами прямо в окне', run('(() => { ' + inScrim("io-vals__row--child") + ' return found.length; })()'), '3');
-check('окно Command: скроллер предпросмотра показывает категорию', run('(() => { ' + inScrim("io-wheelval") + ' return found.map(n => n._text).join(); })()'), 'Callouts');
+check('окно Command: скроллер предпросмотра показывает категорию', run('(() => { ' + inScrim("io-wheelval") + ' return found.map(n => n._text).join(); })()'), 'Insert callout');
 run('(() => { const b = ' + addInScrim + '; b.dispatch("click", { preventDefault() {}, target: b }); return true; })()');
 check('Add Field уносит категории в новый Field', run('(f => f ? f.type + ":" + f.categories.map(c => c.id + "/" + c.presets.length).join() : "нет Field")(field("wrap"))'), 'command:callouts/3');
 

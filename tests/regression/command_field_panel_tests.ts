@@ -53,6 +53,27 @@ const labelled = (n: StubNode, label: string): StubNode => {
 };
 const click = (n: StubNode): void => { n.dispatch("click", { preventDefault() {}, stopPropagation() {}, target: n }); };
 const text = (n: StubNode): string => [String(n.textContent || "")].concat(n.children.map(text)).join(" ");
+/* Выбор списком: подпись узла — `<что> — <выбранное — подсказка>`, у варианта — `<вариант> — <подсказка>`. */
+const named = (n: StubNode, label: string): boolean => {
+  const a = String(n.getAttribute("aria-label"));
+  return a === label || a.startsWith(label + " — ");
+};
+const opener = (host: StubNode, label: string): StubNode => {
+  const hit = all(host, "io-cats__tbtn").find(n => named(n, label));
+  assert.ok(hit, "нет выбора «" + label + "»");
+  return hit as StubNode;
+};
+const pickIn = (host: StubNode, label: string, item: string): void => {
+  click(opener(host, label));
+  const it = all(host, "io-cats__titem").find(n => named(n, item));
+  assert.ok(it, "у «" + label + "» нет варианта «" + item + "»");
+  click(it as StubNode);
+};
+const shown = (host: StubNode, label: string): string => String((all(opener(host, label), "io-cats__tname")[0] as StubNode).textContent);
+const addCategory = (host: StubNode, name: string): void => {
+  pickIn(host, "Category to add to Fmt", name);
+  click(all(host, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+};
 
 /** Панель на настоящем хранилище: `getConfig` и `setConfigPatch` — как у плагина. */
 function makePanel(base: Any): { host: StubNode; cfg: () => Any; draw: () => void; model: () => Any; state: FieldsViewState } {
@@ -114,12 +135,17 @@ const panel = makePanel(base);
   assert.equal(all(h, "io-vals__row--child").length, 0);
   const pick = labelled(h, "Category to add to Fmt");
   const addBtn = all(h, "io-btn").find(n => n.textContent === "Add category") as StubNode;
-  assert.equal((pick as Any).value, "", "категория выбрана заранее (его 💬 к тесту 1 цикла 125)");
-  assert.ok(pick.classList.contains("io-select--unset") && (addBtn as Any).disabled, "Select here не серый или кнопка не выключена");
-  (pick as Any).value = "callouts";
-  pick.dispatch("change", { target: pick });
-  assert.ok(!(addBtn as Any).disabled && !pick.classList.contains("io-select--unset"), "после выбора кнопка не включилась");
+  /* До выбора — серый прочерк (его пункт «Новое» 2026-10-03), кнопка выключена. */
+  assert.ok(pick.classList.contains("io-cats__tbtn--unset") && (addBtn as Any).disabled, "пустой выбор не серый или кнопка не выключена");
+  assert.equal(shown(h, "Category to add to Fmt"), "—", "пустой выбор не прочерк");
+  click(pick);
+  const offers = all(h, "io-cats__titem").map(n => String(n.getAttribute("aria-label")));
+  assert.deepEqual(offers.map(a => a.split(" — ")[0]), ["Insert callout", "Cleanup", "Insert codeblock", "Tree ↔ section"]);
+  assert.ok(offers.every(a => a.split(" — ")[1]), "у варианта категории нет подсказки: " + offers.join(" | "));
+  click(all(h, "io-cats__titem")[0] as StubNode);
+  assert.ok(!(addBtn as Any).disabled && !opener(h, "Category to add to Fmt").classList.contains("io-cats__tbtn--unset"), "после выбора кнопка не включилась");
   click(all(h, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  assert.deepEqual(all(panel.host, "io-cats__cap").map(n => n.textContent), ["Type", "Fold"], "подписи колонок коллаута");
   let cats = panel.cfg().pkm.fields.commands.byField.Fmt.categories;
   assert.deepEqual(cats.map((c: Any) => c.key + ":" + c.presets.map((p: Any) => p.type).join("/")), ["callouts:note/tip/warning"]);
   assert.equal(all(panel.host, "io-vals__row--child").length, 3, "строк пресетов не три");
@@ -133,18 +159,21 @@ const panel = makePanel(base);
 
 /* 2б. Тип коллаута — свой выбор со значком (его `💬` к тесту 1 цикла 125); свёрнутость — Open и Closed. */
 {
-  const tbtn = labelled(panel.host, "Callout type of Warning");
-  click(tbtn);
+  click(opener(panel.host, "Callout type of Warning"));
   const items = all(panel.host, "io-cats__titem");
   assert.equal(items.length, 13, "в списке не все типы коллаутов");
   click(items.find(n => n.getAttribute("aria-label") === "danger") as StubNode);
   const presets = panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets;
   assert.equal(presets[3].type, "danger", "выбор типа не записался");
-  const fold = labelled(panel.host, "Fold of Note");
-  assert.deepEqual(fold.children.map(n => (n as Any).value), ["", "-"], "у свёрнутости не два положения");
+  click(opener(panel.host, "Fold of Note"));
+  const folds = all(panel.host, "io-cats__titem").map(n => String(n.getAttribute("aria-label")));
+  assert.deepEqual(folds.map(a => a.split(" — ")[0]), ["Open", "Closed"], "у свёрнутости не два положения");
+  assert.ok(folds.every(a => a.split(" — ")[1]), "у положения нет подсказки");
+  click(all(panel.host, "io-cats__titem").find(n => named(n, "Closed")) as StubNode);
+  assert.equal(panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets[0].fold, "-", "свёрнутость не записалась");
+  pickIn(panel.host, "Fold of Note", "Open");
   /* Обратно — дальше проверки опираются на Warning. */
-  click(labelled(panel.host, "Callout type of Warning"));
-  click(all(panel.host, "io-cats__titem").find(n => n.getAttribute("aria-label") === "warning") as StubNode);
+  pickIn(panel.host, "Callout type of Warning", "warning");
   ok("выбор типа коллаута списком со значком; свёрнутость — Open и Closed");
 }
 
@@ -156,7 +185,7 @@ const panel = makePanel(base);
   const cfg = panel.cfg();
   const defs = registry.buildPkmCommandDefs(orderConfig.serializePkmOrderForMacro, orderConfig.serializeDateRuntimeConfigForMacro, orderConfig.normalizePkmOrder, cfg, []);
   assert.deepEqual(defs.filter((d: Any) => d.orderKey === "Fmt").map((d: Any) => d.id + "=" + d.name),
-    ["fmt-callouts-next=Fmt · Callouts next", "fmt-callouts-previous=Fmt · Callouts previous"]);
+    ["fmt-callouts-next=Fmt · Insert callout next", "fmt-callouts-previous=Fmt · Insert callout previous"]);
   assert.ok(!defs.some((d: Any) => d.id === "fmt-next"), "у самого Command Field завелась пара (4.4)");
   const rules = rulesShape.buildRulesForEngines(cfg);
   assert.ok(!JSON.stringify(rules.behavior.order).includes("Fmt"), "движки видят Command Field в Order");
@@ -164,47 +193,45 @@ const panel = makePanel(base);
   ok("пара команд на категорию, движки строки Command Field не видят");
 }
 
-/* 3в. Вставка блока (6.3): содержимое, заголовок и коллаут пресета; выключенная часть прячет свои поля. */
+/* 3в. Вставка блока (6.3): обёртка — одна из трёх, у каждой свои настройки (его 💬 к тесту 6 цикла 126). */
 {
-  const pick = labelled(panel.host, "Category to add to Fmt");
-  (pick as Any).value = "block";
-  pick.dispatch("change", { target: pick });
-  click(all(panel.host, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  addCategory(panel.host, "Insert codeblock");
   const block = (): Any => panel.cfg().pkm.fields.commands.byField.Fmt.categories.find((c: Any) => c.id === "block");
   assert.equal(block().presets[0].content, "```table-of-contents\n```", "пресет по умолчанию не пример 6.3");
   const area = labelled(panel.host, "Text that Contents inserts");
   (area as Any).value = "```dataview\nLIST\n```";
   area.dispatch("change", { target: area });
   assert.equal(block().presets[0].content, "```dataview\nLIST\n```", "содержимое не записалось");
+  assert.equal(shown(panel.host, "Wrap of Contents"), "Heading", "обёртка по умолчанию не заголовок");
   labelled(panel.host, "Heading text of Contents");
-  click(labelled(panel.host, "Heading above Contents"));
-  assert.equal(block().presets[0].heading, false, "заголовок не выключился");
-  assert.throws(() => labelled(panel.host, "Heading text of Contents"), /нет узла/, "у выключенного заголовка осталось поле текста");
-  const level = labelled(panel.host, "Callout title of Contents");
-  (level as Any).value = "TOC";
-  level.dispatch("change", { target: level });
+  assert.equal(shown(panel.host, "Heading level of Contents"), "Auto", "уровень по умолчанию не на один ниже заголовка выше");
+  assert.throws(() => labelled(panel.host, "Callout title of Contents"), /нет узла/, "у заголовка настройки коллаута");
+  pickIn(panel.host, "Wrap of Contents", "Callout");
+  assert.equal(block().presets[0].mode, "callout", "обёртка не записалась");
+  assert.throws(() => labelled(panel.host, "Heading text of Contents"), /нет узла/, "у коллаута осталось поле заголовка");
+  const title = labelled(panel.host, "Callout title of Contents");
+  (title as Any).value = "TOC";
+  title.dispatch("change", { target: title });
   assert.equal(block().presets[0].title, "TOC", "заголовок коллаута не записался");
+  pickIn(panel.host, "Wrap of Contents", "Plain");
+  assert.throws(() => opener(panel.host, "Callout type of Contents"), /нет выбора/, "у простой вставки настройки коллаута");
   /* Дальше проверки опираются на одну категорию Коллауты. */
-  click(labelled(panel.host, "Remove the category Insert block"));
-  ok("вставка блока в таблице: содержимое, заголовок и коллаут пресета пишутся, выключенное прячет поля");
+  click(labelled(panel.host, "Remove the category Insert codeblock"));
+  ok("вставка блока в таблице: обёртка одна из трёх, у каждой свои настройки, содержимое пишется");
 }
 
-/* 3г. Дерево ↔ раздел (6.4): четыре выбора пресета с умолчаниями постановки, выбор пишется. */
+/* 3г. Дерево ↔ раздел (6.4): четыре выбора с подписями колонок и умолчаниями постановки, выбор пишется. */
 {
-  const pick = labelled(panel.host, "Category to add to Fmt");
-  (pick as Any).value = "section";
-  pick.dispatch("change", { target: pick });
-  click(all(panel.host, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  addCategory(panel.host, "Tree ↔ section");
   const name = "Section · after the list";
-  const values = ["Heading level of {0}", "Where the section of {0} goes", "Code blocks of {0}", "Tables of {0}"].map(a => (labelled(panel.host, a.replace("{0}", name)) as Any).value);
-  assert.deepEqual(values, ["auto", "after-list", "nest", "after"], "умолчания пресета не те, что в постановке");
-  const place = labelled(panel.host, "Where the section of " + name + " goes");
-  (place as Any).value = "in-place";
-  place.dispatch("change", { target: place });
+  const values = ["Heading level of {0}", "Where the section of {0} goes", "Code blocks of {0}", "Tables of {0}"].map(a => shown(panel.host, a.replace("{0}", name)));
+  assert.deepEqual(values, ["Auto", "After list", "Nested", "After tree"], "умолчания пресета не те, что в постановке");
+  assert.deepEqual(all(panel.host, "io-cats__cap").map(n => n.textContent).slice(-4), ["Heading", "Where", "Code blocks", "Tables"], "подписи колонок раздела");
+  pickIn(panel.host, "Where the section of " + name + " goes", "In place");
   const sec = panel.cfg().pkm.fields.commands.byField.Fmt.categories.find((c: Any) => c.id === "section");
   assert.equal(sec.presets[0].place, "in-place", "положение не записалось");
   click(labelled(panel.host, "Remove the category Tree ↔ section"));
-  ok("дерево ↔ раздел в таблице: четыре выбора с умолчаниями постановки, выбор пишется");
+  ok("дерево ↔ раздел в таблице: подписи колонок, четыре выбора с умолчаниями постановки, выбор пишется");
 }
 
 /* 3б. `Child name in tagWheel` у Command Field — подпись ячейки пресетов, без своего имени `preset`. */
@@ -266,9 +293,8 @@ const panel = makePanel(base);
   const name = labelled(box, "Name of the new Field");
   (name as Any).value = "Wrap";
   name.dispatch("input", { target: name });
-  const dpick = (all(box, "io-vals__foot")[0] as StubNode).children[0] as StubNode;
-  (dpick as Any).value = "cleanup";
-  dpick.dispatch("change", { target: dpick });
+  click(all(all(box, "io-cats__pick")[0] as StubNode, "io-cats__tbtn")[0] as StubNode);
+  click(all(box, "io-cats__titem").find(n => named(n, "Cleanup")) as StubNode);
   click(all(box, "io-btn").find(n => n.textContent === "Add category") as StubNode);
   click(labelled(box, "Keep the Values of status"));
   assert.equal(all(box, "io-vals__row--child").length, 1, "пресет Очистки не встал в окне");

@@ -1337,7 +1337,10 @@ const SCENARIOS = {
     await host.fill("input[aria-label=\"Name of the new Field\"]", "Format");
     await host.waitForTimeout(150);
     /* Категория — прямо в окне (его 💬 к тесту 1 цикла 125). */
-    await host.selectOption(".io-nf .io-cats .io-vals__foot select", "callouts");
+    /* Выбор категории — списком с подсказками (его пункт «Новое» 2026-10-03). */
+    await host.click(".io-nf .io-cats__pick .io-cats__tbtn");
+    await host.waitForTimeout(200);
+    await host.click(".io-nf .io-cats__pick .io-cats__titem:has-text(\"Insert callout\")");
     await clickIn(host, "Add category");
     await host.waitForTimeout(400);
     const inDialog = await host.evaluate(() => ({
@@ -1480,7 +1483,7 @@ const SCENARIOS = {
       p.setConfigPatch({ pkm: { fields: {
         order: { right: order.right.concat(["Format"]), types: { Format: "command" }, strictNames: { Format: "Format" }, labels: { Format: "Format" }, active: { Format: "yes" } },
         commands: { byField: { Format: { categories: [{ id: "block", key: "block", name: "", hidden: false, presets: [
-          { name: "", content: "```table-of-contents\n```", heading: true, headingText: "Contents", headingLevel: 2, callout: true, type: "note", fold: "-", title: "Contents", hidden: false }] }] } } },
+          { name: "", content: "```table-of-contents\n```", mode: "heading", headingText: "Contents", level: "auto", type: "note", fold: "-", title: "Contents", hidden: false }] }] } } },
       } } }, "pkm:fields:commands:Format");
       await new Promise((r) => setTimeout(r, 800));
       const f = await a.vault.create("cfb.md", doc);
@@ -1491,7 +1494,7 @@ const SCENARIOS = {
       a.commands.executeCommandById("inline-overhaul:format-block-next");
       await new Promise((r) => setTimeout(r, 400));
       const inserted = e.getValue();
-      e.setCursor({ line: 3, ch: 3 });
+      e.setCursor({ line: 2, ch: 3 });
       a.commands.executeCommandById("inline-overhaul:format-block-previous");
       await new Promise((r) => setTimeout(r, 400));
       const removed = e.getValue();
@@ -1515,16 +1518,17 @@ const SCENARIOS = {
       const set = area ? area.closest(".io-cats__set") : null;
       const r = set ? set.getBoundingClientRect() : null;
       return area ? { value: area.value, areaW: Math.round(area.getBoundingClientRect().width), setW: r ? Math.round(r.width) : 0,
-        chips: [...set.querySelectorAll(".io-cats__keep")].map((n) => n.textContent + ":" + n.getAttribute("aria-pressed")) } : null;
+        caps: [...set.querySelectorAll(".io-cats__cap")].map((n) => n.textContent),
+        wrap: (set.querySelector(".io-cats__tbtn .io-cats__tname") || {}).textContent } : null;
     });
     if (process.env.IO_SHOTS) {
       const t = await host.$(".io-cats");
       if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-block.png") });
     }
     console.log(JSON.stringify(got, null, 1));
-    const ok = got.inserted === "# Note\n## Contents\n> [!note]- Contents\n> ```table-of-contents\n> ```\nsome text\n"
+    const ok = got.inserted === "# Note\n## Contents\n```table-of-contents\n```\nsome text\n"
       && got.removed === doc && got.refused === doc && got.notices.some((n) => /empty line/.test(n))
-      && !!got.panel && got.panel.areaW >= got.panel.setW - 4 && got.panel.chips.join() === "Heading:true,Callout:true";
+      && !!got.panel && got.panel.areaW >= got.panel.setW - 4 && got.panel.caps.join() === "Wrap,Wrap settings,Text" && got.panel.wrap === "Heading";
     console.log(ok ? "ok: вставка блока — команда, снятие, отказ вслух, строка пресета в панели" : "РАСХОДИТСЯ");
     return ok;
   },

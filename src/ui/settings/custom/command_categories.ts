@@ -5,7 +5,7 @@
  */
 
 import type { El, DragEv, ElInput } from "./dom.ts";
-import { el, btn, cssVar, selectInput, textInput, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, textInput, tipBelow } from "./dom.ts";
 import type { CommandCategory, CommandPreset, FieldRow } from "./fields_model.ts";
 /* Реестр категорий Command Field — один дом с командами (4.3, У-32). */
 import commandField from "../../../features/command_field.js";
@@ -21,7 +21,12 @@ interface CfCategory {
   defaultName: (p: CommandPreset, fieldName?: (key: string) => string) => string;
   signature: (p: CommandPreset) => string;
 }
-const CF = commandField as unknown as { CATEGORIES: readonly CfCategory[]; CALLOUT_TYPES: readonly string[] };
+const CF = commandField as unknown as {
+  CATEGORIES: readonly CfCategory[];
+  CALLOUT_TYPES: readonly string[];
+  blockMode: (p: CommandPreset) => string;
+  blockLevel: (p: CommandPreset) => string;
+};
 
 /** Описание категории в строке таблицы — из каталога (10.13.47). */
 const CAT_DESC: Record<string, string> = {
@@ -31,26 +36,58 @@ const CAT_DESC: Record<string, string> = {
   section: "CAT_DESC_SECTION",
 };
 
-const HEADING_LEVELS = [1, 2, 3, 4, 5, 6].map(n => ({ value: String(n), label: "H" + n }));
+/** Вариант выбора: значение в конфиге, подпись и подсказка при наведении — ключи каталога (его пункт «Новое» 2026-10-03). */
+interface Choice { value: string; label: string; tip: string }
 
-/*
- * Дерево ↔ раздел (6.4): выборы пресета — значение в конфиге и ключ подписи
- * каталога; первое значение — умолчание постановки.
- */
-const SECTION_CHOICES: Record<string, { field: "level" | "place" | "code" | "tables"; aria: string; options: ReadonlyArray<{ value: string; label: string }> }> = {
-  "heading-level": { field: "level", aria: "PRESET_LEVEL_ARIA", options: [{ value: "auto", label: "SECTION_LEVEL_AUTO" }].concat(HEADING_LEVELS) },
+const LEVELS: readonly Choice[] = [{ value: "auto", label: "LEVEL_AUTO", tip: "LEVEL_AUTO_TIP" }]
+  .concat([1, 2, 3, 4, 5, 6].map(n => ({ value: String(n), label: "H" + n, tip: "LEVEL_FIXED_TIP" })));
+
+/* Свёрнутость (6.1): `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
+const FOLDS: readonly Choice[] = [
+  { value: "", label: "FOLD_OPEN", tip: "FOLD_OPEN_TIP" },
+  { value: "-", label: "FOLD_CLOSED", tip: "FOLD_CLOSED_TIP" },
+];
+
+/* Обёртка вставки — одна из трёх (его 💬 к тесту 6 цикла 126). */
+const MODES: readonly Choice[] = [
+  { value: "plain", label: "MODE_PLAIN", tip: "MODE_PLAIN_TIP" },
+  { value: "heading", label: "MODE_HEADING", tip: "MODE_HEADING_TIP" },
+  { value: "callout", label: "MODE_CALLOUT", tip: "MODE_CALLOUT_TIP" },
+];
+
+/* Дерево ↔ раздел (6.4): поле пресета и варианты; первый — умолчание постановки. */
+const SECTION_CHOICES: Record<string, { field: "level" | "place" | "code" | "tables"; aria: string; options: readonly Choice[] }> = {
+  "heading-level": { field: "level", aria: "PRESET_LEVEL_ARIA", options: LEVELS },
   "section-place": { field: "place", aria: "PRESET_PLACE_ARIA", options: [
-    { value: "after-list", label: "SECTION_PLACE_AFTER_LIST" }, { value: "in-place", label: "SECTION_PLACE_IN_PLACE" }, { value: "section-end", label: "SECTION_PLACE_SECTION_END" }] },
-  "code-blocks": { field: "code", aria: "PRESET_CODE_ARIA", options: [{ value: "nest", label: "SECTION_CODE_NEST" }, { value: "after", label: "SECTION_CODE_AFTER" }] },
-  "tables": { field: "tables", aria: "PRESET_TABLES_ARIA", options: [{ value: "after", label: "SECTION_TABLES_AFTER" }, { value: "keep", label: "SECTION_TABLES_KEEP" }] },
+    { value: "after-list", label: "SECTION_PLACE_AFTER_LIST", tip: "SECTION_PLACE_AFTER_LIST_TIP" },
+    { value: "in-place", label: "SECTION_PLACE_IN_PLACE", tip: "SECTION_PLACE_IN_PLACE_TIP" },
+    { value: "section-end", label: "SECTION_PLACE_SECTION_END", tip: "SECTION_PLACE_SECTION_END_TIP" }] },
+  "code-blocks": { field: "code", aria: "PRESET_CODE_ARIA", options: [
+    { value: "nest", label: "SECTION_CODE_NEST", tip: "SECTION_CODE_NEST_TIP" },
+    { value: "after", label: "SECTION_CODE_AFTER", tip: "SECTION_CODE_AFTER_TIP" }] },
+  "tables": { field: "tables", aria: "PRESET_TABLES_ARIA", options: [
+    { value: "after", label: "SECTION_TABLES_AFTER", tip: "SECTION_TABLES_AFTER_TIP" },
+    { value: "keep", label: "SECTION_TABLES_KEEP", tip: "SECTION_TABLES_KEEP_TIP" }] },
 };
 
-/** Свёрнутость коллаута (6.1): значения — разметки Obsidian, подписи — каталога. */
-/* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
-const FOLD_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "", label: "FOLD_OPEN" },
-  { value: "-", label: "FOLD_CLOSED" },
-];
+/**
+ * Колонки пресета — по роду параметра (его 💬 к тесту 2 цикла 126): подпись
+ * стоит над контролом первого пресета категории и переносится вместе с ним в
+ * узком окне; `weight` — доля ширины, `wide` — во всю ширину.
+ */
+const COLUMNS: Record<string, { cap: string; tip: string; weight?: number; wide?: boolean }> = {
+  "callout-type": { cap: "CAP_TYPE", tip: "CAP_TYPE_TIP" },
+  "fold": { cap: "CAP_FOLD", tip: "CAP_FOLD_TIP" },
+  "fields": { cap: "CAP_KEEP", tip: "CAP_KEEP_TIP" },
+  "heading-level": { cap: "CAP_LEVEL", tip: "CAP_LEVEL_TIP" },
+  "section-place": { cap: "CAP_PLACE", tip: "CAP_PLACE_TIP" },
+  "code-blocks": { cap: "CAP_CODE", tip: "CAP_CODE_TIP" },
+  "tables": { cap: "CAP_TABLES", tip: "CAP_TABLES_TIP" },
+  "block-mode": { cap: "CAP_WRAP", tip: "CAP_WRAP_TIP" },
+  "block-wrap": { cap: "CAP_WRAP_SETTINGS", tip: "CAP_WRAP_SETTINGS_TIP", weight: 3 },
+  "block-content": { cap: "CAP_TEXT", tip: "CAP_TEXT_TIP", wide: true },
+};
+
 
 /** Вид коллаута у темы: значок и цвет из `.callout[data-callout]` (переменные Obsidian). */
 interface CalloutLook { icon: string; color: string }
@@ -95,24 +132,37 @@ function rgbTriple(raw: string): string {
 function paintType(host: El, type: string, setIcon?: (node: unknown, icon: string) => void): void {
   const look = calloutLook(type);
   const icon = el(host, "span", "io-cats__ticon");
+  host.classList.add("io-cats__typed");
   if (look && look.color) cssVar(host, "--io-callout-rgb", look.color);
   if (look && look.icon && setIcon) setIcon(icon, look.icon);
   el(host, "span", "io-cats__tname", type);
 }
 
+/** Вариант списка: подпись, подсказка при наведении и свой вид (значок типа коллаута). */
+interface PickItem { value: string; label: string; tip?: string; paint?: (host: El) => void }
+
 /**
- * Выбор типа коллаута: кнопка со значком и цветом, список — так же (его `💬` к
- * тесту 1 цикла 125: «чтобы пользователь понимал, что он получит»). Обычный
- * `select` значков не рисует.
+ * Выбор списком: кнопка и под ней варианты, у каждого подсказка при наведении —
+ * её показывает Obsidian по `aria-label` (его пункт «Новое» 2026-10-03: «чтобы
+ * при наведении на вариант контрола возникала подсказка»). Обычный `select` не
+ * рисует ни подсказок вариантов, ни значков (его `💬` к тесту 1 цикла 125).
+ * Без значения — `placeholder` серым.
  */
-function typePicker(host: El, value: string, label: string, enabled: boolean,
-  setIcon: ((node: unknown, icon: string) => void) | undefined, pick: (type: string) => void): void {
+function picker(host: El, o: { items: readonly PickItem[]; value: string; aria: string; enabled: boolean;
+  placeholder?: string; pick: (value: string) => void }): void {
   const wrap = el(host, "div", "io-cats__type");
-  const button = btn(wrap, "io-cats__tbtn", { label });
+  const now = o.items.find(i => i.value === o.value);
+  const face = (node: El, item: PickItem): void => {
+    if (item.paint) item.paint(node);
+    else el(node, "span", "io-cats__tname", item.label);
+  };
+  const button = btn(wrap, "io-cats__tbtn" + (now ? "" : " io-cats__tbtn--unset"),
+    { label: o.aria, title: now ? now.label + (now.tip ? " — " + now.tip : "") : "" });
   button.setAttribute("aria-haspopup", "listbox");
   button.setAttribute("aria-expanded", "false");
-  button.disabled = !enabled;
-  paintType(button, value, setIcon);
+  button.disabled = !o.enabled;
+  if (now) face(button, now);
+  else el(button, "span", "io-cats__tname", o.placeholder || "");
   let list: El | null = null;
   const close = (): void => {
     if (list) list.remove();
@@ -124,12 +174,15 @@ function typePicker(host: El, value: string, label: string, enabled: boolean,
     list = el(wrap, "div", "io-cats__tlist");
     list.setAttribute("role", "listbox");
     button.setAttribute("aria-expanded", "true");
-    for (const type of CF.CALLOUT_TYPES) {
-      const item = btn(list, "io-cats__titem" + (type === value ? " io-cats__titem--on" : ""), { label: type });
+    for (const it of o.items) {
+      const on = it.value === o.value;
+      const item = btn(list, "io-cats__titem" + (on ? " io-cats__titem--on" : ""), { label: it.label, title: it.tip || "" });
       item.setAttribute("role", "option");
-      item.setAttribute("aria-selected", type === value ? "true" : "false");
-      paintType(item, type, setIcon);
-      item.addEventListener("click", (() => { close(); if (type !== value) pick(type); }) as never);
+      item.setAttribute("aria-selected", on ? "true" : "false");
+      face(item, it);
+      /* Фокус остаётся на кнопке: иначе `focusout` снимает список до `click` (окно `Add a Field`, стенд `command-field`). */
+      item.addEventListener("mousedown", ((ev: { preventDefault?: () => void }) => { if (ev && ev.preventDefault) ev.preventDefault(); }) as never);
+      item.addEventListener("click", (() => { close(); if (!on) o.pick(it.value); }) as never);
     }
   }) as never);
   wrap.addEventListener("focusout", ((ev: { relatedTarget?: unknown }) => {
@@ -164,6 +217,8 @@ export interface CategoriesTableOpts {
  */
 export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: CategoriesTableOpts): () => void {
   const say = t.say;
+  /* «H1»…«H6» — не ключи каталога, а сами подписи. */
+  const word = (k: string): string => (/^H\d$/.test(k) ? k : say(k));
   const closers: Array<() => void> = [];
   const save = t.save;
   const regOf = (id: string): CfCategory | undefined => CF.CATEGORIES.find(c => c.id === id);
@@ -264,65 +319,65 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
       eye(pline, p, pn);
       nameInput(pline, p.name || "", presetName(c, { ...p, name: "" }), say("PRESET_NAME_ARIA", pn), v => { p.name = v; });
       const set = el(pline, "div", "io-cats__set");
-      const foldSelect = (): void => {
-        const f = selectInput(set, "io-select", {
-          options: FOLD_OPTIONS.map(x => ({ value: x.value, label: say(x.label) })), value: p.fold === "-" ? "-" : "", label: say("PRESET_FOLD_ARIA", pn),
-        });
-        f.disabled = !t.enabled;
-        f.addEventListener("change", (() => { p.fold = String(f.value); save(); }) as never);
+      /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
+      const cell = (kind: string): El => {
+        const col = COLUMNS[kind];
+        const node = el(set, "div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : ""));
+        if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+        if (col && pi === 0) el(node, "span", "io-cats__cap", say(col.cap)).setAttribute("aria-label", say(col.tip));
+        return node;
       };
-      /* Переключатель части пресета; выключенная прячет свои контролы (как `Settings that do not apply`). */
-      const part = (on: boolean, text: string, label: string, flip: () => void): boolean => {
-        const chip = btn(set, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text, label });
-        chip.setAttribute("aria-pressed", on ? "true" : "false");
-        chip.disabled = !t.enabled;
-        chip.addEventListener("click", (() => { flip(); save(); }) as never);
-        return on;
-      };
-      const prop = (value: string, placeholder: string, label: string, write: (v: string) => void): void => {
-        const input = textInput(set, "io-text io-cats__prop", { value, placeholder, label });
+      const choose = (host2: El, options: readonly Choice[], value: string, aria: string, write: (v: string) => void): void => picker(host2, {
+        items: options.map(o => ({ value: o.value, label: word(o.label), tip: say(o.tip) })),
+        value: options.some(o => o.value === value) ? value : (options[0] as Choice).value,
+        aria, enabled: t.enabled, pick: v => { write(v); save(); },
+      });
+      const types = (host2: El): void => picker(host2, {
+        items: CF.CALLOUT_TYPES.map(type => ({ value: type, label: type, paint: (n: El) => paintType(n, type, t.setIcon) })),
+        value: p.type || "note", aria: say("PRESET_TYPE_ARIA", pn), enabled: t.enabled, pick: v => { p.type = v; save(); },
+      });
+      const folds = (host2: El): void => choose(host2, FOLDS, p.fold === "-" ? "-" : "", say("PRESET_FOLD_ARIA", pn), v => { p.fold = v; });
+      const prop = (host2: El, value: string, placeholder: string, label: string, write: (v: string) => void): void => {
+        const input = textInput(host2, "io-text io-cats__prop", { value, placeholder, label });
         input.disabled = !t.enabled;
         input.addEventListener("change", (() => { write(String(input.value || "").trim()); save(); }) as never);
       };
       for (const kind of reg ? reg.params : []) {
+        const box2 = cell(kind);
         if (kind === "callout-type") {
-          typePicker(set, p.type || "note", say("PRESET_TYPE_ARIA", pn), t.enabled, t.setIcon, v => { p.type = v; save(); });
+          types(box2);
         } else if (kind === "fold") {
-          foldSelect();
+          folds(box2);
+        } else if (kind === "block-mode") {
+          choose(box2, MODES, CF.blockMode(p), say("PRESET_MODE_ARIA", pn), v => { p.mode = v; });
+        } else if (kind === "block-wrap") {
+          /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
+          const mode = CF.blockMode(p);
+          if (mode === "heading") {
+            prop(box2, p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
+            choose(box2, LEVELS, CF.blockLevel(p), say("PRESET_LEVEL_ARIA", pn), v => { p.level = v; });
+          } else if (mode === "callout") {
+            types(box2);
+            folds(box2);
+            prop(box2, p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
+          }
         } else if (kind === "block-content") {
-          const area = el(set, "textarea", "io-text io-cats__content") as unknown as ElInput;
+          const area = el(box2, "textarea", "io-text io-cats__content") as unknown as ElInput;
           area.value = String(p.content || "");
           area.setAttribute("aria-label", say("PRESET_CONTENT_ARIA", pn));
           area.setAttribute("placeholder", say("PRESET_CONTENT_PLACEHOLDER"));
           area.setAttribute("rows", "2");
           area.disabled = !t.enabled;
           area.addEventListener("change", (() => { p.content = String(area.value || ""); save(); }) as never);
-        } else if (kind === "block-heading") {
-          if (part(!!p.heading, say("PRESET_HEADING"), say("PRESET_HEADING_ARIA", pn), () => { p.heading = !p.heading; })) {
-            prop(p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
-            const lv = selectInput(set, "io-select", { options: HEADING_LEVELS, value: String(p.headingLevel || 2), label: say("PRESET_LEVEL_ARIA", pn) });
-            lv.disabled = !t.enabled;
-            lv.addEventListener("change", (() => { p.headingLevel = Number(lv.value); save(); }) as never);
-          }
-        } else if (kind === "block-callout") {
-          if (part(!!p.callout, say("PRESET_CALLOUT"), say("PRESET_CALLOUT_ARIA", pn), () => { p.callout = !p.callout; })) {
-            typePicker(set, p.type || "note", say("PRESET_TYPE_ARIA", pn), t.enabled, t.setIcon, v => { p.type = v; save(); });
-            foldSelect();
-            prop(p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
-          }
         } else if (SECTION_CHOICES[kind]) {
           const c = SECTION_CHOICES[kind] as (typeof SECTION_CHOICES)[string];
-          const options = c.options.map(o => ({ value: o.value, label: /^H\d$/.test(o.label) ? o.label : say(o.label) }));
-          const now = String(p[c.field] || "");
-          const s = selectInput(set, "io-select", { options, value: options.some(o => o.value === now) ? now : (options[0] as { value: string }).value, label: say(c.aria, pn) });
-          s.disabled = !t.enabled;
-          s.addEventListener("change", (() => { p[c.field] = String(s.value); save(); }) as never);
+          choose(box2, c.options, String(p[c.field] || ""), say(c.aria, pn), v => { p[c.field] = v; });
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);
           for (const lf of t.lineFields) {
             if (lf.parent) continue;
             const on = keep.includes(lf.key);
-            const chip = btn(set, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text: lf.strictName, label: say("PRESET_KEEP_ARIA", lf.strictName) });
+            const chip = btn(box2, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text: lf.strictName, label: say("PRESET_KEEP_ARIA", lf.strictName) });
             chip.setAttribute("aria-pressed", on ? "true" : "false");
             chip.disabled = !t.enabled;
             chip.addEventListener("click", (() => {
@@ -333,7 +388,7 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
         }
       }
       const sig = reg ? reg.signature(p) : "";
-      if (!p.hidden && seen.has(sig)) el(set, "span", "io-cats__same", say("PRESET_SAME", seen.get(sig) as string));
+      if (!p.hidden && seen.has(sig)) el(set, "span", "io-cats__same io-cats__cell--wide", say("PRESET_SAME", seen.get(sig) as string));
       else if (!p.hidden) seen.set(sig, pn);
       const ptools = el(pline, "div", "io-valtools");
       tool(ptools, "⧉", say("PRESET_CLONE", pn), () => {
@@ -344,21 +399,25 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
   });
 
   const foot = el(box, "div", "io-vals__foot");
-  /* Ничего не выбрано заранее — серый `Select here`, как `not set` (его 💬 к тесту 1 цикла 125). */
-  const pick = selectInput(foot, "io-select io-select--unset", {
-    options: [{ value: "", label: say("CATS_PICK_PLACEHOLDER") }].concat(CF.CATEGORIES.map(c => ({ value: c.id, label: c.name }))), value: "",
-    label: say("CATS_PICK_ARIA", t.fieldName),
-  });
-  pick.disabled = !t.enabled;
+  /*
+   * Ничего не выбрано заранее — серый прочерк (его пункт «Новое» 2026-10-03:
+   * «select here выглядит глупо»); у каждой категории подсказка — её описание.
+   */
+  let chosen = "";
+  const pickHost = el(foot, "div", "io-cats__pick");
   const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: say("CATS_ADD") });
   add.disabled = true;
-  pick.addEventListener("change", (() => {
-    const chosen = !!regOf(String(pick.value));
-    if (chosen) pick.classList.remove("io-select--unset"); else pick.classList.add("io-select--unset");
-    add.disabled = !t.enabled || !chosen;
-  }) as never);
+  const drawPick = (): void => {
+    pickHost.empty();
+    picker(pickHost, {
+      items: CF.CATEGORIES.map(c => ({ value: c.id, label: c.name, tip: CAT_DESC[c.id] ? say(CAT_DESC[c.id] as string) : "" })),
+      value: chosen, aria: say("CATS_PICK_ARIA", t.fieldName), enabled: t.enabled, placeholder: say("CATS_PICK_PLACEHOLDER"),
+      pick: v => { chosen = v; add.disabled = !t.enabled || !regOf(v); drawPick(); },
+    });
+  };
+  drawPick();
   add.addEventListener("click", (() => {
-    const reg = regOf(String(pick.value));
+    const reg = regOf(chosen);
     if (!reg) return;
     let key = reg.id;
     for (let n = 2; cats.some(x => (x.key || x.id) === key); n++) key = reg.id + "-" + n;
