@@ -26,14 +26,6 @@ export interface TextFiles {
 }
 
 /**
- * Языки, которые плагин кладёт сам. Пусто — решение заказчика (10.13.48):
- * в папке только `default.js`, остальное приносит человек. Английского здесь
- * нет (10.13.46): снимок заморозил бы позднейшие формулировки; его место —
- * `default.js`, который переписывается при расхождении.
- */
-export const SHIPPED_LANGS: readonly string[] = [];
-
-/**
  * Файлы, которые плагин клал раньше (`en.js`, `ru.js` до `0.1.0-beta.4`) и
  * вправе обновлять, пока они слово в слово равны написанному плагином.
  * Одна правка — и файл человеческий навсегда.
@@ -154,11 +146,8 @@ export async function ensureCatalogFiles(
     const path = dir + "/" + lang + ".js";
     const seed = (seeds && seeds[lang]) || {};
     const text = fileFor(lang, entries, seeds);
-    if (!await Promise.resolve(files.exists(path))) {
-      /* Класть заново — только эти языки. */
-      if (SHIPPED_LANGS.indexOf(lang) >= 0) await put(lang, text);
-      continue;
-    }
+    /* Заново языки не кладутся (10.13.48): в папке только `default.js`, остальное приносит человек. */
+    if (!await Promise.resolve(files.exists(path))) continue;
     let onDisk = "";
     try {
       onDisk = String(await Promise.resolve(files.read(path)));
