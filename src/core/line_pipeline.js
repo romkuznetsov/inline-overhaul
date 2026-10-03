@@ -116,7 +116,7 @@ function markersPlacedInRightBlock(rules) {
  * (`isLink`, В-141).
  */
 function fieldsShape(rules) {
-  const fields = sideFields(rules, "left").concat(sideFields(rules, "right"));
+  const fields = __sharedUtils.ruleFields(rules);
   const values = new Set();
   for (const f of fields) {
     const prefix = String(f && f.prefix != null ? f.prefix : "").trim();
@@ -563,18 +563,14 @@ function enforceTextSegmentForLeftTag(line, rules, originalText) {
  */
 function collectManagedTokens(rules) {
   const out = new Set();
-  const modes = [rules && rules.leftMode, rules && rules.rightMode];
-  for (const mode of modes) {
-    const fields = mode && Array.isArray(mode.fields) ? mode.fields : [];
-    for (const field of fields) {
-      const prefix = field && typeof field.prefix === "string" ? field.prefix : "#";
-      const values = field && Array.isArray(field.values) ? field.values : [];
-      for (const v of values) {
-        const token = String((typeof v === "string" ? v : (v && v.token)) || "").trim();
-        if (!token) continue;
-        out.add(token);
-        if (!/^(#|\[\[)/.test(token)) out.add(prefix + token);
-      }
+  for (const field of __sharedUtils.ruleFields(rules)) {
+    const prefix = field && typeof field.prefix === "string" ? field.prefix : "#";
+    const values = field && Array.isArray(field.values) ? field.values : [];
+    for (const v of values) {
+      const token = String((typeof v === "string" ? v : (v && v.token)) || "").trim();
+      if (!token) continue;
+      out.add(token);
+      if (!/^(#|\[\[)/.test(token)) out.add(prefix + token);
     }
   }
   return out;

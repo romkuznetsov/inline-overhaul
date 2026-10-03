@@ -91,22 +91,12 @@ function getPrefixRulesUnified(rules, deps) {
   if (out.fieldsOrderMode === "auto") out.priorityTargets = [];
   {
     /* Теги, затем ссылки: у Value-ссылки чекбокс из Prefix не ставился (`В-248`). */
-    const lf = modeFieldsUnified(rules);
+    const lf = __sharedUtils.ruleFields(rules);
     for (let i = 0; i < lf.length; i++) {
       const id = lf[i] && lf[i].id ? String(lf[i].id) : "";
       if (!id) continue;
       if (!out.priorityTargets.includes(id)) out.priorityTargets.push(id);
     }
-  }
-  return out;
-}
-
-/** Поля правил обоих видов подряд: `leftMode` (теги), затем `rightMode` (ссылки). */
-function modeFieldsUnified(rules) {
-  const out = [];
-  for (const key of ["leftMode", "rightMode"]) {
-    const mode = rules && rules[key];
-    if (mode && Array.isArray(mode.fields)) out.push(...mode.fields);
   }
   return out;
 }
@@ -158,7 +148,7 @@ function selectedTokenByFieldIdUnified(rules, state, fieldId, deps) {
       }
       return null;
     };
-  const field = getFieldById({ fields: modeFieldsUnified(rules) }, fieldId);
+  const field = getFieldById({ fields: __sharedUtils.ruleFields(rules) }, fieldId);
   if (!field || !state || !state.selected) return "";
   const selectedId = String(state.selected[fieldId] || "");
   if (!selectedId) return "";
@@ -206,7 +196,7 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
     delete hitByField[parentId];
   };
 
-  const modeFields = modeFieldsUnified(rules);
+  const modeFields = __sharedUtils.ruleFields(rules);
   for (let i = 0; i < modeFields.length; i++) {
     const childField = modeFields[i];
     if (!childField || !childField.id || !childField.dependsOn) continue;
@@ -1669,20 +1659,12 @@ function panelOfMarkerToken(token, rules) {
   if (!t) return "";
   let bestMarker = "";
   let bestPanel = "";
-  const sides = ["leftMode", "rightMode"];
-  let s;
-  for (s = 0; s < sides.length; s++) {
-    const node = rules && rules[sides[s]];
-    const fields = Array.isArray(node && node.fields) ? node.fields : [];
-    let i;
-    for (i = 0; i < fields.length; i++) {
-      const field = fields[i];
-      const marker = String((field && field.marker) || "").trim();
-      if (!marker || !t.startsWith(marker)) continue;
-      if (marker.length <= bestMarker.length) continue;
-      bestMarker = marker;
-      bestPanel = String((field && field.panel) || "").trim().toLowerCase();
-    }
+  for (const field of __sharedUtils.ruleFields(rules)) {
+    const marker = String((field && field.marker) || "").trim();
+    if (!marker || !t.startsWith(marker)) continue;
+    if (marker.length <= bestMarker.length) continue;
+    bestMarker = marker;
+    bestPanel = String((field && field.panel) || "").trim().toLowerCase();
   }
   return bestPanel;
 }

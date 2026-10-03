@@ -2635,3 +2635,9 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 **Что сделано.** `core/line_pipeline.js`: `demoteLeftBodyToText` и `extractOriginalTextFromRawLine` снимали с начала тела формы (`stripLeadingValues`) и Value списка без формы (`В-247`) одной и той же петлёй до неподвижной точки, разница — набор узнаваемых слов и метки. Петля стала функцией `stripLeadingRun(text, markers, known)`; метки второго места (`getRightMarkers`) считаются один раз, а не на каждом круге — функция чистая.
 
 **Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме часов `Now` и номера процесса. Мутация (Value списка не узнаётся) роняет `done_marker_tests.js` и `starter_line_tests.ts`. Откат — коммит.
+
+**Исключение сто девяносто пятое, разрешение — постоянное слово В-120 (уборка с нулевым расхождением), строка Н-24 ревизии `AUDIT_2026-10-03`.**
+
+**Что сделано.** Поля правил обеих сторон подряд собирались в четырёх местах двух файлов под З3: `modeFieldsUnified` и петля по `["leftMode", "rightMode"]` в `panelOfMarkerToken` (`core/pkm_line_finalize_unified.js`), склейка `sideFields(left).concat(sideFields(right))` в `fieldsShape` и петля по сторонам в `collectManagedTokens` (`core/line_pipeline.js`). Тело `modeFieldsUnified` переехало в `shared_utils.js` под именем `ruleFields`, все четыре места зовут его. Порядок тот же (левая сторона, затем правая), охрана та же (сторона без массива `fields` пропускается). `fieldHasValues` в `command_registry.js` (вне З3) не тронута: общего модуля у файла нет, а `require` ради одной строки дороже её.
+
+**Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме часов `Now` и номера процесса. Мутация (`ruleFields` без правой стороны) роняет `starter_line_tests.ts` и `status_runtime_behavior_tests.js`. Откат — коммит.

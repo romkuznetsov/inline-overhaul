@@ -723,6 +723,16 @@ function deepMerge(base, patch) {
   return out;
 }
 
+/** Поля правил обеих сторон подряд: `leftMode`, затем `rightMode` (Н-24). */
+function ruleFields(rules) {
+  const out = [];
+  for (const key of ["leftMode", "rightMode"]) {
+    const mode = rules && rules[key];
+    if (mode && Array.isArray(mode.fields)) out.push(...mode.fields);
+  }
+  return out;
+}
+
 /**
  * Значение по точечному пути. `undefined`, как только встретился не-объект:
  * на этом стоит различение «настройки нет» и «настройка пуста» (У-32).
@@ -1329,6 +1339,7 @@ function preserveLineStartShape(rawLine, nextLine) {
 
 module.exports = {
   cloneJson,
+  ruleFields,
   readCfgPath,
   writeCfgPath,
   nz,
