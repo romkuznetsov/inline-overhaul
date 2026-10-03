@@ -237,7 +237,8 @@ function carryRenamedFieldHotkeys(plugin, defs) {
     const oldId = __commandIds.kebab(d.strictName) + "-" + __commandIds.directionLabel(d.direction);
     if (live.has(oldId)) continue;
     const keys = hm.customKeys[prefix + oldId];
-    if (!Array.isArray(keys) || !keys.length || hm.customKeys[prefix + d.id]) continue;
+    /* Назначенное после переименования — его последнее слово: сильнее мёртвого на адресе ключа. */
+    if (!Array.isArray(keys) || !keys.length) continue;
     hm.setHotkeys(prefix + d.id, keys);
     hm.removeHotkeys(prefix + oldId);
     moved = true;

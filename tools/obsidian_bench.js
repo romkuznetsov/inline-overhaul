@@ -219,6 +219,13 @@ const PREPARE = {
   "undo-after-typing"(vault) {
     fs.writeFileSync(path.join(vault, "typed.md"), "- first line\n- second line\n");
   },
+  "field-rename-hotkey"(vault) { PREPARE["undo-after-typing"](vault); },
+  "transform-start-forms"(vault) {
+    fs.writeFileSync(path.join(vault, "starts.md"), "1. #todo :: Buy milk\n");
+    /* Шаблон из его настроек Transform — без него перенос отказывает. */
+    fs.mkdirSync(path.join(vault, "111"), { recursive: true });
+    fs.copyFileSync(path.join(SRC_VAULT, "111", "template.md"), path.join(vault, "111", "template.md"));
+  },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
@@ -1918,6 +1925,86 @@ const SCENARIOS = {
     const ok = cmds.every((c) => !res[c].commandChanged || res[c].typedKept);
     console.log(ok ? "ok: у каждой команды своя ступень" : "РАСХОДИТСЯ: команда склеилась с набором");
     return ok;
+  },
+
+  /* Command Field, этап 0 (В-275): хоткей Field переживает переименование — той же записью, что панель. */
+  async "field-rename-hotkey"(win) {
+    const n = await openAt(win, "typed.md", "- first line");
+    if (n < 0) throw new Error("нет строки в typed.md");
+    const press = async () => {
+      await win.evaluate((n) => {
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue("- first line\n- second line\n");
+        ed.setCursor({ line: n, ch: 3 });
+        ed.focus();
+      }, n);
+      await win.waitForTimeout(500);
+      await win.keyboard.press("Alt+9");
+      await win.waitForTimeout(600);
+      return win.evaluate((n) => window.app.workspace.activeEditor.editor.getLine(n), n);
+    };
+    const id = "inline-overhaul:type-next";
+    await win.evaluate((id) => window.app.hotkeyManager.setHotkeys(id, [{ modifiers: ["Alt"], key: "9" }]), id);
+    const before = await press();
+    await win.evaluate(() => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ pkm: { fields: { order: { strictNames: { Type: "Kind" } } } } }, "pkm:behavior:order:strict:Type");
+    });
+    await win.waitForTimeout(800);
+    const cmd = await win.evaluate((id) => {
+      const c = window.app.commands.commands[id];
+      return { name: c ? c.name : "", keys: window.app.hotkeyManager.customKeys[id] || null };
+    }, id);
+    const after = await press();
+    console.log("до переименования:", before, "| после:", after, "| команда:", cmd.name, "| хоткей:", JSON.stringify(cmd.keys));
+    if (before === "- first line") { console.log("КОНТРОЛЬ: хоткей не сработал и до переименования"); return false; }
+    const ok = after === before && /Kind next/.test(cmd.name) && Array.isArray(cmd.keys) && cmd.keys.length === 1;
+    console.log(ok ? "ok: имя новое, хоткей тот же и работает" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /* Transform: осиротевший Separator на нумерованном пункте, заголовке, цитате. */
+  async "transform-start-forms"(win) {
+    const LINES = ["1. #todo :: Buy milk", "## #todo :: Plan trip", "> #todo :: Read book", "- #todo :: Call mom"];
+    const n = await openAt(win, "starts.md", LINES[0]);
+    if (n < 0) throw new Error("нет строки в starts.md");
+    const out = [];
+    for (const line of LINES) {
+      const res = await win.evaluate(async (line) => {
+        const a = window.app;
+        await a.vault.modify(a.vault.getAbstractFileByPath("starts.md"), line + "\n");
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = a.workspace.activeEditor.editor;
+        ed.setCursor({ line: 0, ch: line.length });
+        ed.focus();
+        const ran = a.commands.executeCommandById("inline-overhaul:transform-inline-to-note");
+        await new Promise((r) => setTimeout(r, 1000));
+        /* Окно имени заметки (у него имя спрашивается): своё имя, `Create`. */
+        const input = document.querySelector(".modal-container .io-i2n-title__input");
+        if (input) {
+          input.value = "bench " + line.replace(/[^A-Za-z ]/g, "").trim();
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          await new Promise((r) => setTimeout(r, 200));
+          const create = [...document.querySelectorAll(".modal-container button")].find((b) => b.textContent.trim() === "Create");
+          if (create) create.click();
+        }
+        await new Promise((r) => setTimeout(r, 2500));
+        const modal = [...document.querySelectorAll(".modal-container")].map((x) => x.textContent.slice(0, 120)).join(" | ");
+        const said = [...document.querySelectorAll(".notice")].map((x) => x.textContent).join(" | ")
+          + (modal ? " [окно: " + modal + "]" : "") + (ran ? "" : " [команда не выполнена]");
+        if (a.workspace.activeEditor.file.path !== "starts.md") {
+          await a.workspace.getLeaf(false).openFile(a.vault.getAbstractFileByPath("starts.md"));
+          await new Promise((r) => setTimeout(r, 800));
+        }
+        return { line: a.workspace.activeEditor.editor.getLine(0), said };
+      }, line);
+      out.push(res.line);
+      console.log(JSON.stringify(line), "→", JSON.stringify(res.line), res.said ? "| сообщение: " + res.said : "");
+    }
+    if (out[3] === LINES[3]) { console.log("КОНТРОЛЬ: Transform не сработал и на буллете"); return false; }
+    const orphan = out.filter((l) => /^(?:\d+\.|#+|>)\s*::/.test(l));
+    console.log(orphan.length ? "РАСХОДИТСЯ: осиротевший Separator" : "ok: Separator без пары не остался");
+    return !orphan.length;
   },
 
   async "panel-link-label-both"(win) { return SCENARIOS["panel-link-label"](win, { "Plain": "PL\u200APlain" }); },

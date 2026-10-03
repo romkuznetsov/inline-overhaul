@@ -127,6 +127,8 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   cfg.pkm.fields.order.strictNames.Status = "State";
   const custom: Record<string, unknown> = {
     "inline-overhaul:state-next": [{ modifiers: ["Mod"], key: "J" }],
+    /* Мёртвый хоткей, оставшийся на адресе ключа от прежнего переименования. */
+    "inline-overhaul:status-next": [{ modifiers: ["Mod"], key: "D" }],
     "inline-overhaul:other": [{ modifiers: ["Mod"], key: "K" }],
   };
   let saves = 0;

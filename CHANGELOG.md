@@ -23,6 +23,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 1. 🎨 **`Show callouts` and `Show tips` come first in `Help`,** above `Guide` and `Changelog`.
 2. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
+3. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
+4. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
 
 ## 0.14.0
 
