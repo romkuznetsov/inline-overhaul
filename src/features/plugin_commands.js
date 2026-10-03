@@ -460,8 +460,7 @@ async function ensurePkmRuntime(plugin) {
  * `spacedMarkerValueGaps`; пишутся только снятые пробелы.
  */
 function joinSpacedElementValues(plugin, cfg) {
-  const byField = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.fields) && isObj(cfg.pkm.fields.elements)
-    ? cfg.pkm.fields.elements.byField : null;
+  const byField = __sharedUtils.readCfgPath(cfg, "pkm.fields.elements.byField");
   if (!isObj(byField)) return;
   const marks = Object.values(byField).filter(isObj)
     .map((r) => ({ marker: String(r.emoji || "").trim(), format: String(r.format || "") }))

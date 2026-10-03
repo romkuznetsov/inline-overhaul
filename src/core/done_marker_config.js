@@ -8,13 +8,12 @@
 const __sharedUtils = require("./shared_utils.js");
 
 function isObj(x) { return __sharedUtils.isObj(x); }
+const readCfgPath = __sharedUtils.readCfgPath;
 
 function readDoneMarker(cfg) {
-  const dm = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.behavior) && isObj(cfg.pkm.behavior.doneMarker)
-    ? cfg.pkm.behavior.doneMarker : {};
   return {
-    token: String(dm.token || "").trim(),
-    panel: String(dm.panel || "").trim().toLowerCase() === "left" ? "left" : "right",
+    token: String(readCfgPath(cfg, "pkm.behavior.doneMarker.token") || "").trim(),
+    panel: String(readCfgPath(cfg, "pkm.behavior.doneMarker.panel") || "").trim().toLowerCase() === "left" ? "left" : "right",
   };
 }
 
@@ -22,7 +21,8 @@ function valueToken(v) { return String((isObj(v) ? v.token : v) || "").trim(); }
 
 /** Field, у которого маркер — одно из Values: тег (с решёткой и без, У-290) или ссылка. */
 function fieldOfMarker(cfg, token) {
-  const fields = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const fields = readCfgPath(cfg, "pkm.fields");
+  if (!isObj(fields)) return null;
   const enabled = isObj(fields.order) && isObj(fields.order.enabled) ? fields.order.enabled : {};
   const tags = isObj(fields.tags) && Array.isArray(fields.tags.fields) ? fields.tags.fields : [];
   const links = isObj(fields.links) && Array.isArray(fields.links.fields) ? fields.links.fields : [];
