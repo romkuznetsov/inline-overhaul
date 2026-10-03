@@ -916,13 +916,8 @@ function planGaps(before, gap, after, token, phrase) {
  * Скобки и кавычки — шаг своего права (пункт 7, 2026-09-22), через
  * `planWordJump`. Шаг обязан быть обратимым.
  */
-const SENTENCE_MARKS = ",.;:!?…";
-function isSentenceMark(ch) { return ch != null && SENTENCE_MARKS.indexOf(ch) >= 0; }
-function allSentenceMarks(str) {
-  if (!str) return false;
-  for (let i = 0; i < str.length; i++) if (!isSentenceMark(str[i])) return false;
-  return true;
-}
+function isSentenceMark(ch) { return /^[,.;:!?…]$/.test(ch); }
+function allSentenceMarks(str) { return /^[,.;:!?…]+$/.test(str); }
 
 /* Слова зоны — отрезки между пробелами (исключение № 11). */
 function zoneTokens(doc, lo, hi) {
