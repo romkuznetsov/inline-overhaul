@@ -221,16 +221,10 @@ function handleSmartKeymap(plugin, back) {
     }
     plans.sort((x, y) => y.top - x.top);
     const carets = plans.slice().reverse().map(({ top, plan }, i) => ({ line: top - i, ch: plan.cursorCh }));
-    if (plans.length === 1) {
-      const { top, plan } = plans[0];
-      editor.replaceRange(plan.insert, { line: top, ch: plan.fromCh }, { line: top + 1, ch: plan.toCh });
-      editor.setCursor(carets[0]);
-      return true;
-    }
     /*
      * Одна транзакция — одна ступень отмены (BUGHUNT 2026-09-30, B13). Изменения
-     * транзакции — в координатах исходного документа, выделения — в новом
-     * (`transaction` в `app.js` 1.13.7).
+     * транзакции — в координатах исходного документа, выделения — в новом,
+     * прокрутка к каретке — та же, что у `replaceRange` (`transaction` в `app.js` 1.13.7).
      */
     editor.transaction({
       changes: plans.slice().reverse().map(({ top, plan }) => ({

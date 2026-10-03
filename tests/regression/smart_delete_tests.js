@@ -214,7 +214,10 @@ const ON = { enabled: true, dropPrefix: true, joinWithSpace: true };
         const right = lines[c.to.line].slice(c.to.ch);
         lines.splice(c.from.line, c.to.line - c.from.line + 1, left + c.text + right);
       }
-      if (tx.selections) this.selections = tx.selections.map((s) => ({ anchor: s.from, head: s.to || s.from }));
+      if (tx.selections) {
+        this.selections = tx.selections.map((s) => ({ anchor: s.from, head: s.to || s.from }));
+        this.cursor = { ...this.selections[0].head };
+      }
     },
   });
 

@@ -1095,6 +1095,13 @@ async function run(): Promise<void> {
         const right = String(this.lines[to.line] ?? "").slice(to.ch);
         this.lines.splice(from.line, to.line - from.line + 1, left + text + right);
       },
+      /* Умное удаление пишет транзакцией (`app.js` 1.13.7): изменения — снизу вверх в исходных координатах. */
+      transaction(tx: Any): void {
+        for (const c of (tx.changes || []).slice().sort((x: Any, y: Any) => y.from.line - x.from.line)) {
+          this.replaceRange(c.text, c.from, c.to);
+        }
+        if (tx.selections) this.cursor = { ...tx.selections[0].from };
+      },
     });
 
     const withSmartDelete = async (enabled: boolean, onBackspace: boolean): Promise<void> => {
