@@ -30,6 +30,8 @@ var CUSTOM_BLOCKS_OPTION = 'Custom blocks'
 var CUSTOM_CYCLE_OPTION = 'Custom cycle'
 var LINE_RULES_DATA_OPTION = 'Line rules data'
 var TAGWHEEL_CUSTOM_TAB_OPTION = 'TagWheel custom tab'
+/* Строка выделения, на которой открывается панель (цикл 121). */
+var TAGWHEEL_SELECTION_LINE_OPTION = 'TagWheel selection line'
 /* Свои модули — литеральным `require`, по одному на модуль (У-89). */
 var __sharedUtils = require('../../core/shared_utils.js')
 var __lineFinalizeUnifiedMod = require('../../core/pkm_line_finalize_unified.js')
@@ -388,7 +390,33 @@ function cleanupTagWheelState(state) {
      * `keydown` снят выше, сессия гасится ниже — сбой картинки им не мешает (Д-2, В-91).
      */
   }
+  /* Сохранённое выделение гаснет с панелью (цикл 121). */
+  if (state.keptSelection) __panelMaskMod.applyKeptSelection(state.editor ? state.editor.cm : null, null)
   state.active = false
+}
+
+/**
+ * Выделение при открытии панели — его пункт цикла 121: оно остаётся видно, а
+ * панель встаёт на одну его строку (`top`, `bottom`, `head` — где кончил
+ * выделять). Выделение до начала следующей строки эту строку не берёт.
+ */
+function selectionToKeep(editor, mode) {
+  var sels = editor && typeof editor.listSelections === 'function' ? (editor.listSelections() || []) : []
+  var s = sels[0]
+  if (!s || !s.anchor || !s.head) return null
+  if (s.anchor.line === s.head.line && s.anchor.ch === s.head.ch) return null
+  var down = s.anchor.line < s.head.line || (s.anchor.line === s.head.line && s.anchor.ch < s.head.ch)
+  var top = down ? s.anchor : s.head
+  var bottom = down ? s.head : s.anchor
+  var bottomLine = bottom.ch === 0 && bottom.line > top.line ? bottom.line - 1 : bottom.line
+  var line = mode === 'bottom' || (mode === 'head' && down) ? bottomLine : top.line
+  return {
+    line: line,
+    anchor: { line: s.anchor.line, ch: s.anchor.ch },
+    head: { line: s.head.line, ch: s.head.ch },
+    from: editor.posToOffset(top),
+    to: editor.posToOffset(bottom),
+  }
 }
 
 /* Нормализатор ключа Order — `normalizeOrderKey` в `shared_utils.js`, доводом не передаётся (10.13.168). */
@@ -504,6 +532,7 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (!out.customCycle && typeof qa[CUSTOM_CYCLE_OPTION] === 'string') out.customCycle = qa[CUSTOM_CYCLE_OPTION]
   if (out.lineRulesData == null && qa[LINE_RULES_DATA_OPTION] != null) out.lineRulesData = qa[LINE_RULES_DATA_OPTION]
   if (out.customTab == null && qa[TAGWHEEL_CUSTOM_TAB_OPTION] != null) out.customTab = qa[TAGWHEEL_CUSTOM_TAB_OPTION] === true
+  if (!out.selectionLine && typeof qa[TAGWHEEL_SELECTION_LINE_OPTION] === 'string') out.selectionLine = qa[TAGWHEEL_SELECTION_LINE_OPTION]
   return out
 }
 
@@ -683,6 +712,7 @@ async function runTagWheel(input, quickAddSettings) {
     CUSTOM_CYCLE_OPTION = String(keys.CUSTOM_CYCLE || CUSTOM_CYCLE_OPTION)
     LINE_RULES_DATA_OPTION = String(keys.LINE_RULES_DATA || LINE_RULES_DATA_OPTION)
     TAGWHEEL_CUSTOM_TAB_OPTION = String(keys.TAGWHEEL_CUSTOM_TAB || TAGWHEEL_CUSTOM_TAB_OPTION)
+    TAGWHEEL_SELECTION_LINE_OPTION = String(keys.TAGWHEEL_SELECTION_LINE || TAGWHEEL_SELECTION_LINE_OPTION)
   }
 
   function getDomainRegistry() {
@@ -2315,6 +2345,10 @@ async function runTagWheel(input, quickAddSettings) {
     unwritePanelLine(state)
     state.editor.setCursor({ line: state.lineNumber, ch: caretBeforePanel(state) })
     cleanupTagWheelState(state)
+    /* Отмена возвращает и выделение: строка уже прежняя (цикл 121). */
+    if (state.keptSelection && typeof state.editor.setSelection === 'function') {
+      state.editor.setSelection(state.keptSelection.anchor, state.keptSelection.head)
+    }
   }
 
   function resolveStartMode(input_, rules) {
@@ -2721,10 +2755,13 @@ async function runTagWheel(input, quickAddSettings) {
       return
     }
 
-    var cursor = editor.getCursor()
+    var kept = selectionToKeep(editor, runtimeInput.selectionLine)
+    var cursor = kept ? { line: kept.line, ch: 0 } : editor.getCursor()
     var lineNumber = cursor.line
     var originalLine = String(editor.getLine(lineNumber) || '')
     var parsedLine = core.parseLine(originalLine, rules)
+    /* С выделением каретка — в конце текста строки панели, как без выделения (цикл 121). */
+    if (kept) cursor = { line: lineNumber, ch: macroShared.getCursorAtTextEnd(originalLine, rules) }
 
     var modeName = resolveStartMode(runtimeInput, rules)
     var targetPanel = rulesHelpers.resolvePanelForField(orderCfg, runtimeInput.targetFieldKey, { defaultPanel: modeName })
@@ -2783,9 +2820,12 @@ async function runTagWheel(input, quickAddSettings) {
       scrollerCfg: scrollerCfg,
       valueNamesCfg: valueNamesCfg,
       edgeMode: normalizeEdgeMode(runtimeInput.edgeMode),
-      scrollerOverlay: null
+      scrollerOverlay: null,
+      keptSelection: kept
     }
 
+    /* До панели: отрезок считан по строке человека и едет через вставки панели. */
+    if (kept) __panelMaskMod.applyKeptSelection(editor.cm, { from: kept.from, to: kept.to })
     await mountSession(state)
     /* Успешное открытие молчит (И-1, исключение № 5 из З3); уведомления — где без
        них непонятно, почему ничего не произошло. */

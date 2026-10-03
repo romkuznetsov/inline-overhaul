@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 5 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 10 | 1 |
@@ -612,6 +612,11 @@ _Tip:_ tagWheel is the picker that opens over your line and shows all your Field
   - tip: <code>Hide</code> (the usual way): the other Block disappears from the line while you choose. <code>Show</code>: it stays visible, so you can see what the line already has on the other side. With <code>Show</code>, the line is really changed while the picker is open, so a save at that moment writes it to the file. Closing the picker puts the line back
   - варианты: `hide` Hide · `keep` Show
   - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
+- **Line for a selection** — `wheel-selection-line`, `dropdown`, path `visual.tagWheel.selectionLine`, default `top`
+  - desc: Which selected line tagWheel opens on when you start it with lines selected
+  - tip: The selection stays highlighted while the panel is open. Picking a Value changes only that line, as if nothing were selected, and <code>Esc</code> gives the selection back. <code>Where selecting ended</code> follows the drag: down picks the bottom line, up picks the top one
+  - варианты: `top` Top line · `bottom` Bottom line · `head` Where selecting ended
+  - старые названия для поиска: «Selection», «Selected lines»
 - **tagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
   - desc: What the arrow keys do when there is no next Field on this side
   - tip: <code>Stay in Block</code>: after the last Field, the arrows go back to the first Field of the same Block. <code>Next Block</code>: the arrows carry on into the other Block, so both Blocks work as one loop. <code>Tab</code> switches Blocks either way. In a custom block the arrows always stay in that block
@@ -1411,6 +1416,7 @@ _Tip:_ Each row is one tag. You set the bubble color, the text color, and whethe
 | `visual.tagWheel.scroller.labels` | dropdown | `value` |
 | `visual.tagWheel.scroller.size` | slider | `3` |
 | `visual.tagWheel.scroller.textColor` | color | `""` |
+| `visual.tagWheel.selectionLine` | dropdown | `top` |
 | `visual.tagWheel.showMarkers` | toggle | `true` |
 | `visual.tagWheel.textColor` | color | `""` |
 | `visual.tagWheel.valueNames` | dropdown | `default` |

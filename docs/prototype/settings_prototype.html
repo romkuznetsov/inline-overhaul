@@ -2547,6 +2547,15 @@ const SCHEMA = [
      * Строка переехала в `Panel` вместе со знаком сворачивания (его пункт 1,
      * 2026-09-22); ключ, умолчание и подпись не тронуты.
      */
+    /* Его пункт цикла 121: выделение при открытой панели не пропадает, панель
+       встаёт на одну строку выделения — какую, решает этот контрол. */
+    { kind:"dropdown", id:"wheel-selection-line", path:"visual.tagWheel.selectionLine", default:"top",
+      name:"Line for a selection", desc:"Which selected line tagWheel opens on when you start it with lines selected",
+      searchTerms:["Selection","Selected lines"],
+      options:[ {value:"top",label:"Top line"},
+                {value:"bottom",label:"Bottom line"},
+                {value:"head",label:"Where selecting ended"} ],
+      tip:"The selection stays highlighted while the panel is open. Picking a Value changes only that line, as if nothing were selected, and <code>Esc</code> gives the selection back. <code>Where selecting ended</code> follows the drag: down picks the bottom line, up picks the top one" },
     { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
       name:"tagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],

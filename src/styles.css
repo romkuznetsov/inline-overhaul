@@ -3912,3 +3912,8 @@ body.theme-dark {
 .markdown-source-view.mod-cm6 .cm-line.io-moved-line {
   background-color: var(--io-moved-line-bg, var(--text-selection));
 }
+
+/* Выделение, сохранённое на время панели tagWheel (цикл 121) — цветом выделения темы. */
+.io-tw-keptsel {
+  background-color: var(--text-selection);
+}

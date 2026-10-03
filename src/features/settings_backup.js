@@ -70,7 +70,7 @@ const PARTS = [
    */
   { id: "pkm", label: "Tags & PKM", branches: ["pkm"],
     leaves: ["visual.tagWheel.activeField", "visual.tagWheel.oppositeBlock",
-      "visual.tagWheel.edgeMode", "visual.tagWheel.customTab"] },
+      "visual.tagWheel.edgeMode", "visual.tagWheel.customTab", "visual.tagWheel.selectionLine"] },
   { id: "visual", label: "Visual", branches: ["visual"] },
   { id: "transform", label: "Transform", branches: ["transform"] },
   { id: "advanced", label: "Advanced", branches: ["advanced"] },

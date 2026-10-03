@@ -35,8 +35,37 @@ function ensureParts() {
       return next;
     },
   });
-  parts = { setPanelMask, panelMaskField };
+  /*
+   * Выделение, сохранённое на время панели (его пункт цикла 121): панель ставит
+   * каретку, и настоящее выделение гаснет. Отрезок едет через вставки панели.
+   */
+  const setKeptSelection = cmState.StateEffect.define();
+  const keptSelectionField = cmState.StateField.define({
+    create() { return null; },
+    update(value, tr) {
+      let next = value && tr.docChanged
+        ? { from: tr.changes.mapPos(value.from, 1), to: tr.changes.mapPos(value.to, -1) }
+        : value;
+      for (const effect of tr.effects) {
+        if (!effect.is(setKeptSelection)) continue;
+        next = effect.value && effect.value.to > effect.value.from
+          ? { from: Number(effect.value.from), to: Number(effect.value.to) }
+          : null;
+      }
+      return next;
+    },
+  });
+  parts = { setPanelMask, panelMaskField, setKeptSelection, keptSelectionField };
   return parts;
+}
+
+function buildKeptSelectionDecorations(state) {
+  const kept = state.field(ensureParts().keptSelectionField, false);
+  if (!kept) return cmView.Decoration.none;
+  const from = Math.max(0, Math.min(state.doc.length, kept.from));
+  const to = Math.max(0, Math.min(state.doc.length, kept.to));
+  if (to <= from) return cmView.Decoration.none;
+  return cmView.Decoration.set([cmView.Decoration.mark({ class: "io-tw-keptsel" }).range(from, to)]);
 }
 
 /** Отрезки маски в смещениях документа, с прижимом к границам строки. */
@@ -67,10 +96,26 @@ function buildPanelMaskDecorations(state) {
 /** Расширение: поле состояния плюс декорации; приоритет не задаётся — маска только убирает. */
 function createPanelMaskExtension() {
   const field = ensureParts().panelMaskField;
+  const kept = ensureParts().keptSelectionField;
   return [
     field,
     cmView.EditorView.decorations.compute([field, "doc"], buildPanelMaskDecorations),
+    kept,
+    cmView.EditorView.decorations.compute([kept], buildKeptSelectionDecorations),
   ];
+}
+
+/** Показать сохранённое выделение (`{ from, to }` смещениями) или снять (`null`). Проба, как маска. */
+function applyKeptSelection(cm, range) {
+  if (!cm || typeof cm.dispatch !== "function" || !cm.state) return false;
+  if (!cmState || !cmState.StateEffect || typeof cmState.StateEffect.define !== "function") return false;
+  try {
+    cm.dispatch({ effects: ensureParts().setKeptSelection.of(range || null) });
+    return true;
+  } catch (_) {
+    /* Украшение не роняет текст: без ступеней состояния выделение просто не видно. */
+    return false;
+  }
 }
 
 /** Сказать редактору, что прятать; `hidden` пуст — маска снимается. Проба: редактора может не быть. */
@@ -100,4 +145,6 @@ module.exports = {
   buildPanelMaskDecorations,
   createPanelMaskExtension,
   applyPanelMask,
+  buildKeptSelectionDecorations,
+  applyKeptSelection,
 };

@@ -223,6 +223,7 @@ const PREPARE = {
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   "move-heading"(vault) { PREPARE["shift-enter"](vault); },
+  "tagwheel-selection"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
      в корне — прежняя автокопия (самая новая) и копия человека, в подпапке — две старые. */
   "autosave-folder"(vault) {
@@ -811,6 +812,54 @@ const SCENARIOS = {
     if (res.steps === 0) { console.log("КОНТРОЛЬ: ни одного сдвига — мерить нечего"); return false; }
     const ok = res.bad.length === 0 && res.cfg.heading === "move-as-line";
     console.log(ok ? "ok: каждый заголовок возвращается на место" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
+   * Его пункт цикла 121: выделение при открытии tagWheel не пропадает, панель —
+   * на верхней строке; выбор значения меняет её одну, `Esc` возвращает выделение.
+   * Выделение на экране — узлы `.io-tw-keptsel` при открытой панели.
+   */
+  async "tagwheel-selection"(win) {
+    const doc = ["- позвонить в банк", "- купить хлеб", "- третья строка"].join("\n");
+    const run = async (keys) => {
+      await win.evaluate(async ({ doc }) => {
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(doc);
+        ed.setSelection({ line: 1, ch: 6 }, { line: 0, ch: 2 });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { doc });
+      if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+      await win.waitForTimeout(700);
+      const during = await win.evaluate(() => ({
+        open: Boolean(window.__tagWheelState && window.__tagWheelState.active),
+        line: window.__tagWheelState ? window.__tagWheelState.lineNumber : -1,
+        shown: [...document.querySelectorAll(".workspace-leaf.mod-active .io-tw-keptsel")].map((n) => n.textContent).join("|"),
+      }));
+      if (process.env.IO_SHOT) await win.screenshot({ path: process.env.IO_SHOT });
+      for (const k of keys) { await win.keyboard.press(k); await win.waitForTimeout(300); }
+      const after = await win.evaluate(() => {
+        const ed = window.app.workspace.activeEditor.editor;
+        const s = ed.listSelections()[0];
+        return { text: ed.getValue(), sel: [s.anchor.line, s.anchor.ch, s.head.line, s.head.ch].join(","),
+          shown: document.querySelectorAll(".io-tw-keptsel").length };
+      });
+      return { during, after };
+    };
+    const esc = await run(["Escape"]);
+    const pick = await run(["ArrowDown", "Enter"]);
+    console.log("открыта: " + esc.during.open + ", строка панели " + esc.during.line + ", видно выделение: " + JSON.stringify(esc.during.shown));
+    console.log("Esc: выделение " + esc.after.sel + ", заметка прежняя: " + (esc.after.text === doc) + ", подсветка осталась: " + esc.after.shown);
+    console.log("выбор: " + JSON.stringify(pick.after.text.split("\n")) + ", подсветка осталась: " + pick.after.shown);
+    if (!esc.during.open || !pick.during.open) { console.log("КОНТРОЛЬ: панель не открылась"); return false; }
+    const rest = doc.split("\n").slice(1);
+    const ok = esc.during.line === 0 && /купи/.test(esc.during.shown) && esc.after.sel === "1,6,0,2" && esc.after.text === doc
+      && esc.after.shown === 0 && pick.after.shown === 0 && pick.after.text.split("\n")[0] !== doc.split("\n")[0]
+      && JSON.stringify(pick.after.text.split("\n").slice(1)) === JSON.stringify(rest);
+    console.log(ok ? "ok: выделение видно, панель на верхней строке, Esc его возвращает, выбор меняет одну строку" : "РАСХОДИТСЯ");
     return ok;
   },
 

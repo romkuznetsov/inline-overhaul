@@ -37,6 +37,8 @@ function runtimeSettingsFromConfig(cfg) {
     [KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
     /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
     [KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
+    /* Строка выделения, на которой открывается панель (цикл 121). */
+    [KEYS.TAGWHEEL_SELECTION_LINE]: readCfgPath(cfg, "visual.tagWheel.selectionLine") || "top",
     /* На каком Field открывается панель (10.13.76). */
     [KEYS.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
     [KEYS.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",

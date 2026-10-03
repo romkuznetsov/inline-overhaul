@@ -90,6 +90,7 @@ async function drive(cfg, line, ch, steps) {
         continue;
       }
       if (step.caret !== undefined) { editor.setCursor({ line: 0, ch: step.caret }); continue; }
+      if (step.select) { editor.setSelection(step.select[0], step.select[1]); continue; }
       if (step.key) {
         global.window.fire("keydown", { key: step.key, code: step.key, preventDefault() {}, stopPropagation() {} });
         continue;
@@ -206,6 +207,50 @@ async function run() {
     const picked = await drive(cfg, line, ch, [{ run: "open-tagwheel-left" }, UP, ENTER]);
     assert.notEqual(picked.line, line, "контроль: выбор значения строку меняет");
     ok("Escape и Enter без выбора оставляют каретку там, где она была до панели");
+  }
+
+  /* ---- выделение при открытии панели (его пункт цикла 121) ------------- */
+  {
+    const doc = ["- один", "- два", "- три"].join("\n");
+    const OPEN_L = { run: "open-tagwheel-left" };
+    /* Сверху вниз: со второго знака первой строки до конца второй. */
+    const DOWN = { select: [{ line: 0, ch: 2 }, { line: 1, ch: 5 }] };
+    const UPWARD = { select: [{ line: 1, ch: 5 }, { line: 0, ch: 2 }] };
+    const lines = (o) => [0, 1, 2].map((n) => o.editor.getLine(n));
+    const withLine = (mode) => config((raw) => { raw.visual.tagWheel.selectionLine = mode; });
+    /* Умолчание — верхняя строка; выбор значения меняет только её. */
+    const top = await drive(config(), doc, 0, [DOWN, OPEN_L, UP, ENTER]);
+    assert.ok(top.opened[0], "панель с выделением не открылась");
+    assert.notEqual(lines(top)[0], "- один", "Top line: выбор не встал в верхнюю строку");
+    assert.deepEqual(lines(top).slice(1), ["- два", "- три"], "Top line: тронута не та строка");
+    for (const [mode, sel, want] of [["bottom", DOWN, 1], ["head", DOWN, 1], ["head", UPWARD, 0]]) {
+      const o = await drive(withLine(mode), doc, 0, [sel, OPEN_L, UP, ENTER]);
+      const changed = lines(o).map((t, i) => t !== doc.split("\n")[i]);
+      assert.deepEqual(changed, [0, 1, 2].map((i) => i === want), mode + ": панель встала не на ту строку");
+    }
+    /* Esc возвращает и строку, и выделение. */
+    const esc = await drive(config(), doc, 0, [UPWARD, OPEN_L, { key: "Escape" }]);
+    assert.equal(esc.editor.doc(), doc, "Esc изменил заметку");
+    assert.deepEqual(esc.editor.listSelections()[0], { anchor: { line: 1, ch: 5 }, head: { line: 0, ch: 2 } },
+      "Esc не вернул выделение");
+    /* Без выделения — как прежде: панель на строке каретки. */
+    const plain = await drive(config(), doc, 0, [OPEN_L, UP, ENTER]);
+    assert.notEqual(plain.editor.getLine(0), "- один", "контроль: без выделения панель на строке каретки");
+    ok("выделение: панель на строке по Line for a selection, выбор меняет её одну, Esc возвращает выделение");
+  }
+  {
+    /* Сохранённое выделение едет через вставку панели и гаснет по снятию. */
+    const mask = require(path.join(root, "src/ui/editor/panel_mask.js"));
+    const cmState = require("@codemirror/state");
+    let st = cmState.EditorState.create({ doc: "- один\n- два", extensions: mask.createPanelMaskExtension() });
+    const parts = mask.ensureParts();
+    st = st.update({ effects: parts.setKeptSelection.of({ from: 2, to: 11 }) }).state;
+    st = st.update({ changes: { from: 2, insert: "#a :: " } }).state;
+    assert.deepEqual(st.field(parts.keptSelectionField), { from: 8, to: 17 }, "отрезок не поехал за вставкой");
+    assert.equal(mask.buildKeptSelectionDecorations(st).size, 1, "выделение не нарисовано");
+    st = st.update({ effects: parts.setKeptSelection.of(null) }).state;
+    assert.equal(mask.buildKeptSelectionDecorations(st).size, 0, "выделение не погасло");
+    ok("сохранённое выделение едет за вставкой панели и гаснет по снятию");
   }
 
   /* ---- второй вызов — пустой, новая копия ------------------------------ */

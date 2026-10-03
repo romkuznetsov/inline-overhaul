@@ -948,6 +948,8 @@ function normalizeConfigV2(cfg) {
   hex("visual.tagWheel.scroller.textColor");
   /* Стрелка на краю Block (10.13.35); умолчание — прежнее поведение. */
   oneOf("visual.tagWheel.edgeMode", ["stay", "next-block"]);
+  /* Строка выделения, на которой открывается панель (цикл 121). */
+  oneOf("visual.tagWheel.selectionLine", ["top", "bottom", "head"]);
   /* Значения противоположного Block при открытой панели (10.13.87); `hide` — прежнее. */
   oneOf("visual.tagWheel.oppositeBlock", ["hide", "keep"]);
   /* На каком Field открывается панель (10.13.76). Имя — текстом: его проверяет движок. */

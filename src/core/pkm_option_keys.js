@@ -33,6 +33,8 @@ const KEYS = {
   TAGWHEEL_SCROLLER_TEXT: "TagWheel scroller text color",
   /* Стрелка на краю Block: остаться или перейти в соседний (10.13.35). */
   TAGWHEEL_EDGE_MODE: "TagWheel edge mode",
+  /* Строка выделения для панели: `top`, `bottom`, `head` (цикл 121). */
+  TAGWHEEL_SELECTION_LINE: "TagWheel selection line",
   /* На каком Field панель открывается (10.13.69 Т-5, 10.13.76); едет ключом, не файлом правил. */
   TAGWHEEL_ACTIVE_FIELD_MODE: "TagWheel active field mode",
   TAGWHEEL_ACTIVE_FIELD_LEFT: "TagWheel active field left",

@@ -69,6 +69,8 @@ function makeCmEditor(initial, existingView) {
     : (tr) => { view.state = tr.state; };
   let clock = 1000;
   let cur = { line: 0, ch: 0 };
+  /* Выделение человека — как у Obsidian: курсор его гасит (цикл 121). */
+  let sel = null;
   const lineAt = (n) => view.state.doc.line(Number(n || 0) + 1);
   const tick = () => { clock += 1000; return cmState.Transaction.time.of(clock); };
   return {
@@ -81,7 +83,13 @@ function makeCmEditor(initial, existingView) {
      * координатам курсора, — оверлей скроллера в первую очередь. На подделке
      * ставить нечего, и там остаётся только память.
      */
+    listSelections() { return [sel || { anchor: { line: cur.line, ch: cur.ch }, head: { line: cur.line, ch: cur.ch } }]; },
+    setSelection(anchor, head) {
+      sel = { anchor: { line: anchor.line, ch: anchor.ch }, head: { line: head.line, ch: head.ch } };
+      cur = { line: head.line, ch: head.ch };
+    },
     setCursor(next) {
+      sel = null;
       cur = { line: Number((next && next.line) || 0), ch: Number((next && next.ch) || 0) };
       if (!existingView) return;
       const line = lineAt(cur.line);
