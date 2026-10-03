@@ -225,15 +225,14 @@ function allDefs(cfg: Any): Any[] {
   assert.equal(wasIds.length, 12, "в карте переименования ожидалось 12 команд, а не " + wasIds.length);
   for (const was of wasIds) {
     assert.ok(/^inlineOverhaul_/.test(was), "в карте не старый идентификатор: " + was);
-    const now = ids.renameCommandId(was);
+    const now = ids.RENAMED.get(was);
     assert.ok(ids.isCompliantCommandId(now), "перевод не отвечает T7: " + was + " → " + now);
     assert.ok(ids.commandName(now), "у переименованной команды нет имени: " + now);
   }
-  /* И обратное: идентификатор, отвечающий T7, карта отдаёт как есть. */
-  assert.equal(ids.renameCommandId("undo-last-settings-change"), "undo-last-settings-change",
+  /* И обратное: идентификатор, отвечающий T7, в карте не стоит — Р3 даёт один разрыв. */
+  assert.ok(ids.KEPT.has("undo-last-settings-change"), "идентификатор, уже отвечавший T7, ушёл из KEPT");
+  assert.ok(![...ids.RENAMED.keys()].some((k: string) => ids.KEPT.has(k) || /^toggle-feature-/.test(k)),
     "идентификатор, уже отвечавший T7, переименован — это второй разрыв, которого Р3 не даёт");
-  assert.equal(ids.renameCommandId("toggle-feature-pkm"), "toggle-feature-pkm",
-    "тумблер модуля переименован");
   ok("карта переименования полна и не трогает то, что уже отвечало T7");
 }
 

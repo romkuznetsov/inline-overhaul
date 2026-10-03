@@ -128,15 +128,6 @@ function isLegacyCommandId(id) {
   return /^inlineOverhaul_/.test(String(id == null ? "" : id));
 }
 
-/** Старый ID → новый; пусто — динамическая команда, ID пересобирается из данных. */
-function renameCommandId(oldId) {
-  const id = String(oldId == null ? "" : oldId).trim();
-  if (!id) return "";
-  if (RENAMED.has(id)) return RENAMED.get(id);
-  if (KEPT.has(id) || /^toggle-feature-/.test(id)) return id;
-  return "";
-}
-
 /** Команда custom block (10.13.260): по неизменному `id` — хоткей переживает переименование. */
 const CUSTOM_BLOCK_COMMAND_PREFIX = "open-tagwheel-custom-";
 function customBlockCommandId(blockId) {
@@ -236,7 +227,6 @@ module.exports = {
   pkmCommandIdSet,
   binderCommandId,
   isLegacyCommandId,
-  renameCommandId,
   commandName,
   commandDisplayName,
   commandShortName,
