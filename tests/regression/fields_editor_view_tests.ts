@@ -26,7 +26,7 @@ import {
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
 import { BLOCK_TEXTS, sayIn } from "../../src/ui/settings/texts_blocks.ts";
 import { askNewFieldModal } from "../../src/ui/settings/custom/fields_editor.ts";
-import { draftProblem, freshDraft, previewValues } from "../../src/ui/settings/custom/new_field_dialog.ts";
+import { draftProblem, drawNewFieldPreview, freshDraft, previewValues } from "../../src/ui/settings/custom/new_field_dialog.ts";
 import { CONTRAST_FLOOR, contrastRatio } from "../../src/ui/settings/custom/contrast.ts";
 
 setupGlobals();
@@ -3662,6 +3662,22 @@ console.log("");
   assert.deepEqual(texts("HH:mm:ss").slice(0, 3), ["23:59:58", "23:59:59", "00:00:00"], "секунды шагают секундами");
   assert.deepEqual(texts("YYYY-MM-DD").slice(0, 2), ["2026-10-03", "2026-10-04"], "контроль: дата шагает днями");
   ok("предпросмотр Element шагает той же единицей, что движок");
+}
+
+{
+  /* Н-9: окно нового Field красит скроллер тем же домом, что предпросмотр строки. */
+  const cfg: Record<string, unknown> = { "visual.tagWheel.scroller.fillColor": "#000000", "visual.tagWheel.textColor": "#336699" };
+  const ctx = { get: (p: string) => cfg[p], set: async () => {}, run: async () => {}, watch: () => () => {} } as Any;
+  const host = makeNode("div");
+  const d = { ...freshDraft(), kind: "tag", name: "Mood", values: [{ token: "calm" }, { token: "busy" }] } as Any;
+  drawNewFieldPreview(host as Any, ctx, d, (k: string) => k, new Date(2026, 9, 3));
+  const panel = host.querySelector(".io-wheelpanel") as StubNode;
+  const cell = host.querySelector(".io-wheelcell--active") as StubNode;
+  assert.ok(panel && cell, "контроль: панель и ячейка нарисованы");
+  const fg = panel.style.getPropertyValue("--io-wheel-fg");
+  assert.ok(fg && fg.toLowerCase() !== "#000000", "на чёрной заливке без своего текста текст не читаемый: " + fg);
+  assert.equal(cell.style.getPropertyValue("--io-wheel-cell-active"), "#336699", "у ячейки нет запасного цвета текста панели");
+  ok("окно нового Field: читаемый текст скроллера на своей заливке и запасной цвет ячейки");
 }
 
 console.log("\n" + passed + " проверок пройдено");

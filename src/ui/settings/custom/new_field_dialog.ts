@@ -15,7 +15,7 @@ import type { El, ElButton, ElInput } from "./dom.ts";
 import { el, btn, cssVar, rich, textInput, themePair, tipBelow } from "./dom.ts";
 import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
-import { applyTagVars, bubble, drawWrittenLink } from "./previews.ts";
+import { applyTagVars, bubble, drawWrittenLink, wheelColors } from "./previews.ts";
 import { attachPicker, PICK_ALL } from "./char_picker.ts";
 import { toHexColor } from "./contrast.ts";
 import { propertyPicker, vaultProperties } from "./yaml_property.ts";
@@ -244,9 +244,8 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
   cssVar(wheelPane, "--io-nf-rows", String(Math.max(1, shown)));
   const wline = el(wheelPane, "div", "io-line io-line--wheel io-nf__pline");
   applyTagVars(wline, ctx, { blockFill: false, plainSize: true });
-  const activeText = String(ctx.get("visual.tagWheel.activeTextColor") ?? "");
-  const scrollFill = String(ctx.get("visual.tagWheel.scroller.fillColor") ?? "");
-  const scrollText = String(ctx.get("visual.tagWheel.scroller.textColor") ?? "");
+  /* Цвета — тем же домом, что у предпросмотра строки (Н-9). */
+  const { activeText, scrollFill, scrollText } = wheelColors(ctx);
   shape(wline, side => {
     side.addClass("io-wheelline");
     const col = el(side, "span", "io-wheelcol");

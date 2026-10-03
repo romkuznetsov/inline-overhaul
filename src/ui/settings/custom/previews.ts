@@ -52,6 +52,22 @@ function askText(ctx: SettingsCtx, key: string, fallback: string): string {
 }
 
 /** Строка панели по имени из `FRAME_TEXTS`; ключ строит `frameKey` (У-82). */
+/**
+ * Цвета панели tagWheel в предпросмотре: активная ячейка и коробка скроллера.
+ * Один дом на предпросмотр строки и окно нового Field (Н-9 ревизии 2026-10-03:
+ * копия окна не знала читаемого текста на своей заливке и запасного цвета ячейки).
+ * Коробка красится своими цветами, как оверлей `tagwheel_scroller_overlay.js` (H2);
+ * пусто — тема через `var(--io-wheel-bg, var(--background-primary))`.
+ */
+export function wheelColors(ctx: SettingsCtx): { activeText: string; scrollFill: string; scrollText: string } {
+  const activeText = readText(ctx, "visual.tagWheel.activeTextColor", "") || readText(ctx, "visual.tagWheel.textColor", "");
+  const scrollFill = readText(ctx, "visual.tagWheel.scroller.fillColor", "");
+  /* Своя заливка без своего текста — читаемый текст, как в заметке. */
+  const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "")
+    || (scrollFill ? String(visualsConfig.readableTextOn(scrollFill) || "") : "");
+  return { activeText, scrollFill, scrollText };
+}
+
 export function frame(ctx: SettingsCtx, name: string): string {
   return askText(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
 }
@@ -362,19 +378,11 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     /* Цвета панели: два цвета текста и заливка (PRD 10.13.22 Пр2, H2) — на Fields, не только на коробку. */
     const fill = readText(ctx, "visual.tagWheel.fillColor", "");
     const text = readText(ctx, "visual.tagWheel.textColor", "");
-    const activeText = readText(ctx, "visual.tagWheel.activeTextColor", "") || text;
+    const { activeText, scrollFill, scrollText } = wheelColors(ctx);
     /* Пусто — красится как остальные неактивные. */
     const chosenText = readText(ctx, "visual.tagWheel.chosenValueColor", "") || text;
     const boldNames = Boolean(ctx.get("visual.tagWheel.boldFieldNames"));
     const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
-
-    /* Коробка скроллера красится своими цветами, не цветами панели (H2, 2026-09-04),
-       как оверлей `tagwheel_scroller_overlay.js`. Пусто — тема через
-       `var(--io-wheel-bg, var(--background-primary))`. */
-    const scrollFill = readText(ctx, "visual.tagWheel.scroller.fillColor", "");
-    /* Своя заливка без своего текста — читаемый текст, как в заметке. */
-    const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "")
-      || (scrollFill ? String(visualsConfig.readableTextOn(scrollFill) || "") : "");
 
     const scrollerBox = (col: El, idx: readonly number[], where: string): void => {
       if (!idx.length) return;
