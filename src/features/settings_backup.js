@@ -265,28 +265,9 @@ function keepDeviceLocal(current, restored) {
   return keepLocalLeaves(current, out);
 }
 
-/** Значение по пути `a.b.c`; `undefined`, если по дороге нет объекта. */
-function readLeaf(obj, path) {
-  let node = obj;
-  for (const step of String(path).split(".")) {
-    if (!isObj(node)) return undefined;
-    node = node[step];
-  }
-  return node;
-}
-
-/** Записать значение по пути `a.b.c`, заводя объекты по дороге. */
-function writeLeaf(obj, path, value) {
-  if (!isObj(obj)) return;
-  const steps = String(path).split(".");
-  const last = steps.pop();
-  let node = obj;
-  for (const step of steps) {
-    if (!isObj(node[step])) node[step] = {};
-    node = node[step];
-  }
-  node[last] = value;
-}
+/* Чтение и запись по пути `a.b.c` — общий дом (У-12 ревизии 09-26). */
+const readLeaf = __sharedUtils.readCfgPath;
+const writeLeaf = __sharedUtils.writeCfgPath;
 
 /** Убрать значение по пути `a.b.c`. Пустые объекты по дороге не трогаются. */
 function deleteLeaf(obj, path) {
@@ -383,7 +364,7 @@ function summaryLine(cfg, partIds) {
 /* ---- имя файла --------------------------------------------------------- */
 
 function two(n) {
-  return (n < 10 ? "0" : "") + String(n);
+  return String(n).padStart(2, "0");
 }
 
 /**
@@ -451,8 +432,7 @@ function fenceFor(text) {
   let longest = 0;
   const runs = String(text).match(/`+/g);
   if (runs) for (const run of runs) if (run.length > longest) longest = run.length;
-  const width = Math.max(3, longest + 1);
-  return new Array(width + 1).join("`");
+  return "`".repeat(Math.max(3, longest + 1));
 }
 
 function readable(date) {
