@@ -122,6 +122,22 @@ function checkboxBelongsToFieldUnified(rules, fieldId, token) {
 }
 
 /**
+ * Знак задачи на строке поставило прежнее Value Field, а у нового своего нет —
+ * знак уходит со значением (10.13.92) не только в конце круга, но и при шаге:
+ * `- [ ] #todo` → `- #idea`, а не `- [ ] #idea` (его заказ 2026-10-03, В-162).
+ * Чужой знак (`[x]` человека, `[ ]` у Value без знака) остаётся.
+ */
+function checkboxLeavesWithValueUnified(rules, fieldId, fromToken, toToken, lineToken) {
+  const line = normalizeCheckboxToken(lineToken);
+  if (!line) return false;
+  const row = getPrefixRulesUnified(rules).checkboxByFieldValue[String(fieldId || "").trim()];
+  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+  const boxOf = (tok) => normalizeCheckboxToken(row[String(tok || "").trim()] || "");
+  return String(fromToken || "").trim() !== String(toToken || "").trim()
+    && boxOf(fromToken) === line && !boxOf(toToken);
+}
+
+/**
  * Бывают ли у Field знаки задачи вообще («мог ли занимать слот»), в отличие от
  * `checkboxBelongsToFieldUnified` («этот знак его»). `minimal` — слот у Field,
  * спрашивается этот вопрос; `off` — слот человека, второй (10.13.105).
@@ -2053,6 +2069,7 @@ module.exports = {
   getPrefixRulesUnified,
   selectedTokenByFieldIdUnified,
   checkboxBelongsToFieldUnified,
+  checkboxLeavesWithValueUnified,
   fieldHasAnyCheckboxRuleUnified,
   resolvePrefixCheckboxUnified,
   buildPrefixUnified,

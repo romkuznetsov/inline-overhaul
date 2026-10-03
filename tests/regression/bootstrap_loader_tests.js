@@ -2430,7 +2430,10 @@ async function run() {
   assertTrue(/finalize\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(tagwheelSrc), "tagwheel asks the shared finalizer whose checkbox this is");
   assertTrue(/__lineFinalizeUnified\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(statusTagsSrc), "status_tags asks the shared finalizer whose checkbox this is");
   assertTrue(/clearedOwnCheckbox:\s*clearedOwnCheckbox/.test(tagwheelSrc), "tagwheel passes the computed cleared-checkbox flag");
-  assertTrue(/clearedOwnCheckbox:\s*targetSelectionClearedByAction && checkboxBelongsToField\(/.test(statusTagsSrc), "status_tags passes the computed cleared-checkbox flag");
+  assertTrue(/clearedOwnCheckbox:\s*\(?targetSelectionClearedByAction && checkboxBelongsToField\(/.test(statusTagsSrc), "status_tags passes the computed cleared-checkbox flag");
+  /* Знак прежнего Value при шаге — один дом на обе дороги (исключение к З3 № 202). */
+  assertTrue(/lineFinalize\.checkboxLeavesWithValueUnified\(/.test(statusTagsSrc), "status_tags asks the shared finalizer whether the step takes the checkbox");
+  assertTrue(/finalize\.checkboxLeavesWithValueUnified\(/.test(tagwheelSrc), "tagwheel asks the shared finalizer whether the step takes the checkbox");
   /*
    * Вопрос о **знаке**, а не о поле. `fieldHasAnyCheckboxRule` отвечает «у
    * этого Field знаки бывают» — и на строке `- [x] #area-gamma 111` этого

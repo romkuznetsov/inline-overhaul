@@ -1556,6 +1556,58 @@ async function testTagWheelCycleEndKeepsForeignCheckbox() {
   }
 }
 
+/*
+ * **Знак значения уходит и при шаге на Value без знака, не только в конце круга.**
+ *
+ * Его заказ 2026-10-03 («проверяй чекбоксы и префиксы»): на его конфиге `[ ]`
+ * от `#todo` оставался у `#idea`…`#done` при `next` и не появлялся при
+ * `previous` — направления давали разное. У `idea` и `note` знаки сняты, чтобы
+ * был шаг «со знаком → без знака» и «без знака → без знака». Строки:
+ * наш знак уходит; `[x]` человека остаётся; `[ ]` человека у Value без знака остаётся.
+ * Обе дороги — хоткей и tagWheel; у колеса ещё шаг, после которого ушли на другой Field.
+ */
+const RULES_SOME_WITHOUT_CHECKBOX = (() => {
+  const r = JSON.parse(SYNTHETIC_RULES);
+  delete r.behavior.prefixRules.checkboxByFieldValue.type.idea;
+  delete r.behavior.prefixRules.checkboxByFieldValue.type.note;
+  return JSON.stringify(r);
+})();
+const STEP_CASES = [
+  { line: "- [ ] #todo || 111", start: "- #idea ", why: "знак значения #todo остался у #idea" },
+  { line: "- [x] #todo || 111", start: "- [x] #idea ", why: "знак человека [x] ушёл" },
+  { line: "- [ ] #idea || 111", start: "- [ ] #note ", why: "знак человека у Value без знака ушёл" },
+];
+async function testStatusTagsStepTakesValueCheckbox() {
+  for (const c of STEP_CASES) {
+    const editor = makeEditor(c.line, c.line.length);
+    await runPkmCommandWithEditor("statusTags", editor, {
+      "Rules data": RULES_SOME_WITHOUT_CHECKBOX,
+      "Action type": "cycle_field:type",
+      "Direction": "increase",
+      "Order config": buildOrderConfig({ freeRoam: { type: "off" }, panel: { type: "left" } }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(line.startsWith(c.start), "хоткей: " + c.why + ": " + JSON.stringify(line));
+  }
+}
+async function testTagWheelStepTakesValueCheckbox() {
+  for (const c of STEP_CASES) {
+    for (const keys of [["ArrowRight", "ArrowUp"], ["ArrowRight", "ArrowUp", "ArrowLeft"]]) {
+      const editor = makeEditor(c.line, c.line.length);
+      await runTagWheelKeys(editor, {
+        "Rules data": RULES_SOME_WITHOUT_CHECKBOX,
+        "Order config": buildOrderConfig({ freeRoam: { type: "off" }, panel: { type: "left" } }),
+        "Cycle end behavior": "keep-bullet",
+        "Cursor policy": "text_end",
+      }, keys);
+      const line = editor.snapshot().line;
+      assertTrue(line.startsWith(c.start), "tagWheel " + keys.join("+") + ": " + c.why + ": " + JSON.stringify(line));
+    }
+  }
+}
+
 async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -4355,6 +4407,8 @@ async function run() {
   await testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix();
   await testStatusTagsKeepsUserCheckboxOnEmptyLine();
   await testStatusTagsCycleEndKeepsForeignCheckbox();
+  await testStatusTagsStepTakesValueCheckbox();
+  await testTagWheelStepTakesValueCheckbox();
   await testTagWheelCycleEndKeepsForeignCheckbox();
   await testTagWheelKeepsHumanTextFromLeftBlock();
   await testTagWheelMinimalPrefixOffDoesNotCreatePrefix();

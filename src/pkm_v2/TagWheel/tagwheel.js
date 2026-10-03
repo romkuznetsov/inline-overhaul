@@ -1415,6 +1415,29 @@ async function runTagWheel(input, quickAddSettings) {
     return finalize.checkboxBelongsToFieldUnified(rules, fieldId, token)
   }
 
+  /**
+   * Знак задачи прежнего Value уходит, когда Value сменили на такое, у которого
+   * знака нет (его заказ 2026-10-03, 10.13.92) — у любого Field, а не только у
+   * того, на котором нажали `Enter`. Прежнее Value — повторный разбор строки.
+   */
+  function checkboxLeftWithValue(state, finalize) {
+    var lineCb = state.parsedLine && state.parsedLine.checkboxToken
+    if (!lineCb || !state.core || typeof state.core.makeInitialState !== 'function') return false
+    var opened = state.core.makeInitialState(state.rules, 'left')
+    state.core.hydrateStateFromParsedLine(state.rules, opened, state.parsedLine)
+    var all = [].concat(state.rules.leftMode && state.rules.leftMode.fields || [], state.rules.rightMode && state.rules.rightMode.fields || [])
+    /* Знак ищется по `token` Value, как его ищет сборка начала строки (`selectedTokenByFieldIdUnified`). */
+    var tokenOf = function (session, f) {
+      var id = String(session && session.selected ? session.selected[f.id] || '' : '')
+      var v = id && Array.isArray(f.values) ? f.values.find(function (x) { return x && (String(x.id || '') === id || String(x.token || '') === id) }) : null
+      return v ? String(v.token || '').trim() : ''
+    }
+    return all.some(function (f) {
+      return f && finalize.checkboxLeavesWithValueUnified(state.rules, f.id,
+        tokenOf(opened, f), tokenOf(state.session, f), lineCb)
+    })
+  }
+
   /* ---- custom block (PRD 10.13.260) ----------------------------------- */
 
   /*
@@ -1820,10 +1843,11 @@ async function runTagWheel(input, quickAddSettings) {
        * Спрашивается о самом знаке, не «бывают ли у поля знаки» (10.13.105).
        * Значения нет — `hasOwnCheckbox` уже `false`, флаги не спорят.
        */
-      var clearedOwnCheckbox = !!activeFieldId
+      var clearedOwnCheckbox = (!!activeFieldId
         && !selectedTokenForField(state.rules, state.session, activeField)
         && checkboxBelongsToField(state.rules, activeFieldId,
-          state.parsedLine && state.parsedLine.checkboxToken, finalize)
+          state.parsedLine && state.parsedLine.checkboxToken, finalize))
+        || checkboxLeftWithValue(state, finalize)
       offPrefixFlags = finalize.resolveOffPrefixFlagsUnified({
         mode: mode,
         freeRoamBehavior: freeRoamBehavior,

@@ -27,6 +27,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 4. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
 5. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
 6. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
+7. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
 
 ## 0.14.0
 

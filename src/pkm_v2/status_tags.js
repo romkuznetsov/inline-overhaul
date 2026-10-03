@@ -1205,6 +1205,10 @@ module.exports = {
     let clearedDependentFieldIds = [];
     let targetFieldForPrefix = null;
     let targetSelectionClearedByAction = false;
+    /* Знак задачи прежнего Value уходит при шаге на Value без знака (его заказ 2026-10-03, 10.13.92). */
+    let checkboxLeftWithValue = false;
+    /* Знак ищется по `token` Value, как его ищет сборка начала строки (`selectedTokenByFieldIdUnified`). */
+    const tokenOfValueId = (field, id) => String((id && findValueById(field, id) || {}).token || "").trim();
 
     /*
      * Ход «действие не круговое» снят (10.13.170): реестр шлёт сюда только
@@ -1301,6 +1305,8 @@ module.exports = {
           targetFieldForPrefix = parentField;
           targetSelectionClearedByAction = true;
         }
+        checkboxLeftWithValue = lineFinalize.checkboxLeavesWithValueUnified(rules, targetField.id,
+          tokenOfValueId(targetField, currentSubId), tokenOfValueId(targetField, nextSubId), parsed.checkboxToken);
         state.selected[parentField.id] = parentId;
         state.selected[targetField.id] = nextSubId;
         /* Сменилось дочернее Value — снимается ждавший его Field (`В-229`). */
@@ -1351,6 +1357,8 @@ module.exports = {
         state.selected[targetField.id] = currentId;
       }
       const nextId = nextCycleIdByDirection(cycle, currentId, direction);
+      checkboxLeftWithValue = lineFinalize.checkboxLeavesWithValueUnified(rules, targetField.id,
+        tokenOfValueId(targetField, currentId), tokenOfValueId(targetField, nextId), parsed.checkboxToken);
       state.selected[targetField.id] = nextId;
       if (currentId && !nextId) {
         targetSelectionClearedByAction = true;
@@ -1540,7 +1548,8 @@ module.exports = {
         mode: freeRoamMode,
         freeRoamBehavior,
         hasOwnCheckbox: targetHasOwnCheckbox,
-        clearedOwnCheckbox: targetSelectionClearedByAction && checkboxBelongsToField(rules, targetFieldIdForPrefix, parsed.checkboxToken),
+        clearedOwnCheckbox: (targetSelectionClearedByAction && checkboxBelongsToField(rules, targetFieldIdForPrefix, parsed.checkboxToken))
+          || checkboxLeftWithValue,
       });
       prefixState = {
         ...prefixState,
@@ -1752,7 +1761,8 @@ module.exports = {
         shouldKeepCheckbox: /\[[^\]]\]/.test(resolvedPrefix)
           || lineFinalize.hasCheckboxListPrefix(rawLine)
           || lineFinalize.hasStandaloneCheckboxPrefix(rawLine),
-        clearedOwnCheckbox: targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForCycleEnd),
+        clearedOwnCheckbox: (targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForCycleEnd))
+          || checkboxLeftWithValue,
       });
       finalLine = enforceDependentAdjacencyForStatusLine(finalLine, rules, state, core);
     }
@@ -1786,7 +1796,8 @@ module.exports = {
       mode: freeRoamMode,
       freeRoamBehavior,
       hasOwnCheckbox: targetHasOwnCheckbox,
-      clearedOwnCheckbox: targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForPrefix),
+      clearedOwnCheckbox: (targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForPrefix))
+        || checkboxLeftWithValue,
     });
     finalLine = lineFinalize.applyUnifiedPostFinalize({
       rawLine,
