@@ -1470,6 +1470,49 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Command Field в custom block (исключение № 200): колесо блока, категория, пресет, Enter одной правкой. */
+  async "command-field-custom"(win) {
+    const doc = "- Research plan\n\t- read papers\n- buy bread\n";
+    await win.evaluate(async (doc) => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const order = p.getConfig().pkm.fields.order;
+      p.setConfigPatch({ pkm: { fields: {
+        order: { custom: (order.custom || []).concat([{ id: "cfb", name: "CF block", keys: ["Format"] }]),
+          types: { Format: "command" }, strictNames: { Format: "Format" }, labels: { Format: "Format" }, active: { Format: "yes" } },
+        commands: { byField: { Format: { categories: [{ id: "callouts", key: "callouts", name: "", hidden: false, presets: [
+          { name: "Note", type: "note", fold: "", hidden: false }, { name: "Tip", type: "tip", fold: "", hidden: false }] }] } } },
+      } } }, "pkm:fields:commands:Format");
+      await new Promise((r) => setTimeout(r, 800));
+      const f = await a.vault.create("cfc.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 0, ch: 15 });
+      e.focus();
+    }, doc);
+    await runCommand(win, "open-tagwheel-custom-cfb");
+    await win.waitForTimeout(500);
+    const line0 = () => win.evaluate(() => window.app.workspace.activeEditor.editor.getLine(0));
+    const strips = [await line0()];
+    for (const k of ["ArrowUp", "ArrowRight", "ArrowUp", "ArrowUp"]) {
+      await win.keyboard.press(k);
+      await win.waitForTimeout(250);
+      strips.push(await line0());
+    }
+    await win.keyboard.press("Enter");
+    await win.waitForTimeout(500);
+    const after = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    await win.evaluate(() => window.app.workspace.activeEditor.editor.undo());
+    await win.waitForTimeout(300);
+    const undone = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    console.log(JSON.stringify({ strips, after, undone: undone === doc }, null, 1));
+    const ok = /Format/.test(strips[0]) && strips.some((l) => /Tip/.test(l))
+      && after === "> [!tip]\n> - Research plan\n> \t- read papers\n- buy bread\n" && undone === doc;
+    console.log(ok ? "ok: Command Field в custom block — категория, пресет, Enter одной правкой, Ctrl+Z" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* Скроллер у перенесённой ячейки (его снимок к тесту 1 цикла 125): коробка у ячейки, а не во всю заметку. */
   async "scroller-wrapped-cell"(win) {
     await win.evaluate(async () => {

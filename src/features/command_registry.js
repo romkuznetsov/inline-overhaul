@@ -316,6 +316,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
         rules: __rulesShape.buildRulesForEngines(cfgInner, b.id),
       })),
       [O.LINE_RULES_DATA]: __rulesShape.buildRulesForEngines(cfgInner),
+      [O.COMMAND_FIELDS]: __commandFieldWheel.wheelInput(cfgInner),
     };
   };
 

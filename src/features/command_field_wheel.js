@@ -20,14 +20,16 @@ const KIND = "command";
 
 /**
  * Вход колеса из конфига: что вставить и куда, плюс `apply` на этом же
- * конфиге. Только `Active: Yes` и только Left/Right; custom block — позже.
+ * конфиге. Только `Active: Yes`; у Field из custom block — `block`, сторона Left.
  */
 function wheelInput(cfg) {
   const order = __orderConfig.normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null);
   const fieldName = (k) => String(order.strictNames[k] || k);
   const fields = [];
-  for (const side of ["left", "right"]) {
-    const list = order[side] || [];
+  const places = [{ side: "left", list: order.left }, { side: "right", list: order.right }]
+    .concat((order.custom || []).map((b) => ({ side: "left", list: b.keys, block: b.id })));
+  for (const { side, list: listRaw, block } of places) {
+    const list = listRaw || [];
     list.forEach((key, i) => {
       if (order.types[key] !== "command" || (order.active[key] || "yes") !== "yes") return;
       const categories = __commandField.fieldCategories(cfg, key).filter((c) => !c.hidden).map((c) => {
@@ -47,7 +49,7 @@ function wheelInput(cfg) {
         };
       }).filter((c) => c.presets.length);
       fields.push({
-        key, side, after: i ? list[i - 1] : "",
+        key, side, block: block || "", after: i ? list[i - 1] : "",
         label: String(order.labels[key] || "").trim() || fieldName(key),
         categories,
       });
@@ -64,13 +66,16 @@ function wheelInput(cfg) {
 /**
  * Вставить Command Field в правила колеса: родитель — категории, ребёнок —
  * пресеты с `parentIsNavigator`. Зовётся после разбора строки, поэтому разбор
- * Values Command Field в строке не ищет.
+ * Values Command Field в строке не ищет. `block` — id custom block, пусто —
+ * Left/Right. Повторный вызов на тех же правилах (`Tab` по кругу) ничего не делает.
  */
-function inject(rules, input) {
+function inject(rules, input, block) {
   if (!input || !Array.isArray(input.fields)) return;
   const order = rules.behavior.order || (rules.behavior.order = {});
   for (const f of input.fields) {
+    if ((f.block || "") !== (block || "")) continue;
     const mode = f.side === "left" ? rules.leftMode : rules.rightMode;
+    if (mode.fields.some((x) => x.id === f.key)) continue;
     const opts = {};
     mode.fields.push(__normalizer.normalizeField({
       id: f.key, orderKey: f.key, prefix: "", kind: KIND, placeholder: f.label,
@@ -94,11 +99,12 @@ function inject(rules, input) {
  * Колесо открыто в результате категории (в коллауте) — её пресет выбран сразу,
  * как Value обычного Field (его `💬` к тесту 1 цикла 125). Зовётся после разбора строки.
  */
-function hydrate(session, input, editor) {
+function hydrate(session, input, editor, block) {
+  const own = input && Array.isArray(input.fields) ? input.fields.filter((f) => (f.block || "") === (block || "")) : [];
   /* Command Field нет — документ не читается вовсе; редактор без `getValue` — проба, «нет» — ответ. */
-  if (!input || !Array.isArray(input.fields) || !input.fields.length || !editor || typeof editor.getValue !== "function") return;
+  if (!own.length || !editor || typeof editor.getValue !== "function") return;
   const ctx = { lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
-  for (const f of input.fields) {
+  for (const f of own) {
     for (const c of f.categories) {
       const index = c.recognize(ctx);
       const preset = c.presets.find((p) => p.index === index);

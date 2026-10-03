@@ -1599,6 +1599,8 @@ async function runTagWheel(input, quickAddSettings) {
     state_.rules = next.rules
     state_.orderCfg = next.orderCfg
     state_.parsedLine = state_.core.parseLine(state_.originalLine, next.rules)
+    /* Ячейки Command Field — после разбора, как при открытии (№ 200); повтор по кругу ничего не добавляет. */
+    __commandFieldWheel.inject(next.rules, state_.commandFields, next.id)
     state_.session = newCustomSession(state_.core, next.rules)
     state_.session.activeField = state_.core.resolveInitialActiveField(next.rules, state_.session, 'left')
   }
@@ -1686,13 +1688,17 @@ async function runTagWheel(input, quickAddSettings) {
         return { id: String(b.id), rules: ready.rules, orderCfg: ready.orderCfg }
       })
 
+    var hit = customHitAtCaret(o.core, o.rules, line, cursor_.ch)
+    var parsedLine_ = o.core.parseLine(line, o.rules)
+    /* После разбора строки: Values Command Field в строке не ищутся (№ 200). */
+    __commandFieldWheel.inject(o.rules, input_.commandFields, blockId)
     var session_ = newCustomSession(o.core, o.rules)
     session_.activeField = o.core.resolveInitialActiveField(o.rules, session_, 'left')
-    var hit = customHitAtCaret(o.core, o.rules, line, cursor_.ch)
     if (hit) {
       hit.fieldIds.forEach(function (fid) { session_.selected[fid] = hit.selected[fid] })
       session_.activeFieldId = hit.fieldIds[0]
     }
+    __commandFieldWheel.hydrate(session_, input_.commandFields, o.editor, blockId)
     o.core.sanitizeState(o.rules, session_)
 
     var state = {
@@ -1702,8 +1708,9 @@ async function runTagWheel(input, quickAddSettings) {
       rules: o.rules,
       lineNumber: cursor_.line,
       originalLine: line,
-      parsedLine: o.core.parseLine(line, o.rules),
+      parsedLine: parsedLine_,
       session: session_,
+      commandFields: input_.commandFields,
       cycleEndBehavior: input_.cycleEndBehavior,
       cursorPolicy: input_.cursorPolicy,
       orderCfg: o.orderCfg,

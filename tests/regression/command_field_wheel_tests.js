@@ -25,13 +25,17 @@ function config(o = {}) {
   /* Версия 2: ветки `commands` в файле версии 1 не бывает, и переезд её не несёт. */
   return configNormalize.migrateConfig({
     schemaVersion: 2,
+    visual: { tagWheel: { customTab: true } },
     pkm: { fields: {
       order: {
-        left: o.left ? ["Type", "Fmt"] : ["Type"], right: o.left ? [] : ["Fmt"],
-        labels: { Type: "Type", Fmt: "Fmt" }, strictNames: { Type: "Type", Fmt: "Fmt" },
-        types: { Type: "tag", Fmt: "command" }, active: { Type: "yes", Fmt: o.active || "yes" },
+        left: o.left ? ["Type", "Fmt"] : ["Type"], right: o.left || o.custom ? [] : ["Fmt"],
+        labels: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" },
+        strictNames: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" },
+        types: { Type: "tag", Fmt: "command", Mood: "tag", Tone: "tag" }, active: { Type: "yes", Fmt: o.active || "yes" },
+        custom: o.custom ? [{ id: "b1", name: "Block one", keys: ["Mood", "Fmt"] }, { id: "b2", name: "Block two", keys: ["Tone"] }] : [],
       },
-      tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] }] },
+      tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] },
+        { id: "Mood", prefix: "#", values: [{ token: "calm" }] }, { id: "Tone", prefix: "#", values: [{ token: "soft" }] }] },
       commands: { byField: { Fmt: { categories: [
         { id: "callouts", key: "callouts", presets: [{ name: "Note", type: "note", fold: "" }].concat(o.clone ? [{ name: "Note (copy)", type: "note", fold: "" }] : [],
           [{ name: "Tip", type: "tip", fold: "", hidden: !!o.hideTip }, { name: "Warning", type: "warning", fold: "" }]) },
@@ -171,6 +175,24 @@ async function run() {
     const clone = await drive(config({ clone: true }), DOC, [OPEN, UP, RIGHT, UP, UP]);
     assert.ok(/\[Tip\]/.test(clone.seen[4]), "совпавший клон в колесе: " + clone.seen[4]);
     ok("один пресет — без ячейки пресетов; совпавший клон не виден");
+  }
+
+  /* 8. Command Field в custom block: ячейка у блока, Enter — пресет, Field блока его не пишет, Tab по кругу без двойных ячеек. */
+  {
+    const B1 = { run: "open-tagwheel-custom-b1" };
+    const r = await drive(config({ custom: true }), DOC, [B1, RIGHT, UP, RIGHT, UP, ENTER]);
+    assert.ok(/Fmt/.test(r.seen[0]), "ячейки Command Field в custom block нет: " + r.seen[0]);
+    assert.equal(r.doc, "> [!note]\n> - Research plan\n> \t- read papers\n- buy bread", "пресет из custom block не применён");
+    const mood = await drive(config({ custom: true }), DOC, [B1, RIGHT, UP, { key: "ArrowLeft" }, UP, ENTER]);
+    assert.ok(/#calm/.test(mood.doc) && !/Callouts|Note|> \[!/.test(mood.doc), "custom block записал выбор Command Field: " + mood.doc);
+    const ring = await drive(config({ custom: true }), DOC,
+      [{ run: "open-tagwheel-custom-b2" }, { key: "Tab" }, { key: "Tab" }, { key: "Tab" }, RIGHT, UP, RIGHT, UP, UP, ENTER]);
+    assert.equal((String(ring.seen[3]).match(/Fmt/g) || []).length, 1, "после Tab по кругу ячейка Command Field задвоилась: " + ring.seen[3]);
+    assert.equal(ring.doc.split("\n")[0], "> [!tip]", "после Tab пресет не применился");
+    const inside = "> [!note]\n> - Research plan\n- buy bread";
+    const hyd = await drive(config({ custom: true }), inside, [B1], { line: 1, ch: 4 });
+    assert.ok(/Callouts/.test(hyd.seen[0]) && /Note/.test(hyd.seen[0]), "в коллауте custom block не показал выбранное: " + hyd.seen[0]);
+    ok("custom block: ячейка, пресет, Field блока без Command Field, Tab без двойных ячеек, выбранное в коллауте");
   }
 
   console.log(`command_field_wheel: ${passed} passed`);
