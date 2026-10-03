@@ -6,7 +6,7 @@
  */
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
-import { el, btn, cssVar, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
+import { el, btn, cssVar, onEnter, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
 import type { CustomBlock, FieldSide, FieldsModel, FieldRow, NewFieldSetup, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
@@ -1582,11 +1582,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     { text: say("ADD_VALUE"), label: say("ADD_VALUE_TO", row.strictName) });
   addBtn.disabled = !o.enabled;
   /* Enter в поле нового Value — то же, что кнопка (BUGHUNT S3). */
-  add.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
-    if (!e || e.key !== "Enter") return;
-    if (typeof e.preventDefault === "function") e.preventDefault();
-    addValue();
-  }) as never);
+  onEnter(add, () => addValue());
   const addValue = (): void => {
     if (!o.enabled) return;
     const res = ve.addToken(add.value);
@@ -1854,11 +1850,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       save();
     };
     addBtn.addEventListener("click", addValue as never);
-    add.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
-      if (!e || e.key !== "Enter") return;
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      addValue();
-    }) as never);
+    onEnter(add, addValue);
     withPicker(add, foot, () => {
       const field = add as unknown as { focus?: () => void };
       if (typeof field.focus === "function") field.focus();

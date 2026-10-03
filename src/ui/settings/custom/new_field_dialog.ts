@@ -12,7 +12,7 @@
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
-import { el, btn, cssVar, rich, textInput, themePair, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, onEnter, rich, textInput, themePair, tipBelow } from "./dom.ts";
 import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink, wheelColors } from "./previews.ts";
@@ -508,11 +508,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     const nameCtl = item(body, "NEW_FIELD_NAME", "NEW_FIELD_NAME_LABEL", "NEW_FIELD_NAME_TIP");
     nameInput = textInput(nameCtl, "io-text", { value: d.name, placeholder: say("NEW_FIELD_NAME_HINT"), label: say("NEW_FIELD_NAME_ARIA"), needed: true });
     nameInput.addEventListener("input", (() => { d.name = String(nameInput!.value || ""); refresh(); }) as never);
-    nameInput.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
-      if (!e || e.key !== "Enter") return;
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      confirm();
-    }) as never);
+    onEnter(nameInput, confirm);
 
     const sideCtl = item(body, "NF_BLOCK", "NF_BLOCK_DESC", "NF_BLOCK_TIP", true);
     segmented(sideCtl, [
@@ -606,11 +602,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       return true;
     };
     const addOne = (): void => { if (push(input.value)) { draw(); focusValue(); } };
-    input.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
-      if (!e || e.key !== "Enter") return;
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      addOne();
-    }) as never);
+    onEnter(input, addOne);
     btn(addRow, "io-btn io-btn--sm", { text: say("ADD_VALUE") }).addEventListener("click", addOne as never);
     /* После выбора фокус в поле не возвращается: платформа открыла бы список снова
      * (стенд `new-field`). */

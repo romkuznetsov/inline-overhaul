@@ -6,7 +6,7 @@
  */
 
 import type { CustomRender, FieldKind, SettingsCtx } from "../types.ts";
-import { el, rich, type El } from "./dom.ts";
+import { el, onEnter, rich, type El } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
@@ -232,13 +232,11 @@ function askLinkValueRenameModal(
         }
       };
       input.addEventListener("input", (() => { name = linkTokenOfTyped(String(input.value || ""), bare); draw(); }) as never);
-      input.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
-        if (!e || e.key !== "Enter") return;
-        if (typeof e.preventDefault === "function") e.preventDefault();
+      onEnter(input, () => {
         if (!name.trim() || name.trim() === oldToken) return;
         finish(primary);
         this.close();
-      }) as never);
+      });
       draw();
       /* Фокус — в поле имени, каретка в конец: набор продолжается здесь. */
       const focusName = (): void => {

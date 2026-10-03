@@ -122,6 +122,15 @@ export function textInput(parent: El, cls: string, o: {
   return node;
 }
 
+/** Enter в поле — то же, что кнопка рядом (BUGHUNT S3). */
+export function onEnter(node: El, fn: () => void): void {
+  node.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
+    if (!e || e.key !== "Enter") return;
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    fn();
+  }) as never);
+}
+
 /** Класс обязательного незаполненного поля. Одно имя на код и стили (У-103). */
 export const NEEDED_CLASS = "io-text--needed";
 
