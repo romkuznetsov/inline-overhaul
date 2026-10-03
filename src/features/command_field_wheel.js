@@ -155,8 +155,13 @@ function enter(state, cancel) {
   const ctx = target || !own ? null : { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
   const undo = ctx ? (chosen || own.categories.find((c) => c.recognize(ctx) >= 0)) : null;
   cancel(state);
-  if (target) input.apply(state.editor, key, target.category, target.index);
-  else if (undo) input.revert(state.editor, key, undo.key);
+  const got = target ? input.apply(state.editor, key, target.category, target.index)
+    : undo ? input.revert(state.editor, key, undo.key) : null;
+  /* Неприменимая команда не прячется — текст не меняется, причина вслух (4.5); `Notice` — как у tagWheel. */
+  if (got && got.refuse && typeof globalThis.Notice === "function") {
+    const cat = own.categories.find((c) => c.key === (target ? target.category : ""));
+    new globalThis.Notice(__commandField.refusalText(got, own.label + " · " + (cat ? cat.name : "")));
+  }
   return true;
 }
 

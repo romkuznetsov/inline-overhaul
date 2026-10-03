@@ -164,6 +164,31 @@ const panel = makePanel(base);
   ok("пара команд на категорию, движки строки Command Field не видят");
 }
 
+/* 3в. Вставка блока (6.3): содержимое, заголовок и коллаут пресета; выключенная часть прячет свои поля. */
+{
+  const pick = labelled(panel.host, "Category to add to Fmt");
+  (pick as Any).value = "block";
+  pick.dispatch("change", { target: pick });
+  click(all(panel.host, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  const block = (): Any => panel.cfg().pkm.fields.commands.byField.Fmt.categories.find((c: Any) => c.id === "block");
+  assert.equal(block().presets[0].content, "```table-of-contents\n```", "пресет по умолчанию не пример 6.3");
+  const area = labelled(panel.host, "Text that Contents inserts");
+  (area as Any).value = "```dataview\nLIST\n```";
+  area.dispatch("change", { target: area });
+  assert.equal(block().presets[0].content, "```dataview\nLIST\n```", "содержимое не записалось");
+  labelled(panel.host, "Heading text of Contents");
+  click(labelled(panel.host, "Heading above Contents"));
+  assert.equal(block().presets[0].heading, false, "заголовок не выключился");
+  assert.throws(() => labelled(panel.host, "Heading text of Contents"), /нет узла/, "у выключенного заголовка осталось поле текста");
+  const level = labelled(panel.host, "Callout title of Contents");
+  (level as Any).value = "TOC";
+  level.dispatch("change", { target: level });
+  assert.equal(block().presets[0].title, "TOC", "заголовок коллаута не записался");
+  /* Дальше проверки опираются на одну категорию Коллауты. */
+  click(labelled(panel.host, "Remove the category Insert block"));
+  ok("вставка блока в таблице: содержимое, заголовок и коллаут пресета пишутся, выключенное прячет поля");
+}
+
 /* 3б. `Child name in tagWheel` у Command Field — подпись ячейки пресетов, без своего имени `preset`. */
 {
   const input = labelled(panel.host, "Child name in tagWheel for Fmt");

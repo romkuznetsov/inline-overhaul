@@ -1,8 +1,9 @@
 "use strict";
 
 /**
- * Command Field, этап 1 (постановка `test-vault/command-field.md`, разбор и
- * ответы В-272…В-283): реестр категорий и их действия над строками заметки.
+ * Command Field (постановка `test-vault/command-field.md`, разбор и ответы
+ * В-272…В-283): реестр категорий и их действия над строками заметки — этап 1
+ * Коллауты и Очистка, этап 2 Вставка блока.
  * Чистые функции: на входе строки документа и место каретки, на выходе одна
  * замена отрезка строк — одна транзакция, один шаг `Ctrl+Z` (R-1). `null` —
  * менять нечего, шага отмены нет.
@@ -13,6 +14,7 @@
 
 const __transform = require("./transform_feature.js");
 const __lineFinalize = require("../core/pkm_line_finalize_unified.js");
+const __sayModule = require("../core/say.js");
 
 /* ---- Коллауты (6.1) ------------------------------------------------------ */
 
@@ -249,8 +251,156 @@ const cleanup = {
   },
 };
 
+/* ---- Вставка блока (6.3) ------------------------------------------------- */
+
+const HEADING_RE = /^(#{1,6})[\t ]+(.*?)[\t ]*#*[\t ]*$/;
+
+function headingLevel(p) {
+  const n = Math.trunc(Number(p.headingLevel));
+  return n >= 1 && n <= 6 ? n : 2;
+}
+
+function blockBody(p) {
+  return String(p.content || "").replace(/\r/g, "").split("\n");
+}
+
+/** Обёртка пресета: строка заголовка и строка `[!type]` — какие включены. */
+function blockWrap(p) {
+  const out = [];
+  const heading = String(p.headingText || "").trim();
+  if (p.heading && heading) out.push("#".repeat(headingLevel(p)) + " " + heading);
+  if (p.callout) out.push(calloutHead("> ", { type: p.type || "note", fold: p.fold }, String(p.title || "").trim()));
+  return out;
+}
+
+/** Строки, которые вставляет пресет: заголовок, коллаут, содержимое (6.3). */
+function blockLines(p) {
+  const body = blockBody(p);
+  return blockWrap(p).concat(p.callout ? body.map((l) => (l ? "> " + l : ">")) : body);
+}
+
+/**
+ * Вставленный блок пресета, в котором стоит каретка: узнаётся обёрткой и первой
+ * строкой содержимого, правки внутри не мешают (6.3). `{ from, to, extras }`,
+ * `extras` — дописанные строки (в порядке, без `> `) или `null`.
+ */
+function blockAt(lines, at, p) {
+  const built = blockLines(p);
+  const wrapN = blockWrap(p).length;
+  const prefix = built.slice(0, wrapN + 1);
+  const body = blockBody(p);
+  for (let s = at; s >= 0; s--) {
+    if (prefix.some((l, i) => lines[s + i] !== l)) continue;
+    let end = s + wrapN;
+    if (p.callout) {
+      while (end + 1 < lines.length && quoteDepth(lines[end + 1]) >= 1) end += 1;
+    } else if (body.length > 1) {
+      const last = body[body.length - 1];
+      let k = s + wrapN + 1;
+      while (k < lines.length && lines[k] !== last) k += 1;
+      end = k < lines.length ? k : Math.min(lines.length - 1, s + built.length - 1);
+    }
+    if (at > end) continue;
+    /* Дописанное — то, что не легло на содержимое пресета по порядку. */
+    const extras = [];
+    let j = 0;
+    for (let i = s + wrapN; i <= end; i++) {
+      const l = p.callout ? stripQuoteLevel(lines[i], 1) : String(lines[i]);
+      if (j < body.length && l === body[j]) j += 1;
+      else extras.push(l);
+    }
+    return { from: s, to: end, extras };
+  }
+  return null;
+}
+
+/**
+ * Блок какого из пресетов под кареткой: `{ index, box }` или `null`. Пресет без
+ * обёртки узнаётся и внутри пресета с ней — берётся охватывающий.
+ */
+function blockOf(lines, at, presets) {
+  let best = null;
+  presets.forEach((p, index) => {
+    if (!p || p.hidden) return;
+    const box = blockAt(lines, at, p);
+    if (box && (!best || box.from < best.box.from)) best = { index, box };
+  });
+  return best;
+}
+
+/** Снятие (его ответ 10): обёртка и строки пресета уходят, дописанное остаётся текстом. */
+function unwrapBlock(box) {
+  const out = box.extras.length ? box.extras : [""];
+  return { from: box.from, to: box.to, lines: out, cursor: { line: box.from, ch: 0 } };
+}
+
+/** Смена пресета: блок другого пресета на том же месте, дописанное — следом. */
+function recastBlock(box, preset) {
+  const out = blockLines(preset).concat(box.extras);
+  return { from: box.from, to: box.to, lines: out, cursor: { line: box.from, ch: 0 } };
+}
+
+/** Новый блок — только на пустой строке и без такого же заголовка в заметке (6.3, предусловия). */
+function insertBlock(ctx, preset) {
+  const { lines, cursor } = ctx;
+  if (String(lines[cursor.line]).trim() !== "") return { refuse: "block-not-empty" };
+  const heading = String(preset.headingText || "").trim();
+  if (preset.heading && heading && lines.some((l) => {
+    const m = String(l).match(HEADING_RE);
+    return m && m[2].trim() === heading;
+  })) return { refuse: "block-heading-exists", args: [heading] };
+  const out = blockLines(preset);
+  return { from: cursor.line, to: cursor.line, lines: out, cursor: { line: cursor.line + out.length - 1, ch: out[out.length - 1].length } };
+}
+
+const insertBlockCategory = {
+  id: "block",
+  name: "Insert block",
+  params: ["block-content", "block-heading", "block-callout"],
+  defaultName(p) {
+    const first = blockBody(p).find((l) => l.trim()) || "";
+    return String(p.heading && p.headingText || "").trim() || String(p.callout && p.title || "").trim()
+      || first.trim().slice(0, 24) || "Block";
+  },
+  signature: (p) => blockLines(p).join("\n"),
+  /* Пример постановки 6.3: оглавление стороннего плагина под заголовком, в свёрнутом коллауте. */
+  defaults: [{ name: "Contents", content: "```table-of-contents\n```", heading: true, headingText: "Contents", headingLevel: 2,
+    callout: true, type: "note", fold: "-", title: "Contents" }],
+  hasRevert: true,
+  recognize(ctx, presets) {
+    const hit = blockOf(ctx.lines, ctx.cursor.line, presets);
+    return hit ? hit.index : -1;
+  },
+  revert(ctx) {
+    /* Чей блок — неизвестно: снимается по любому пресету категории, их отдаёт `ctx.presets`. */
+    const hit = blockOf(ctx.lines, ctx.cursor.line, ctx.presets || []);
+    return hit ? unwrapBlock(hit.box) : null;
+  },
+  apply(ctx, preset) {
+    const hit = blockOf(ctx.lines, ctx.cursor.line, ctx.presets || [preset]);
+    if (!hit) return insertBlock(ctx, preset);
+    if (blockLines(ctx.presets[hit.index]).join("\n") === blockLines(preset).join("\n")) return null;
+    return recastBlock(hit.box, preset);
+  },
+  /** Как у коллаутов (6.3, «перебор»): вне блока `next` — первый, `previous` — последний; внутри — цикл с 0. */
+  run(ctx, presets, step) {
+    const seen = new Set();
+    const list = presets.filter((p) => {
+      if (!p || p.hidden || seen.has(insertBlockCategory.signature(p))) return false;
+      seen.add(insertBlockCategory.signature(p));
+      return true;
+    });
+    if (!list.length) return null;
+    const hit = blockOf(ctx.lines, ctx.cursor.line, list);
+    if (!hit) return insertBlock(ctx, step < 0 ? list[list.length - 1] : list[0]);
+    const next = hit.index + step;
+    if (next < 0 || next >= list.length) return unwrapBlock(hit.box);
+    return recastBlock(hit.box, list[next]);
+  },
+};
+
 /** Реестр: picker, перебор и команды строятся по нему (4.3). */
-const CATEGORIES = [callouts, cleanup];
+const CATEGORIES = [callouts, cleanup, insertBlockCategory];
 
 function categoryById(id) {
   return CATEGORIES.find((c) => c.id === id) || null;
@@ -294,6 +444,32 @@ function commit(ed, lines, r) {
   });
 }
 
+/* Отказы с причиной (R-4): английское на случай без каталога; `{0}` — `<Field> · <категория>`. */
+/* Ключ — литералом на месте вызова: его ищет сторож каталога (`runtime_notices_tests.js`). */
+const { say: __say, noticeKey: __noticeKey } = __sayModule;
+const REFUSALS = {
+  "block-not-empty": (name) => __say(__noticeKey("pkm", "block-not-empty"), "{0}: put the cursor on an empty line to insert the block", name),
+  "block-heading-exists": (name, heading) => __say(__noticeKey("pkm", "block-heading-exists"), "{0}: the note already has the heading {1}", name, heading),
+};
+
+/** Текст отказа для уведомления: `name` — как в палитре, без `next`/`previous`. */
+function refusalText(got, name) {
+  const say = REFUSALS[String(got && got.refuse || "")];
+  const args = Array.isArray(got && got.args) ? got.args : [];
+  return say ? say(name, ...args) : __say(__noticeKey("pkm", "nothing-to-do"), "{0}: nothing to change on this line", name);
+}
+
+/**
+ * Ответ категории в редакторе: `"done"`, `"nothing"` или отказ с причиной
+ * `{ refuse, args }` — его говорят вслух вызывающие (R-4).
+ */
+function finish(ed, lines, r) {
+  if (!r) return "nothing";
+  if (r.refuse) return r;
+  commit(ed, lines, r);
+  return "done";
+}
+
 /**
  * Пресет, выбранный в tagWheel (4.5): применить его, а не шагать по кругу.
  * Ответ — как у `runInEditor`.
@@ -304,10 +480,8 @@ function applyPresetInEditor(ed, cfg, fieldKey, categoryKey, presetIndex) {
   const preset = entry ? entry.presets[presetIndex] : null;
   if (!category || !preset) return "unknown";
   const lines = String(ed.getValue()).split("\n");
-  const r = category.apply({ lines, cursor: ed.getCursor(), selection: selectedLines(ed), cfg }, preset);
-  if (!r) return "nothing";
-  commit(ed, lines, r);
-  return "done";
+  const r = category.apply({ lines, cursor: ed.getCursor(), selection: selectedLines(ed), cfg, presets: entry.presets }, preset);
+  return finish(ed, lines, r);
 }
 
 /** Снять результат категории (пустое значение в tagWheel); у категории без обратного — менять нечего. */
@@ -316,15 +490,13 @@ function revertInEditor(ed, cfg, fieldKey, categoryKey) {
   const category = entry ? categoryById(entry.id) : null;
   if (!category || typeof category.revert !== "function") return "nothing";
   const lines = String(ed.getValue()).split("\n");
-  const r = category.revert({ lines, cursor: ed.getCursor(), selection: null, cfg });
-  if (!r) return "nothing";
-  commit(ed, lines, r);
-  return "done";
+  const r = category.revert({ lines, cursor: ed.getCursor(), selection: null, cfg, presets: entry.presets });
+  return finish(ed, lines, r);
 }
 
 /**
  * Исполнить категорию в редакторе: одна транзакция — один шаг `Ctrl+Z` (R-1).
- * Ответ: `"done"`, `"nothing"` (менять нечего), `"no-presets"`, `"unknown"`.
+ * Ответ: `"done"`, `"nothing"` (менять нечего), `"no-presets"`, `"unknown"` или отказ `{ refuse, args }`.
  */
 function runInEditor(ed, cfg, fieldKey, categoryId, step) {
   const entry = fieldCategories(cfg, fieldKey).find((c) => c.key === categoryId);
@@ -333,13 +505,12 @@ function runInEditor(ed, cfg, fieldKey, categoryId, step) {
   if (!entry.presets.some((p) => !p.hidden)) return "no-presets";
   const lines = String(ed.getValue()).split("\n");
   const cursor = ed.getCursor();
-  const r = category.run({ lines, cursor, selection: selectedLines(ed), cfg }, entry.presets, step);
-  if (!r) return "nothing";
-  commit(ed, lines, r);
-  return "done";
+  const r = category.run({ lines, cursor, selection: selectedLines(ed), cfg, presets: entry.presets }, entry.presets, step);
+  return finish(ed, lines, r);
 }
 
 module.exports = {
+  refusalText,
   CALLOUT_TYPES,
   CATEGORIES,
   categoryById,

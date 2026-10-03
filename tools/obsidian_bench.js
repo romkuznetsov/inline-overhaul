@@ -1470,6 +1470,65 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Вставка блока (6.3): команда на пустой строке, отказ на строке с текстом, снятие `previous`, вид пресета в панели. */
+  async "command-field-block"(win, browser) {
+    const doc = "# Note\n\nsome text\n";
+    const got = await win.evaluate(async (doc) => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const order = p.getConfig().pkm.fields.order;
+      p.setConfigPatch({ pkm: { fields: {
+        order: { right: order.right.concat(["Format"]), types: { Format: "command" }, strictNames: { Format: "Format" }, labels: { Format: "Format" }, active: { Format: "yes" } },
+        commands: { byField: { Format: { categories: [{ id: "block", key: "block", name: "", hidden: false, presets: [
+          { name: "", content: "```table-of-contents\n```", heading: true, headingText: "Contents", headingLevel: 2, callout: true, type: "note", fold: "-", title: "Contents", hidden: false }] }] } } },
+      } } }, "pkm:fields:commands:Format");
+      await new Promise((r) => setTimeout(r, 800));
+      const f = await a.vault.create("cfb.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 1, ch: 0 });
+      a.commands.executeCommandById("inline-overhaul:format-block-next");
+      await new Promise((r) => setTimeout(r, 400));
+      const inserted = e.getValue();
+      e.setCursor({ line: 3, ch: 3 });
+      a.commands.executeCommandById("inline-overhaul:format-block-previous");
+      await new Promise((r) => setTimeout(r, 400));
+      const removed = e.getValue();
+      e.setCursor({ line: 2, ch: 2 });
+      a.commands.executeCommandById("inline-overhaul:format-block-next");
+      await new Promise((r) => setTimeout(r, 400));
+      const notices = [...document.querySelectorAll(".notice")].map((n) => n.textContent);
+      return { inserted, removed, refused: e.getValue(), notices };
+    }, doc);
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await host.evaluate(() => { const n = [...document.querySelectorAll(".io-fields__name")].find((x) => x.textContent.trim() === "Format"); if (n) n.click(); });
+    await host.waitForTimeout(600);
+    got.panel = await host.evaluate(() => {
+      const area = document.querySelector(".io-cats__content");
+      const set = area ? area.closest(".io-cats__set") : null;
+      const r = set ? set.getBoundingClientRect() : null;
+      return area ? { value: area.value, areaW: Math.round(area.getBoundingClientRect().width), setW: r ? Math.round(r.width) : 0,
+        chips: [...set.querySelectorAll(".io-cats__keep")].map((n) => n.textContent + ":" + n.getAttribute("aria-pressed")) } : null;
+    });
+    if (process.env.IO_SHOTS) {
+      const t = await host.$(".io-cats");
+      if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-block.png") });
+    }
+    console.log(JSON.stringify(got, null, 1));
+    const ok = got.inserted === "# Note\n## Contents\n> [!note]- Contents\n> ```table-of-contents\n> ```\nsome text\n"
+      && got.removed === doc && got.refused === doc && got.notices.some((n) => /empty line/.test(n))
+      && !!got.panel && got.panel.areaW >= got.panel.setW - 4 && got.panel.chips.join() === "Heading:true,Callout:true";
+    console.log(ok ? "ok: вставка блока — команда, снятие, отказ вслух, строка пресета в панели" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* Command Field в custom block (исключение № 200): колесо блока, категория, пресет, Enter одной правкой. */
   async "command-field-custom"(win) {
     const doc = "- Research plan\n\t- read papers\n- buy bread\n";

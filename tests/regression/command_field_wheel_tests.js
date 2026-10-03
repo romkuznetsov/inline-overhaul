@@ -42,7 +42,9 @@ function config(o = {}) {
         { id: "callouts", key: "callouts", presets: [{ name: "Note", type: "note", fold: "" }].concat(o.clone ? [{ name: "Note (copy)", type: "note", fold: "" }] : [],
           [{ name: "Tip", type: "tip", fold: "", hidden: !!o.hideTip }, { name: "Warning", type: "warning", fold: "" }]) },
         { id: "cleanup", key: "cleanup", presets: [{ name: "", keep: [] }] },
-      ] } } },
+      ].concat(o.block ? [
+        { id: "block", key: "block", presets: [{ name: "Toc", content: "```toc\n```", heading: true, headingText: "Contents", headingLevel: 2, callout: false }] },
+      ] : []) } } },
     } },
   });
 }
@@ -197,6 +199,16 @@ async function run() {
     const hyd = await drive(config({ custom: true }), inside, [B1], { line: 1, ch: 4 });
     assert.ok(/Callouts/.test(hyd.seen[0]) && /Note/.test(hyd.seen[0]), "в коллауте custom block не показал выбранное: " + hyd.seen[0]);
     ok("custom block: ячейка, пресет, Field блока без Command Field, Tab без двойных ячеек, выбранное в коллауте");
+  }
+
+  /* 9. Вставка блока из колеса (6.3): на пустой строке — блок, на строке с текстом — причина вслух, текст как был (4.5). */
+  {
+    const empty = await drive(config({ block: true }), "- a\n\n- b", [OPEN, DOWN, ENTER], { line: 1, ch: 0 });
+    assert.equal(empty.doc, "- a\n## Contents\n```toc\n```\n- b", "блок из колеса не вставлен");
+    const full = await drive(config({ block: true }), DOC, [OPEN, DOWN, ENTER]);
+    assert.equal(full.doc, DOC, "на строке с текстом блок вставлен");
+    assert.ok(full.said.some((m) => /empty line/.test(m)), "отказ без причины: " + JSON.stringify(full.said));
+    ok("вставка блока из колеса: на пустой строке — блок, на строке с текстом — уведомление");
   }
 
   console.log(`command_field_wheel: ${passed} passed`);

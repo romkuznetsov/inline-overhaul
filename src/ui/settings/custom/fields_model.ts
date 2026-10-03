@@ -108,7 +108,11 @@ export interface CustomBlock {
 }
 
 /** Пресет категории Command Field: имя, глаз и параметры по `params` реестра. */
-export interface CommandPreset { name?: string; hidden?: boolean; type?: string; fold?: string; keep?: string[] }
+export interface CommandPreset {
+  name?: string; hidden?: boolean; type?: string; fold?: string; keep?: string[];
+  /* Вставка блока (6.3): содержимое, заголовок, коллаут и его заголовок. */
+  content?: string; heading?: boolean; headingText?: string; headingLevel?: number; callout?: boolean; title?: string;
+}
 
 /** Категория Command Field в конфиге: `id` — реестра, `key` — адрес команд (клон — `callouts-2`). */
 export interface CommandCategory { id: string; key?: string; name?: string; hidden?: boolean; presets: CommandPreset[] }

@@ -1829,6 +1829,13 @@ body.theme-dark {
 .io-cats__eye--off { color: var(--text-faint); }
 .io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
 .io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+/* Вставка блока (6.3): содержимое во всю ширину настроек, текстовые поля пресета — по месту. */
+.io-cats .io-cats__set .io-cats__content,
+.io-fields .io-cats .io-cats__set .io-cats__content,
+.io-nf .io-cats .io-cats__set .io-cats__content { flex: 1 1 100%; width: 100%; min-height: 3em; resize: vertical; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.io-cats .io-cats__set .io-cats__prop,
+.io-fields .io-cats .io-cats__set .io-cats__prop,
+.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 90px; width: auto; min-width: 0; }
 .io-cats__keep { padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); cursor: pointer; }
 .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
@@ -3675,7 +3682,10 @@ const CF_CATEGORIES = [
     defaults:[{ name:"Note", type:"note", fold:"" }, { name:"Tip", type:"tip", fold:"" }, { name:"Warning", type:"warning", fold:"" }] },
   { id:"cleanup", name:"Cleanup", params:["fields"],
     desc:"Takes the Values of your Fields off the line or the selected lines, except the Fields you keep",
-    defaults:[{ name:"", keep:[] }] }
+    defaults:[{ name:"", keep:[] }] },
+  { id:"block", name:"Insert block", params:["block-content", "block-heading", "block-callout"],
+    desc:"On an empty line, inserts your text, such as a code block of another plugin, under a heading or in a callout; inside it, steps through the presets and then takes the block off, keeping the lines you added",
+    defaults:[{ name:"Contents", content:"```table-of-contents\n```", heading:true, headingText:"Contents", headingLevel:2, callout:true, type:"note", fold:"-", title:"Contents" }] }
 ];
 const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
 /* Значок и цвет коллаута — как у темы по умолчанию; в плагине их отдаёт сама тема
@@ -6149,10 +6159,15 @@ function cfPresetName(c, p) {
     const t = String(p.type || "note");
     return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · closed" : "");
   }
+  if (c.id === "block") {
+    const first = String(p.content || "").split("\n").find(l => l.trim()) || "";
+    return String(p.heading && p.headingText || "").trim() || String(p.callout && p.title || "").trim() || first.trim().slice(0, 24) || "Block";
+  }
   const kept = (p.keep || []).map(id => (field(id) || { name:id }).name);
   return kept.length ? "Keep " + kept.join(", ") : "Clear all";
 }
 function cfPresetSignature(c, p) {
+  if (c.id === "block") return JSON.stringify([p.content || "", p.heading ? [p.headingText, p.headingLevel] : 0, p.callout ? [p.type, p.fold, p.title] : 0]);
   return c.id === "callouts" ? String(p.type || "").toLowerCase() + "|" + (p.fold || "") : (p.keep || []).slice().sort().join(",");
 }
 let cfDrag = null;
@@ -6176,7 +6191,7 @@ function cfTable(host, f, redraw) {
   const head = el("div", "io-vals__head io-cats__row", inner);
   const COLTIP = {
     Name: "What tagWheel and its scroller call this category or preset. Leave it empty to use the name built from its settings",
-    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line"
+    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line, for <b>Insert block</b> the text it inserts and whether a heading or a callout goes around it"
   };
   const tipSlot = el("div", "io-vals__tipslot", inner);
   ["", "", "Name", "Settings", ""].forEach(t => {
@@ -6239,7 +6254,41 @@ function cfTable(host, f, redraw) {
       const pname = textEl(prow, p.name || "", cfPresetName(c, { ...p, name:"" }), "Name of the preset " + cfPresetName(c, p), "io-text");
       pname.addEventListener("change", () => { p.name = pname.value.trim(); renderContent(); });
       const set = el("div", "io-cats__set", prow);
+      const part = (on, text, label, flip) => {
+        const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), set, text);
+        chip.type = "button";
+        chip.setAttribute("aria-pressed", String(on));
+        chip.setAttribute("aria-label", label);
+        chip.addEventListener("click", () => { flip(); renderContent(); });
+        return on;
+      };
+      const prop = (value, placeholder, label, write) => {
+        const t = textEl(set, value, placeholder, label, "io-text io-cats__prop");
+        t.addEventListener("change", () => { write(t.value.trim()); renderContent(); });
+      };
+      const pn = cfPresetName(c, p);
+      const kinds = [];
       reg.params.forEach(kind => {
+        if (kind === "block-content") {
+          const area = el("textarea", "io-text io-cats__content", set);
+          area.value = p.content || "";
+          area.rows = 2;
+          area.placeholder = "Text or a code block to insert";
+          area.setAttribute("aria-label", "Text that " + pn + " inserts");
+          area.addEventListener("change", () => { p.content = area.value; renderContent(); });
+        } else if (kind === "block-heading") {
+          if (part(!!p.heading, "Heading", "Heading above " + pn, () => { p.heading = !p.heading; })) {
+            prop(p.headingText || "", "Heading", "Heading text of " + pn, v => { p.headingText = v; });
+            const lv = selectEl(set, [1, 2, 3, 4, 5, 6].map(n => ({ value:String(n), label:"H" + n })), String(p.headingLevel || 2), "Heading level of " + pn, "io-select");
+            lv.addEventListener("change", () => { p.headingLevel = Number(lv.value); renderContent(); });
+          }
+        } else if (kind === "block-callout") {
+          if (part(!!p.callout, "Callout", "Callout around " + pn, () => { p.callout = !p.callout; })) {
+            kinds.push("callout-type", "fold", "callout-title");
+          }
+        } else kinds.push(kind);
+      });
+      kinds.forEach(kind => {
         if (kind === "callout-type") {
           /* Значок и цвет рядом с типом (его 💬 к тесту 1 цикла 125): обычный select их не рисует. */
           const paint = (host, type) => {
@@ -6270,6 +6319,8 @@ function cfTable(host, f, redraw) {
         } else if (kind === "fold") {
           const fo = selectEl(set, CALLOUT_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + cfPresetName(c, p), "io-select");
           fo.addEventListener("change", () => { p.fold = fo.value; renderContent(); });
+        } else if (kind === "callout-title") {
+          prop(p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);
           lineFields().forEach(lf => {

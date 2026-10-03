@@ -3717,6 +3717,13 @@ body.theme-dark {
 .io-cats__eye--off { color: var(--text-faint); }
 .io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
 .io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+/* Вставка блока (6.3): содержимое во всю ширину настроек, текстовые поля пресета — по месту. */
+.io-cats .io-cats__set .io-cats__content,
+.io-fields .io-cats .io-cats__set .io-cats__content,
+.io-nf .io-cats .io-cats__set .io-cats__content { flex: 1 1 100%; width: 100%; min-height: 3em; resize: vertical; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.io-cats .io-cats__set .io-cats__prop,
+.io-fields .io-cats .io-cats__set .io-cats__prop,
+.io-nf .io-cats .io-cats__set .io-cats__prop { flex: 1 1 90px; width: auto; min-width: 0; }
 .io-cats .io-cats__keep { height: auto; padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); box-shadow: none; cursor: pointer; }
 .io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }

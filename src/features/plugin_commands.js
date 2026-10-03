@@ -324,6 +324,8 @@ function runCommandField(plugin, cfg, def) {
     new Notice(__say(__noticeKey("pkm", "no-presets"), "{0} has no visible presets: add them in Tags & PKM → Fields", name));
   } else if (got === "nothing") {
     new Notice(__say(__noticeKey("pkm", "nothing-to-do"), "{0}: nothing to change on this line", name));
+  } else if (got && got.refuse) {
+    new Notice(__commandField.refusalText(got, name));
   }
 }
 

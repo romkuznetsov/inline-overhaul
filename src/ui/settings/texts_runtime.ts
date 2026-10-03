@@ -54,6 +54,9 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     /* Command Field (4.4): `{0}` — `<Field> · <категория>`, как в палитре. */
     "no-presets": "{0} has no visible presets: add them in Tags & PKM → Fields",
     "nothing-to-do": "{0}: nothing to change on this line",
+    /* Вставка блока (6.3, предусловия); `{1}` — текст заголовка. Английское — `REFUSALS` в `command_field.js`. */
+    "block-not-empty": "{0}: put the cursor on an empty line to insert the block",
+    "block-heading-exists": "{0}: the note already has the heading {1}",
     error: "Tags & PKM error: {0}",
   },
 

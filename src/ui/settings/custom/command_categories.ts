@@ -4,7 +4,7 @@
  * Вид — прототип, `commandCategoriesTable`.
  */
 
-import type { El, DragEv } from "./dom.ts";
+import type { El, DragEv, ElInput } from "./dom.ts";
 import { el, btn, cssVar, selectInput, textInput, tipBelow } from "./dom.ts";
 import type { CommandCategory, CommandPreset, FieldRow } from "./fields_model.ts";
 /* Реестр категорий Command Field — один дом с командами (4.3, У-32). */
@@ -27,7 +27,10 @@ const CF = commandField as unknown as { CATEGORIES: readonly CfCategory[]; CALLO
 const CAT_DESC: Record<string, string> = {
   callouts: "CAT_DESC_CALLOUTS",
   cleanup: "CAT_DESC_CLEANUP",
+  block: "CAT_DESC_BLOCK",
 };
+
+const HEADING_LEVELS = [1, 2, 3, 4, 5, 6].map(n => ({ value: String(n), label: "H" + n }));
 
 /** Свёрнутость коллаута (6.1): значения — разметки Obsidian, подписи — каталога. */
 /* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
@@ -248,15 +251,52 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
       eye(pline, p, pn);
       nameInput(pline, p.name || "", presetName(c, { ...p, name: "" }), say("PRESET_NAME_ARIA", pn), v => { p.name = v; });
       const set = el(pline, "div", "io-cats__set");
+      const foldSelect = (): void => {
+        const f = selectInput(set, "io-select", {
+          options: FOLD_OPTIONS.map(x => ({ value: x.value, label: say(x.label) })), value: p.fold === "-" ? "-" : "", label: say("PRESET_FOLD_ARIA", pn),
+        });
+        f.disabled = !t.enabled;
+        f.addEventListener("change", (() => { p.fold = String(f.value); save(); }) as never);
+      };
+      /* Переключатель части пресета; выключенная прячет свои контролы (как `Settings that do not apply`). */
+      const part = (on: boolean, text: string, label: string, flip: () => void): boolean => {
+        const chip = btn(set, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text, label });
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+        chip.disabled = !t.enabled;
+        chip.addEventListener("click", (() => { flip(); save(); }) as never);
+        return on;
+      };
+      const prop = (value: string, placeholder: string, label: string, write: (v: string) => void): void => {
+        const input = textInput(set, "io-text io-cats__prop", { value, placeholder, label });
+        input.disabled = !t.enabled;
+        input.addEventListener("change", (() => { write(String(input.value || "").trim()); save(); }) as never);
+      };
       for (const kind of reg ? reg.params : []) {
         if (kind === "callout-type") {
           typePicker(set, p.type || "note", say("PRESET_TYPE_ARIA", pn), t.enabled, t.setIcon, v => { p.type = v; save(); });
         } else if (kind === "fold") {
-          const f = selectInput(set, "io-select", {
-            options: FOLD_OPTIONS.map(x => ({ value: x.value, label: say(x.label) })), value: p.fold === "-" ? "-" : "", label: say("PRESET_FOLD_ARIA", pn),
-          });
-          f.disabled = !t.enabled;
-          f.addEventListener("change", (() => { p.fold = String(f.value); save(); }) as never);
+          foldSelect();
+        } else if (kind === "block-content") {
+          const area = el(set, "textarea", "io-text io-cats__content") as unknown as ElInput;
+          area.value = String(p.content || "");
+          area.setAttribute("aria-label", say("PRESET_CONTENT_ARIA", pn));
+          area.setAttribute("placeholder", say("PRESET_CONTENT_PLACEHOLDER"));
+          area.setAttribute("rows", "2");
+          area.disabled = !t.enabled;
+          area.addEventListener("change", (() => { p.content = String(area.value || ""); save(); }) as never);
+        } else if (kind === "block-heading") {
+          if (part(!!p.heading, say("PRESET_HEADING"), say("PRESET_HEADING_ARIA", pn), () => { p.heading = !p.heading; })) {
+            prop(p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
+            const lv = selectInput(set, "io-select", { options: HEADING_LEVELS, value: String(p.headingLevel || 2), label: say("PRESET_LEVEL_ARIA", pn) });
+            lv.disabled = !t.enabled;
+            lv.addEventListener("change", (() => { p.headingLevel = Number(lv.value); save(); }) as never);
+          }
+        } else if (kind === "block-callout") {
+          if (part(!!p.callout, say("PRESET_CALLOUT"), say("PRESET_CALLOUT_ARIA", pn), () => { p.callout = !p.callout; })) {
+            typePicker(set, p.type || "note", say("PRESET_TYPE_ARIA", pn), t.enabled, t.setIcon, v => { p.type = v; save(); });
+            foldSelect();
+            prop(p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
+          }
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);
           for (const lf of t.lineFields) {
