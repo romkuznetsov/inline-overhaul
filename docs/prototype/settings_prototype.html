@@ -1820,6 +1820,8 @@ body.theme-dark {
 .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
+.io-cats .io-select.io-select--unset { color: var(--text-faint); }
+.io-cats .io-select.io-select--unset option { color: var(--text-normal); }
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -6250,11 +6252,19 @@ function cfTable(host, f, redraw) {
     });
   });
   const foot = el("div", "io-vals__foot", box);
-  const pick = selectEl(foot, CF_CATEGORIES.map(r => ({ value:r.id, label:r.name })), CF_CATEGORIES[0].id, "Category to add to " + f.name);
+  /* Ничего не выбрано заранее — серый `Select here` (его 💬 к тесту 1 цикла 125). */
+  const pick = selectEl(foot, [{ value:"", label:"Select here" }].concat(CF_CATEGORIES.map(r => ({ value:r.id, label:r.name }))), "", "Category to add to " + f.name, "io-select io-select--unset");
   const add = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add category");
   add.type = "button";
+  add.disabled = true;
+  pick.addEventListener("change", () => {
+    const chosen = CF_CATEGORIES.some(r => r.id === pick.value);
+    pick.classList.toggle("io-select--unset", !chosen);
+    add.disabled = !chosen;
+  });
   add.addEventListener("click", () => {
     const reg = CF_CATEGORIES.find(r => r.id === pick.value);
+    if (!reg) return;
     let key = reg.id, n = 2;
     while (cats.some(x => x.key === key)) key = reg.id + "-" + n++;
     cats.push({ id:reg.id, key, name:"", hidden:false, presets:JSON.parse(JSON.stringify(reg.defaults)).map(p => ({ ...p, hidden:false })) });

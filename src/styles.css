@@ -3721,6 +3721,9 @@ body.theme-dark {
 .io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
+/* Выбор категории до выбора — серым, как `not set` у хоткея; варианты списка — обычным цветом. */
+.io-cats .io-select.io-select--unset { color: var(--text-faint); }
+.io-cats .io-select.io-select--unset option { color: var(--text-normal); }
 
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки

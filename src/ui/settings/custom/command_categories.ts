@@ -200,13 +200,19 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
   });
 
   const foot = el(box, "div", "io-vals__foot");
-  const pick = selectInput(foot, "io-select", {
-    options: CF.CATEGORIES.map(c => ({ value: c.id, label: c.name })), value: CF.CATEGORIES[0]?.id ?? "",
+  /* Ничего не выбрано заранее — серый `Select here`, как `not set` (его 💬 к тесту 1 цикла 125). */
+  const pick = selectInput(foot, "io-select io-select--unset", {
+    options: [{ value: "", label: say("CATS_PICK_PLACEHOLDER") }].concat(CF.CATEGORIES.map(c => ({ value: c.id, label: c.name }))), value: "",
     label: say("CATS_PICK_ARIA", t.fieldName),
   });
   pick.disabled = !t.enabled;
   const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: say("CATS_ADD") });
-  add.disabled = !t.enabled;
+  add.disabled = true;
+  pick.addEventListener("change", (() => {
+    const chosen = !!regOf(String(pick.value));
+    if (chosen) pick.classList.remove("io-select--unset"); else pick.classList.add("io-select--unset");
+    add.disabled = !t.enabled || !chosen;
+  }) as never);
   add.addEventListener("click", (() => {
     const reg = regOf(String(pick.value));
     if (!reg) return;

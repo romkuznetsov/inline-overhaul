@@ -40,6 +40,7 @@ export const BLOCK_TEXTS = {
     CATS_COL_SETTINGS_TIP: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line",
     CATS_EMPTY: "No categories yet — pick one below and press Add category",
     CATS_ADD: "Add category",
+    CATS_PICK_PLACEHOLDER: "Select here",
     CATS_PICK_ARIA: "Category to add to {0}",
     CAT_DESC_CALLOUTS: "Wraps the line and its tree, or the selected lines, in a callout; inside one, steps through the presets and then takes the callout off",
     CAT_DESC_CLEANUP: "Takes the Values of your Fields off the line or the selected lines, except the Fields you keep",
