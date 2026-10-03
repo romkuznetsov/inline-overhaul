@@ -147,10 +147,18 @@ async function lineAfterToggle(rt, cfg, line, checked) {
   const fieldId = own ? own.id : MARK_FIELD;
   const limit = own ? own.tokens.length + 1 : 1;
   const done = (s) => (checked ? hasWord(s, token) : own ? !own.tokens.some((t) => hasWord(s, t)) : !hasWord(s, token));
+  /*
+   * Начало строки — человека: галочку поставил он, а шаги `next` переписывают
+   * его по Prefix Values (`- [x] text` → `- [ ] #done :: text`, тест 7 цикла 126).
+   */
+  const start = __sharedUtils.lineStartOf(line).prefix;
   let cur = line;
   for (let i = 0; i < limit; i++) {
     cur = await stepNext(rt, run, fieldId, cur);
-    if (done(cur)) return cur === line ? null : cur;
+    if (done(cur)) {
+      const out = start + __sharedUtils.lineStartOf(cur).body;
+      return out === line ? null : out;
+    }
   }
   return null;
 }

@@ -1632,6 +1632,56 @@ const SCENARIOS = {
   },
 
   /* Скроллер у перенесённой ячейки (его снимок к тесту 1 цикла 125): коробка у ячейки, а не во всю заметку. */
+  /*
+   * Тест 7 цикла 126: щелчок по галочке на его конфиге (маркер `#done`, Prefix `[ ]`
+   * у `#todo`) — отметить и снять, галочка остаётся той, что поставил человек.
+   */
+  async "done-checkbox"(win) {
+    const LINES = ["- [ ] принято", "- [ ] #todo :: buy milk", "\t- [ ] #high :: child"];
+    const want = [
+      ["- [x] #done :: принято", "- [ ] принято"],
+      ["- [x] #done :: buy milk", "- [ ] buy milk"],
+      ["\t- [x] #high #done :: child", "\t- [ ] #high :: child"],
+    ];
+    await win.evaluate(async (doc) => {
+      const a = window.app;
+      const f = await a.vault.create("done.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 700));
+      a.workspace.activeEditor.editor.setCursor({ line: 0, ch: 0 });
+    }, LINES.join("\n") + "\n\nend\n");
+    const click = async (n) => {
+      const box = await win.evaluate((n) => {
+        const view = window.app.workspace.activeEditor.editor.cm;
+        const at = view.state.doc.line(n + 1).from;
+        const row = view.domAtPos(at).node;
+        const el = (row.nodeType === 1 ? row : row.parentElement).closest(".cm-line");
+        const input = el && el.querySelector("input.task-list-item-checkbox");
+        if (!input) return null;
+        const r = input.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      }, n);
+      if (!box) return false;
+      await win.mouse.click(box.x, box.y);
+      await win.waitForTimeout(900);
+      return true;
+    };
+    /* Каретка — на «end»: на строке с кареткой Live Preview галочку не рисует. */
+    const away = () => win.evaluate(() => { const e = window.app.workspace.activeEditor.editor; e.setCursor({ line: e.lineCount() - 2, ch: 0 }); });
+    const got = [];
+    for (let i = 0; i < LINES.length; i++) {
+      await away();
+      const a = await click(i) ? await win.evaluate((i) => window.app.workspace.activeEditor.editor.getLine(i), i) : "нет галочки";
+      await away();
+      const b = await click(i) ? await win.evaluate((i) => window.app.workspace.activeEditor.editor.getLine(i), i) : "нет галочки";
+      got.push([a, b]);
+    }
+    console.log(JSON.stringify(got, null, 1));
+    const ok = JSON.stringify(got) === JSON.stringify(want);
+    console.log(ok ? "ok: галочка — человека, маркер #done встаёт и снимается" : "РАСХОДИТСЯ, ожидалось " + JSON.stringify(want));
+    return ok;
+  },
+
   async "scroller-wrapped-cell"(win) {
     await win.evaluate(async () => {
       const a = window.app;

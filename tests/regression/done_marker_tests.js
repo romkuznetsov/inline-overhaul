@@ -55,6 +55,26 @@ if (!global.window) global.window = { __tagWheelState: { active: false }, addEve
   }
   ok("маркер встаёт и снимается движком на всех формах начала строки");
 
+  /*
+   * Галочку ставит человек, и шаги `next` её не трогают: путь к маркеру идёт через
+   * Value с Prefix `[ ]` (его конфиг — Prefix у `#todo`; тест 7 цикла 126:
+   * `- [x] принято` становилось `- [ ] #done :: принято`, снятие давало `- принято`).
+   */
+  {
+    const cfg = cfgWith("#done", "right");
+    cfg.pkm.prefixRules = Object.assign({}, cfg.pkm.prefixRules, { checkboxByFieldValue: { Status: { "#todo": "[ ]" } } });
+    const run = normalize.migrateConfig(cfg);
+    const pairs = [
+      ["- [x] text", true, "- [x] #done || text"],
+      ["- [ ] #done || text", false, "- [ ] text"],
+      ["\t- [x] #high || text", true, "\t- [x] #done #high || text"],
+    ];
+    for (const [line, checked, want] of pairs) {
+      assert.strictEqual(await dm.lineAfterToggle(rt, run, line, checked), want, `${checked ? "tick" : "untick"} ${JSON.stringify(line)}`);
+    }
+    ok("галочку человека Prefix Values по пути к маркеру не переписывает");
+  }
+
   /* `Clear line` не снимает саму задачу: строка из галочки и маркера остаётся задачей. */
   {
     const got = await dm.lineAfterToggle(rt, cfgWith("✅", "left", { cycleEndBehavior: "clear-prefix" }), "- [ ] ✅", false);
