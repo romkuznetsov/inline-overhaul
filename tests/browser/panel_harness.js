@@ -103,11 +103,11 @@ const PANEL_INJECTIONS = {
    */
   "cancel-keeps-panel": {
     file: "src/pkm_v2/TagWheel/tagwheel.js",
-    /* Каретку `Esc` с 2026-09-24 возвращает и custom block — к её месту
-       (PRD 10.13.260); подмена пошла за текстом (У-94). */
+    /* Каретку `Esc` возвращает на место до панели (`caretBeforePanel`, цикл 121);
+       подмена пошла за текстом (У-94). */
     find: "    clearPanelMask(state)\n    unwritePanelLine(state)\n"
-      + "    state.editor.setCursor({ line: state.lineNumber,\n      ch: state.custom ? state.custom.caretCh : state.originalLine.length })",
-    replace: "    state.editor.setCursor({ line: state.lineNumber,\n      ch: state.custom ? state.custom.caretCh : state.originalLine.length })",
+      + "    state.editor.setCursor({ line: state.lineNumber, ch: caretBeforePanel(state) })",
+    replace: "    state.editor.setCursor({ line: state.lineNumber, ch: caretBeforePanel(state) })",
   },
   /*
    * Полоса обратно встаёт **на место** значений, а не рядом: план записи не
