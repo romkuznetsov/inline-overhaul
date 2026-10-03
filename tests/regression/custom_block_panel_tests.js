@@ -192,6 +192,22 @@ async function run() {
     ok("каретка за полосой custom block, и в конце строки; Escape возвращает строку и каретку");
   }
 
+  /* ---- панель Left: закрытие без выбора не двигает каретку (его `🐛` цикла 121) */
+  {
+    const cfg = config();
+    const line = "- позвонить в банк, завтра";
+    const ch = line.indexOf(",");
+    for (const close of [{ key: "Escape" }, ENTER]) {
+      const out = await drive(cfg, line, ch, [{ run: "open-tagwheel-left" }, close]);
+      assert.ok(out.opened[0], "панель Left не открылась");
+      assert.equal(out.line, line, close.key + " изменил строку");
+      assert.equal(out.cursor, ch, close.key + ": каретка ушла с места до панели");
+    }
+    const picked = await drive(cfg, line, ch, [{ run: "open-tagwheel-left" }, UP, ENTER]);
+    assert.notEqual(picked.line, line, "контроль: выбор значения строку меняет");
+    ok("Escape и Enter без выбора оставляют каретку там, где она была до панели");
+  }
+
   /* ---- второй вызов — пустой, новая копия ------------------------------ */
   {
     const cfg = config();

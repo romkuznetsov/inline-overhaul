@@ -221,6 +221,7 @@ const PREPARE = {
   },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
+  "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
      в корне — прежняя автокопия (самая новая) и копия человека, в подпапке — две старые. */
   "autosave-folder"(vault) {
@@ -717,6 +718,54 @@ const SCENARIOS = {
     console.log("тумблер включён, Shift+Enter:  " + JSON.stringify(shift));
     const ok = plain !== smart && enter === plain && shift === smart;
     console.log(ok ? "ok: Smart Enter на Shift+Enter, Enter обычный" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
+   * Его `🐛` цикла 121: tagWheel, открытый с кареткой в середине строки, после
+   * закрытия ставит её в конец. Каретка до панели — за словом `банк`; после
+   * `Esc` и после `Enter` без выбора она обязана стоять там же.
+   */
+  async "tagwheel-caret"(win) {
+    const line = "- позвонить в банк, завтра в налоговую";
+    const at = line.indexOf(",");
+    const run = async (keys, policy) => {
+      await win.evaluate(async ({ line, at, policy }) => {
+        const p = window.app.plugins.plugins["inline-overhaul"];
+        if (policy) p.setConfigPatch({ pkm: { behavior: { cursorPolicy: policy } } }, "bench:tagwheel-caret");
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(line);
+        ed.setCursor({ line: 0, ch: at });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { line, at, policy });
+      if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+      await win.waitForTimeout(700);
+      const open = await win.evaluate(() => Boolean(window.__tagWheelState && window.__tagWheelState.active));
+      for (const k of keys) { await win.keyboard.press(k); await win.waitForTimeout(300); }
+      const got = await win.evaluate(() => {
+        const ed = window.app.workspace.activeEditor.editor;
+        return { text: ed.getLine(0), ch: ed.getCursor().ch, open: Boolean(window.__tagWheelState && window.__tagWheelState.active) };
+      });
+      return Object.assign(got, { opened: open });
+    };
+    const policy = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().pkm.behavior.cursorPolicy);
+    const esc = await run(["Escape"]);
+    const enter = await run(["Enter"]);
+    const pick = await run(["ArrowDown", "Enter"]);
+    const stay = await run(["ArrowDown", "Enter"], "current_position");
+    await run(["Escape"], policy);
+    const show = (n, r) => console.log(n.padEnd(34) + "ch " + r.ch + " | " + JSON.stringify(r.text) + (r.opened ? "" : " | ПАНЕЛЬ НЕ ОТКРЫЛАСЬ"));
+    console.log("каретка до панели: ch " + at + ", Cursor after an action = " + policy);
+    show("Esc:", esc);
+    show("Enter без выбора:", enter);
+    show("стрелка и Enter:", pick);
+    show("стрелка и Enter, Don't move:", stay);
+    if (![esc, enter, pick, stay].every((r) => r.opened)) { console.log("КОНТРОЛЬ: панель не открылась"); return false; }
+    const ok = esc.ch === at && esc.text === line && enter.ch === at && enter.text === line;
+    console.log(ok ? "ok: Esc и Enter без выбора оставляют каретку на месте" : "РАСХОДИТСЯ");
     return ok;
   },
 

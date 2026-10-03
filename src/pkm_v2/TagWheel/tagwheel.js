@@ -2013,8 +2013,18 @@ async function runTagWheel(input, quickAddSettings) {
       getCursorAtTextEnd: macroShared.getCursorAtTextEnd,
       remapCursorByLineDiff: macroShared.remapCursorByLineDiff,
     })
+    /* Ничего не поставлено — каретка там, где была до панели (его `🐛` цикла 121). */
+    if (String(finalLine) === String(state.originalLine)) nextCh = caretBeforePanel(state)
     state.editor.setCursor({ line: state.lineNumber, ch: nextCh })
     cleanupTagWheelState(state)
+  }
+
+  /** Каретка до открытия панели — в строке, вернувшейся к исходной. */
+  function caretBeforePanel(state) {
+    if (state.custom) return state.custom.caretCh
+    var ch = Math.trunc(Number(state.originalCursorCh))
+    var len = String(state.originalLine || '').length
+    return isFinite(ch) && ch >= 0 ? Math.min(ch, len) : len
   }
 
   function getControlCursorCh(state, controlLine) {
@@ -2303,8 +2313,7 @@ async function runTagWheel(input, quickAddSettings) {
     /* Отмена возвращает строку как была, следа в истории не оставляет. */
     clearPanelMask(state)
     unwritePanelLine(state)
-    state.editor.setCursor({ line: state.lineNumber,
-      ch: state.custom ? state.custom.caretCh : state.originalLine.length })
+    state.editor.setCursor({ line: state.lineNumber, ch: caretBeforePanel(state) })
     cleanupTagWheelState(state)
   }
 
