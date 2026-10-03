@@ -388,7 +388,7 @@ const insertBlockCategory = {
   id: "block",
   /* Имя — его слово (пункт «Новое» 2026-10-03): `Insert block` → `Insert codeblock`. */
   name: "Insert codeblock",
-  params: ["block-mode", "block-wrap", "block-content"],
+  params: ["block-content", "block-mode", "block-wrap"],
   defaultName(p) {
     const mode = blockMode(p);
     const first = blockBody(p).find((l) => l.trim()) || "";

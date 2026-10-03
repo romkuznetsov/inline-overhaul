@@ -1368,6 +1368,16 @@ const SCENARIOS = {
       /* В списке Fields чипа нет: имя кончается там, где кончается кнопка выбора, а не перед чипом. */
       listChips: document.querySelectorAll(".io-fields__list .io-chip").length,
       dots: document.querySelectorAll(".io-fields__list .io-typedot").length,
+      /* Плитка типа со знаком (его 💬 к тесту 1 цикла 128): `/` у Command, ширина не меньше 16 px. */
+      glyph: (document.querySelector(".io-fields__list .io-fields__item[aria-current=\"true\"] .io-typedot") || {}).textContent,
+      dotW: Math.round((document.querySelector(".io-fields__list .io-typedot") || { getBoundingClientRect: () => ({ width: 0 }) }).getBoundingClientRect().width),
+      /* Имя пресета и первый контрол — на одной линии: верхи расходятся не больше чем на 2 px (его 💬 к тесту 1 цикла 128). */
+      skew: [...document.querySelectorAll(".io-fields .io-cats .io-vals__row--child")].map((r) => {
+        const name = r.querySelector(":scope > .io-text");
+        const ctl = r.querySelector(".io-cats__tbtn, .io-cats__fold, .io-seg, .io-cats__content, .io-cats__keep");
+        return name && ctl ? Math.abs(Math.round(name.getBoundingClientRect().top - ctl.getBoundingClientRect().top)) : -1;
+      }),
+      tableH: Math.round(document.querySelector(".io-fields .io-cats").getBoundingClientRect().height),
     }));
     /* Выбор типа: значок и цвет от темы (его 💬 к тесту 1 цикла 125). */
     await host.click(".io-fields .io-cats__tbtn");
@@ -1379,6 +1389,15 @@ const SCENARIOS = {
         icons: items.filter((n) => n.querySelector(".io-cats__ticon svg")).length,
         /* Цвет действует, а не только задан: у темы Minimal он hex, и `rgb(var())` был недействителен. */
         colored: items.filter((n) => getComputedStyle(n).color !== getComputedStyle(n.parentElement).color).length,
+        /* Список поверх: таблица не выросла, и в середине списка видно сам список (его 💬 к тесту 1 цикла 128). */
+        openH: Math.round(document.querySelector(".io-fields .io-cats").getBoundingClientRect().height),
+        onTop: (() => {
+          const l = document.querySelector(".io-fields .io-cats__tlist");
+          if (!l) return false;
+          const r = l.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 60));
+          return !!hit && l.contains(hit);
+        })(),
       };
     }));
     if (process.env.IO_SHOTS) {
@@ -1386,6 +1405,12 @@ const SCENARIOS = {
       if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field.png") });
     }
     await host.keyboard.press("Escape").catch(() => {});
+    /* Escape закрыл список, а не окно настроек; снимок всей таблицы Fields. */
+    table.listClosed = await host.evaluate(() => !document.querySelector(".io-cats__tlist") && !!document.querySelector(".io-fields"));
+    if (process.env.IO_SHOTS) {
+      const t = await host.$(".io-fields");
+      if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-fields.png") });
+    }
     await host.keyboard.press("Escape").catch(() => {});
     const got = await win.evaluate(async () => {
       const a = window.app;
@@ -1415,7 +1440,9 @@ const SCENARIOS = {
       && got.types === 13 && got.icons === 13 && got.colored === 13
       && got.commands.join() === "inline-overhaul:format-callouts-next,inline-overhaul:format-callouts-previous"
       && got.after === "> [!note]\n> - Research plan\n>   - read papers\n- buy bread\n" && got.undone
-      && got.lines.length === 3 && got.lines.every((n) => n === 1) && got.cut === 0 && got.listChips === 0 && got.dots > 0;
+      && got.lines.length === 3 && got.lines.every((n) => n === 1) && got.cut === 0 && got.listChips === 0 && got.dots > 0
+      && got.glyph === "/" && got.dotW >= 16 && got.skew.length === 3 && got.skew.every((d) => d >= 0 && d <= 2)
+      && got.openH === got.tableH && got.onTop && got.listClosed;
     console.log(ok ? "ok: Command Field заведён окном, категория пришла с пресетами, команда — одна правка и один Ctrl+Z" : "РАСХОДИТСЯ");
     return ok;
   },
@@ -1591,7 +1618,7 @@ const SCENARIOS = {
       const r = set ? set.getBoundingClientRect() : null;
       return area ? { value: area.value, areaW: Math.round(area.getBoundingClientRect().width), setW: r ? Math.round(r.width) : 0,
         caps: [...set.querySelectorAll(".io-cats__cap")].map((n) => n.textContent),
-        wrap: (set.querySelector(".io-cats__tbtn .io-cats__tname") || {}).textContent } : null;
+        wrap: (set.querySelector(".io-seg__btn--on") || {}).textContent } : null;
     });
     if (process.env.IO_SHOTS) {
       const t = await host.$(".io-cats");
@@ -1600,7 +1627,7 @@ const SCENARIOS = {
     console.log(JSON.stringify(got, null, 1));
     const ok = got.inserted === "# Note\n## Contents\n```table-of-contents\n```\nsome text\n"
       && got.removed === doc && got.refused === doc && got.notices.some((n) => /empty line/.test(n))
-      && !!got.panel && got.panel.areaW >= got.panel.setW - 4 && got.panel.caps.join() === "Wrap,Wrap settings,Text" && got.panel.wrap === "Heading";
+      && !!got.panel && got.panel.areaW >= got.panel.setW - 4 && got.panel.caps.join() === "Text,Wrap,Heading,Level" && got.panel.wrap === "Heading";
     console.log(ok ? "ok: вставка блока — команда, снятие, отказ вслух, строка пресета в панели" : "РАСХОДИТСЯ");
     return ok;
   },

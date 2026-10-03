@@ -387,14 +387,16 @@ export function onPress(node: El, fn: () => void): void {
 }
 
 /** Ряд кнопок-переключателей: одна нажата. Узлы — свои, `aria-pressed` у каждой. */
-export function segmented(host: El, options: ReadonlyArray<{ value: string; label: string }>, value: string,
-  label: string, pick: (v: string) => void): void {
+export function segmented(host: El, options: ReadonlyArray<{ value: string; label: string; title?: string }>, value: string,
+  label: string, pick: (v: string) => void, enabled = true): El {
   const seg = el(host, "div", "io-seg");
   seg.setAttribute("role", "group");
   seg.setAttribute("aria-label", label);
   for (const o of options) {
-    const b = btn(seg, "io-seg__btn" + (o.value === value ? " io-seg__btn--on" : ""), { text: o.label });
+    const b = btn(seg, "io-seg__btn" + (o.value === value ? " io-seg__btn--on" : ""), { text: o.label, ...(o.title ? { title: o.title } : {}) });
     b.setAttribute("aria-pressed", o.value === value ? "true" : "false");
-    onPress(b, () => pick(o.value));
+    b.disabled = !enabled;
+    onPress(b, () => { if (enabled) pick(o.value); });
   }
+  return seg;
 }

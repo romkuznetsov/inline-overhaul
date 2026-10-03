@@ -46,6 +46,14 @@ export const TYPE_NAME: Record<FieldKind, string> = {
   command: "TYPE_COMMAND",
 };
 
+/** Знак типа в плитке списка Fields — то, что тип пишет в строку. */
+const TYPE_GLYPH: Record<FieldKind, string> = {
+  tag: "#",
+  wikilink: "[[",
+  element: "\uD83D\uDCC5",
+  command: "/",
+};
+
 /** Цвет чипа типа (Ф4); карта в `preview_data.ts`, общая с предпросмотрами (У-32). */
 export { TYPE_COLOR };
 
@@ -488,9 +496,11 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
 
       const pick = btn(item, "io-fields__pick", { label: say("SHOW_FIELD", row.label) });
       /* Тип — точкой цвета типа: чип съедал имя (его 💬 к тесту 1, цикл 127); слово — в подсказке и чипом справа. */
-      const dot = el(pick, "span", "io-typedot");
+      /* Плитка со знаком типа, в стиле бейджей бренд-бука (его 💬 к тесту 1 цикла 128). */
+      const dot = el(pick, "span", "io-typedot", TYPE_GLYPH[row.kind]);
       dot.setAttribute("aria-label", say(TYPE_NAME[row.kind]));
       cssVar(dot, "--io-chip-bg", typeColor(row.kind));
+      cssVar(dot, "--io-chip-ink", typeInk(row.kind));
       el(pick, "span", "io-fields__name", row.label);
       pick.addEventListener("click", (() => {
         o.state.selected = row.key;
@@ -1347,8 +1357,8 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     });
     token.disabled = !o.enabled;
     /* Глаз — в ячейке Value, а не своей колонкой: таблице не осталось ширины (В-278, бюджет 665px); в DOM — за полем, на экране — перед ним. */
-    const eye = btn(valueCell, "io-icon io-vals__eye" + (v.hidden ? " io-vals__eye--off" : ""), {
-      text: v.hidden ? "\u25CC" : "\uD83D\uDC41", label: say(v.hidden ? "VALUE_SHOW" : "VALUE_HIDE", v.token),
+    const eye = btn(valueCell, "io-icon io-eye io-vals__eye" + (v.hidden ? " io-eye--off io-vals__eye--off" : ""), {
+      label: say(v.hidden ? "VALUE_SHOW" : "VALUE_HIDE", v.token),
     });
     eye.setAttribute("aria-pressed", v.hidden ? "false" : "true");
     eye.disabled = !o.enabled;

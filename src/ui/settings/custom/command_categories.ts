@@ -5,7 +5,7 @@
  */
 
 import type { El, DragEv, ElInput } from "./dom.ts";
-import { el, btn, cssVar, textInput, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, segmented, textInput, tipBelow } from "./dom.ts";
 import type { CommandCategory, CommandPreset, FieldRow } from "./fields_model.ts";
 /* Реестр категорий Command Field — один дом с командами (4.3, У-32). */
 import commandField from "../../../features/command_field.js";
@@ -84,10 +84,20 @@ const COLUMNS: Record<string, { cap: string; tip: string; weight?: number; wide?
   "section-place": { cap: "CAP_PLACE", tip: "CAP_PLACE_TIP", min: 96 },
   "code-blocks": { cap: "CAP_CODE", tip: "CAP_CODE_TIP", min: 88 },
   "tables": { cap: "CAP_TABLES", tip: "CAP_TABLES_TIP", min: 88 },
-  "block-mode": { cap: "CAP_WRAP", tip: "CAP_WRAP_TIP", min: 84 },
-  "block-wrap": { cap: "CAP_WRAP_SETTINGS", tip: "CAP_WRAP_SETTINGS_TIP", weight: 3, min: 140 },
+  "block-mode": { cap: "CAP_WRAP", tip: "CAP_WRAP_TIP", fit: true },
   "block-content": { cap: "CAP_TEXT", tip: "CAP_TEXT_TIP", wide: true },
+  /* Настройки обёртки — каждая своей ячейкой со своей подписью: общая «Wrap settings» не говорила, что под ней (его 💬 к тесту 1 цикла 128). */
+  "heading-text": { cap: "CAP_HEADING_TEXT", tip: "CAP_HEADING_TEXT_TIP", weight: 2, min: 110 },
+  "block-level": { cap: "CAP_BLOCK_LEVEL", tip: "CAP_BLOCK_LEVEL_TIP", min: 72 },
+  "callout-title": { cap: "CAP_TITLE", tip: "CAP_TITLE_TIP", weight: 2, min: 110 },
 };
+
+/* У вставки блока набор ячеек зависит от обёртки пресета: подписи нужны у каждого пресета, а не только у первого. */
+const CAPTIONS_EVERY_PRESET = new Set(["block"]);
+/** Подписи колонок у пресета: у первого в категории, у вставки блока — у каждого. */
+export function presetCaptions(categoryId: string, index: number): boolean {
+  return index === 0 || CAPTIONS_EVERY_PRESET.has(categoryId);
+}
 
 
 /** Вид коллаута у темы: значок и цвет из `.callout[data-callout]` (переменные Obsidian). */
@@ -165,15 +175,50 @@ function picker(host: El, o: { items: readonly PickItem[]; value: string; aria: 
   if (now) face(button, now);
   else el(button, "span", "io-cats__tname", o.placeholder || "");
   let list: El | null = null;
+  type Ev = { target?: unknown; key?: string; stopPropagation?: () => void; preventDefault?: () => void };
+  const win = globalThis as unknown as { innerHeight?: number; addEventListener?: (t: string, f: (ev: Ev) => void, c?: boolean) => void;
+    removeEventListener?: (t: string, f: (ev: Ev) => void, c?: boolean) => void };
+  /* Прокрутка самого списка его не закрывает. */
+  const onScroll = (ev: Ev): void => {
+    const own = list as unknown as { contains?: (n: unknown) => boolean } | null;
+    if (own && typeof own.contains === "function" && ev && own.contains(ev.target)) return;
+    close();
+  };
   const close = (): void => {
     if (list) list.remove();
     list = null;
     button.setAttribute("aria-expanded", "false");
+    if (win.removeEventListener) { win.removeEventListener("scroll", onScroll, true); win.removeEventListener("resize", close); }
   };
+  /*
+   * Список — поверх подложки, а не в потоке: открытый он сдвигал всю панель (его 💬 к тесту 1 цикла 128).
+   * `fixed` от кнопки обходит `overflow: hidden` таблицы; прокрутка или смена размера закрывает его, а не оставляет висеть.
+   */
+  const place = (node: El): void => {
+    const b = button as unknown as { getBoundingClientRect?: () => { left: number; top: number; bottom: number; width: number } };
+    if (typeof b.getBoundingClientRect !== "function") return;
+    const r = b.getBoundingClientRect();
+    const below = (win.innerHeight || 0) - r.bottom;
+    const up = below < 200 && r.top > below;
+    cssVar(node, "--io-pop-left", r.left + "px");
+    cssVar(node, "--io-pop-width", r.width + "px");
+    cssVar(node, "--io-pop-top", up ? "auto" : r.bottom + 2 + "px");
+    cssVar(node, "--io-pop-bottom", up ? (win.innerHeight || 0) - r.top + 2 + "px" : "auto");
+    cssVar(node, "--io-pop-max", Math.max(120, Math.min(260, (up ? r.top : below) - 12)) + "px");
+    if (win.addEventListener) { win.addEventListener("scroll", onScroll, true); win.addEventListener("resize", close); }
+  };
+  /* Escape закрывает список, а не окно настроек. */
+  button.addEventListener("keydown", ((ev: Ev) => {
+    if (!ev || ev.key !== "Escape" || !list) return;
+    if (ev.stopPropagation) ev.stopPropagation();
+    if (ev.preventDefault) ev.preventDefault();
+    close();
+  }) as never);
   button.addEventListener("click", (() => {
     if (list) { close(); return; }
     list = el(wrap, "div", "io-cats__tlist");
     list.setAttribute("role", "listbox");
+    place(list);
     button.setAttribute("aria-expanded", "true");
     for (const it of o.items) {
       const on = it.value === o.value;
@@ -268,25 +313,28 @@ export function drawPresetControls(set: El, categoryId: string, p: CommandPreset
   };
   for (const kind of reg ? reg.params : []) {
     /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
-    if (kind === "block-wrap" && CF.blockMode(p) === "plain") continue;
+    if (kind === "block-wrap") {
+      /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126), каждая своей ячейкой с подписью (его 💬 к тесту 1 цикла 128). */
+      const mode = CF.blockMode(p);
+      if (mode === "heading") {
+        prop(cell("heading-text"), p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
+        choose(cell("block-level"), LEVELS, CF.blockLevel(p), say("PRESET_LEVEL_ARIA", pn), v => { p.level = v; });
+      } else if (mode === "callout") {
+        types(cell("callout-type"));
+        folds(cell("fold"));
+        prop(cell("callout-title"), p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
+      }
+      continue;
+    }
     const box2 = cell(kind);
     if (kind === "callout-type") {
       types(box2);
     } else if (kind === "fold") {
       folds(box2);
     } else if (kind === "block-mode") {
-      choose(box2, MODES, CF.blockMode(p), say("PRESET_MODE_ARIA", pn), v => { p.mode = v; });
-    } else if (kind === "block-wrap") {
-      /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
-      const mode = CF.blockMode(p);
-      if (mode === "heading") {
-        prop(box2, p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
-        choose(box2, LEVELS, CF.blockLevel(p), say("PRESET_LEVEL_ARIA", pn), v => { p.level = v; });
-      } else if (mode === "callout") {
-        types(box2);
-        folds(box2);
-        prop(box2, p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
-      }
+      /* Три положения — переключателем, а не списком: все варианты видны сразу. */
+      segmented(box2, MODES.map(m => ({ value: m.value, label: say(m.label), title: say(m.tip) })), CF.blockMode(p),
+        say("PRESET_MODE_ARIA", pn), v => { if (v !== CF.blockMode(p)) { p.mode = v; save(); } }, t.enabled);
     } else if (kind === "block-content") {
       const area = el(box2, "textarea", "io-text io-cats__content") as unknown as ElInput;
       area.value = String(p.content || "");
@@ -392,8 +440,9 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
     }) as never);
   };
   const eye = (line: El, item: { hidden?: boolean }, what: string): void => {
-    const b = btn(line, "io-icon io-cats__eye" + (item.hidden ? " io-cats__eye--off" : ""), {
-      text: item.hidden ? "◌" : "👁", label: say(item.hidden ? "CAT_SHOW" : "CAT_HIDE", what),
+    /* Пиктограмма штрихом, как у кнопок строки, а не эмодзи: тот перетягивал взгляд (его 💬 к тестам 1 и 8 цикла 128). */
+    const b = btn(line, "io-icon io-eye io-cats__eye" + (item.hidden ? " io-eye--off io-cats__eye--off" : ""), {
+      label: say(item.hidden ? "CAT_SHOW" : "CAT_HIDE", what),
     });
     b.setAttribute("aria-pressed", item.hidden ? "false" : "true");
     b.disabled = !t.enabled;
@@ -432,12 +481,14 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
     const seen = new Map<string, string>();
     c.presets.forEach((p, pi) => {
       const pn = presetName(c, p);
-      const pline = el(inner, "div", "io-vals__row io-vals__row--child io-cats__row" + (p.hidden ? " io-cats__row--hidden" : ""));
+      const caps = presetCaptions(c.id, pi);
+      /* Строка с подписями опускает имя и кнопки на линию контролов: иначе имя стояло выше выбора (его 💬 к тесту 1 цикла 128). */
+      const pline = el(inner, "div", "io-vals__row io-vals__row--child io-cats__row" + (caps ? " io-cats__row--capped" : "") + (p.hidden ? " io-cats__row--hidden" : ""));
       grip(pline, "presets:" + ci, pi, c.presets, pn);
       eye(pline, p, pn);
       nameInput(pline, p.name || "", presetName(c, { ...p, name: "" }), say("PRESET_NAME_ARIA", pn), v => { p.name = v; });
       const set = el(pline, "div", "io-cats__set");
-      drawPresetControls(set, c.id, p, pn, { ...t, captions: pi === 0 });
+      drawPresetControls(set, c.id, p, pn, { ...t, captions: caps });
       const sig = reg ? reg.signature(p) : "";
       if (!p.hidden && seen.has(sig)) el(set, "span", "io-cats__same io-cats__cell--wide", say("PRESET_SAME", seen.get(sig) as string));
       else if (!p.hidden) seen.set(sig, pn);

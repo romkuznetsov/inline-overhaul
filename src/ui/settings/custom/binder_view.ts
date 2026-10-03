@@ -31,6 +31,8 @@ export const LABEL_PREFIX = T.COMMAND_PREFIX.replace("{0}", "");
 /** Как блок спрашивает свой текст. Нет ctx — ответом идёт английское. */
 export type Say = (name: string, ...args: readonly (string | number)[]) => string;
 const PLAIN: Say = sayIn("binder-table", {});
+/* Раскрытые настройки строк Command переживают перерисовку таблицы, но не перезапуск: по умолчанию свёрнуты. */
+const openPresets = new Set<string>();
 
 /** Как назвать строку в подписях: тем же, чем её называет список хоткеев. */
 export function rowTitle(row: BinderRow): string {
@@ -120,9 +122,29 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     });
 
     const command = row.type === "command";
-    el(line, "code", "io-mono" + (command ? " io-binder__cat" : ""),
-      command ? (o.categoryName ? o.categoryName(row.category) : row.category) : row.insertText);
-    el(line, "div", "io-cellname", name);
+    const inserts = command ? (o.categoryName ? o.categoryName(row.category) : row.category) : row.insertText;
+    const insCell = el(line, "code", "io-mono" + (command ? " io-binder__cat" : ""), inserts);
+    if (command) insCell.setAttribute("aria-label", inserts);
+    /* Строка Command выглядит как строка текста; настройки пресета — под треугольником у имени, свёрнуты (его 💬 к тесту 9 цикла 128). */
+    const open = command && openPresets.has(row.rowId);
+    let sub: El | null = null;
+    const nameCell = el(line, "div", "io-cellname" + (command ? " io-binder__named" : ""));
+    if (command && o.drawPreset) {
+      const fold = btn(nameCell, "io-icon io-binder__fold" + (open ? " io-binder__fold--open" : ""), {
+        text: open ? "▾" : "▸", label: say(open ? "ROW_PRESET_HIDE" : "ROW_PRESET_SHOW", name),
+      });
+      fold.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.addEventListener("click", (() => {
+        if (openPresets.has(row.rowId)) openPresets.delete(row.rowId); else openPresets.add(row.rowId);
+        const now = openPresets.has(row.rowId);
+        if (sub) sub.hidden = !now;
+        fold.textContent = now ? "▾" : "▸";
+        if (now) fold.classList.add("io-binder__fold--open"); else fold.classList.remove("io-binder__fold--open");
+        fold.setAttribute("aria-expanded", now ? "true" : "false");
+        fold.setAttribute("aria-label", say(now ? "ROW_PRESET_HIDE" : "ROW_PRESET_SHOW", name));
+      }) as never);
+    }
+    el(nameCell, "span", "io-binder__name", name);
 
     const cell = el(line, "div", "io-binder__desc");
     if (row.system) {
@@ -164,8 +186,9 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     }) as never);
     /* Пресет строки `Command` — строкой под ней, во всю ширину таблицы (4.6). */
     if (command && o.drawPreset) {
-      const sub = el(card, "div", "io-binder__preset io-cats");
+      sub = el(card, "div", "io-binder__preset io-cats");
       sub.setAttribute("aria-label", say("ROW_PRESET_ARIA", name));
+      sub.hidden = !open;
       o.drawPreset(el(sub, "div", "io-cats__set"), row);
     }
   });

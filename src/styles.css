@@ -2936,7 +2936,15 @@ body.theme-dark {
 }
 .io-binder__desc { min-width: 0; }
 /* Строка `Command` (4.6): категория вместо текста, пресет — строкой под ней во всю ширину, контролы как у Command Field. */
-.io-binder__cat { white-space: normal; overflow-wrap: anywhere; font-size: var(--font-ui-smaller); }
+/* Строка Command — как строка текста; треугольник у имени раскрывает её настройки (его 💬 к тесту 9 цикла 128). */
+.io-binder__named { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.io-binder__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-binder .io-binder__fold { flex: 0 0 auto; width: 18px; height: 20px; padding: 0; margin-left: -4px; font-size: 11px; color: var(--text-muted); }
+.io-binder .io-binder__fold--open { color: var(--text-normal); }
+.io-binder .io-binder__cat { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Кнопки-значки таблицы — плоские, как в таблицах Fields: правило Obsidian на `button` рисовало им серую коробку. */
+.io-binder .io-icon { appearance: none; box-shadow: none; border: 0; background: transparent; color: var(--text-faint); }
+.io-binder .io-icon:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .io-binder__preset { padding: 2px 12px 8px 30px; background: var(--background-primary); }
 .io-binder__preset > .io-cats__set, .io-binder__new > .io-cats__set { max-width: 440px; }
 .io-binder__new { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
@@ -3782,6 +3790,42 @@ body.theme-dark {
   margin-top: 2px; max-height: 260px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 1px; padding: 3px;
   background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s);
+}
+/* ---- Цикл 129: вид таблицы категорий (его 💬 к тестам 1, 8, 9 цикла 128) ---- */
+/* Список выбора — поверх подложки: `fixed` от кнопки, панель под ним не сдвигается. */
+.io-cats__tlist {
+  position: fixed; z-index: var(--layer-menu, 65); margin: 0;
+  left: var(--io-pop-left, auto); top: var(--io-pop-top, auto); bottom: var(--io-pop-bottom, auto);
+  min-width: max(var(--io-pop-width, 0px), 120px); max-width: 320px; max-height: var(--io-pop-max, 260px);
+  box-shadow: var(--shadow-l);
+}
+/* Строка с подписями колонок: имя и кнопки встают на линию контролов, а не выше подписи. */
+.io-cats .io-cats__row { align-items: start; }
+.io-cats__cap { height: 16px; line-height: 16px; }
+.io-cats .io-cats__row--capped > :not(.io-cats__set) { margin-top: 20px; }
+.io-cats .io-cats__row > .io-grip, .io-cats .io-cats__row > .io-icon { align-self: start; min-height: var(--input-height, 30px); display: flex; align-items: center; justify-content: center; }
+.io-cats .io-cats__cat { align-items: center; }
+.io-cats .io-cats__cat > * { margin-top: 0; }
+.io-cats .io-cats__tbtn { min-height: var(--input-height, 30px); }
+.io-cats .io-cats__fold { min-height: var(--input-height, 30px); }
+.io-cats .io-cats__set .io-seg { min-height: var(--input-height, 30px); box-sizing: border-box; }
+.io-cats .io-cats__set .io-seg .io-seg__btn { font-size: var(--font-ui-smaller); padding: 2px 9px; }
+/* Фишки Keep — по высоте поля, первая линия на уровне имени. */
+.io-cats .io-cats__cell:has(> .io-cats__keep) { min-height: var(--input-height, 30px); }
+/* Глаз — пиктограмма штрихом, как кнопки строки; закрытый — перечёркнут и бледнее. */
+.io-eye { display: inline-flex; align-items: center; justify-content: center; }
+.io-eye::before {
+  content: ""; width: 14px; height: 14px; background-color: currentColor;
+  -webkit-mask: var(--io-eye-icon) center / contain no-repeat; mask: var(--io-eye-icon) center / contain no-repeat;
+}
+.io-eye { --io-eye-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E"); }
+.io-eye--off { --io-eye-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.73 5.08a10.74 10.74 0 0 1 11.2 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49'/%3E%3Cpath d='M14.08 14.16a3 3 0 0 1-4.24-4.24'/%3E%3Cpath d='M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14'/%3E%3Cpath d='m2 2 20 20'/%3E%3C/svg%3E"); }
+/* Тип Field — плиткой со знаком типа, в стиле бейджей бренд-бука (flat-square): `#`, `[[`, `📅`, `/`. */
+.io-typedot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 16px; border-radius: 3px;
+  font-family: var(--font-monospace); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: -0.5px;
+  color: var(--io-chip-ink, var(--text-on-accent));
 }
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки

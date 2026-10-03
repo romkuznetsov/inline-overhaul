@@ -69,6 +69,19 @@ const pickIn = (host: StubNode, label: string, item: string): void => {
   assert.ok(it, "у «" + label + "» нет варианта «" + item + "»");
   click(it as StubNode);
 };
+/* Переключатель из нескольких кнопок (`segmented`): нажатая — `aria-pressed`. */
+const segOf = (host: StubNode, label: string): StubNode => {
+  const hit = all(host, "io-seg").find(n => String(n.getAttribute("aria-label")) === label);
+  assert.ok(hit, "нет переключателя «" + label + "»");
+  return hit as StubNode;
+};
+const segShown = (host: StubNode, label: string): string =>
+  String((all(segOf(host, label), "io-seg__btn").find(n => n.getAttribute("aria-pressed") === "true") as StubNode).textContent);
+const segPick = (host: StubNode, label: string, item: string): void => {
+  const b = all(segOf(host, label), "io-seg__btn").find(n => n.textContent === item);
+  assert.ok(b, "у «" + label + "» нет положения «" + item + "»");
+  click(b as StubNode);
+};
 const shown = (host: StubNode, label: string): string => String((all(opener(host, label), "io-cats__tname")[0] as StubNode).textContent);
 const addCategory = (host: StubNode, name: string): void => {
   pickIn(host, "Category to add to Fmt", name);
@@ -205,18 +218,23 @@ const panel = makePanel(base);
   (area as Any).value = "```dataview\nLIST\n```";
   area.dispatch("change", { target: area });
   assert.equal(block().presets[0].content, "```dataview\nLIST\n```", "содержимое не записалось");
-  assert.equal(shown(panel.host, "Wrap of Contents"), "Heading", "обёртка по умолчанию не заголовок");
+  assert.equal(segShown(panel.host, "Wrap of Contents"), "Heading", "обёртка по умолчанию не заголовок");
+  /* Текст первым, у каждой настройки обёртки своя подпись, без общей «Wrap settings» (его 💬 к тесту 1 цикла 128). */
+  const caps = (): string[] => all(panel.host, "io-cats__row--capped").filter(r => all(r, "io-cats__content").length).flatMap(r => all(r, "io-cats__cap").map(n => String(n.textContent)));
+  assert.deepEqual(caps(), ["Text", "Wrap", "Heading", "Level"], "подписи вставки с заголовком");
   labelled(panel.host, "Heading text of Contents");
   assert.equal(shown(panel.host, "Heading level of Contents"), "Auto", "уровень по умолчанию не на один ниже заголовка выше");
   assert.throws(() => labelled(panel.host, "Callout title of Contents"), /нет узла/, "у заголовка настройки коллаута");
-  pickIn(panel.host, "Wrap of Contents", "Callout");
+  segPick(panel.host, "Wrap of Contents", "Callout");
+  assert.deepEqual(caps(), ["Text", "Wrap", "Type", "Fold", "Title"], "подписи вставки с коллаутом");
   assert.equal(block().presets[0].mode, "callout", "обёртка не записалась");
   assert.throws(() => labelled(panel.host, "Heading text of Contents"), /нет узла/, "у коллаута осталось поле заголовка");
   const title = labelled(panel.host, "Callout title of Contents");
   (title as Any).value = "TOC";
   title.dispatch("change", { target: title });
   assert.equal(block().presets[0].title, "TOC", "заголовок коллаута не записался");
-  pickIn(panel.host, "Wrap of Contents", "Plain");
+  segPick(panel.host, "Wrap of Contents", "No (Plain)");
+  assert.deepEqual(caps(), ["Text", "Wrap"], "подписи простой вставки");
   assert.throws(() => opener(panel.host, "Callout type of Contents"), /нет выбора/, "у простой вставки настройки коллаута");
   /* Дальше проверки опираются на одну категорию Коллауты. */
   click(labelled(panel.host, "Remove the category Insert codeblock"));
