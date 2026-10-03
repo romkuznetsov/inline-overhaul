@@ -30,6 +30,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 7. 🎨 **Setting ids show the current value.** With `Show option IDs in tips`, the tip ends with `id = value`, such as `backup-autosave = on`.
 8. 🎨 **`Separators` starts folded.** The group is rarely needed, so it opens collapsed.
 9. 🐛 **The new Field preview matches the panel.** Time formats with seconds step by seconds, and the scroller keeps readable text on its own fill.
+10. 🐛 **The symbol picker in `Add a Field` puts the symbol at the cursor.** It used to append it to the end of the value, unlike the same picker in the Fields editor.
 
 ## 0.13.0
 
