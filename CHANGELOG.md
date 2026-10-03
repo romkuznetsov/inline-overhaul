@@ -24,6 +24,12 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 1. ✨ **Smart Enter on `Shift+Enter`.** `Use Shift+Enter instead`, under Smart Enter, moves it to `Shift+Enter` and leaves `Enter` as usual.
 2. ✨ **Autosaves in their own folder, as many as you choose.** Autosaves go into `autosave` inside the backup folder, earlier ones move there on the next start, and `Autosaves to keep` sets how many stay — 10 when empty.
 3. 🎨 **Help in the panel, in plain words.** Every callout now says what a section is for, and every `?` tip compares the choices and says which to pick — shorter and without the technical wording.
+4. ✨ **tagWheel keeps your selection.** Start it with lines selected and the selection stays highlighted; `Line for a selection` picks the top line, the bottom one or where you finished selecting, and `Esc` gives the selection back.
+5. 🐛 **tagWheel leaves the cursor where it was.** Closing the panel with `Esc`, or with `Enter` before picking anything, no longer jumps the cursor to the end of the line.
+6. 🐛 **Moving a heading no longer breaks the lines around it.** With `Heading only`, a heading steps over a whole list item, blank line or code block, and moving it up and back down restores the note, list numbers included.
+7. 🎨 **Setting ids show the current value.** With `Show option IDs in tips`, the tip ends with `id = value`, such as `backup-autosave = on`.
+8. 🎨 **`Separators` starts folded.** The group is rarely needed, so it opens collapsed.
+9. 🐛 **The new Field preview matches the panel.** Time formats with seconds step by seconds, and the scroller keeps readable text on its own fill.
 
 ## 0.13.0
 
