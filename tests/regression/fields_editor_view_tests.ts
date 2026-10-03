@@ -3406,6 +3406,18 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
     vi.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
   }
   assert.deepEqual(walk(f3, "io-nf__chiptext").map(n => String(n.textContent)), ["\u{1F642}‍↕️yes", "\u{1F4A1}"], "фишки списка не как есть");
+  /* Н-11: знак из выбиралки встаёт у каретки, как в редакторе Fields, а не в конец. */
+  {
+    const vi = walk(f3, "io-text").find(x => x.getAttribute("aria-label") === "New Value") as StubNode;
+    vi.value = "ab";
+    vi.selectionStart = 1;
+    (vi as unknown as { selectionEnd: number }).selectionEnd = 1;
+    vi.dispatch("click");
+    const cell = walk(f3, "io-pick__item")[0] as StubNode;
+    cell.click();
+    assert.equal(String(vi.value), "a" + String(cell.textContent) + "b", "знак выбиралки окна встал не у каретки");
+    vi.value = "";
+  }
   (walk(f3, "io-btn--cta")[0] as StubNode).click();
   assert.deepEqual(answer3, { name: "mood", kind: "element", setup: { side: "right", element: { mode: "list", format: "", list: ["\u{1F642}‍↕️yes", "\u{1F4A1}"] } } },
     "ответ окна для списка не тот");

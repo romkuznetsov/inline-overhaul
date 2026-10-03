@@ -6,7 +6,7 @@
  */
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
-import { el, btn, cssVar, itemRow, onEnter, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
+import { el, btn, cssVar, insertAtCaret, itemRow, onEnter, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
 import type { CustomBlock, FieldSide, FieldsModel, FieldRow, NewFieldSetup, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
@@ -1753,14 +1753,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
         kinds: PICK_ALL,
         say,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
-        onPick: char => {
-          const at = (input as unknown as { selectionStart?: number | null; selectionEnd?: number | null });
-          const text = String(input.value || "");
-          const from = typeof at.selectionStart === "number" ? at.selectionStart : text.length;
-          const to = typeof at.selectionEnd === "number" ? at.selectionEnd : from;
-          input.value = text.slice(0, from) + char + text.slice(to);
-          picked();
-        },
+        onPick: char => { insertAtCaret(input, char); picked(); },
       });
       closers.push(picker.close);
     };

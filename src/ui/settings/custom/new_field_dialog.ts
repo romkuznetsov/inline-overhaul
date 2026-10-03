@@ -12,7 +12,7 @@
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
-import { el, btn, cssVar, itemRow, onEnter, textInput, themePair } from "./dom.ts";
+import { el, btn, cssVar, insertAtCaret, itemRow, onEnter, textInput, themePair } from "./dom.ts";
 import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink, wheelColors } from "./previews.ts";
@@ -605,7 +605,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       const picker = attachPicker(input, addRow, {
         kinds: PICK_ALL, say,
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
-        onPick: char => { input.value = String(input.value || "") + char; focusValue(); },
+        onPick: char => { insertAtCaret(input, char); focusValue(); },
       });
       closers.push(picker.close);
     }

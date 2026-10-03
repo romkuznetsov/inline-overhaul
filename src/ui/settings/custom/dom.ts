@@ -122,6 +122,15 @@ export function textInput(parent: El, cls: string, o: {
   return node;
 }
 
+/** Знак из выбиралки встаёт на место выделения поля; нет каретки — в конец (Н-11). */
+export function insertAtCaret(input: ElInput, text: string): void {
+  const at = input as unknown as { selectionStart?: number | null; selectionEnd?: number | null };
+  const value = String(input.value || "");
+  const from = typeof at.selectionStart === "number" ? at.selectionStart : value.length;
+  const to = typeof at.selectionEnd === "number" ? at.selectionEnd : from;
+  input.value = value.slice(0, from) + text + value.slice(to);
+}
+
 /** Enter в поле — то же, что кнопка рядом (BUGHUNT S3). */
 export function onEnter(node: El, fn: () => void): void {
   node.addEventListener("keydown", ((e: { key?: string; preventDefault?: () => void }) => {
