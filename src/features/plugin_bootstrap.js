@@ -24,6 +24,11 @@ const __linkValueRename = require("./link_value_rename.js");
 const __releaseNotes = require("./release_notes.js");
 const __settingsAutosave = require("./settings_autosave.js");
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { cloneJson } = __sharedUtils;
+const deepMerge = __sharedUtils.deepMerge;
+const isObj = __sharedUtils.isObj;
+const readCfgPath = __sharedUtils.readCfgPath;
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
 /* Ключ сообщения — общий модуль (У-82). */
@@ -34,10 +39,6 @@ const PKM_ORDER_FIELDS = __pkmOrderConfig.PKM_ORDER_FIELDS;
 const migrateConfig = __configNormalize.migrateConfig;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
 
-function cloneJson(x) { return __sharedUtils.cloneJson(x); }
-function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
-function isObj(x) { return __sharedUtils.isObj(x); }
-function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
 /**
  * Команды PKM и Binder идут за настройками (BUGHUNT R3: K1, S6, S7; Д-1):

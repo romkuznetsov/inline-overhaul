@@ -6,6 +6,9 @@
  * `require` без запасного пути (У-89, У-90, A33).
  */
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { isObj } = __sharedUtils;
+const escapeRegexLiteral = __sharedUtils.escapeRe;
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
 /* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
@@ -22,11 +25,6 @@ const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __editorVisualsConfig = require("../core/editor_visuals_config.js");
 
 function getRulesShapeModule() { return __rulesShape; }
-
-function isObj(v) {
-  /* Правило — `isObj` в `shared_utils.js` (10.13.135). */
-  return __sharedUtils.isObj(v);
-}
 
 const DEFAULT_INLINE2NOTE = {
   enabled: false,
@@ -505,12 +503,6 @@ function extractPrimaryPayloadText(line, separators) {
   const mSingle = src.match(reSingle);
   if (!mSingle || !mSingle[1]) return "";
   return String(mSingle[1] || "").trim();
-}
-
-function escapeRegexLiteral(s) {
-  /* Правило — `escapeRe` в `shared_utils.js` (У-32): своя копия на `0`/`false`
-     давала пустую альтернативу, совпадающую со всем. */
-  return __sharedUtils.escapeRe(s);
 }
 
 /** Values всех Element в режиме списка (`В-247`). */

@@ -11,10 +11,11 @@
  */
 
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { isObj } = __sharedUtils;
 const __schema = require("../ui/settings/schema/index.ts");
 const __blockTexts = require("../ui/settings/texts_blocks.ts");
 
-function isObj(x) { return __sharedUtils.isObj(x); }
 
 /** Сколько строк уходит в заметку; остаток называется числом. */
 const MAX_LINES = 20;

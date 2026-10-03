@@ -2,6 +2,9 @@
 
 /* Формы начала строки — из `src/core/shared_utils.js`, одним объявлением: копии расходились (У-32). */
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const lineIndentOfText = __sharedUtils.lineIndentLength;
+const isListItemLineText = __sharedUtils.isListItemLine;
 
 /* Ступени и режимы — одним объявлением на движок, конфиг и панель (У-32). */
 const __selectAllSteps = require("../core/select_all_steps.js");
@@ -13,14 +16,6 @@ function isHeaderLineText(text) {
 function headerLevelOfText(text) {
   const m = String(text || "").match(/^(#{1,6})\s/);
   return m ? m[1].length : 0;
-}
-
-function lineIndentOfText(text) {
-  return __sharedUtils.lineIndentLength(text);
-}
-
-function isListItemLineText(text) {
-  return __sharedUtils.isListItemLine(text);
 }
 
 function normPos(a, b) {

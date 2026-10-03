@@ -490,7 +490,7 @@ async function run() {
     "сборка служебного файла правил вернулась в загрузку или в точку входа");
   assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");
 
-  assertTrue(/function reportLoaderFallback\(stage, err\)/.test(commandsSrc), "main exposes debug-gated loader fallback reporter");
+  assertTrue(/const reportLoaderFallback = __sharedUtils\.reportLoaderFallback;/.test(commandsSrc), "main exposes debug-gated loader fallback reporter");
   /*
    * Тринадцать проверок сняты 2026-08-29 вместе со старой панелью: их
    * предмет -- ползунки вида тегов, тумблеры журнала и поле пути к нему --
@@ -1743,7 +1743,7 @@ async function run() {
       else globalThis.__inlineDebugLoaders = savedFlag;
     }
 
-    const delegates = /return __sharedUtils\.reportLoaderFallback\(stage, err\);/;
+    const delegates = /const reportLoaderFallback = __sharedUtils\.reportLoaderFallback;/;
     assertTrue(delegates.test(commandsSrc),
       "слой команд спрашивает след у общего дома, а не пишет его сам");
     /* Второй делегат — в загрузчике — снят вместе с ходом, которому он

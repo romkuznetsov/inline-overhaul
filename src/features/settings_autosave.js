@@ -8,6 +8,9 @@
  */
 
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { isObj } = __sharedUtils;
+const readCfgPath = __sharedUtils.readCfgPath;
 const __backup = require("./settings_backup.js");
 /* Видимый текст по ключу каталога: свой литерал здесь был бы вторым домом. */
 const __changeWords = require("./settings_change_words.js");
@@ -31,8 +34,6 @@ function autosaveKeep(cfg) {
 /** Сколько строк «что изменилось» попадает в заметку; остаток — числом. */
 const AUTOSAVE_DETAIL_LINES = 20;
 
-function isObj(x) { return __sharedUtils.isObj(x); }
-function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
 /** Включена ли автокопия. Ответ «нет» — это ответ, а не отказ. */
 function autosaveEnabled(cfg) {

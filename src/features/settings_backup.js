@@ -1,6 +1,9 @@
 "use strict";
 
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { isObj } = __sharedUtils;
+const cloneJson = __sharedUtils.cloneJson;
 const __configNormalize = require("../core/config_normalize.js");
 
 /**
@@ -211,16 +214,6 @@ function normalizeComment(value) {
 
 const NO_SETTINGS = "That note does not hold plugin settings";
 const BROKEN = "The settings in that note could not be read";
-
-function isObj(v) {
-  /* Дом — `isObj` в `shared_utils.js` (10.13.135). */
-  return __sharedUtils.isObj(v);
-}
-
-function cloneJson(v) {
-  /* Дом — `cloneJson` в `shared_utils.js` (10.13.137). */
-  return __sharedUtils.cloneJson(v);
-}
 
 /** Путь папки копий из конфига: без ведущих и хвостовых косых (Б2). */
 function backupFolder(cfg) {

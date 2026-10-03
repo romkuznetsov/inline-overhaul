@@ -19,6 +19,10 @@ const __configNormalize = require("../core/config_normalize.js");
 const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __sharedUtils = require("../core/shared_utils.js");
+/* Помощники общего дома — без обёрток-передатчиков (У-9 ревизии 09-26). */
+const { isObj } = __sharedUtils;
+/* Отказ реестра команд не роняет плагин; след — общего дома, только при флаге отладки (10.13.150). */
+const reportLoaderFallback = __sharedUtils.reportLoaderFallback;
 const __transformLineFinalize = require("../core/pkm_line_finalize_unified.js");
 /* Подсветка прыжка (Н5): о прыжке слою может сказать только эта обёртка. */
 const __editorDecorations = require("../ui/editor/decorations.js");
@@ -34,15 +38,6 @@ const FEATURE_ORDER = __configNormalize.FEATURE_ORDER;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
 const serializeDateRuntimeConfigForMacro = __pkmOrderConfig.serializeDateRuntimeConfigForMacro;
 const serializePkmOrderForMacro = __pkmOrderConfig.serializePkmOrderForMacro;
-
-function isObj(x) { return __sharedUtils.isObj(x); }
-
-/** Отказ реестра команд не роняет плагин; отчёт — только при флаге отладки. */
-/* След запасного хода загрузки объявлен один раз — `reportLoaderFallback` в
-   `shared_utils.js` (10.13.150). */
-function reportLoaderFallback(stage, err) {
-  return __sharedUtils.reportLoaderFallback(stage, err);
-}
 
 /** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */
 function getCommandRegistry() {
