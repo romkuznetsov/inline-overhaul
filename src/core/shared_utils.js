@@ -1389,7 +1389,6 @@ module.exports = {
   buildNumericPatternRegexSource,
   renderNumericPatternValue,
   parseNumericPatternProgress,
-  isPlainNumberFormat,
   stepBelowNumberStart,
   renderTokenlessValueByProgress,
   buildTokenlessValueRegexSource,
