@@ -305,9 +305,7 @@ function normalizePkmTopLevelConfig(cfg) {
   cfg.pkm.executionBackend = PKM_BACKENDS.internalV2;
   /* Путь служебного файла правил снят (PRD 10.13.52, П-8). */
   delete cfg.pkm.generatedRulesPath;
-  const deprecatedPkm = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.pkm)
-    ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm
-    : ["sourceOfTruth", "autoGenerateRules"];
+  const deprecatedPkm = __compatProfile.DEPRECATED_CONFIG_KEYS.pkm;
   for (const key of deprecatedPkm) delete cfg.pkm[key];
 }
 
@@ -327,14 +325,7 @@ function normalizeConfigV1(raw) {
    * новый ключ раньше, и проверка «нового нет» на слитом не срабатывает никогда
    * (найдено 2026-08-31).
    */
-  const fromFile = (dotted) => {
-    let node = source;
-    for (const key of String(dotted).split(".")) {
-      if (!isObj(node)) return undefined;
-      node = node[key];
-    }
-    return node;
-  };
+  const fromFile = (dotted) => __sharedUtils.readCfgPath(source, dotted);
 
   if (ver < 1) {
     cfg.schemaVersion = 1;
@@ -355,9 +346,7 @@ function normalizeConfigV1(raw) {
 
   if (!isObj(cfg.rules)) cfg.rules = cloneJson(DEFAULT_CONFIG.rules);
   {
-    const deprecatedRules = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.rules)
-      ? __compatProfile.DEPRECATED_CONFIG_KEYS.rules
-      : ["tagWheelPath"];
+    const deprecatedRules = __compatProfile.DEPRECATED_CONFIG_KEYS.rules;
     for (const key of deprecatedRules) delete cfg.rules[key];
   }
 
@@ -386,9 +375,7 @@ function normalizeConfigV1(raw) {
 
   if (!isObj(cfg.navigation)) cfg.navigation = cloneJson(DEFAULT_CONFIG.navigation);
   {
-    const deprecatedNavigation = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.navigation)
-      ? __compatProfile.DEPRECATED_CONFIG_KEYS.navigation
-      : ["topRevealOffsetLines"];
+    const deprecatedNavigation = __compatProfile.DEPRECATED_CONFIG_KEYS.navigation;
     for (const key of deprecatedNavigation) delete cfg.navigation[key];
   }
   cfg.navigation.moveLine = deepMerge(DEFAULT_CONFIG.navigation.moveLine, isObj(cfg.navigation.moveLine) ? cfg.navigation.moveLine : {});
@@ -606,9 +593,7 @@ function normalizeConfigV1(raw) {
   }
   if (typeof cfg.devMode.generateAiLog !== "boolean") cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
   {
-    const deprecatedDevMode = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.devMode)
-      ? __compatProfile.DEPRECATED_CONFIG_KEYS.devMode
-      : ["logLevel", "maxFileSizeKb", "maxRecords", "logSize"];
+    const deprecatedDevMode = __compatProfile.DEPRECATED_CONFIG_KEYS.devMode;
     for (const key of deprecatedDevMode) delete cfg.devMode[key];
   }
 
@@ -1035,21 +1020,13 @@ function normalizeCycleEndBehaviorLegacy(value) {
 }
 
 module.exports = {
-  SCHEMA_VERSION,
   FEATURE_ORDER,
   FEATURE_META,
-  PKM_BACKENDS,
-  SETTINGS_TABS,
   BINDER_SMART_BRACKET_COMMAND_ID,
-  makeBinderCommandId,
   normalizeBinderRows,
   DEFAULT_CONFIG,
-  normalizePkmTopLevelConfig,
   normalizeConfigV1,
-  __configMigrationV2,
   getConfigMigrationV2Module,
-  __engineDefaultsV2,
-  getEngineDefaultsV2,
   normalizeTagVisualMapsV2,
   normalizeConfigV2,
   migrateConfig,

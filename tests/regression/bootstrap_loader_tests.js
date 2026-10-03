@@ -775,7 +775,7 @@ async function run() {
   assertTrue(/function normalizeOrderKey\(/.test(
     fs.readFileSync(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"), "utf8")),
     "положительный контроль: дом нормализации ключа Order — shared_utils.js");
-  assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
+  assertTrue(/const deprecatedRules = __compatProfile\.DEPRECATED_CONFIG_KEYS\.rules;/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
   /*
    * Переходник `rules.tagWheelPath` → путь служебного файла снят вместе с
    * самим путём (PRD 10.13.52, П-8, шаг четвёртый), а с ним — и флаг
@@ -844,12 +844,12 @@ async function run() {
    * умолчаниями: `deepMerge(DEFAULT_CONFIG, source)` кладёт новый ключ раньше,
    * чем код успевает спросить старый, и до 2026-08-31 все они были мертвы.
    */
-  assertTrue(/const fromFile = \(dotted\) => \{/.test(cfgSrc), "первая ступень читает исходный файл помощником fromFile");
+  assertTrue(/const fromFile = \(dotted\) => __sharedUtils\.readCfgPath\(source, dotted\);/.test(cfgSrc), "первая ступень читает исходный файл помощником fromFile");
   assertTrue(/const own = fromFile\("devMode\.generateAiLog"\);/.test(cfgSrc), "generateAiLog спрашивается у исходного файла");
   assertTrue(/const oldSize = String\(fromFile\("devMode\.logSize"\) \|\| ""\)\.trim\(\);/.test(cfgSrc), "и старое имя logSize тоже");
   assertTrue(/const legacyCycle = fromFile\("navigation\.moveSelection\.leftToRight"\);/.test(cfgSrc), "цикл Prefix берёт старое имя из исходного файла");
   assertTrue(/pickPct\(B \+ "tagTextSizePct", \[B \+ "tagSizePct"\]/.test(cfgSrc), "размер тегов берёт старое имя из исходного файла");
-  assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(cfgSrc), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
+  assertTrue(/const deprecatedDevMode = __compatProfile\.DEPRECATED_CONFIG_KEYS\.devMode;/.test(cfgSrc), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
   assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(cfgSrc), "migrateConfig drops deprecated devMode keys through centralized loop");
   assertTrue(/devLog: \(event, payload\) => plugin\.devLogEvent\(event, payload, "info", cfg\)/.test(commandsSrc), "runPkmRuntimeV2 forwards devLog callback into runtime");
   /*
