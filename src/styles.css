@@ -3778,8 +3778,7 @@ body.theme-dark {
   color: var(--text-on-accent);
   background: var(--interactive-accent);
 }
-.io-nf__sub { margin-top: 12px; }
-.io-nf .io-item--stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.io-nf .io-nf__sub { margin-top: 12px; font-size: inherit; font-weight: inherit; }
 .io-nf .io-item--stack > .io-item__control { justify-content: flex-start; }
 
 /* Values фишками: цвет точкой, крестик справа. */
@@ -3809,7 +3808,6 @@ body.theme-dark {
 .io-nf__dot::-webkit-color-swatch-wrapper { padding: 0; }
 .io-nf__dot::-webkit-color-swatch { border: 1px solid var(--background-modifier-border); border-radius: 50%; }
 .io-nf__note { font-size: var(--font-ui-smaller); color: var(--text-faint); }
-.io-nf__note--has { color: var(--color-green, var(--text-success)); }
 .io-nf .io-nf__x {
   height: 18px;
   width: 18px;
@@ -3896,7 +3894,6 @@ body.theme-dark {
 /* Values: фишки, под ними строка добавления во всю ширину (тест 2 цикла 100). */
 .io-nf .io-item--stack > .io-item__control.io-nf__values { flex-direction: column; align-items: stretch; }
 /* Заголовок Value у Element — тем же шрифтом, что подписи контролов окна. */
-.io-nf .io-nf__sub { font-size: inherit; font-weight: inherit; }
 .io-nf__problem {
   margin-right: auto;
   align-self: center;
