@@ -120,6 +120,8 @@ function hydrate(session, input, editor, block) {
       break;
     }
   }
+  /* Узнанный пресет — тоже выбор при открытии: `Enter` без перемены его не переписывает (его 💬 к тесту 6 цикла 128). */
+  session[OPENED] = Object.assign({}, session.selected);
 }
 
 function isCommandField(field) {
@@ -172,7 +174,9 @@ function enter(state, cancel, write) {
   const changed = all.some((f) => !isCommandField(f) && String(selected[f.id] || "") !== String(opened[f.id] || ""));
   if (changed) write(state, state.core); else cancel(state);
   const ctx = { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
-  const plans = own.map((f) => planOf(f, selected, ctx)).filter(Boolean);
+  /* Выбор Command Field не меняли — его результат не трогается: узнанный коллаут `[!warning]+` остаётся как был. */
+  const same = (f) => [f.key, f.key + SUB].every((k) => String(selected[k] || "") === String(opened[k] || ""));
+  const plans = own.filter((f) => !same(f)).map((f) => planOf(f, selected, ctx)).filter(Boolean);
   for (const p of plans) {
     const got = p.index != null ? input.apply(state.editor, p.field.key, p.category.key, p.index)
       : input.revert(state.editor, p.field.key, p.category.key);

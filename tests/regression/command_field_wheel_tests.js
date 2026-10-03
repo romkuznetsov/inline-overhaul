@@ -176,6 +176,19 @@ async function run() {
     ok("в коллауте колесо открывается на его категории и пресете");
   }
 
+  /* 6а. `[!note]+` — тот же открытый Note: колесо его узнаёт, а Enter без перемены текст не трогает (его 💬 к тесту 6 цикла 128). */
+  {
+    const plus = "> [!note]+\n> - Research plan\n- buy bread";
+    const r = await drive(config(), plus, [OPEN, ENTER], { line: 1, ch: 4 });
+    assert.ok(/Insert callout/.test(r.seen[0]) && /Note/.test(r.seen[0]), "коллаут со знаком + колесо не узнало: " + r.seen[0]);
+    assert.equal(r.doc, plus, "Enter без перемены выбора переписал коллаут");
+    const step = await drive(config(), plus, [OPEN, RIGHT, UP, ENTER], { line: 1, ch: 4 });
+    assert.equal(step.doc, "> [!tip]\n> - Research plan\n- buy bread", "шаг от узнанного Note не дал Tip");
+    const folded = await drive(config(), "> [!note]-\n> - Research plan\n- buy bread", [OPEN], { line: 1, ch: 4 });
+    assert.ok(/Note/.test(folded.seen[0]), "свёрнутый коллаут типа пресета колесо не узнало: " + folded.seen[0]);
+    ok("коллаут со знаком + и свёрнутый узнаются пресетом своего типа; Enter без перемены — без правки");
+  }
+
   /* 7. Один пресет — ячейки пресетов нет (его `💬` к тесту 2); совпавший клон в скроллере не виден (к тесту 3). */
   {
     const one = await drive(config(), DOC, [OPEN, DOWN]);

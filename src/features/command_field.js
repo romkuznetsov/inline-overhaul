@@ -95,8 +95,11 @@ function calloutHead(quote, preset, title) {
 
 /** Какой пресет стоит: первый совпавший по типу и свёрнутости (В-281, клон — первый). */
 function calloutPresetIndex(presets, box) {
-  return presets.findIndex((p) => String(p.type).toLowerCase() === box.type.toLowerCase()
-    && (p.fold || "") === box.fold);
+  /* `+` — тот же открытый коллаут, что и без знака (6.1); тип совпал, а свёрнутость нет — всё равно этот пресет (его 💬 к тесту 6 цикла 128). */
+  const open = (f) => (f === "+" ? "" : String(f || ""));
+  const type = (p) => !!p && !p.hidden && String(p.type || "").toLowerCase() === box.type.toLowerCase();
+  const exact = presets.findIndex((p) => type(p) && open(p.fold) === open(box.fold));
+  return exact >= 0 ? exact : presets.findIndex(type);
 }
 
 function wrapCallout(lines, from, to, preset, cursor) {
@@ -165,8 +168,7 @@ const callouts = {
    */
   recognize(ctx, presets) {
     const box = calloutAt(ctx.lines, ctx.cursor.line);
-    if (!box) return -1;
-    return presets.findIndex((p) => p && !p.hidden && callouts.signature(p) === box.type.toLowerCase() + "|" + box.fold);
+    return box ? calloutPresetIndex(presets, box) : -1;
   },
   /** Пустое значение в tagWheel — коллаута нет: снять тот, в котором каретка; вне — менять нечего. */
   revert(ctx) {

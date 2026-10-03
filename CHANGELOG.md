@@ -33,6 +33,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 10. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
 11. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
 12. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
+13. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
 
 ## 0.14.0
 
