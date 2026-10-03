@@ -25,6 +25,8 @@ project link, an estimate. You define them; the plugin ships no methodology.
   or an emoji alone, such as `💡`, cycled like the Values of a tag.
 - **Values.** Each Field holds an ordered list of Values, and each Value carries its own
   writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
+  The eye in front of a Value hides it from `next`, `previous` and the tagWheel list; a line
+  that already has it still reads it.
 - **Child Fields.** A Field can depend on another one: `After parent` offers it once the
   parent has a Value, `Always` offers it on any line, `On Alt` keeps it
   out of tagWheel until you press `Alt` on the parent, `Hide` keeps it out. A press of `Alt`

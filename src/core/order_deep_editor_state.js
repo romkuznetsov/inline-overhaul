@@ -60,10 +60,13 @@ function buildTagTree(parentField, subField, kind, options) {
   const pValues = Array.isArray(parentField && parentField.values) ? parentField.values : [];
   const subValues = Array.isArray(subField && subField.values) ? subField.values : [];
   const subByParent = new Map();
+  /* Глаз дочернего Value — у самого Value, под каким бы родителем оно ни стояло (В-278). */
+  const subHidden = new Set();
   for (const row of subValues) {
     if (!isObj(row)) continue;
     const token = normalizeToken(row.token, kind);
     if (!token) continue;
+    if (row.hidden === true) subHidden.add(token);
     const parents = Array.isArray(row.allowedParentValues) ? row.allowedParentValues : [];
     for (const p of parents) {
       const pt = normalizeToken(p, kind);
@@ -82,7 +85,8 @@ function buildTagTree(parentField, subField, kind, options) {
       prefix: String(parentField && parentField.prefix ? parentField.prefix : "#"),
       prefixMode: checkboxToken ? "checkbox" : "bullet",
       checkboxToken,
-      children: (subByParent.get(token) || []).map((x) => ({ token: x })),
+      ...(isObj(row) && row.hidden === true ? { hidden: true } : {}),
+      children: (subByParent.get(token) || []).map((x) => (subHidden.has(x) ? { token: x, hidden: true } : { token: x })),
     });
   }
   for (let i = 0; i < out.length; i++) {
@@ -106,6 +110,7 @@ function applyTagTreeToFields(tree, parentField, subField, kind) {
   const items = Array.isArray(tree) ? tree : [];
   const pOut = [];
   const sMap = new Map();
+  const subHidden = new Set();
   const checkboxByToken = {};
   for (const item of items) {
     const token = normalizeToken(item && item.token, kind);
@@ -122,14 +127,17 @@ function applyTagTreeToFields(tree, parentField, subField, kind) {
       const childCheckbox = childMode === "checkbox" ? normalizeCheckboxInput(c && c.checkboxToken) : "";
       if (childCheckbox) checkboxByToken[ct] = childCheckbox;
       subTokens.push(ct);
+      if (c && c.hidden === true) subHidden.add(ct);
       if (!sMap.has(ct)) sMap.set(ct, new Set());
       sMap.get(ct).add(token);
     }
-    pOut.push({ token, subtags: subTokens, active: true });
+    pOut.push(item && item.hidden === true ? { token, subtags: subTokens, active: true, hidden: true } : { token, subtags: subTokens, active: true });
   }
   const sOut = [];
   for (const [token, parentSet] of sMap.entries()) {
-    sOut.push({ token, allowedParentValues: Array.from(parentSet), active: true });
+    const sub = { token, allowedParentValues: Array.from(parentSet), active: true };
+    if (subHidden.has(token)) sub.hidden = true;
+    sOut.push(sub);
   }
   const nextParent = { ...(parentField || {}), values: pOut };
   const nextSub = subField ? { ...(subField || {}), values: sOut } : null;

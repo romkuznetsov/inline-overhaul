@@ -199,6 +199,8 @@ export interface ValueTreeRow {
   prefixMode?: string;
   checkboxToken?: string;
   yamlProperty?: string;
+  /** Глаз (В-278): Value не участвует в переборе и скроллере, строка с ним читается. */
+  hidden?: boolean;
   children?: ValueTreeRow[];
   __ioParentBinding?: string;
   __ioParentFieldId?: string;
@@ -1986,6 +1988,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
             active: typeof prev.active === "boolean" ? prev.active : true,
             ...extra,
           };
+          /* Глаз — у строки дерева, прежний ключ значения не переживает снятия (В-278). */
+          if (row.hidden === true) out.hidden = true;
+          else delete out.hidden;
           return out;
         };
 

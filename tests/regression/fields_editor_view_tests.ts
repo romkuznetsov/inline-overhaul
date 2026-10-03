@@ -1181,6 +1181,34 @@ function heightBtn(host: StubNode): StubNode {
   assert.equal(all(v.host, "io-vals__row").length, 1, "значение ушло из таблицы вместе со своим дочерним");
   ok("Value удаляется и уносит своё дочернее значение");
 }
+/* ---- глаз Value (его ответ 5, В-278) ------------------------------------ */
+{
+  const v = makeView();
+  const eyeOf = (i: number): StubNode => one(all(v.host, "io-vals__row")[i] as StubNode, "io-vals__eye");
+  const valuesIn = (w: Write): Any[] => {
+    const fields: Any[] = (w.patch as Any)?.pkm?.fields?.tags?.fields || [];
+    return fields.flatMap((f: Any) => Array.isArray(f.values) ? f.values : []);
+  };
+  assert.equal(eyeOf(0).getAttribute("aria-label"), "Hide #todo from next, previous and tagWheel", "у Value нет глаза");
+  /* Поле Value — первым узлом ячейки: на нём стоят фокус и прежние проверки; глаз на экране перед ним стилем. */
+  assert.equal(String(one(all(v.host, "io-vals__row")[0] as StubNode, "io-valcell").children[0]?.tagName), "INPUT", "глаз встал раньше поля");
+  eyeOf(0).click();
+  assert.deepEqual(v.writes.map(w => w.reason),
+    ["pkm:behavior:order:deep:hide:status", "pkm:behavior:order:deep:hide:status:prefix"], "глаз пишет не своей причиной");
+  assert.ok(valuesIn(v.writes[0] as Write).some(x => x.token === "todo" || x.token === "#todo" ? x.hidden === true : false),
+    "спрятанное Value не записано в конфиг: " + JSON.stringify(valuesIn(v.writes[0] as Write)));
+  assert.ok((all(v.host, "io-vals__row")[0] as StubNode).classList.contains("io-vals__row--hidden"), "спрятанное не приглушено после перерисовки");
+  assert.equal(eyeOf(0).getAttribute("aria-label"), "Show #todo in next, previous and tagWheel", "глаз не говорит, что вернёт Value");
+  /* Дочернее — своим ключом, родитель свой глаз не теряет. */
+  eyeOf(1).click();
+  assert.ok((all(v.host, "io-vals__row")[1] as StubNode).classList.contains("io-vals__row--hidden"), "дочернее не спряталось");
+  assert.ok((all(v.host, "io-vals__row")[0] as StubNode).classList.contains("io-vals__row--hidden"), "родитель потерял глаз от правки дочернего");
+  eyeOf(0).click();
+  assert.ok(!(all(v.host, "io-vals__row")[0] as StubNode).classList.contains("io-vals__row--hidden"), "второй щелчок не вернул Value");
+  assert.ok(!valuesIn(v.writes[v.writes.length - 2] as Write).some(x => (x.token === "todo" || x.token === "#todo") && "hidden" in x),
+    "вернувшееся Value несёт ключ hidden");
+  ok("глаз Value: прячет и возвращает, у дочернего свой");
+}
 {
   const v = makeView();
   const foot = one(v.host, "io-vals__foot");

@@ -1731,7 +1731,10 @@ function cycleValue(rules, state, direction) {
     )
   }
 
-  var values = getAllowedValues(fieldMode, state, field, rules, parentIsOurs ? { ignoreParent: true } : null)
+  /* Спрятанные глазом шаг пропускает (В-278); разбор строки берёт `getAllowedValues` целиком. */
+  var values = __rulesRuntimeHelpers.valuesForStep(
+    getAllowedValues(fieldMode, state, field, rules, parentIsOurs ? { ignoreParent: true } : null),
+    state.selected[field.id] || '')
   if (!values.length) return
 
   var currentId = state.selected[field.id] || ''

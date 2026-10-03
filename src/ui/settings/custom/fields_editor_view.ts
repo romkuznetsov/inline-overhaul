@@ -1290,7 +1290,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   let dragged: ValueAt | null = null;
 
   rows.forEach(({ row: v, at }) => {
-    const line = el(inner, "div", "io-vals__row" + (at.level ? " io-vals__row--child" : ""));
+    const line = el(inner, "div", "io-vals__row" + (at.level ? " io-vals__row--child" : "") + (v.hidden ? " io-vals__row--hidden" : ""));
 
     const grip = el(line, "div", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
@@ -1346,6 +1346,17 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       label: "Value " + v.token + " of " + row.strictName,
     });
     token.disabled = !o.enabled;
+    /* Глаз — в ячейке Value, а не своей колонкой: таблице не осталось ширины (В-278, бюджет 665px); в DOM — за полем, на экране — перед ним. */
+    const eye = btn(valueCell, "io-icon io-vals__eye" + (v.hidden ? " io-vals__eye--off" : ""), {
+      text: v.hidden ? "\u25CC" : "\uD83D\uDC41", label: say(v.hidden ? "VALUE_SHOW" : "VALUE_HIDE", v.token),
+    });
+    eye.setAttribute("aria-pressed", v.hidden ? "false" : "true");
+    eye.disabled = !o.enabled;
+    eye.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      ve.saveTree(ve.editRow(ve.tree, at, { hidden: !v.hidden }), "pkm:behavior:order:deep:hide:" + row.key);
+      o.redraw();
+    }) as never);
     const applyName = (name: string): void => {
       const res = ve.saveTree(ve.editRow(ve.tree, at, { token: name }),
         "pkm:behavior:order:deep:rename:" + row.key);

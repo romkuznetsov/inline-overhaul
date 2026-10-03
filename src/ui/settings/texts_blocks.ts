@@ -211,8 +211,8 @@ export const BLOCK_TEXTS = {
     ELEMENT_VALUE_TIP: "An element Field holds one Value: a date, a time, a counter, or one of the Values you write for <code>List of Values</code>. The rows below say what it prints — the emoji in front and the format of the value itself — and how the <code>next</code> and <code>previous</code> commands move it along",
     VALUES_EMPTY: "no Values yet — add the first one below",
     LEVEL_TIP: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
-    VALUE_LINK_TIP: "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way",
-    VALUE_TAG_TIP: "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
+    VALUE_LINK_TIP: "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way. The eye before it hides the Value from <code>next</code>, <code>previous</code> and the tagWheel list; a line that already has it still reads it",
+    VALUE_TAG_TIP: "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way. The eye before it hides the Value from <code>next</code>, <code>previous</code> and the tagWheel list; a line that already has it still reads it",
     VALUE_PREFIX_TIP: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
     VALUE_SHOWN_TIP: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
     /* Подсказки 2026-09-08: `Text` — это цвет надписи, контраст — в `Preview`. */
@@ -247,6 +247,9 @@ export const BLOCK_TEXTS = {
     VALUE_CUSTOM_NAME: "Custom text",
     VALUE_RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
     VALUE_REMOVE: "Remove {0}",
+    /* Глаз у Value (его ответ 5 к разбору Command Field, В-278): скрыть из перебора и скроллера. */
+    VALUE_HIDE: "Hide {0} from next, previous and tagWheel",
+    VALUE_SHOW: "Show {0} in next, previous and tagWheel",
     NEW_VALUE_LINK_HINT: "[[wikilink]] / wikilink",
     NEW_VALUE_TAG_HINT: "#tag / tag",
     NEW_VALUE_FOR: "New Value for {0}",

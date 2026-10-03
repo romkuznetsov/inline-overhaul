@@ -797,6 +797,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-vals { font-size: var(--font-ui-smaller); }
 .io-valcell { min-width: 0; }
+/* Глаз Value (В-278): перед полем имени, как у категорий; спрятанное — приглушено. */
+.io-valcell:has(> .io-vals__eye) { display: flex; align-items: center; gap: 2px; }
+.io-valcell > .io-text { flex: 1 1 auto; min-width: 0; }
+.io-vals .io-vals__eye { order: -1; flex: 0 0 auto; width: 18px; height: 20px; padding: 0; font-size: 11px; }
+.io-vals__eye--off { color: var(--text-faint); }
+.io-vals__row--hidden > :not(.io-grip):not(.io-valtools):not(.io-valcell), .io-vals__row--hidden .io-valcell > .io-text { opacity: 0.45; }
 .io-vals__row--child .io-valcell { padding-left: 10px; }
 .io-showncell { min-width: 0; display: grid; gap: 4px; }
 .io-vals__foot {
@@ -6111,8 +6117,8 @@ function valuesTable(host, f) {
   const COLTIP = {
     Level: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
     Value: isLink
-      ? "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way"
-      : "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
+      ? "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way. The eye before it hides the Value from <code>next</code>, <code>previous</code> and the tagWheel list; a line that already has it still reads it"
+      : "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way. The eye before it hides the Value from <code>next</code>, <code>previous</code> and the tagWheel list; a line that already has it still reads it",
     Prefix: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
     Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
     Fill: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
@@ -6139,7 +6145,7 @@ function valuesTable(host, f) {
     });
 
   f.values.forEach((v, i) => {
-    const row = el("div", "io-vals__row" + (v.depth ? " io-vals__row--child" : ""), inner);
+    const row = el("div", "io-vals__row" + (v.depth ? " io-vals__row--child" : "") + (v.hidden ? " io-vals__row--hidden" : ""), inner);
     dragHandle(el("div", "io-grip", row, "⠿"), row, (from, to) => moveIn(f.values, from, to), i);
 
     {
@@ -6158,6 +6164,12 @@ function valuesTable(host, f) {
     const cell = el("div", "io-valcell", row);
     const tok = textEl(cell, v.token, null, "Value " + (i + 1) + " of " + f.name, "io-text io-text--mono");
     tok.addEventListener("input", () => { v.token = tok.value; renderContent(); });
+    /* Глаз (его ответ 5, В-278): Value не участвует в переборе и скроллере; ячейка Value, а не своя колонка — ширины нет. */
+    const eye = iconBtn(cell, v.hidden ? "◌" : "👁", (v.hidden ? "Show " : "Hide ") + v.token + (v.hidden ? " in next, previous and tagWheel" : " from next, previous and tagWheel"));
+    eye.classList.add("io-vals__eye");
+    if (v.hidden) eye.classList.add("io-vals__eye--off");
+    eye.setAttribute("aria-pressed", String(!v.hidden));
+    eye.addEventListener("click", () => { v.hidden = !v.hidden; renderContent(); });
 
     textEl(row, v.prefix, "no", "Prefix for " + v.token, "io-text io-text--mono");
 

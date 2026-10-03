@@ -185,6 +185,26 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   (cfg.pkm.fields[side === "leftMode" ? "tags" : "links"].fields as Any[]).find((f: Any) => String(f && f.id || "") === id) || null;
 
 /* ======================================================================
+ * Глаз Value (его ответ 5, В-278): `hidden` переживает migrateConfig и
+ * перерисовку — у тега и у ссылки. Нормализация конфига могла бы его срезать.
+ * ====================================================================== */
+
+for (const [selected, side] of [["status", "leftMode"], ["project", "rightMode"]] as const) {
+  const p = makePanel(baseConfig(), selected);
+  one(all(p.host, "io-vals__row")[0] as StubNode, "io-vals__eye").click();
+  const field = fieldById(p.cfg(), side, selected);
+  const vals: Any[] = field && Array.isArray(field.values) ? field.values : [];
+  assert.equal(vals.filter((x: Any) => x && x.hidden === true).length, 1,
+    selected + ": спрятанное Value не пережило migrateConfig — " + JSON.stringify(vals));
+  assert.ok((all(p.host, "io-vals__row")[0] as StubNode).classList.contains("io-vals__row--hidden"),
+    selected + ": после настоящей записи глаз не закрыт");
+  one(all(p.host, "io-vals__row")[0] as StubNode, "io-vals__eye").click();
+  const back: Any[] = fieldById(p.cfg(), side, selected).values || [];
+  assert.ok(!back.some((x: Any) => x && "hidden" in x), selected + ": вернувшееся Value несёт hidden");
+}
+ok("глаз Value переживает migrateConfig у тега и у ссылки");
+
+/* ======================================================================
  * Тег: контрольный случай. Он в vault работает, и здесь обязан работать.
  * ====================================================================== */
 

@@ -21,11 +21,14 @@ function normalizeValue(v, options) {
   if (!token && token !== "") err("Value token must be string");
   const id = typeof v.id === "string" ? v.id : token;
   if (typeof id !== "string") err("Value id must be string");
-  return {
+  const out = {
     id,
     token,
     allowedParentValues: Array.isArray(v.allowedParentValues) ? v.allowedParentValues : null,
   };
+  /* Глаз (В-278): перебор и скроллер его пропускают, разбор строки — нет. Ключ только у спрятанных. */
+  if (v.hidden === true) out.hidden = true;
+  return out;
 }
 
 function normalizeImportanceValueToken(raw) {

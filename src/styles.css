@@ -2088,6 +2088,12 @@ body.theme-dark {
   font-size: var(--font-ui-smaller);
 }
 .io-valcell { min-width: 0; }
+/* Глаз Value (В-278): перед полем имени, как у категорий; спрятанное — приглушено. */
+.io-valcell:has(> .io-vals__eye) { display: flex; align-items: center; gap: 2px; }
+.io-valcell > .io-text { flex: 1 1 auto; min-width: 0; }
+.io-vals .io-vals__eye { order: -1; flex: 0 0 auto; width: 18px; height: 20px; padding: 0; font-size: 11px; }
+.io-vals__eye--off { color: var(--text-faint); }
+.io-vals__row--hidden > :not(.io-grip):not(.io-valtools):not(.io-valcell), .io-vals__row--hidden .io-valcell > .io-text { opacity: 0.45; }
 .io-showncell { min-width: 0; display: grid; gap: 4px; }
 .io-depthcell { display: flex; justify-content: center; }
 /*

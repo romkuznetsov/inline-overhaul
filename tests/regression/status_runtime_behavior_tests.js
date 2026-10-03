@@ -1608,6 +1608,49 @@ async function testTagWheelStepTakesValueCheckbox() {
   }
 }
 
+/*
+ * **Глаз Value (его ответ 5, В-278): спрятанное не участвует в переборе, но читается.**
+ *
+ * У `type` спрятан `idea` (круг `todo → idea → note`). Шаг вперёд от `#todo`
+ * и назад от `#note` его перепрыгивает; строка, где `#idea` уже стоит, узнаётся,
+ * и шаг идёт к соседу, а не дописывает второе Value. Обе дороги.
+ */
+const RULES_IDEA_HIDDEN = (() => {
+  const r = JSON.parse(SYNTHETIC_RULES);
+  const type = r.leftMode.fields.find((f) => f.id === "type");
+  type.values.find((v) => v.token === "idea").hidden = true;
+  return JSON.stringify(r);
+})();
+const HIDDEN_CASES = [
+  { line: "- [ ] #todo || 111", dir: "increase", key: "ArrowUp", want: "#note", why: "вперёд от #todo" },
+  { line: "- [N] #note || 111", dir: "decrease", key: "ArrowDown", want: "#todo", why: "назад от #note" },
+  { line: "- [I] #idea || 111", dir: "increase", key: "ArrowUp", want: "#note", why: "от строки со спрятанным" },
+];
+async function testHiddenValueSkippedByStep() {
+  for (const c of HIDDEN_CASES) {
+    const editor = makeEditor(c.line, c.line.length);
+    await runPkmCommandWithEditor("statusTags", editor, {
+      "Rules data": RULES_IDEA_HIDDEN,
+      "Action type": "cycle_field:type",
+      "Direction": c.dir,
+      "Order config": buildOrderConfig({ freeRoam: { type: "off" }, panel: { type: "left" } }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const hot = editor.snapshot().line;
+    assertTrue(hot.includes(c.want) && !hot.includes("#idea"), "хоткей " + c.why + ": " + JSON.stringify(hot));
+    const wheel = makeEditor(c.line, c.line.length);
+    await runTagWheelKeys(wheel, {
+      "Rules data": RULES_IDEA_HIDDEN,
+      "Order config": buildOrderConfig({ freeRoam: { type: "off" }, panel: { type: "left" } }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    }, ["ArrowRight", c.key]);
+    const line = wheel.snapshot().line;
+    assertTrue(line.includes(c.want) && !line.includes("#idea"), "tagWheel " + c.why + ": " + JSON.stringify(line));
+  }
+}
+
 async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -4409,6 +4452,7 @@ async function run() {
   await testStatusTagsCycleEndKeepsForeignCheckbox();
   await testStatusTagsStepTakesValueCheckbox();
   await testTagWheelStepTakesValueCheckbox();
+  await testHiddenValueSkippedByStep();
   await testTagWheelCycleEndKeepsForeignCheckbox();
   await testTagWheelKeepsHumanTextFromLeftBlock();
   await testTagWheelMinimalPrefixOffDoesNotCreatePrefix();

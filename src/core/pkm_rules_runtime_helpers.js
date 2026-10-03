@@ -160,6 +160,17 @@ function parentValueIdForChildValue(parentField, childValue) {
 }
 
 /**
+ * Values, по которым идёт шаг перебора: спрятанные глазом пропускаются, кроме
+ * стоящего сейчас — от него шаг идёт к соседу (его ответ 5, В-278). Один ответ
+ * на хоткей и tagWheel; скроллер строится шагами tagWheel.
+ */
+function valuesForStep(values, currentId) {
+  const cur = String(currentId || "");
+  return (Array.isArray(values) ? values : []).filter((v) => !(v && v.hidden === true)
+    || String(typeof v.id === "string" ? v.id : v.token || "") === cur);
+}
+
+/**
  * Родитель на строке — наше эхо дочернего значения, а не выбор человека
  * (`Show always` + `Add the parent Value`, 2026-09-19): иначе круг дочернего
  * поля схлопывался в одно значение. Пока дочернего значения нет, родитель —
@@ -1489,6 +1500,7 @@ module.exports = {
   isFieldPrerequisiteMet,
   parentValueIdForChildValue,
   parentValueEchoesChildValue,
+  valuesForStep,
   navigatorChildOf,
   isNavigatorValue,
 };

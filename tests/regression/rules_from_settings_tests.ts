@@ -196,6 +196,22 @@ const LINE = "- [ ] #todo || 1244";
   ok("разрешения дочернего Field доезжают от настроек до поля в правилах");
 }
 
+/* ---- 1б. глаз Value доезжает до правил (его ответ 5, В-278) ------------- */
+{
+  /* Тот же перечень свойств, что у Field: Value из конфига в правила идёт `normalizeValue`, и он выбрасывает незнакомое. */
+  const cfg = configWithSeparators("::");
+  const tagField = (cfg.pkm.fields.tags.fields as Any[]).find((f: Any) => Array.isArray(f && f.values) && f.values.some((v: Any) => v && v.token));
+  assert.ok(tagField, "положительный контроль: в конфиге есть Field с Values");
+  const hiddenToken = String(tagField.values.find((v: Any) => v && v.token).token);
+  tagField.values.find((v: Any) => v && v.token === hiddenToken).hidden = true;
+  internals.ensureBehaviorModesFromOrder(cfg);
+  const field = (shape.buildRulesForEngines(cfg).leftMode.fields as Any[]).find((f: Any) => String(f && f.id) === String(tagField.id));
+  const vals: Any[] = field && Array.isArray(field.values) ? field.values : [];
+  assert.deepEqual(vals.filter((v: Any) => v && v.hidden === true).map((v: Any) => String(v.token).replace(/^#/, "")), [hiddenToken.replace(/^#/, "")],
+    "спрятанное Value не доехало до правил движков: " + JSON.stringify(vals));
+  ok("глаз Value доезжает от настроек до правил, у остальных ключа нет");
+}
+
 /* ---- 2. другой ключ — другая строка ------------------------------------- */
 
 {

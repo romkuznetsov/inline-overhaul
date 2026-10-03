@@ -1275,7 +1275,9 @@ module.exports = {
           allowedSubs = getAllowedSubValues(targetField, "");
         } else {
           if (!parentId) {
-            const seed = direction === "decrease" ? parentCycle[parentCycle.length - 1] : parentCycle[0];
+            /* Спрятанное глазом родительское Value первым не ставится (В-278). */
+            const seedCycle = rulesHelpers.valuesForStep(parentCycle, "");
+            const seed = direction === "decrease" ? seedCycle[seedCycle.length - 1] : seedCycle[0];
             if (!seed) return;
             parentId = valueId(seed);
             state.selected[parentField.id] = parentId;
@@ -1286,7 +1288,8 @@ module.exports = {
         }
         if (!allowedSubs.length) return;
         const currentSubId = state.selected[targetField.id] || "";
-        const nextSubId = nextCycleIdByDirection(allowedSubs, currentSubId, direction);
+        /* Спрятанные глазом шаг пропускает (В-278). */
+        const nextSubId = nextCycleIdByDirection(rulesHelpers.valuesForStep(allowedSubs, currentSubId), currentSubId, direction);
         const parentBefore = parentId;
         if (freeOfParent && !navigator && targetField.addsParentValue === true) {
           /* Родителя — долистанному значению, ответ «чей ребёнок» в помощниках. Пустое
@@ -1356,7 +1359,8 @@ module.exports = {
       if (!state.selected[targetField.id] && currentId) {
         state.selected[targetField.id] = currentId;
       }
-      const nextId = nextCycleIdByDirection(cycle, currentId, direction);
+      /* Спрятанные глазом шаг пропускает (В-278). */
+      const nextId = nextCycleIdByDirection(rulesHelpers.valuesForStep(cycle, currentId), currentId, direction);
       checkboxLeftWithValue = lineFinalize.checkboxLeavesWithValueUnified(rules, targetField.id,
         tokenOfValueId(targetField, currentId), tokenOfValueId(targetField, nextId), parsed.checkboxToken);
       state.selected[targetField.id] = nextId;

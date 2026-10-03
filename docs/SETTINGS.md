@@ -257,6 +257,9 @@ A Field is one of three types, picked when you press `Add Field`: `Tag` (`#todo`
 `🙂‍↔️no`, or an emoji alone, `💡`. A Value can hold a child Value, and a child Field’s Values are the ones
 marked child in that table.
 
+The eye in front of a Value hides it from `next`, `previous` and the tagWheel list without
+deleting it: a line that already has it still reads it, and the next step goes on to its neighbor.
+
 Each Value carries its own writing rule, its own color, and a `Show` column: at `default`
 it is drawn as itself, at `custom` as anything you type instead — an emoji in place of
 `[[Project A]]`. A shown link still opens the note when clicked.

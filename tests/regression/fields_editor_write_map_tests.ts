@@ -447,6 +447,8 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
   { shape: "pkm:behavior:order:dnd", why: "перетаскивание Field за ручку (Ф2): в старой доске его не было" },
   { shape: "pkm:behavior:order:deep:checkbox:*", why: "чекбокс Prefix под своим именем: старая доска писала ту же ветку причиной deep:prefix-mode" },
   { shape: "pkm:behavior:order:deep:checkbox:*:prefix", why: "вторая запись того же контрола" },
+  { shape: "pkm:behavior:order:deep:hide:*", why: "глаз Value (его ответ 5, В-278): скрыть из перебора и скроллера — в старой доске его не было" },
+  { shape: "pkm:behavior:order:deep:hide:*:prefix", why: "вторая запись того же контрола" },
   { shape: "pkm:visuals:tag:fill:*", why: "пикер заливки: в старой доске он писал по другому событию и в карту попадал как «без записи»" },
   { shape: "pkm:visuals:tag:text:*", why: "пикер цвета текста, то же самое" },
   { shape: "pkm:visuals:tag:side:*", why: "цвет рамки Value — колонка `Side`, его пункт цикла 89" },
