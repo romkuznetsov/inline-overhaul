@@ -51,6 +51,19 @@ export interface DescribeOptions {
   showTips: boolean;
   /** Тумблер `Show option IDs in tips` с вкладки Advanced (10.13.5): иначе id настройки негде увидеть (раздел 12). */
   showIds?: boolean;
+  /** Значение контрола по пути: `id = значение` в подписи (цикл 121). */
+  valueOf?: (path: string) => unknown;
+}
+
+/**
+ * Подпись id с нынешним значением — его пункт цикла 121: «чтобы в tip было
+ * `show-setting-ids = on`». Списки и пустое — одним id: значение не напечатать.
+ */
+export function idLine(id: string, value: unknown): string {
+  if (typeof value === "boolean") return id + " = " + (value ? "on" : "off");
+  if (typeof value === "number") return id + " = " + String(value);
+  if (typeof value === "string") return id + " = " + (value === "" ? "\"\"" : value);
+  return id;
 }
 
 export class Describer {
@@ -69,7 +82,13 @@ export class Describer {
       (it.searchTerms || []).join("|"),
       o.showTips ? "1" : "0",
       o.showIds ? "1" : "0",
+      this.idText(it, o),
     ].join(" ");
+  }
+
+  private idText(it: NamedDef, o: DescribeOptions): string {
+    const path = (it as { path?: unknown }).path;
+    return typeof path === "string" && o.valueOf ? idLine(it.id, o.valueOf(path)) : it.id;
   }
 
   describe(it: NamedDef, o: DescribeOptions): string | DocLike | undefined {
@@ -100,7 +119,15 @@ export class Describer {
       const body = box.createEl("div", { cls: "io-tip__body" });
       if (o.showTips && it.tip) paint(body, it.tip);
       /* Id — последней строкой; ради него подсказка появляется и у настройки без своей. */
-      if (showId) body.createEl("div", { text: it.id, cls: "io-tip__id" });
+      if (showId) {
+        /* Путь — в атрибуте: описание клонируется, и значение при раскрытии
+           освежает `SettingsPane.freshenTipValue` (запись определений не пересобирает). */
+        const path = (it as { path?: unknown }).path;
+        body.createEl("div", {
+          text: this.idText(it, o), cls: "io-tip__id",
+          attr: typeof path === "string" ? { "data-io-path": path, "data-io-id": it.id } : {},
+        });
+      }
     }
 
     this.cache.set(it.id, { key, frag });

@@ -721,6 +721,9 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         : undefined,
     });
 
+    /* `id = значение` в подсказке — значение на миг раскрытия (цикл 121). */
+    this.containerEl.addEventListener("click", e => { this.pane.freshenTipValue(e.target); });
+
     /* Каталоги — после сборки панели, не задерживая загрузку; без них — английский. */
     void this.loadTexts(app, plugin);
 

@@ -24,7 +24,7 @@ import { dialogKey, fill } from "./texts_dialogs.ts";
 /** Путь `Name brackets`: у него свой отказ на записи (C17, `В-264`). */
 const NAME_BRACKETS_PATH = "transform.inline2note.noteName.delimiters";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey } from "./texts_custom.ts";
-import { Describer, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
+import { Describer, idLine, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
 import type { ConfirmRequest } from "./actions.ts";
 import {
   BASE_LANG,
@@ -684,7 +684,9 @@ export class SettingsPane {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
       busy: (action: ActionId) => this.busy.has(action),
-      describe: it => this.describer.describe(it, { showTips, showIds }),
+      describe: it => this.describer.describe(it, {
+        showTips, showIds, valueOf: path => this.getControlValue(path),
+      }),
       groupFold: group => this.groupFoldButtonFor(group),
       groupCallout: group => this.groupCalloutButtonFor(group, showCallouts),
       showIds,
@@ -895,6 +897,25 @@ export class SettingsPane {
       }
       return btn;
     };
+  }
+
+  /**
+   * Нажатие на «?»: подпись `id = значение` берёт значение сейчас (цикл 121).
+   * Зовёт делегированный обработчик корня панели — у клона описания своих нет.
+   */
+  freshenTipValue(target: unknown): void {
+    type Node = { closest?: (s: string) => Node | null; parentElement?: Node | null;
+      querySelector?: (s: string) => Node | null; getAttribute?: (n: string) => string | null;
+      textContent?: string };
+    const t = target as Node | null;
+    const mark = t && typeof t.closest === "function" ? t.closest(".io-tip__mark") : null;
+    const box = mark ? mark.parentElement : null;
+    const line = box && typeof box.querySelector === "function"
+      ? box.querySelector(".io-tip__id[data-io-path]") : null;
+    if (!line || typeof line.getAttribute !== "function") return;
+    const path = line.getAttribute("data-io-path") || "";
+    const id = line.getAttribute("data-io-id") || "";
+    line.textContent = idLine(id, this.getControlValue(path));
   }
 
   /** Свёрнута ли группа. Нужно проверке: своего состояния у неё нет. */

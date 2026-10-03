@@ -1464,6 +1464,23 @@ async function main(): Promise<void> {
       "обычного пробела в подписи слайдера быть не должно — он и переносится");
   });
 
+  await test("подпись id несёт значение и освежает его при раскрытии «?» (цикл 121)", async () => {
+    const { pane } = makePane({ advanced: { showSettingIds: true } });
+    const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
+    const it = items.find((i: Def) => i.name === "Smart Ctrl+A");
+    const desc = it?.desc as StubNode;
+    const line = desc.querySelector(".io-tip__id") as StubNode;
+    const path = String(line.getAttribute("data-io-path"));
+    const id = String(line.getAttribute("data-io-id"));
+    const was = Boolean(pane.getControlValue(path));
+    assert.equal(line.textContent, id + " = " + (was ? "on" : "off"), "его пример: `show-setting-ids = on`");
+    /* Запись определений не пересобирает: значение берёт нажатие. */
+    await pane.setControlValue(path, !was);
+    const mark = desc.querySelector(".io-tip__mark") as StubNode;
+    pane.freshenTipValue(mark);
+    assert.equal(line.textContent, id + " = " + (!was ? "on" : "off"), "раскрытие показало прежнее значение");
+  });
+
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
@@ -3088,7 +3105,7 @@ async function main(): Promise<void> {
     await pane.setControlValue("advanced.showSettingIds", true);
     const tip = tipTextOf(pane, "advanced", "Diagnostics", "Developer logging");
     assert.ok(tip.includes("Leave this off day to day"), "своя подсказка осталась: " + tip);
-    assert.ok(tip.trimEnd().endsWith("dev-mode"), "id идёт последним: " + tip);
+    assert.ok(tip.trimEnd().endsWith("dev-mode = off"), "id со значением идёт последним: " + tip);
   });
 
   await test("настройка без своей подсказки получает подсказку ради id", async () => {

@@ -507,6 +507,56 @@ async function clickIn(pg, text) {
 
 const SCENARIOS = {
   /*
+   * Цикл 121, два его пункта панели: `Separators` приходит свёрнутой, а подпись
+   * id в «?» несёт значение (`autosave = off`) и освежает его после щелчка.
+   */
+  async "panel-cycle-121"(win, browser) {
+    await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ advanced: { showSettingIds: true, backups: { autosave: false } }, general: { help: { showTips: true } } }, "bench:panel-cycle-121");
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    const shut = await host.evaluate(() => {
+      const h = [...document.querySelectorAll(".setting-item-heading")].find((n) => /Separators/.test(n.textContent));
+      return h ? Boolean(h.parentElement && h.parentElement.classList.contains("io-group--shut")) : null;
+    });
+    await clickIn(host, "Advanced");
+    const tipOf = (name) => host.evaluate(async (t) => {
+      const row = [...document.querySelectorAll(".setting-item")].find((r) => {
+        const n = r.querySelector(".setting-item-name");
+        return n && n.textContent.trim() === t && r.getBoundingClientRect().width > 0;
+      });
+      const mark = row && row.querySelector(".io-tip__mark");
+      if (!mark) return null;
+      const box = mark.parentElement;
+      if (box.open) { mark.click(); await new Promise((r) => setTimeout(r, 100)); }
+      mark.click();
+      await new Promise((r) => setTimeout(r, 200));
+      const line = box.querySelector(".io-tip__id");
+      return line ? line.textContent : "";
+    }, name);
+    const before = await tipOf("Autosave");
+    await host.evaluate(() => {
+      const row = [...document.querySelectorAll(".setting-item")].find((r) => {
+        const n = r.querySelector(".setting-item-name");
+        return n && n.textContent.trim() === "Autosave" && r.getBoundingClientRect().width > 0;
+      });
+      row.querySelector(".checkbox-container").click();
+    });
+    await host.waitForTimeout(600);
+    const after = await tipOf("Autosave");
+    console.log("Separators свёрнута: " + shut + " | до щелчка: " + before + " | после: " + after);
+    if (before === null) { console.log("КОНТРОЛЬ: «?» у Autosave не нашёлся"); return false; }
+    const ok = shut === true && before === "backup-autosave = off" && after === "backup-autosave = on";
+    console.log(ok ? "ok: группа свёрнута, подпись несёт значение и освежается" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
    * BUGHUNT 2026-09-30, B19: окно «Add a Binder command». Первый `Esc`
    * сворачивает выбиралку, второй закрывает окно (`В-196`); при раскрытой
    * выбиралке `Cancel` закрывает окно с первого щелчка.

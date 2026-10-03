@@ -4237,15 +4237,24 @@ function attachTipItem(anchorRow, host, item) {
  * и без этой подписи id негде увидеть. Отладочный показ id и путей рядом с
  * каждой строкой — это другое: он остаётся только в прототипе.
  */
-function withId(text, id) {
+function withId(text, id, path) {
   const on = ctx.get("advanced.showSettingIds") === true;
   const key = String(id || "").trim();
   if (!on || !key) return text;
-  return String(text || "") + (text ? "<br><br>" : "") + "<code>" + key + "</code>";
+  return String(text || "") + (text ? "<br><br>" : "") + "<code>" + idLine(key, path ? ctx.get(path) : undefined) + "</code>";
+}
+
+/* `id = значение` — его пункт цикла 121: «чтобы в tip было `show-setting-ids = on`».
+   Списки и пустое значение — одним id. */
+function idLine(id, value) {
+  if (typeof value === "boolean") return id + " = " + (value ? "on" : "off");
+  if (typeof value === "number") return id + " = " + String(value);
+  if (typeof value === "string") return id + " = " + (value === "" ? '""' : value);
+  return id;
 }
 
 function helpButton(nameRow, info, item, row) {
-  const tipText = withId(item.tip, item.id);
+  const tipText = withId(item.tip, item.id, item.path);
   if (!tipText || !ctx.get("general.help.showTips")) return;
   /* the tip belongs to the whole row, so it spans past the control column */
   let tipEl = null;
