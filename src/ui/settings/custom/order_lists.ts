@@ -297,7 +297,7 @@ export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
         cfg: cfg as never,
         deepState,
       });
-      const fields = model.listFields().filter(row => !row.parent);
+      const fields = model.listLineFields().filter(row => !row.parent);
       const byKey = new Map(fields.map(row => [row.key, row.label]));
       const stored = strings(prefixRules(cfg)["priorityTargets"]).filter(id => byKey.has(id));
       const rest = fields.map(row => row.key).filter(id => !stored.includes(id));

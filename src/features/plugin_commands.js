@@ -15,6 +15,7 @@ const { Modal, Notice } = require("obsidian");
 const cmCommands = require("@codemirror/commands");
 
 const __commandIds = require("./command_ids.js");
+const __commandField = require("./command_field.js");
 const __configNormalize = require("../core/config_normalize.js");
 const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
@@ -296,6 +297,10 @@ function registerPkm(plugin) {
           const fresh = registry.buildPkmCommandDefs(
             serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfg, FEATURE_ORDER
           ).find((x) => x && x.id === id) || d;
+          if (fresh.commandField) {
+            runCommandField(plugin, cfg, fresh);
+            return;
+          }
           if (fresh.orderKey && fresh.kind !== "element" && !registry.fieldHasValues(cfg, fresh.orderKey)) {
             new Notice(__say(__noticeKey("pkm", "no-values"), "{0} has no Values yet: add them in Tags & PKM → Fields", fresh.strictName || fresh.orderKey));
             return;
@@ -307,6 +312,18 @@ function registerPkm(plugin) {
     });
     plugin._registeredPkmCommandIds.add(id);
     plugin._registeredPkmCommandNames.set(id, name);
+  }
+}
+
+/** Пара категории Command Field (4.4): правка текста одной транзакцией, без движков. */
+function runCommandField(plugin, cfg, def) {
+  const { key, category } = def.commandField;
+  const got = __commandField.runInEditor(plugin.getActiveEditor(), cfg, key, category, def.direction === "decrease" ? -1 : 1);
+  const name = def.name.replace(/ (next|previous)$/, "");
+  if (got === "no-presets") {
+    new Notice(__say(__noticeKey("pkm", "no-presets"), "{0} has no visible presets: add them in Tags & PKM → Fields", name));
+  } else if (got === "nothing") {
+    new Notice(__say(__noticeKey("pkm", "nothing-to-do"), "{0}: nothing to change on this line", name));
   }
 }
 

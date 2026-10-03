@@ -434,7 +434,7 @@ const styleAssignments = (js.match(/\.style\.setProperty/g) || []).length;
 const otherStyle = (js.match(/\.style\.(?!setProperty)[a-zA-Z]/g) || []).length;
 if (otherStyle > 0) bad("script sets " + otherStyle + " style properties directly (only setProperty is allowed)");
 const hexInJs = (js.match(/#[0-9a-fA-F]{6}\b/g) || []);
-const hexAllowed = 42;   // mock vault colors, the three type colors, and TagWheel defaults
+const hexAllowed = 43;   // mock vault colors, the four type colors (Command Field, 2026-10-03), and TagWheel defaults
 if (hexInJs.length > hexAllowed) bad("script has " + hexInJs.length + " hex colors, over the " + hexAllowed + " mock-data budget");
 if (/innerHTML|outerHTML|insertAdjacentHTML/.test(js)) bad("script uses raw HTML insertion");
 if (/new Function|eval\(/.test(js)) bad("script evaluates code");

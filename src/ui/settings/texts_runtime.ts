@@ -51,6 +51,9 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "code-line": "Tags & PKM does not work in a code block, a table, note properties or a divider line",
     /* `{0}` — строгое имя Field, как в палитре команд. Молча команда не отказывает (У-41). */
     "no-values": "{0} has no Values yet: add them in Tags & PKM → Fields",
+    /* Command Field (4.4): `{0}` — `<Field> · <категория>`, как в палитре. */
+    "no-presets": "{0} has no visible presets: add them in Tags & PKM → Fields",
+    "nothing-to-do": "{0}: nothing to change on this line",
     error: "Tags & PKM error: {0}",
   },
 

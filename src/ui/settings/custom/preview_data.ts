@@ -99,7 +99,7 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
       deepState,
     });
     const out: PreviewField[] = [];
-    for (const row of model.listFields()) {
+    for (const row of model.listLineFields()) {
       /* Дочерность — уровень значения в Values, не строка (В7). */
       if (row.parent) continue;
       const values: PreviewValue[] = [];
@@ -132,7 +132,8 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
         id: row.key,
         name: row.strictName || row.key,
         short: row.label,
-        kind: row.kind === "wikilink" ? "link" : row.kind,
+        /* Command Field сюда не доходит: `listLineFields`. */
+        kind: row.kind === "wikilink" ? "link" : row.kind as "tag" | "element",
         side: row.side,
         values,
       });
@@ -226,6 +227,7 @@ export const TYPE_COLOR: Record<string, string> = {
   wikilink: "var(--io-type-link)",
   link: "var(--io-type-link)",
   element: "var(--io-type-element)",
+  command: "var(--io-type-command)",
 };
 
 /** Цвет вида по его имени. Неизвестный вид красится как тег. */

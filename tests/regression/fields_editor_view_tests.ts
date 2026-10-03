@@ -3295,7 +3295,7 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.equal(walk(opened[1]!, "io-help").length, 0, "`Show tips` выключен, а «?» стоят");
 
   const cards = walk(form, "io-nf__type");
-  assert.equal(cards.length, 3, "типов не три");
+  assert.equal(cards.length, 4, "типов не четыре (Command — постановка command-field.md, 4.2)");
   assert.ok(cards[0]!.classList.contains("io-nf__type--on"), "Tag не выбран по умолчанию");
   const input = (aria: string): StubNode => {
     const n = walk(form, "io-text").find(x => x.getAttribute("aria-label") === aria);

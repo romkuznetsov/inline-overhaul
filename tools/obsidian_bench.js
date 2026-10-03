@@ -1319,6 +1319,69 @@ const SCENARIOS = {
    * `IO_SHOTS` (папка), затем Tag и Element проходят до `Add Field`, и конфиг
    * спрашивается: Block, Values с цветом, знак и вид значения.
    */
+  /* Command Field, этап 1: окно → категория из выбора → пара команд → одна правка, один `Ctrl+Z`. */
+  async "command-field"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await clickIn(host, "Add Field");
+    await host.waitForSelector(".io-nf", { timeout: 5000 });
+    const cards = await host.evaluate(() => [...document.querySelectorAll(".io-nf__type .io-nf__typename")].map((n) => n.textContent));
+    if (!cards.includes("Command")) { console.log("карточки:", cards.join(), "| РАСХОДИТСЯ: типа Command нет"); return false; }
+    await host.click(".io-nf__type:nth-child(4)");
+    await host.waitForTimeout(200);
+    await host.fill("input[aria-label=\"Name of the new Field\"]", "Format");
+    await host.waitForTimeout(150);
+    await host.click(".io-nf .io-btn--cta");
+    await host.waitForTimeout(900);
+    await host.selectOption("select[aria-label=\"Category to add to Format\"]", "callouts");
+    await clickIn(host, "Add category");
+    await host.waitForTimeout(900);
+    const table = await host.evaluate(() => ({
+      cats: document.querySelectorAll(".io-cats__cat").length,
+      presets: document.querySelectorAll(".io-cats .io-vals__row--child").length,
+      yaml: [...document.querySelectorAll(".io-fields .io-sub")].map((n) => n.textContent.trim()),
+    }));
+    if (process.env.IO_SHOTS) {
+      const t = await host.$(".io-fields__detail");
+      if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field.png") });
+    }
+    await host.keyboard.press("Escape").catch(() => {});
+    const got = await win.evaluate(async () => {
+      const a = window.app;
+      a.setting.close();
+      const cfg = a.plugins.plugins["inline-overhaul"].getConfig();
+      const doc = "- Research plan\n  - read papers\n- buy bread\n";
+      const f = await a.vault.create("cf.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 500));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 0, ch: 5 });
+      const ran = a.commands.executeCommandById("inline-overhaul:format-callouts-next");
+      await new Promise((r) => setTimeout(r, 400));
+      const after = e.getValue();
+      e.undo();
+      await new Promise((r) => setTimeout(r, 300));
+      return {
+        type: cfg.pkm.fields.order.types.Format,
+        defs: [].concat(cfg.pkm.fields.tags.fields, cfg.pkm.fields.links.fields).map((x) => x.id).filter((id) => /^Format/.test(id)),
+        commands: Object.keys(a.commands.commands).filter((k) => /inline-overhaul:format-/.test(k)),
+        ran, after, undone: e.getValue() === doc,
+      };
+    });
+    Object.assign(got, table);
+    console.log(JSON.stringify(got, null, 1));
+    const ok = got.type === "command" && !got.defs.length && got.cats === 1 && got.presets === 3
+      && got.commands.join() === "inline-overhaul:format-callouts-next,inline-overhaul:format-callouts-previous"
+      && got.after === "> [!note]\n> - Research plan\n>   - read papers\n- buy bread\n" && got.undone;
+    console.log(ok ? "ok: Command Field заведён окном, категория пришла с пресетами, команда — одна правка и один Ctrl+Z" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   async "new-field"(win, browser) {
     await win.evaluate(async () => {
       window.app.setting.open();

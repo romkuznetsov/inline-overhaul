@@ -105,6 +105,12 @@ export interface CustomBlock {
   keys: string[];
 }
 
+/** Пресет категории Command Field: имя, глаз и параметры по `params` реестра. */
+export interface CommandPreset { name?: string; hidden?: boolean; type?: string; fold?: string; keep?: string[] }
+
+/** Категория Command Field в конфиге: `id` — реестра, `key` — адрес команд (клон — `callouts-2`). */
+export interface CommandCategory { id: string; key?: string; name?: string; hidden?: boolean; presets: CommandPreset[] }
+
 /** Строка списка Fields для вёрстки (Ф1, Ф3, Ф4, Ф6). */
 export interface FieldRow {
   key: string;
@@ -366,7 +372,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const getFieldKind = (k: string): FieldKind => {
     const raw = String(orderState.types && orderState.types[k] ? orderState.types[k] : "")
       .trim().toLowerCase();
-    if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
+    if (raw === "tag" || raw === "wikilink" || raw === "element" || raw === "command") return raw;
     return "tag";
   };
 
@@ -647,7 +653,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         .filter(Boolean),
     );
     const kindRaw = String(rawKind || "tag").trim().toLowerCase();
-    const kind: FieldKind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
+    const kind: FieldKind = kindRaw === "wikilink" || kindRaw === "element" || kindRaw === "command" ? kindRaw : "tag";
     const subKey = kind === "tag" ? inferSubKey(key) : "";
     const subStrict = kind === "tag" ? `${key}_sub` : "";
     if (subStrict && strictValues.has(subStrict)) {
@@ -689,6 +695,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         enabled: { [key]: true, [subKey]: false },
       } : {}),
     } as Partial<OrderState>, "pkm:behavior:order:add-field:" + key);
+
+    /* Command Field: определения строки нет, таблица категорий пуста (4.1). */
+    if (kind === "command") {
+      setCommandCategories(key, []);
+      return { ok: true, key };
+    }
 
     const behavior = behaviorOf(plugin.getConfig());
     const leftMode = modeFields(behavior, "leftMode");
@@ -844,9 +856,28 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           tags: { fields: leftFields },
           links: { fields: rightFields },
           elements: { ...elementsCfg, fields: elementsFields, byField: elementsByField },
+          /* Надгробие: `deepMerge` ключ не снимает (`config_normalize.js`, userTags). */
+          ...(getFieldKind(k) === "command" || asObject(asObject(behavior["commands"])["byField"])[k]
+            ? { commands: { byField: { [k]: null } } } : {}),
         },
       },
     }, "pkm:behavior:delete-field:" + k);
+  };
+
+  /* ---- Command Field: категории и пресеты (постановка command-field.md, 4.1) ---- */
+
+  /** Категории Field как в конфиге — копия: вёрстка правит её и отдаёт целиком. */
+  const getCommandCategories = (k: string): CommandCategory[] => {
+    const entry = asObject(asObject(asObject(behaviorOf(plugin.getConfig())["commands"])["byField"])[k]);
+    return JSON.parse(JSON.stringify(asArray(entry["categories"]))) as CommandCategory[];
+  };
+
+  /** Одна запись на всю таблицу: перестановка, клон и глаз — та же запись (У-32). */
+  const setCommandCategories = (k: string, list: readonly CommandCategory[]): void => {
+    plugin.setConfigPatch(
+      { pkm: { fields: { commands: { byField: { [k]: { categories: list } } } } } },
+      "pkm:fields:commands:" + k,
+    );
   };
 
   /* ---- поля строки Field ------------------------------------------------ */
@@ -1201,6 +1232,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /** Строки `Note properties`: по одной на Field верхнего уровня (В7). */
+  /** Fields, которые пишутся в строку: без Command Field (разбор 2.10) — для всех читателей списка. */
+  const listLineFields = (): FieldRow[] => listFields().filter(row => row.kind !== "command");
+
   const listYamlFields = (): YamlFieldRow[] => {
     const fallback = fallbackValueRule();
     /* Тип свойства читается и из Order — как у движка. */
@@ -1208,7 +1242,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       asObject(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"],
     );
     const out: YamlFieldRow[] = [];
-    for (const row of listFields()) {
+    for (const row of listLineFields()) {
       if (row.parent) continue;
       const def = defByOrderKey(row.key);
       const own = normalizeValueRule(def && def.yamlValueRule);
@@ -1280,7 +1314,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    */
   const listFieldTokens = (): FieldTokens[] => {
     const out: FieldTokens[] = [];
-    for (const row of listFields()) {
+    for (const row of listLineFields()) {
       if (row.parent) continue;
       const tokens: string[] = [];
       if (row.kind === "element") {
@@ -1388,7 +1422,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       .map(x => String(x || "").trim())
       .filter(Boolean);
     const candidates: Array<{ key: string; label: string }> = [];
-    for (const row of listFields()) {
+    for (const row of listLineFields()) {
       /* Дочерний Field в предусловие не годится: `dependsOn` занят родителем. */
       if (row.parent || row.key === key) continue;
       if (dependsChainReaches(row.key, key)) continue;
@@ -2279,6 +2313,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     ensureAllKeys,
     getPanelLeadCandidates,
     listFields,
+    listLineFields,
+    getCommandCategories,
+    setCommandCategories,
     /* снимки для черновиков и истории (Ф12, Ф13) */
     captureSnapshot,
     applySnapshot,

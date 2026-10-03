@@ -1803,6 +1803,24 @@ body.theme-dark {
   .io-group__reset, .io-fields__tools { transition: none; }
 }
 
+
+/* Command Field: категории и пресеты (постановка command-field.md, 4.1). Те же классы, что в styles.css. */
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 1.6fr) 48px; }
+/* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
+.io-cats__inner { min-width: 330px; }
+/* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
+.io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
+.io-cats__cat { background: var(--background-primary); font-weight: 600; }
+.io-cats__cat .io-text { font-weight: 600; }
+.io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
+.io-cats__eye--off { color: var(--text-faint); }
+.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
+.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.io-cats__keep { padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); cursor: pointer; }
+.io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
+.io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
+.io-cats__empty { padding: 8px 10px; }
+
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
 .io-dlg.io-nf { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; }
@@ -1820,7 +1838,8 @@ body.theme-dark {
 .io-nf__chiptext--tag { padding: 0 5px; border-radius: 999px; background: var(--io-nf-chip-bg, transparent); color: var(--io-nf-chip-fg, inherit); }
 .io-nf__dot--text::-webkit-color-swatch { border-radius: 3px; }
 .io-nf__pempty { color: var(--text-faint); font-style: italic; }
-.io-nf__types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 6px; }
+.io-nf__types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 10px 0 6px; }
+@media (max-width: 620px) { .io-nf__types { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .io-nf__type { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; text-align: left; cursor: pointer;
   border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
 .io-nf__type:hover { border-color: var(--interactive-accent); }
@@ -3567,7 +3586,7 @@ const SCHEMA = [
 /* Подпись типа. `Emoji` вместо `Element`: чип шириной в слово `Element`
    съедал имя Field в узкой левой колонке — «444» превращалось в «4...»
    (замечание заказчика 2026-08-27). В конфиге тип остаётся `element` (З1). */
-const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji" };
+const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji", command: "Command" };
 /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в custom
    block, и у Field в Left/Right остаются два положения. */
 const BEHAVIORS = ["Strict", "Insert only"];
@@ -3617,8 +3636,34 @@ const FIELDS = [
   { id:"due", strict:"due", name:"Due", short:"", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"due", cardinality:"auto", valueRule:"clean",
     marker:"\u{1F4C5}", format:"YYYY-MM-DD", step:"command", values:[] },
   { id:"estimate", strict:"estimate", name:"Estimate", short:"Est", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"effort", cardinality:"auto", valueRule:"raw",
-    marker:"\u{23F1}", format:"HH:mm", step:"increment", values:[] }
+    marker:"\u{23F1}", format:"HH:mm", step:"increment", values:[] },
+  /* Command Field (постановка command-field.md, 4.1): категории вместо Values. */
+  { id:"format", strict:"format", name:"Format", short:"Fmt", type:"command", position:"Right", behavior:"Strict", color:"", property:"", values:[],
+    categories:[
+      { id:"callouts", key:"callouts", name:"", hidden:false, presets:[
+        { name:"Note", type:"note", fold:"", hidden:false },
+        { name:"Tip", type:"tip", fold:"", hidden:false },
+        { name:"Warning", type:"warning", fold:"-", hidden:true }
+      ] },
+      { id:"cleanup", key:"cleanup", name:"", hidden:false, presets:[{ name:"", keep:[], hidden:false }] }
+    ] }
 ];
+
+/*
+ * Реестр категорий Command Field (4.3) так, как его видит панель: id, имя,
+ * какие параметры у пресета и пресеты по умолчанию. В плагине — `CATEGORIES`
+ * в `src/features/command_field.js`; здесь — мокданные (Р8).
+ */
+const CF_CATEGORIES = [
+  { id:"callouts", name:"Callouts", params:["callout-type", "fold"],
+    desc:"Wraps the line and its tree, or the selected lines, in a callout; inside one, steps through the presets and then takes the callout off",
+    defaults:[{ name:"Note", type:"note", fold:"" }, { name:"Tip", type:"tip", fold:"" }, { name:"Warning", type:"warning", fold:"" }] },
+  { id:"cleanup", name:"Cleanup", params:["fields"],
+    desc:"Takes the Values of your Fields off the line or the selected lines, except the Fields you keep",
+    defaults:[{ name:"", keep:[] }] }
+];
+const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
+const CALLOUT_FOLDS = [{ value:"", label:"Open" }, { value:"-", label:"Folded" }, { value:"+", label:"Unfolded" }];
 
 /* The properties this vault already uses, with the type Obsidian has for
    them. In the plugin this list comes from the metadata cache. */
@@ -4055,7 +4100,9 @@ function countSettings(t) {
   return n;
 }
 function field(id) { return FIELDS.find(f => f.id === id); }
-function fieldsOn(side) { return FIELDS.filter(f => f.position === side); }
+function fieldsOn(side) { return lineFields().filter(f => f.position === side); }
+/* Fields, которые пишутся в строку: без Command Field (разбор 2.10). */
+function lineFields() { return FIELDS.filter(f => f.type !== "command"); }
 /* Which Value a line shows for a Field: the one at its own depth, counting
    only top-level Values. The rule is deliberately not a token: the same tree
    has to read against the prototype's invented Fields and against whatever
@@ -4421,9 +4468,9 @@ const OPTION_SOURCES = {
   /* Поля своего Block: ведущее поле выбирается только среди тех, что в этом
      Block и стоят (10.13.76). Сторона у Field своя, и спрашивается она у него,
      а не у списка правил — те разложены по типу, а не по Block. */
-  "left-block-fields": () => FIELDS.filter(f => String(f.position || "").toLowerCase() === "left")
+  "left-block-fields": () => lineFields().filter(f => String(f.position || "").toLowerCase() === "left")
     .map(f => ({ value:f.id, label:f.name })),
-  "right-block-fields": () => FIELDS.filter(f => String(f.position || "").toLowerCase() === "right")
+  "right-block-fields": () => lineFields().filter(f => String(f.position || "").toLowerCase() === "right")
     .map(f => ({ value:f.id, label:f.name }))
 };
 
@@ -4651,7 +4698,7 @@ const CONTROLS = {
 /* One color per field type, so the same type always looks the same. */
 /* Тег и ссылка — палитра бренд-бука (`В-198`): янтарь и сталь; у тега свой
    тёмный текст, белый на янтаре не читается. Те же значения — в `styles.css`. */
-const TYPE_COLOR = { tag: "#ffb547", link: "#4a7b9b", element: "#7a9e3b" };
+const TYPE_COLOR = { tag: "#ffb547", link: "#4a7b9b", element: "#7a9e3b", command: "#8a63c9" };
 const TYPE_INK = { tag: "#3a2400" };
 const typeInk = t => TYPE_INK[t] || "var(--text-on-accent)";
 
@@ -5872,6 +5919,8 @@ function renderFieldEditor(host) {
      одно, и на этом месте стоит его блок. */
   if (f.type === "element") {
     elementRows(detail, f);
+  } else if (f.type === "command") {
+    commandCategoriesTable(detail, f);
   } else {
     const vh = el("div", "io-sub io-item__namerow", detail);
     foldableSub(vh, "values", "Values", subPaints);
@@ -5890,7 +5939,8 @@ function renderFieldEditor(host) {
   el("span", null, bh, "Behavior");
   attachTipItem(bh, detail, { name:"Behavior", tip:"Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line" });
   placementRows(detail, f);
-  propertyRow(detail, f);
+  /* В строку Command Field не пишет — и в свойство заметки тоже (постановка, раздел 3). */
+  if (f.type !== "command") propertyRow(detail, f);
 
   /* Таблица команд Field (Ф11) остаётся целью, но в панель она приезжает
      только в фазе 5: её смысл в колонке `Hotkey`, а та держится на реестре
@@ -5905,10 +5955,14 @@ function renderFieldEditor(host) {
   cmdHead.style.setProperty("grid-template-columns", cmdCols);
   ["Command", "Description", "Hotkey"].forEach(t => el("div", null, cmdHead, t));
   subComment(cmdHead, detail, "field-editor/commands");
-  [
+  (f.type === "command"
+    ? (f.categories || []).flatMap(c => [
+      [f.name + " · " + cfCategoryName(c) + " next",     "Apply the first visible preset, or step to the next one inside its result"],
+      [f.name + " · " + cfCategoryName(c) + " previous", "Apply the last visible preset, or step back inside its result"]])
+    : [
     [f.name + " next",     "Step to the next Value, or insert the Field if the line has none"],
     [f.name + " previous", "Step back to the previous Value"]
-  ].forEach(([name, does]) => {
+  ]).forEach(([name, does]) => {
     const row = el("div", "io-cmd__row", cmdCard);
     row.style.setProperty("grid-template-columns", cmdCols);
     el("div", "io-cmd__name", row, name);
@@ -6053,6 +6107,152 @@ function valuesTable(host, f) {
   add.type = "button";
   /* Строка «Use → to make a Value a child…» из подвала убрана: она уехала в
      подсказку колонки `Level`, где её ищут (замечание заказчика 2026-08-27). */
+}
+
+/*
+ * Категории Command Field (4.1, 4.3): строка категории, под ней её пресеты.
+ * У каждой — перетаскивание, глаз (скрытое не видно в tagWheel и пропускается
+ * перебором), имя (пустое — имя по умолчанию) и удаление; у пресета ещё
+ * параметры и клон. Клон, совпавший с пресетом выше, помечен: перебор
+ * узнаёт первый (В-281). Панель рисует то же — `renderCommandCategories`.
+ */
+function cfCategoryName(c) {
+  const reg = CF_CATEGORIES.find(r => r.id === c.id);
+  return String(c.name || "").trim() || (reg ? reg.name : c.id);
+}
+function cfPresetName(c, p) {
+  if (String(p.name || "").trim()) return p.name.trim();
+  if (c.id === "callouts") {
+    const t = String(p.type || "note");
+    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · folded" : p.fold === "+" ? " · unfolded" : "");
+  }
+  const kept = (p.keep || []).map(id => (field(id) || { name:id }).name);
+  return kept.length ? "Keep " + kept.join(", ") : "Clear all";
+}
+function cfPresetSignature(c, p) {
+  return c.id === "callouts" ? String(p.type || "").toLowerCase() + "|" + (p.fold || "") : (p.keep || []).slice().sort().join(",");
+}
+let cfDrag = null;
+function commandCategoriesTable(host, f) {
+  const vh = el("div", "io-sub io-item__namerow", host);
+  foldableSub(vh, "categories", "Categories", subPaints);
+  el("span", null, vh, "Categories");
+  attachTipItem(vh, host, { name:"Categories",
+    tip:"A category is a kind of edit, such as <b>Callouts</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands. Outside its result <code>next</code> applies the first visible preset and <code>previous</code> the last; inside it they step through the presets, and one step past the end takes the result off again. Nothing here is written into the line as a Value" });
+  subComment(vh, host, "categories/header");
+  const box = el("div", "io-vals io-cats", host);
+  const scroll = el("div", "io-scroll", box);
+  const inner = el("div", "io-vals__inner io-cats__inner", scroll);
+  const head = el("div", "io-vals__head io-cats__row", inner);
+  const COLTIP = {
+    Name: "What tagWheel and its scroller call this category or preset. Leave it empty to use the name built from its settings",
+    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line"
+  };
+  const tipSlot = el("div", "io-vals__tipslot", inner);
+  ["", "", "Name", "Settings", ""].forEach(t => {
+    const cell = el("div", "io-vals__col", head);
+    el("span", "io-vals__coltext", cell, t);
+    if (COLTIP[t]) attachTip(cell, COLTIP[t], t, tipSlot, tipSlot);
+  });
+  const cats = f.categories || (f.categories = []);
+  const grip = (row, scope, index, list) => {
+    const g = el("div", "io-grip", row, "⠿");
+    g.draggable = true;
+    g.setAttribute("role", "button");
+    g.setAttribute("aria-label", "Drag to reorder");
+    g.title = "Drag to reorder";
+    g.addEventListener("dragstart", () => { cfDrag = { scope, index }; row.classList.add("io-dragging"); });
+    g.addEventListener("dragend", () => { cfDrag = null; row.classList.remove("io-dragging"); });
+    row.addEventListener("dragover", e => { if (cfDrag && cfDrag.scope === scope) { e.preventDefault(); row.classList.add("io-dragover"); } });
+    row.addEventListener("dragleave", () => row.classList.remove("io-dragover"));
+    row.addEventListener("drop", e => {
+      row.classList.remove("io-dragover");
+      if (!cfDrag || cfDrag.scope !== scope) return;
+      e.preventDefault();
+      moveIn(list, cfDrag.index, index);
+      cfDrag = null;
+      renderContent();
+    });
+  };
+  const eye = (row, item, what) => {
+    const b = iconBtn(row, item.hidden ? "◌" : "👁", (item.hidden ? "Show " : "Hide ") + what);
+    b.classList.add("io-cats__eye");
+    if (item.hidden) b.classList.add("io-cats__eye--off");
+    b.setAttribute("aria-pressed", String(!item.hidden));
+    b.addEventListener("click", () => { item.hidden = !item.hidden; renderContent(); });
+  };
+  if (!cats.length) el("div", "io-fields__hint io-cats__empty", inner, "No categories yet — pick one below and press Add category");
+  cats.forEach((c, ci) => {
+    const reg = CF_CATEGORIES.find(r => r.id === c.id) || { params:[] };
+    const row = el("div", "io-vals__row io-cats__row io-cats__cat" + (c.hidden ? " io-cats__row--hidden" : ""), inner);
+    grip(row, "cat", ci, cats);
+    eye(row, c, cfCategoryName(c));
+    const name = textEl(row, c.name || "", reg.name, "Name of the category " + cfCategoryName(c), "io-text");
+    name.addEventListener("change", () => { c.name = name.value.trim(); renderContent(); });
+    el("div", "io-cats__desc", row, reg.desc || "");
+    const tools = el("div", "io-valtools", row);
+    const clone = iconBtn(tools, "⧉", "Clone the category " + cfCategoryName(c));
+    clone.addEventListener("click", () => {
+      let n = 2;
+      while (cats.some(x => x.key === c.id + "-" + n)) n++;
+      cats.splice(ci + 1, 0, { ...JSON.parse(JSON.stringify(c)), key:c.id + "-" + n, name:cfCategoryName(c) + " (copy)" });
+      renderContent();
+    });
+    const del = iconBtn(tools, "✕", "Remove the category " + cfCategoryName(c));
+    del.classList.add("io-icon--danger");
+    del.addEventListener("click", () => { cats.splice(ci, 1); renderContent(); });
+    const seen = new Map();
+    c.presets.forEach((p, pi) => {
+      const prow = el("div", "io-vals__row io-vals__row--child io-cats__row" + (p.hidden ? " io-cats__row--hidden" : ""), inner);
+      grip(prow, "presets:" + ci, pi, c.presets);
+      eye(prow, p, cfPresetName(c, p));
+      const pname = textEl(prow, p.name || "", cfPresetName(c, { ...p, name:"" }), "Name of the preset " + cfPresetName(c, p), "io-text");
+      pname.addEventListener("change", () => { p.name = pname.value.trim(); renderContent(); });
+      const set = el("div", "io-cats__set", prow);
+      reg.params.forEach(kind => {
+        if (kind === "callout-type") {
+          const t = selectEl(set, CALLOUT_TYPES, p.type || "note", "Callout type of " + cfPresetName(c, p), "io-select");
+          t.addEventListener("change", () => { p.type = t.value; renderContent(); });
+        } else if (kind === "fold") {
+          const fo = selectEl(set, CALLOUT_FOLDS, p.fold || "", "Fold of " + cfPresetName(c, p), "io-select");
+          fo.addEventListener("change", () => { p.fold = fo.value; renderContent(); });
+        } else if (kind === "fields") {
+          const keep = p.keep || (p.keep = []);
+          lineFields().forEach(lf => {
+            const on = keep.indexOf(lf.id) >= 0;
+            const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), set, lf.name);
+            chip.type = "button";
+            chip.setAttribute("aria-pressed", String(on));
+            chip.setAttribute("aria-label", "Keep the Values of " + lf.name);
+            chip.addEventListener("click", () => { if (on) keep.splice(keep.indexOf(lf.id), 1); else keep.push(lf.id); renderContent(); });
+          });
+        }
+      });
+      const sig = cfPresetSignature(c, p);
+      if (!p.hidden && seen.has(sig)) el("span", "io-cats__same", set, "same as " + seen.get(sig) + " — that one is used");
+      else if (!p.hidden) seen.set(sig, cfPresetName(c, p));
+      const ptools = el("div", "io-valtools", prow);
+      const pclone = iconBtn(ptools, "⧉", "Clone the preset " + cfPresetName(c, p));
+      pclone.addEventListener("click", () => {
+        c.presets.splice(pi + 1, 0, { ...JSON.parse(JSON.stringify(p)), name:cfPresetName(c, p) + " (copy)" });
+        renderContent();
+      });
+      const pdel = iconBtn(ptools, "✕", "Remove the preset " + cfPresetName(c, p));
+      pdel.classList.add("io-icon--danger");
+      pdel.addEventListener("click", () => { c.presets.splice(pi, 1); renderContent(); });
+    });
+  });
+  const foot = el("div", "io-vals__foot", box);
+  const pick = selectEl(foot, CF_CATEGORIES.map(r => ({ value:r.id, label:r.name })), CF_CATEGORIES[0].id, "Category to add to " + f.name);
+  const add = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add category");
+  add.type = "button";
+  add.addEventListener("click", () => {
+    const reg = CF_CATEGORIES.find(r => r.id === pick.value);
+    let key = reg.id, n = 2;
+    while (cats.some(x => x.key === key)) key = reg.id + "-" + n++;
+    cats.push({ id:reg.id, key, name:"", hidden:false, presets:JSON.parse(JSON.stringify(reg.defaults)).map(p => ({ ...p, hidden:false })) });
+    renderContent();
+  });
 }
 
 function elementRows(host, f) {
@@ -6372,6 +6572,8 @@ function placementRows(host, f) {
     options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" },
              { value:"hotkey_only", label:"Commands only" }] },
     f.active || "yes", v => { f.active = v; });
+  /* Command Field не пишет Value и не трогает Prefix строки (4.2). */
+  if (f.type === "command") return;
 
   /* В custom block строки нет: там Field всегда пишется у каретки, и
      контрол без выбора не показывается (З8, PRD 10.13.260). */
@@ -6428,7 +6630,7 @@ function placementRows(host, f) {
  * его Value, дочернего тоже (его замечание к тесту 3 цикла 93, 2026-09-25).
  */
 function prerequisiteRows(host, f, row) {
-  const others = FIELDS.filter(x => x.id !== f.id);
+  const others = lineFields().filter(x => x.id !== f.id);
   /* Некого ждать — и строки нет: контрол, который никуда не ведёт, не
      показывается (З8). */
   if (!others.length && !f.prereq) return;
@@ -7063,9 +7265,20 @@ function renderCommandReference(host) {
     /* Свой подзаголовок на каждый Field: `task (tag)` (замечание заказчика
        2026-08-31). Команды дочернего Field стоят под тем же подзаголовком:
        это тот же Field, только его дочерние значения. */
-    const KIND_WORD = { tag:"tag", link:"link", element:"element" };
+    const KIND_WORD = { tag:"tag", link:"link", element:"element", command:"command" };
     FIELDS.forEach(f => {
       const heading = f.name + " (" + (KIND_WORD[f.type] || f.type) + ")";
+      /* Command Field: пара на каждую категорию, у самого Field пары нет (4.4). */
+      if (f.type === "command") {
+        const fieldRow = el("div", "io-cmd__field", inner);
+        el("span", null, fieldRow, heading);
+        toHotkeysButton(fieldRow, "field", heading);
+        (f.categories || []).forEach(c => {
+          drawRow(f.strict + " · " + cfCategoryName(c) + " next", "Apply the first visible preset, or step to the next one inside its result", false);
+          drawRow(f.strict + " · " + cfCategoryName(c) + " previous", "Apply the last visible preset, or step back inside its result", false);
+        });
+        return;
+      }
       const fieldRow = el("div", "io-cmd__field", inner);
       el("span", null, fieldRow, heading);
       toHotkeysButton(fieldRow, "field", heading);
@@ -7108,12 +7321,12 @@ function renderSourceFields(host) {
 
   const draw = () => {
     box.textContent = "";
-    if (!FIELDS.length) {
+    if (!lineFields().length) {
       el("div", "io-side__empty", box, "no Fields yet — set them up under Tags & PKM");
       return;
     }
     const list = el("div", "io-keepfields__list", box);
-    FIELDS.forEach(f => {
+    lineFields().forEach(f => {
       const row = el("label", "io-keepfields__row", list);
       const input = el("input", "io-toggle io-toggle--check", row);
       input.type = "checkbox";
@@ -7134,10 +7347,10 @@ function renderSourceFields(host) {
     const actions = el("div", "io-rowactions", box);
     const all = el("button", "io-btn io-btn--sm", actions, "Keep all");
     all.type = "button";
-    all.disabled = SOURCE_KEEP.length === FIELDS.length;
+    all.disabled = SOURCE_KEEP.length === lineFields().length;
     all.addEventListener("click", () => {
       SOURCE_KEEP.length = 0;
-      FIELDS.forEach(f => SOURCE_KEEP.push(f.id));
+      lineFields().forEach(f => SOURCE_KEEP.push(f.id));
       draw();
     });
     const none = el("button", "io-btn io-btn--sm", actions, "Keep none");
@@ -7414,12 +7627,12 @@ function renderSourcePreview(host) {
   const body = el("div", "io-srcprev", box);
 
   const sep = String(val("pkm.lineFormat.separator1") || "||");
-  const chips = FIELDS.filter(f => f.values && f.values.length)
+  const chips = lineFields().filter(f => f.values && f.values.length)
     .map(f => f.type === "link" ? "[[" + f.values[0].token + "]]" : "#" + f.values[0].token);
   const line = (text) => chips.join(" ") + " " + sep + " " + text;
   const before = [line("Text"), line("Sub-line 1"), line("Sub-line 2")];
 
-  const kept = FIELDS.filter(f => SOURCE_KEEP.indexOf(f.id) >= 0 && f.values && f.values.length)
+  const kept = lineFields().filter(f => SOURCE_KEEP.indexOf(f.id) >= 0 && f.values && f.values.length)
     .map(f => f.type === "link" ? "[[" + f.values[0].token + "]]" : "#" + f.values[0].token);
   const fate = String(val("transform.inline2note.sourceProcessing.text") || "remove");
   /* Текст выдуманной строки здесь — одно слово `Text`, и при
@@ -7549,7 +7762,7 @@ function renderAddFieldDialog() {
       const col = el("span", "io-wheelcol", side);
       el("span", "io-wheelcell io-wheelcell--active", col, "[" + name + "]");
       const panel = el("span", "io-wheelpanel io-wheelpanel--down", col);
-      if (!n) { el("span", "io-wheelval io-nf__pempty", panel, "No Values yet"); return; }
+      if (!n) { el("span", "io-wheelval io-nf__pempty", panel, d.type === "command" ? "No categories yet" : "No Values yet"); return; }
       const from = Math.max(0, Math.min(pos - 2, n - 5));
       for (let i = from; i < Math.min(n, from + 5); i++) {
         el("span", "io-wheelval" + (i === pos ? " io-wheelval--on" : ""), panel, d.type === "wikilink" ? bare(vals[i].text).split("/").pop() : vals[i].text);
@@ -7558,7 +7771,7 @@ function renderAddFieldDialog() {
     const lineRow = el("div", "io-nf__pane", pbody);
     el("div", "io-nf__plabel", lineRow, "Line");
     shape(el("div", "io-line io-nf__pline", lineRow), side => {
-      if (!cur) { el("span", "io-nf__pempty", side, name); return; }
+      if (!cur) { el("span", "io-nf__pempty", side, d.type === "command" ? "nothing is written into the line" : name); return; }
       const v = el("span", d.type === "tag" ? "io-nf__pval io-nf__chiptext--tag" : "io-nf__pval", side, cur.text);
       if (cur.fill) cssVar(v, "--io-nf-chip-bg", cur.fill);
       if (cur.color) cssVar(v, "--io-nf-chip-fg", cur.color);
@@ -7604,7 +7817,8 @@ function renderAddFieldDialog() {
     const types = el("div", "io-nf__types", body);
     [["tag", "#todo", "Tag", "Your own #tags, each in its own colors"],
      ["wikilink", "[[Project]]", "Link", "A link to one of your notes"],
-     ["element", "📅" + fmtDate(now, "YYYY-MM-DD"), "Element", "An emoji with a date, a time, a count or a random id"]].forEach(([k, sample, name, desc]) => {
+     ["element", "📅" + fmtDate(now, "YYYY-MM-DD"), "Element", "An emoji with a date, a time, a count or a random id"],
+     ["command", "> [!note]", "Command", "Edits of the line, such as a callout or a cleanup, one hotkey each"]].forEach(([k, sample, name, desc]) => {
       const c = el("button", "io-nf__type" + (d.type === k ? " io-nf__type--on" : ""), types);
       c.type = "button"; c.setAttribute("role", "radio"); c.setAttribute("aria-checked", String(d.type === k));
       el("span", "io-nf__sample", c, sample);
@@ -7664,6 +7878,13 @@ function renderAddFieldDialog() {
           [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }], d.moc ? "yes" : "no", "Use as MOC", v => { d.moc = v === "yes"; draw(); });
       }
     }
+    /* Command Field: категории заводятся в таблице Fields (4.1), свойства заметки нет (раздел 3). */
+    if (d.type === "command") {
+      el("div", "io-sub io-nf__sub", body, "Categories");
+      el("div", "io-nf__chipshint", body, "Once the Field is added, pick its categories in the Fields table: each one brings its ready-made presets and its own pair of commands");
+      refresh();
+      return;
+    }
     const listMode = d.type === "element" && d.value === "list";
     el("div", "io-sub io-nf__sub", body, d.type === "element" && !listMode ? "Value" : "Values");
     if (listMode) {
@@ -7714,7 +7935,8 @@ function renderAddFieldDialog() {
       color:TYPE_COLOR[d.type === "wikilink" ? "link" : d.type], property:d.property || "", cardinality:"auto", valueRule:"raw", moc:d.moc,
       marker:d.value === "list" ? "" : d.marker || "", format:d.format || "",
       step:d.value === "list" ? "list" : d.value === "random" || (d.value === "datetime" && d.press === "now") ? "command" : "increment",
-      values:d.values.map(v => ({ token:d.value === "list" ? String(v.token).trim() : bare(v.token), fill:v.fill || "" })) });
+      values:d.type === "command" ? [] : d.values.map(v => ({ token:d.value === "list" ? String(v.token).trim() : bare(v.token), fill:v.fill || "" })),
+      ...(d.type === "command" ? { categories:[] } : {}) });
     selectedFieldId = id;
     stop();
     dialog = null;

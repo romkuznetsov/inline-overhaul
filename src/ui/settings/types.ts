@@ -296,7 +296,7 @@ export function both(p: Predicate, q: Predicate): Predicate {
  * `pkm.behavior.tagVisuals.userTags`, а таблица 8.1 ведёт ветку в
  * `visual.tags.userTags` — без миграции цвета потеряются; то же с `byTag`.
  */
-export type FieldKind = "tag" | "wikilink" | "element";
+export type FieldKind = "tag" | "wikilink" | "element" | "command";
 
 /** Как Field встаёт в строку: строго, только вставка, свободно (З1: значения не меняются). */
 export type FreeRoamMode = "off" | "minimal" | "full";

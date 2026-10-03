@@ -66,6 +66,8 @@ const TYPES: ReadonlyArray<{ kind: FieldKind; name: string; desc: string }> = [
   { kind: "tag", name: "NEW_FIELD_TYPE_TAG", desc: "NF_TYPE_TAG_DESC" },
   { kind: "wikilink", name: "NEW_FIELD_TYPE_LINK", desc: "NF_TYPE_LINK_DESC" },
   { kind: "element", name: "NEW_FIELD_TYPE_ELEMENT", desc: "NF_TYPE_ELEMENT_DESC" },
+  /* Command Field (постановка command-field.md, 4.2). */
+  { kind: "command", name: "NEW_FIELD_TYPE_COMMAND", desc: "NF_TYPE_COMMAND_DESC" },
 ];
 
 /** Черновик окна. Одно состояние на всё: вёрстка и предпросмотр читают его. */
@@ -172,6 +174,8 @@ const SERIES = 5;
  * три примера). `now` — снаружи: проверка задаёт своё время (правило 76).
  */
 export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string; fill?: string; color?: string }> {
+  /* У Command Field Values нет: категории заводятся в таблице Fields (4.1). */
+  if (d.kind === "command") return [];
   if (d.kind === "tag") return d.values.map(v => ({ text: "#" + bare(v.token, "tag"), ...(v.fill ? { fill: v.fill } : {}), ...(v.text ? { color: v.text } : {}) }));
   if (d.kind === "wikilink") return d.values.map(v => ({ text: linkText(v.token) }));
   /* Element-список: Value пишется как есть, знак в нём самом. */
@@ -254,7 +258,7 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
     const panel = el(col, "span", "io-wheelpanel io-wheelpanel--down");
     if (scrollFill) cssVar(panel, "--io-wheel-bg", scrollFill);
     if (scrollText) cssVar(panel, "--io-wheel-fg", scrollText);
-    if (!n) { el(panel, "span", "io-wheelval io-nf__pempty", say("NF_PREVIEW_NO_VALUES")); return; }
+    if (!n) { el(panel, "span", "io-wheelval io-nf__pempty", say(d.kind === "command" ? "NF_PREVIEW_NO_CATEGORIES" : "NF_PREVIEW_NO_VALUES")); return; }
     const pos = ((at % n) + n) % n;
     const from = Math.max(0, Math.min(pos - Math.floor(WHEEL_WINDOW / 2), n - WHEEL_WINDOW));
     for (let i = from; i < from + shown; i++) {
@@ -272,7 +276,7 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
   /* Без заливки Block: полоса над одним Value читалась как рамка (тест 3 цикла 99). */
   applyTagVars(line, ctx, { blockFill: false });
   shape(line, side => {
-    if (!cur) { el(side, "span", "io-nf__pempty", say("NF_PREVIEW_VALUE")); return; }
+    if (!cur) { el(side, "span", "io-nf__pempty", say(d.kind === "command" ? "NF_PREVIEW_NOTHING" : "NF_PREVIEW_VALUE")); return; }
     if (d.kind === "tag") {
       bubble(side, { token: bare(cur.text, "tag"), fill: cur.fill || "", ...(cur.color ? { text: cur.color } : {}), shown: "value", depth: 0 });
     } else if (d.kind === "wikilink") drawWrittenLink(side, cur.text);
@@ -479,7 +483,8 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     types.setAttribute("role", "radiogroup");
     types.setAttribute("aria-label", say("NEW_FIELD_TYPE"));
     const sampleOf = (k: FieldKind): string =>
-      (k === "tag" ? "#todo" : k === "wikilink" ? "[[Project]]" : "📅" + String(sharedUtils.formatDateByMask(now(), "YYYY-MM-DD")));
+      (k === "tag" ? "#todo" : k === "wikilink" ? "[[Project]]" : k === "command" ? "> [!note]"
+        : "📅" + String(sharedUtils.formatDateByMask(now(), "YYYY-MM-DD")));
     for (const t of TYPES) {
       const on = t.kind === d.kind;
       const card = btn(types, "io-dlg__pick io-nf__type" + (on ? " io-nf__type--on" : ""), {});
@@ -510,6 +515,13 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       ...o.blocks.map(b => ({ value: "custom:" + b.id, label: b.name })),
     ], d.side, say("NF_BLOCK"), v => { d.side = v as FieldSide; d.sideChosen = true; draw(); });
 
+    /* Command Field: категории — в таблице Fields, свойства заметки нет (4.1, раздел 3). */
+    if (d.kind === "command") {
+      el(body, "div", "io-sub io-nf__sub", say("NF_CATEGORIES_HEAD"));
+      el(body, "div", "io-nf__chipshint", say("NF_CATEGORIES_HINT"));
+      refresh();
+      return;
+    }
     if (d.kind === "element") {
       el(body, "div", "io-sub io-nf__sub", say(d.value === "list" ? "NF_VALUES_HEAD" : "NF_VALUE_HEAD"));
       drawElement();

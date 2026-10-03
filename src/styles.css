@@ -1010,6 +1010,7 @@ body.theme-dark {
   --io-type-tag-ink: #3a2400;
   --io-type-link: #4a7b9b;
   --io-type-element: #7a9e3b;
+  --io-type-command: #8a63c9;
 }
 
 .io-btn {
@@ -3699,6 +3700,25 @@ body.theme-dark {
   padding: calc(1.5px * var(--io-bubble-y)) calc(6px * var(--io-bubble-x));
 }
 
+
+/* ---- Command Field: категории и пресеты (постановка command-field.md, 4.1) ----
+   Таблица — та же `io-vals`, своя сетка колонок; вид — прототип. */
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 1.6fr) 48px; }
+/* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
+.io-cats__inner { min-width: 330px; }
+/* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
+.io-fields .io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
+.io-cats__cat { background: var(--background-primary); font-weight: 600; }
+.io-cats__cat .io-text { font-weight: 600; }
+.io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
+.io-cats__eye--off { color: var(--text-faint); }
+.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
+.io-cats__set { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.io-cats .io-cats__keep { height: auto; padding: 1px 8px; border-radius: 999px; font-size: var(--font-ui-smaller); border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); box-shadow: none; cursor: pointer; }
+.io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
+.io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
+.io-cats__empty { padding: 8px 10px; }
+
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
@@ -3707,11 +3727,13 @@ body.theme-dark {
 .io-nf__body { display: flex; flex-direction: column; }
 .io-nf .io-nf__types {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Четыре типа, с Command (постановка command-field.md, 4.2). */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 10px 0 6px;
 }
-@media (max-width: 520px) { .io-nf__types { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .io-nf .io-nf__types { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .io-nf .io-nf__types { grid-template-columns: 1fr; } }
 /* Карточка типа — `.io-dlg__pick` (Н-22); здесь отличия, фон и тень: одиночный
    класс их проигрывает `button:not(.clickable-icon)` платформы (0-1-1, У-266). */
 .io-nf .io-nf__type {

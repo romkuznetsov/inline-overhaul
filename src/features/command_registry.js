@@ -21,6 +21,7 @@ const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 /* Правила для движков — из настроек, тем же модулем, что служебная заметка (PRD 10.13.52, П-8). */
 const __rulesShape = require("../core/pkm_rules_shape.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
+const __commandField = require("./command_field.js");
 
 function getBehaviorValue(cfg, key, dflt) {
   if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];
@@ -229,7 +230,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   };
   const typeForKey = (key) => {
     const raw = String(order && order.types ? order.types[key] || "" : "").trim().toLowerCase();
-    if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
+    if (raw === "tag" || raw === "wikilink" || raw === "element" || raw === "command") return raw;
     /* Тот же вопрос, что у `pkm_order_config.js`; запасное «всегда тег» перепутало
        бы тип каждого Field типа link (У-159). */
     if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferOrderFieldType !== "function") {
@@ -362,6 +363,25 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   for (const { key, strict } of seeds) {
     const kind = typeForKey(key);
     if (!strict) continue;
+    /* Command Field: пары нет у самого Field, она у каждой категории (4.4). */
+    if (kind === "command") {
+      const shown = normalizeLabelPart(strict, "field");
+      for (const cat of __commandField.fieldCategories(cfg, key)) {
+        for (const dir of ["increase", "decrease"]) {
+          defs.push({
+            id: __commandIds.commandFieldCommandId(key, cat.key, dir),
+            orderKey: key,
+            strictName: String(strict),
+            groupLabel: shown,
+            kind,
+            direction: dir,
+            name: `${shown} · ${cat.name} ${__commandIds.directionLabel(dir)}`,
+            commandField: { key, category: cat.key },
+          });
+        }
+      }
+      continue;
+    }
     const incSpec = buildActionSpec(key, kind, "increase");
     const decSpec = buildActionSpec(key, kind, "decrease");
     if (blockOfKey(key)) {

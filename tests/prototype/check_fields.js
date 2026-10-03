@@ -120,9 +120,9 @@ check('окно объявлено диалогом',
   'Add a Field');
 /* Окно с главным сразу (его заказ 2026-09-27): тип карточками, у тега — имя и Block. */
 const inScrim = (cls) => 'const found = []; const go = n => { if (String(n.className).split(" ").includes(' + JSON.stringify(cls) + ')) found.push(n); n.children.forEach(go); }; go(' + scrim + '[0]);';
-check('тип — три карточки, Tag выбран',
+check('тип — четыре карточки (Command — постановка 4.2), Tag выбран',
   run('(() => { ' + inScrim("io-nf__type") + ' return found.length + ":" + found.filter(n => String(n.className).includes("io-nf__type--on")).map(n => n.children[1]._text).join(); })()'),
-  '3:Tag');
+  '4:Tag');
 /* Свойство YAML — у каждого типа (его замечание к тесту 3 цикла 98). */
 check('окно спрашивает имя, Block и свойство YAML',
   run('(() => { ' + inScrim("io-item__name") + ' return found.map(n => n._text).join(","); })()'),
@@ -146,6 +146,22 @@ check('Add Field создаёт Field выбранного типа и сраз�
   run('(() => { const b = ' + addInScrim + '; if (!b) return "кнопки нет"; b.dispatch("click", { preventDefault() {}, target: b }); const f = field(selectedFieldId); return f ? f.name + ":" + f.type : "ничего не выбрано"; })()'),
   'Client:link');
 check('окно закрылось', run(scrim + '.length'), '0');
+
+/* ---- Command Field: категории вместо Values (постановка command-field.md, 4.1) ---- */
+console.log('\nCommand Field:');
+run('selectedFieldId = "format"; renderContent(); true');
+const inContent = (cls) => '(() => { const found = []; const go = n => { if (String(n.className).split(" ").includes(' + JSON.stringify(cls) + ')) found.push(n); n.children.forEach(go); }; go(document.getElementById("content")); return found; })()';
+check('строки категорий и пресетов', run(inContent("io-cats__cat") + '.length + "/" + ' + inContent("io-vals__row--child") + '.length'), '2/4');
+check('у Command Field нет Values и свойства заметки',
+  run('(() => { const n = ' + inContent("io-sub") + '.map(x => x.children.map(c => c._text).filter(Boolean).join("")); return n.join(","); })()'),
+  '▾Categories?,▾Behavior?,▾Commands');
+check('пара команд на каждую категорию', run(inContent("io-cmd__name") + '.map(n => n._text).join(";")'),
+  'Format · Callouts next;Format · Callouts previous;Format · Cleanup next;Format · Cleanup previous');
+/* Клон совпадает с оригиналом — помечен, перебор узнаёт первый (В-281). */
+run('(() => { const b = ' + inContent("io-icon") + '.find(n => String(n.getAttribute("aria-label")) === "Clone the preset Note"); b.dispatch("click", { target: b }); return true; })()');
+check('клон пресета помечен как совпавший', run(inContent("io-cats__same") + '.map(n => n._text).join()'), 'same as Note — that one is used');
+run('(() => { const b = ' + inContent("io-btn") + '.find(n => n._text === "Add category"); b.dispatch("click", { target: b }); return true; })()');
+check('Add category заводит категорию с её пресетами', run('field("format").categories.map(c => c.key + ":" + c.presets.length).join()'), 'callouts:4,cleanup:1,callouts-2:3');
 
 console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию; окно Add Field спрашивает тип карточками, имя и Block");
 process.exit(failures ? 1 : 0);

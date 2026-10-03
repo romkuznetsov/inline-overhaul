@@ -110,6 +110,14 @@ function pkmFieldCommandId(orderKey, direction, used) {
 }
 
 
+/**
+ * ID пары категории Command Field (4.4): ключ Order и `id` категории реестра —
+ * переименование Field или категории хоткей не теряет (В-275).
+ */
+function commandFieldCommandId(orderKey, categoryId, direction) {
+  return (kebab(orderKey) || "field") + "-" + kebab(categoryId) + "-" + directionLabel(direction);
+}
+
 /** ID строки Binder: kebab, совпадения разводятся номером. */
 function binderCommandId(seedText, used) {
   const base = kebab(seedText) || "insert";
@@ -222,6 +230,7 @@ module.exports = {
   reservedCommandIds,
   directionLabel,
   pkmFieldCommandId,
+  commandFieldCommandId,
   CUSTOM_BLOCK_COMMAND_PREFIX,
   customBlockCommandId,
   pkmCommandSeeds,

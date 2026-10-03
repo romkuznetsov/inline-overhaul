@@ -123,9 +123,21 @@ function recastCallout(lines, box, preset, cursor) {
   return { from: box.head, to: box.head, lines: [head], cursor: { line: cursor.line, ch } };
 }
 
+/* Типы коллаутов Obsidian — выбор пресета в панели (6.1). */
+const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
+
 const callouts = {
   id: "callouts",
   name: "Callouts",
+  /* Контролы пресета в панели — по роду параметра, без правок UI (4.3). */
+  params: ["callout-type", "fold"],
+  /** Имя по умолчанию — из параметров (4.1): `Note · folded`. */
+  defaultName(p) {
+    const t = String(p.type || "note");
+    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · folded" : p.fold === "+" ? " · unfolded" : "");
+  },
+  /** Что делает пресет неотличимым на тексте (В-281). */
+  signature: (p) => String(p.type || "").toLowerCase() + "|" + (p.fold || ""),
   defaults: [
     { name: "Note", type: "note", fold: "" },
     { name: "Tip", type: "tip", fold: "" },
@@ -137,7 +149,13 @@ const callouts = {
    * пресет, `previous` — последний; внутри — цикл 0 → 1 → … → n → 0 (4.4).
    */
   run(ctx, presets, step) {
-    const list = presets.filter((p) => p && !p.hidden);
+    /* Совпавший клон в круге не участвует: на тексте он неотличим, шаг на него застрял бы (В-281). */
+    const seen = new Set();
+    const list = presets.filter((p) => {
+      if (!p || p.hidden || seen.has(callouts.signature(p))) return false;
+      seen.add(callouts.signature(p));
+      return true;
+    });
     if (!list.length) return null;
     const { lines, cursor } = ctx;
     const box = calloutAt(lines, cursor.line);
@@ -173,7 +191,14 @@ function cleanLine(line, cfg, keep) {
 const cleanup = {
   id: "cleanup",
   name: "Cleanup",
-  defaults: [{ name: "Clear all", keep: [] }],
+  params: ["fields"],
+  /* `fieldName` — видимое имя Field по ключу, его знает панель. */
+  defaultName(p, fieldName) {
+    const kept = (Array.isArray(p.keep) ? p.keep : []).map((k) => (fieldName ? fieldName(k) : k));
+    return kept.length ? "Keep " + kept.join(", ") : "Clear all";
+  },
+  signature: (p) => (Array.isArray(p.keep) ? p.keep : []).slice().sort().join(","),
+  defaults: [{ name: "", keep: [] }],
   hasRevert: false,
   /** Обратного нет: `next` ставит первый видимый пресет, `previous` — последний (В-276). */
   run(ctx, presets, step) {
@@ -206,9 +231,62 @@ function categoryById(id) {
   return CATEGORIES.find((c) => c.id === id) || null;
 }
 
+/**
+ * Категории Command Field из конфига: `pkm.fields.commands.byField[key]`.
+ * Незнакомая реестру категория отбрасывается — её нечем исполнить.
+ */
+function fieldCategories(cfg, key) {
+  const byField = cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.commands
+    ? cfg.pkm.fields.commands.byField : null;
+  const entry = byField && typeof byField === "object" ? byField[key] : null;
+  const list = entry && Array.isArray(entry.categories) ? entry.categories : [];
+  return list.filter((c) => c && categoryById(c.id)).map((c) => ({
+    id: String(c.id),
+    /* Клон категории — свой адрес команд (4.1): `callouts-2`. */
+    key: String(c.key || c.id),
+    /* Стёртое до пустого имя — имя реестра (4.1). */
+    name: String(c.name || "").trim() || categoryById(c.id).name,
+    hidden: c.hidden === true,
+    presets: Array.isArray(c.presets) ? c.presets.filter((p) => p && typeof p === "object") : [],
+  }));
+}
+
+/** Строки, затронутые выделением: частичное выделение расширяется до строк (6.1). */
+function selectedLines(ed) {
+  if (typeof ed.somethingSelected !== "function" || !ed.somethingSelected()) return null;
+  const a = ed.getCursor("from");
+  const b = ed.getCursor("to");
+  /* Выделение, кончающееся в начале строки, эту строку не захватывает. */
+  const to = b.line > a.line && b.ch === 0 ? b.line - 1 : b.line;
+  return { from: a.line, to };
+}
+
+/**
+ * Исполнить категорию в редакторе: одна транзакция — один шаг `Ctrl+Z` (R-1).
+ * Ответ: `"done"`, `"nothing"` (менять нечего), `"no-presets"`, `"unknown"`.
+ */
+function runInEditor(ed, cfg, fieldKey, categoryId, step) {
+  const entry = fieldCategories(cfg, fieldKey).find((c) => c.key === categoryId);
+  const category = entry ? categoryById(entry.id) : null;
+  if (!category) return "unknown";
+  if (!entry.presets.some((p) => !p.hidden)) return "no-presets";
+  const lines = String(ed.getValue()).split("\n");
+  const cursor = ed.getCursor();
+  const r = category.run({ lines, cursor, selection: selectedLines(ed), cfg }, entry.presets, step);
+  if (!r) return "nothing";
+  ed.transaction({
+    changes: [{ from: { line: r.from, ch: 0 }, to: { line: r.to, ch: lines[r.to].length }, text: r.lines.join("\n") }],
+    selection: { from: r.cursor },
+  });
+  return "done";
+}
+
 module.exports = {
+  CALLOUT_TYPES,
   CATEGORIES,
   categoryById,
+  fieldCategories,
+  runInEditor,
   calloutAt,
   stripQuoteLevel,
 };

@@ -121,9 +121,11 @@ function ensureBehaviorModesFromOrder(cfg) {
   const rightFields = fields.links.fields;
 
   const keys = [];
+  /* У Command Field определения нет: движки строки его не видят (№ 198). */
+  const commands = commandFieldKeys(order);
   const push = (k) => {
     const id = String(k || "").trim();
-    if (!id || /_sub$/.test(id)) return;
+    if (!id || /_sub$/.test(id) || commands.has(id)) return;
     if (!keys.includes(id)) keys.push(id);
   };
   for (const k of order.left || []) push(k);
@@ -576,7 +578,7 @@ function normalizePkmOrder(rawOrder) {
   if (isObj(rawOrder.types)) {
     for (const k of orderFields) {
       const raw = String(rawOrder.types[k] || "").trim().toLowerCase();
-      if (raw === "tag" || raw === "wikilink" || raw === "element") out.types[k] = raw;
+      if (raw === "tag" || raw === "wikilink" || raw === "element" || raw === "command") out.types[k] = raw;
     }
   }
   if (isObj(rawOrder.freeRoam)) {
@@ -678,6 +680,30 @@ function customBlockKeys(order) {
   return out;
 }
 
+/** Ключи Command Field: в строку они не пишутся (Command Field, разбор 2.10). */
+function commandFieldKeys(order) {
+  const types = isObj(order) && isObj(order.types) ? order.types : {};
+  return new Set(Object.keys(types).filter((k) => types[k] === "command"));
+}
+
+/**
+ * Порядок без Command Field — каким его видят движки строки (разбор 2.10): один
+ * отбор на всех читателей правил, исключение к З3 № 198.
+ */
+function withoutCommandFields(order) {
+  const drop = commandFieldKeys(order);
+  if (!drop.size) return order;
+  const out = cloneJson(order);
+  for (const mapKey of Object.keys(out)) {
+    const bag = out[mapKey];
+    if (Array.isArray(bag)) out[mapKey] = bag.filter((k) => !drop.has(k));
+    else if (mapKey === "lead" && isObj(bag)) for (const side of Object.keys(bag)) { if (drop.has(bag[side])) bag[side] = ""; }
+    else if (isObj(bag)) for (const k of Object.keys(bag)) if (drop.has(k)) delete bag[k];
+  }
+  if (Array.isArray(out.custom)) out.custom = out.custom.map((b) => ({ ...b, keys: (b.keys || []).filter((k) => !drop.has(k)) }));
+  return out;
+}
+
 /**
  * Порядок, каким его видят Left и Right: без ключей custom block (PRD
  * 10.13.260, п. 13).
@@ -696,7 +722,7 @@ function orderWithoutCustom(order) {
 }
 
 function serializePkmOrderForMacro(cfg) {
-  const order = orderWithoutCustom(normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order")));
+  const order = orderWithoutCustom(withoutCommandFields(normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"))));
   const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
   /* Имена в `freeRoamBehavior` — контракт макросов рантайма
      (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`): ключи не менять. */
@@ -773,6 +799,8 @@ module.exports = {
   makeDefaultPkmOrder,
   STRICT_FIELD_NAME_RE,
   normalizePkmOrder,
+  commandFieldKeys,
+  withoutCommandFields,
   customBlockKeys,
   orderWithoutCustom,
   serializePkmOrderForMacro,

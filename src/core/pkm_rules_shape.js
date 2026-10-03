@@ -70,7 +70,8 @@ function buildRulesShapeFromConfig(cfg, blockId) {
   delete behavior.childTagFormat;
   behavior.subtagFormat = behaviorCfg.childTagFormat === "combined" ? "combined" : "separate";
   behavior.defaultMode = String(fields.defaultBlock || "").trim().toLowerCase() === "right" ? "right" : "left";
-  behavior.order = cloneJson(slice(fields, "order"));
+  /* Command Field в строку не пишется: движки его не видят (№ 198). */
+  behavior.order = __pkmOrderConfig.withoutCommandFields(cloneJson(slice(fields, "order")));
   behavior.elements = cloneJson(slice(fields, "elements"));
   behavior.leftMode = cloneJson(slice(fields, "tags"));
   behavior.rightMode = cloneJson(slice(fields, "links"));
