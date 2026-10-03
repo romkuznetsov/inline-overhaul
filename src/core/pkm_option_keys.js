@@ -39,6 +39,8 @@ const KEYS = {
   TAGWHEEL_ACTIVE_FIELD_MODE: "TagWheel active field mode",
   TAGWHEEL_ACTIVE_FIELD_LEFT: "TagWheel active field left",
   TAGWHEEL_ACTIVE_FIELD_RIGHT: "TagWheel active field right",
+  /* Command Field для колеса (постановка command-field.md, 4.5): только командам tagWheel, № 199. */
+  COMMAND_FIELDS: "Command fields",
   /*
    * Custom block (10.13.260): свой `Rules data` и `Order config`, какой блок
    * открыть, все блоки ради `Tab`, правила Left/Right ради `Values in the

@@ -1393,6 +1393,55 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Command Field в tagWheel (его 💬 к тесту 1 цикла 125): ячейка, категория, пресет, Enter, Ctrl+Z. */
+  async "command-field-wheel"(win) {
+    const got = await win.evaluate(async () => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const order = p.getConfig().pkm.fields.order;
+      p.setConfigPatch({ pkm: { fields: {
+        order: { right: order.right.concat(["Format"]), types: { Format: "command" }, strictNames: { Format: "Format" }, labels: { Format: "Format" }, active: { Format: "yes" } },
+        commands: { byField: { Format: { categories: [{ id: "callouts", key: "callouts", name: "", hidden: false, presets: [
+          { name: "Note", type: "note", fold: "", hidden: false }, { name: "Tip", type: "tip", fold: "", hidden: false }, { name: "Warning", type: "warning", fold: "", hidden: false }] }] } } },
+      } } }, "pkm:fields:commands:Format");
+      await new Promise((r) => setTimeout(r, 800));
+      const doc = "- Research plan\n\t- read papers\n- buy bread\n";
+      const f = await a.vault.create("cfw.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 0, ch: 5 });
+      e.focus();
+      return { doc };
+    });
+    await runCommand(win, "open-tagwheel-right");
+    await win.waitForTimeout(500);
+    /* Колесо открывается на первом Field своего Block — идти вправо до ячейки `Format`. */
+    const line0 = () => win.evaluate(() => window.app.workspace.activeEditor.editor.getLine(0));
+    for (let i = 0; i < 20 && !/\*\*\[Format\]\*\*/.test(await line0()); i++) {
+      await win.keyboard.press("ArrowRight");
+      await win.waitForTimeout(150);
+    }
+    const strips = [await line0()];
+    for (const k of ["ArrowUp", "ArrowRight", "ArrowUp", "ArrowUp"]) {
+      await win.keyboard.press(k);
+      await win.waitForTimeout(250);
+      strips.push(await win.evaluate(() => window.app.workspace.activeEditor.editor.getLine(0)));
+    }
+    if (process.env.IO_SHOTS) await win.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-wheel.png") });
+    await win.keyboard.press("Enter");
+    await win.waitForTimeout(500);
+    const after = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    await win.evaluate(() => window.app.workspace.activeEditor.editor.undo());
+    await win.waitForTimeout(300);
+    const undone = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    console.log(JSON.stringify({ strips, after, undone: undone === got.doc }, null, 1));
+    const ok = strips.some((l) => /Callouts/.test(l)) && strips.some((l) => /Tip/.test(l))
+      && after === "> [!tip]\n> - Research plan\n> \t- read papers\n- buy bread\n" && undone === got.doc;
+    console.log(ok ? "ok: Command Field в колесе — категория, пресет, Enter одной правкой, Ctrl+Z" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   async "new-field"(win, browser) {
     await win.evaluate(async () => {
       window.app.setting.open();

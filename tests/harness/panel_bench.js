@@ -97,6 +97,17 @@ function makeCmEditor(initial, existingView) {
       view.dispatch({ selection: { anchor: at, head: at } });
     },
     getLine(n) { return lineAt(n === undefined ? cur.line : n).text; },
+    /* Что зовёт исполнение Command Field (`command_field.js`): чтение, выделение и одна транзакция. */
+    getValue() { return view.state.doc.toString(); },
+    somethingSelected() { return !!sel && (sel.anchor.line !== sel.head.line || sel.anchor.ch !== sel.head.ch); },
+    transaction(tx) {
+      const off = (p) => this.posToOffset(p);
+      view.dispatch({
+        changes: (tx.changes || []).map((c) => ({ from: off(c.from), to: off(c.to || c.from), insert: String(c.text || "") })),
+        userEvent: "input", annotations: tick(),
+      });
+      if (tx.selection && tx.selection.from) this.setCursor(tx.selection.from);
+    },
     lastLine() { return view.state.doc.lines - 1; },
     lineCount() { return view.state.doc.lines; },
     /*

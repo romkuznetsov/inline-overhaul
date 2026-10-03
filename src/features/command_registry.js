@@ -22,6 +22,7 @@ const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 const __rulesShape = require("../core/pkm_rules_shape.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __commandField = require("./command_field.js");
+const __commandFieldWheel = require("./command_field_wheel.js");
 
 function getBehaviorValue(cfg, key, dflt) {
   if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];
@@ -417,6 +418,8 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       ...makeBase(cfgInner),
       "Start setting": "left",
       "Start mode override": "left",
+      /* Command Field — только колесу, правила строки его не видят (4.5). */
+      [O.COMMAND_FIELDS]: __commandFieldWheel.wheelInput(cfgInner),
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
       [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
@@ -429,6 +432,7 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       ...makeBase(cfgInner),
       "Start setting": "right",
       "Start mode override": "right",
+      [O.COMMAND_FIELDS]: __commandFieldWheel.wheelInput(cfgInner),
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
       [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),

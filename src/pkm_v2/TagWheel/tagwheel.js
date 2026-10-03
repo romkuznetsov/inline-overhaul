@@ -27,6 +27,7 @@ var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
    команды Field блока, правила Left/Right ради `Values in the other Block`, сам `Tab`. */
 var CUSTOM_BLOCK_OPTION = 'Custom block'
 var CUSTOM_BLOCKS_OPTION = 'Custom blocks'
+var COMMAND_FIELDS_OPTION = 'Command fields'
 var CUSTOM_CYCLE_OPTION = 'Custom cycle'
 var LINE_RULES_DATA_OPTION = 'Line rules data'
 var TAGWHEEL_CUSTOM_TAB_OPTION = 'TagWheel custom tab'
@@ -49,6 +50,8 @@ var __activeEditorMod = require('../../core/active_editor.js')
 var __cmState = require('@codemirror/state')
 var __panelLineWriteMod = require('../../core/panel_line_write.js')
 var __panelMaskMod = require('../../ui/editor/panel_mask.js')
+/* Command Field в колесе (4.5, исключение к З3 № 199). */
+var __commandFieldWheel = require('../../features/command_field_wheel.js')
 
 /**
  * Что переписать, чтобы строка стала другой: только различие. Запись «мимо
@@ -529,6 +532,7 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   /* Custom block (10.13.260). */
   if (!out.customBlock && typeof qa[CUSTOM_BLOCK_OPTION] === 'string') out.customBlock = qa[CUSTOM_BLOCK_OPTION]
   if (out.customBlocks == null && qa[CUSTOM_BLOCKS_OPTION] != null) out.customBlocks = qa[CUSTOM_BLOCKS_OPTION]
+  if (out.commandFields == null && qa[COMMAND_FIELDS_OPTION] != null) out.commandFields = qa[COMMAND_FIELDS_OPTION]
   if (!out.customCycle && typeof qa[CUSTOM_CYCLE_OPTION] === 'string') out.customCycle = qa[CUSTOM_CYCLE_OPTION]
   if (out.lineRulesData == null && qa[LINE_RULES_DATA_OPTION] != null) out.lineRulesData = qa[LINE_RULES_DATA_OPTION]
   if (out.customTab == null && qa[TAGWHEEL_CUSTOM_TAB_OPTION] != null) out.customTab = qa[TAGWHEEL_CUSTOM_TAB_OPTION] === true
@@ -709,6 +713,7 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_RIGHT || TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION)
     CUSTOM_BLOCK_OPTION = String(keys.CUSTOM_BLOCK || CUSTOM_BLOCK_OPTION)
     CUSTOM_BLOCKS_OPTION = String(keys.CUSTOM_BLOCKS || CUSTOM_BLOCKS_OPTION)
+    COMMAND_FIELDS_OPTION = String(keys.COMMAND_FIELDS || COMMAND_FIELDS_OPTION)
     CUSTOM_CYCLE_OPTION = String(keys.CUSTOM_CYCLE || CUSTOM_CYCLE_OPTION)
     LINE_RULES_DATA_OPTION = String(keys.LINE_RULES_DATA || LINE_RULES_DATA_OPTION)
     TAGWHEEL_CUSTOM_TAB_OPTION = String(keys.TAGWHEEL_CUSTOM_TAB || TAGWHEEL_CUSTOM_TAB_OPTION)
@@ -1726,6 +1731,8 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function applySelection(state, core) {
+    /* Command Field на строку не пишется ничем, кроме своего Enter (№ 199). */
+    if (state && state.rules && state.session) __commandFieldWheel.clearSelections(state.rules, state.session)
     if (state && state.custom) {
       /* Навигатор не пишется и в custom block (`В-221`); «стоял на строке» — только заменяемое слово (правило 107). */
       var sp = state.custom.span
@@ -2475,7 +2482,8 @@ async function runTagWheel(input, quickAddSettings) {
           ensureActiveFieldId(state)
           handled = true
         } else if (e.key === (keymap.apply || 'Enter')) {
-          applySelection(state, state.core)
+          /* Enter на Command Field: полоса снимается, пресет — одной правкой (№ 199). */
+          if (!__commandFieldWheel.enter(state, cancelSelection)) applySelection(state, state.core)
           handled = true
         } else if (e.key === (keymap.cancel || 'Escape')) {
           cancelSelection(state)
@@ -2765,6 +2773,8 @@ async function runTagWheel(input, quickAddSettings) {
 
     var modeName = resolveStartMode(runtimeInput, rules)
     var targetPanel = rulesHelpers.resolvePanelForField(orderCfg, runtimeInput.targetFieldKey, { defaultPanel: modeName })
+    /* После разбора строки: Values Command Field в строке не ищутся (№ 199). */
+    __commandFieldWheel.inject(rules, runtimeInput.commandFields)
     var session = core.makeInitialState(rules, modeName)
     var now = new Date()
     var hh = String(now.getHours())
@@ -2821,7 +2831,8 @@ async function runTagWheel(input, quickAddSettings) {
       valueNamesCfg: valueNamesCfg,
       edgeMode: normalizeEdgeMode(runtimeInput.edgeMode),
       scrollerOverlay: null,
-      keptSelection: kept
+      keptSelection: kept,
+      commandFields: runtimeInput.commandFields
     }
 
     /* До панели: отрезок считан по строке человека и едет через вставки панели. */

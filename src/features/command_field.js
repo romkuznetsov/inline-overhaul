@@ -126,6 +126,17 @@ function recastCallout(lines, box, preset, cursor) {
 /* Типы коллаутов Obsidian — выбор пресета в панели (6.1). */
 const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
 
+/** Вне коллаута: пустая строка — пустой коллаут, строка — с деревом, выделение — по строкам (6.1). */
+function wrapWith(ctx, preset) {
+  const { lines, cursor } = ctx;
+  const sel = ctx.selection;
+  if (sel && sel.from !== sel.to) return wrapCallout(lines, sel.from, sel.to, preset, cursor);
+  if (lines[cursor.line].trim() === "") {
+    return { from: cursor.line, to: cursor.line, lines: [calloutHead("> ", preset, ""), "> "], cursor: { line: cursor.line + 1, ch: 2 } };
+  }
+  return wrapCallout(lines, cursor.line, treeEnd(lines, cursor.line), preset, cursor);
+}
+
 const callouts = {
   id: "callouts",
   name: "Callouts",
@@ -144,6 +155,13 @@ const callouts = {
     { name: "Warning", type: "warning", fold: "" },
   ],
   hasRevert: true,
+  /** Выбран в tagWheel (4.5): вне коллаута — обернуть, внутри — сменить тип; тот же — менять нечего. */
+  apply(ctx, preset) {
+    const box = calloutAt(ctx.lines, ctx.cursor.line);
+    if (!box) return wrapWith(ctx, preset);
+    if (callouts.signature(preset) === box.type.toLowerCase() + "|" + box.fold) return null;
+    return recastCallout(ctx.lines, box, preset, ctx.cursor);
+  },
   /**
    * `step`: +1 — `next`, −1 — `previous`. Вне коллаута `next` ставит первый
    * пресет, `previous` — последний; внутри — цикл 0 → 1 → … → n → 0 (4.4).
@@ -159,15 +177,7 @@ const callouts = {
     if (!list.length) return null;
     const { lines, cursor } = ctx;
     const box = calloutAt(lines, cursor.line);
-    if (!box) {
-      const preset = step < 0 ? list[list.length - 1] : list[0];
-      const sel = ctx.selection;
-      if (sel && sel.from !== sel.to) return wrapCallout(lines, sel.from, sel.to, preset, cursor);
-      if (lines[cursor.line].trim() === "") {
-        return { from: cursor.line, to: cursor.line, lines: [calloutHead("> ", preset, ""), "> "], cursor: { line: cursor.line + 1, ch: 2 } };
-      }
-      return wrapCallout(lines, cursor.line, treeEnd(lines, cursor.line), preset, cursor);
-    }
+    if (!box) return wrapWith(ctx, step < 0 ? list[list.length - 1] : list[0]);
     const index = calloutPresetIndex(list, box);
     /* Тип не из пресетов — как вне цикла: `next` первый, `previous` последний. */
     const next = index < 0 ? (step < 0 ? list.length - 1 : 0) : index + step;
@@ -200,6 +210,7 @@ const cleanup = {
   signature: (p) => (Array.isArray(p.keep) ? p.keep : []).slice().sort().join(","),
   defaults: [{ name: "", keep: [] }],
   hasRevert: false,
+  apply(ctx, preset) { return cleanup.run(ctx, [{ ...preset, hidden: false }], 1); },
   /** Обратного нет: `next` ставит первый видимый пресет, `previous` — последний (В-276). */
   run(ctx, presets, step) {
     const list = presets.filter((p) => p && !p.hidden);
@@ -261,6 +272,30 @@ function selectedLines(ed) {
   return { from: a.line, to };
 }
 
+/** Одна замена в редакторе — одна транзакция, один шаг `Ctrl+Z` (R-1). */
+function commit(ed, lines, r) {
+  ed.transaction({
+    changes: [{ from: { line: r.from, ch: 0 }, to: { line: r.to, ch: lines[r.to].length }, text: r.lines.join("\n") }],
+    selection: { from: r.cursor },
+  });
+}
+
+/**
+ * Пресет, выбранный в tagWheel (4.5): применить его, а не шагать по кругу.
+ * Ответ — как у `runInEditor`.
+ */
+function applyPresetInEditor(ed, cfg, fieldKey, categoryKey, presetIndex) {
+  const entry = fieldCategories(cfg, fieldKey).find((c) => c.key === categoryKey);
+  const category = entry ? categoryById(entry.id) : null;
+  const preset = entry ? entry.presets[presetIndex] : null;
+  if (!category || !preset) return "unknown";
+  const lines = String(ed.getValue()).split("\n");
+  const r = category.apply({ lines, cursor: ed.getCursor(), selection: selectedLines(ed), cfg }, preset);
+  if (!r) return "nothing";
+  commit(ed, lines, r);
+  return "done";
+}
+
 /**
  * Исполнить категорию в редакторе: одна транзакция — один шаг `Ctrl+Z` (R-1).
  * Ответ: `"done"`, `"nothing"` (менять нечего), `"no-presets"`, `"unknown"`.
@@ -274,10 +309,7 @@ function runInEditor(ed, cfg, fieldKey, categoryId, step) {
   const cursor = ed.getCursor();
   const r = category.run({ lines, cursor, selection: selectedLines(ed), cfg }, entry.presets, step);
   if (!r) return "nothing";
-  ed.transaction({
-    changes: [{ from: { line: r.from, ch: 0 }, to: { line: r.to, ch: lines[r.to].length }, text: r.lines.join("\n") }],
-    selection: { from: r.cursor },
-  });
+  commit(ed, lines, r);
   return "done";
 }
 
@@ -287,6 +319,7 @@ module.exports = {
   categoryById,
   fieldCategories,
   runInEditor,
+  applyPresetInEditor,
   calloutAt,
   stripQuoteLevel,
 };
