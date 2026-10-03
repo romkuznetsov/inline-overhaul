@@ -340,8 +340,8 @@ export function attachNoteSuggest(input: ElInput, o: {
     class NoteSuggestImpl extends Base {
       getSuggestions(query: string): string[] {
         const q = String(query || "").trim().toLowerCase();
-        /* ponytail: первые 200 совпадений — дальше список всё равно фильтруют набором. */
-        return notes.filter(p => !q || p.toLowerCase().includes(q)).slice(0, 200);
+        /* Первые `limit` совпадений режет платформа (`app.js` 1.13.7). */
+        return notes.filter(p => !q || p.toLowerCase().includes(q));
       }
       renderSuggestion(p: string, node: El): void {
         const cut = p.lastIndexOf("/");
