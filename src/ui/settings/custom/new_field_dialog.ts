@@ -482,7 +482,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       (k === "tag" ? "#todo" : k === "wikilink" ? "[[Project]]" : "📅" + String(sharedUtils.formatDateByMask(now(), "YYYY-MM-DD")));
     for (const t of TYPES) {
       const on = t.kind === d.kind;
-      const card = btn(types, "io-nf__type" + (on ? " io-nf__type--on" : ""), {});
+      const card = btn(types, "io-dlg__pick io-nf__type" + (on ? " io-nf__type--on" : ""), {});
       card.setAttribute("role", "radio");
       card.setAttribute("aria-checked", on ? "true" : "false");
       el(card, "span", "io-nf__sample", sampleOf(t.kind));

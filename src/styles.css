@@ -3712,22 +3712,12 @@ body.theme-dark {
   margin: 10px 0 6px;
 }
 @media (max-width: 520px) { .io-nf__types { grid-template-columns: 1fr; } }
+/* Карточка типа — `.io-dlg__pick` (Н-22); здесь отличия и фон: одиночный класс
+   проигрывает фон `button:not(.clickable-icon)` платформы (0-1-1, У-266). */
 .io-nf .io-nf__type {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   gap: 3px;
-  height: auto;
-  min-height: 0;
-  padding: 10px 12px;
-  white-space: normal;
-  text-align: left;
-  font-weight: normal;
   border-radius: var(--radius-m);
-  border: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
-  box-shadow: none;
-  cursor: pointer;
   transition: border-color 120ms ease, background-color 120ms ease;
 }
 .io-nf .io-nf__type:hover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
