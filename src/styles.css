@@ -2935,6 +2935,13 @@ body.theme-dark {
   text-overflow: ellipsis;
 }
 .io-binder__desc { min-width: 0; }
+/* Строка `Command` (4.6): категория вместо текста, пресет — строкой под ней во всю ширину, контролы как у Command Field. */
+.io-binder__cat { white-space: normal; overflow-wrap: anywhere; font-size: var(--font-ui-smaller); }
+.io-binder__preset { padding: 2px 12px 8px 30px; background: var(--background-primary); }
+.io-binder__preset > .io-cats__set, .io-binder__new > .io-cats__set { max-width: 440px; }
+.io-binder__new { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+/* Окно Binder прячет то, что не относится к выбранному типу: `display` своих правил сильнее атрибута `hidden`. */
+.io-dlg [hidden] { display: none !important; }
 .io-binder__desc .io-text { width: 100%; min-width: 0; }
 /*
  * Описание системной строки — текст, а не поле ввода: править его нельзя, а
@@ -3830,7 +3837,8 @@ body.theme-dark {
   background: var(--background-modifier-form-field);
   border: 1px solid var(--background-modifier-border);
 }
-.io-nf .io-seg__btn {
+/* Общий для окон нового Field и Binder: свои кнопки, правило платформы на `button` снято. */
+.io-seg .io-seg__btn {
   height: auto;
   padding: 3px 10px;
   font-size: var(--font-ui-small);
@@ -3842,9 +3850,9 @@ body.theme-dark {
   color: var(--text-muted);
   cursor: pointer;
 }
-.io-nf .io-seg__btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.io-nf .io-seg__btn--on,
-.io-nf .io-seg__btn--on:hover {
+.io-seg .io-seg__btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.io-seg .io-seg__btn--on,
+.io-seg .io-seg__btn--on:hover {
   color: var(--text-on-accent);
   background: var(--interactive-accent);
 }

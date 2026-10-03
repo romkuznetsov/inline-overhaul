@@ -12,7 +12,7 @@
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
-import { el, btn, cssVar, insertAtCaret, itemRow, onEnter, textInput, themePair } from "./dom.ts";
+import { el, btn, cssVar, insertAtCaret, itemRow, onEnter, onPress, segmented, textInput, themePair } from "./dom.ts";
 import type { CommandCategory, FieldRow, NewFieldSetup, FieldSide } from "./fields_model.ts";
 import { categoryName, drawCategoriesTable } from "./command_categories.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
@@ -293,30 +293,6 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
 }
 
 /* ---- вёрстка окна -------------------------------------------------------- */
-
-/**
- * Выбор на нажатии, не на отпускании: выбиралка знака сворачивается по уходу
- * фокуса, форма съезжает, и `click` не рождается (стенд `new-field`, 2026-09-28).
- * `click` остаётся клавиатуре.
- */
-function onPress(node: El, fn: () => void): void {
-  let pressed = false;
-  node.addEventListener("pointerdown", (() => { pressed = true; fn(); }) as never);
-  node.addEventListener("click", (() => { if (pressed) { pressed = false; return; } fn(); }) as never);
-}
-
-/** Ряд кнопок-переключателей: одна нажата. Узлы — свои, `aria-pressed` у каждой. */
-function segmented(host: El, options: ReadonlyArray<{ value: string; label: string }>, value: string,
-  label: string, pick: (v: string) => void): void {
-  const seg = el(host, "div", "io-seg");
-  seg.setAttribute("role", "group");
-  seg.setAttribute("aria-label", label);
-  for (const o of options) {
-    const b = btn(seg, "io-seg__btn" + (o.value === value ? " io-seg__btn--on" : ""), { text: o.label });
-    b.setAttribute("aria-pressed", o.value === value ? "true" : "false");
-    onPress(b, () => pick(o.value));
-  }
-}
 
 /** Как часто курсор скроллера шагает сам. */
 const TICK_MS = 1400;

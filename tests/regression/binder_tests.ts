@@ -172,6 +172,8 @@ function makePanel(rows: Any[], hk?: FakeHotkeys): Panel {
       onRemove: row => { model.remove(row.rowId); draw(); },
       onMove: (from, to) => { model.move(from, to); draw(); },
       onAdd: () => { if (draft) model.add(draft); draw(); },
+      categoryName: id => "cat:" + id,
+      drawPreset: (host2, row) => { host2.setAttribute("data-preset", JSON.stringify(row.preset)); },
     });
   };
   draw();
@@ -574,6 +576,9 @@ const ARROW_ROW = {
       commandId: "id",
       commandLabel: "Binder: Arrow",
       system: false,
+      type: "insert",
+      category: "",
+      preset: null,
     }),
     "Arrow",
     "приставка `Binder: ` снимается, если она пришла: с фазы 2 реестр её не"
@@ -650,6 +655,76 @@ const ARROW_ROW = {
   assert.equal(b.rows().length, before + 2,
     "две строки без имени заводятся: имя необязательно, повтором это не считается");
   ok("запрет не задевает строки, которые повтором не являются");
+}
+
+/* ---- строка типа Command (постановка command-field.md, 4.6) ------------- */
+{
+  const b = makePanel([]);
+  b.answer({ type: "command", category: "callouts", preset: { type: "tip", fold: "-" }, insertText: "", commandName: "", description: "" });
+  b.host.querySelectorAll(".io-btn--cta").forEach(n => n.click());
+  const row = b.rows().find((r: Any) => r.type === "command");
+  assert.ok(row, "строка Command не завелась: " + JSON.stringify(b.rows()));
+  assert.equal(row.category, "callouts", "категория не записалась");
+  assert.deepEqual(row.preset, { type: "tip", fold: "-" }, "пресет не записан независимой копией");
+  assert.ok(String(row.commandId || "").trim(), "у строки нет команды: normalizeBinderRows её не выдал");
+  /* Переживает второй проход нормализации: тип не теряется на следующем патче. */
+  const again = internals.migrateConfig(b.cfg()).editor.binder.rows.find((r: Any) => r.rowId === row.rowId);
+  assert.equal(again && again.type, "command", "второй проход migrateConfig снял тип");
+  const def = registry.buildBinderCommandDefs(b.cfg()).find(d => d.id === row.commandId) as Any;
+  assert.ok(def && def.binderCommand && def.binderCommand.category === "callouts", "реестр не знает, что это Command");
+  assert.equal(def.name, "Insert callout", "без своего имени команда не названа категорией");
+  /* Таблица: категория вместо текста, пресет — строкой под ней. */
+  const line = all(b.host, "io-tablerow").find(n => all(n, "io-binder__cat").length) as StubNode;
+  assert.equal(String(all(line, "io-binder__cat")[0]?.textContent), "cat:callouts", "в колонке Inserts не категория");
+  const sub = all(b.host, "io-binder__preset")[0] as StubNode;
+  assert.ok(sub, "у строки Command нет строки пресета");
+  assert.equal(all(b.host, "io-binder__preset").length, 1, "строка пресета есть и у строки вставки");
+  ok("Binder: строка Command заводится, переживает нормализацию, команда названа категорией, пресет — строкой под ней");
+}
+{
+  /* Пресет строки пишется целиком и только у строки Command. */
+  let cfg: Any = { editor: { binder: { rows: [
+    { rowId: "r1", type: "command", category: "callouts", preset: { type: "note" }, insertText: "", commandName: "", description: "", commandId: "c1" },
+    { rowId: "r2", insertText: "→", commandName: "", description: "", commandId: "c2" },
+  ] } } };
+  const plugin: Any = {
+    getConfig: () => cfg,
+    setConfigPatch: (patch: Any) => { cfg = { editor: { binder: { rows: patch.editor.binder.rows } } }; },
+  };
+  const model = createBinderModel({ plugin, commandDefs: () => [] });
+  const preset = { type: "warning", fold: "-" };
+  model.setPreset("r1", preset);
+  preset.type = "changed-after";
+  assert.deepEqual(cfg.editor.binder.rows[0].preset, { type: "warning", fold: "-" }, "пресет не записан копией");
+  model.setPreset("r2", { type: "x" });
+  assert.equal(cfg.editor.binder.rows[1].preset, undefined, "строке вставки записан пресет");
+  ok("Binder: пресет строки Command пишется копией, у строки вставки его нет");
+}
+{
+  /* Окно: тип Command прячет поле вставки, Add ждёт категорию, имя предлагается именем категории. */
+  const box = makeNode("div");
+  let got: Any = null;
+  let choose: (() => void) | null = null;
+  renderAddForm(box as unknown as El, {
+    add: draft => { got = draft; },
+    cancel: () => {},
+    categoryName: id => "Name of " + id,
+    drawCommand: (_host, state, changed) => { choose = () => { state.category = "cleanup"; state.preset = { keep: [] }; changed(); }; },
+  });
+  const seg = all(box, "io-seg__btn");
+  assert.equal(seg.length, 2, "нет выбора типа строки");
+  const insertRow = all(box, "io-item").find(n => all(n, "io-text").some(i => i.classList.contains("io-text--needed"))) as StubNode;
+  (seg[1] as StubNode).dispatch("pointerdown");
+  assert.equal((insertRow as Any).hidden, true, "поле вставки видно у типа Command");
+  const add = byLabel(box, "Add command") as StubNode;
+  assert.equal(add.disabled, true, "Add доступна без категории");
+  (choose as unknown as () => void)();
+  assert.equal(add.disabled, false, "после выбора категории Add недоступна");
+  add.click();
+  assert.equal(got && got.type, "command", "черновик не Command");
+  assert.equal(got.category, "cleanup");
+  assert.equal(got.commandName, "Name of cleanup", "имя команды не предложено именем категории");
+  ok("Binder: окно — тип Command, категория, имя по категории");
 }
 
 console.log("\n" + passed + " проверок пройдено");

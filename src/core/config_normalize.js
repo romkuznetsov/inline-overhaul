@@ -113,7 +113,7 @@ function normalizeBinderRows(rawRows, order) {
       });
       continue;
     } else {
-      const seed = String(commandName || "").trim() || String(insertText || "").trim() || existingId;
+      const seed = String(commandName || "").trim() || String(insertText || "").trim() || String(obj.category || "").trim() || existingId;
       /* Старая форма и занятый идентификатор — оба повод пересобрать. */
       const reusable = existingId
         && !__commandIds.isLegacyCommandId(existingId)
@@ -122,6 +122,12 @@ function normalizeBinderRows(rawRows, order) {
       normalizedId = reusable
         ? (used.add(existingId), existingId)
         : makeBinderCommandId(seed, used);
+    }
+    /* Строка типа `Command` (4.6): категория и независимая копия пресета; прочие ключи — как были. */
+    if (obj.type === "command" && typeof obj.category === "string" && obj.category) {
+      out.push({ rowId, type: "command", category: obj.category, preset: isObj(obj.preset) ? obj.preset : {},
+        insertText, commandName, description, commandId: normalizedId });
+      continue;
     }
     out.push({ rowId, insertText, commandName, description, commandId: normalizedId });
   }

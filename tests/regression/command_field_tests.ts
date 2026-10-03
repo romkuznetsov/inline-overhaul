@@ -249,4 +249,27 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   ok("дерево ↔ раздел: пример 6.4, уровень, три положения, код и таблицы, подзаголовки, R-2 на месте, отметка по маркеру");
 }
 
+/* Binder типа `Command` (4.6): категория с одним пресетом, хоткей — вкл/выкл, круг байт в байт (R-2). */
+{
+  let doc = ["- [ ] buy milk", "\t- at the shop", "after"];
+  const ed = {
+    getValue: () => doc.join("\n"),
+    getCursor: () => ({ line: 0, ch: 3 }),
+    somethingSelected: () => false,
+    transaction: (t: Any) => {
+      const c = t.changes[0];
+      doc = doc.slice(0, c.from.line).concat(String(c.text).split("\n"), doc.slice(c.to.line + 1));
+    },
+  };
+  const before = doc.slice();
+  const one = [{ type: "tip", fold: "-" }];
+  assert.equal(CF.runPresetsInEditor(ed, {}, "callouts", one, 1), "done");
+  assert.deepEqual(doc, ["> [!tip]-", "> - [ ] buy milk", "> \t- at the shop", "after"], "первое нажатие не обернуло строку с деревом");
+  assert.equal(CF.runPresetsInEditor(ed, {}, "callouts", one, 1), "done");
+  assert.deepEqual(doc, before, "второе нажатие не вернуло строку байт в байт");
+  assert.equal(CF.runPresetsInEditor(ed, {}, "nope", one, 1), "unknown", "незнакомая категория не отказала");
+  assert.equal(CF.runPresetsInEditor(ed, {}, "callouts", [{ type: "tip", hidden: true }], 1), "no-presets");
+  ok("Binder типа Command: один пресет — вкл/выкл, круг байт в байт");
+}
+
 console.log(passed + " проверок пройдено");

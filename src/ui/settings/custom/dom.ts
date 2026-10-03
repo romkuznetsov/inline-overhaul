@@ -374,3 +374,27 @@ export function findScrollHost(node: ScrollProbe | null | undefined): ScrollProb
   }
   return null;
 }
+
+/**
+ * Выбор на нажатии, не на отпускании: выбиралка знака сворачивается по уходу
+ * фокуса, форма съезжает, и `click` не рождается (стенд `new-field`, 2026-09-28).
+ * `click` остаётся клавиатуре.
+ */
+export function onPress(node: El, fn: () => void): void {
+  let pressed = false;
+  node.addEventListener("pointerdown", (() => { pressed = true; fn(); }) as never);
+  node.addEventListener("click", (() => { if (pressed) { pressed = false; return; } fn(); }) as never);
+}
+
+/** Ряд кнопок-переключателей: одна нажата. Узлы — свои, `aria-pressed` у каждой. */
+export function segmented(host: El, options: ReadonlyArray<{ value: string; label: string }>, value: string,
+  label: string, pick: (v: string) => void): void {
+  const seg = el(host, "div", "io-seg");
+  seg.setAttribute("role", "group");
+  seg.setAttribute("aria-label", label);
+  for (const o of options) {
+    const b = btn(seg, "io-seg__btn" + (o.value === value ? " io-seg__btn--on" : ""), { text: o.label });
+    b.setAttribute("aria-pressed", o.value === value ? "true" : "false");
+    onPress(b, () => pick(o.value));
+  }
+}

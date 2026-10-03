@@ -477,6 +477,12 @@ function binderRowsReadyForCommands(rawRows) {
     const description = String(row.description || "");
     const commandId = String(row.commandId || "").trim();
     if (!rowId || !commandId) continue;
+    /* Строка типа `Command` (4.6): категория и независимая копия пресета. */
+    if (row.type === "command") {
+      out.push({ rowId, insertText, commandName, description, commandId, type: "command",
+        category: String(row.category || ""), preset: row.preset && typeof row.preset === "object" ? row.preset : {} });
+      continue;
+    }
     out.push({ rowId, insertText, commandName, description, commandId });
   }
   return out;
@@ -607,6 +613,17 @@ function buildBinderCommandDefs(cfgNow) {
         id: commandId,
         name: __commandIds.commandName(__commandIds.SMART_BRACKET_COMMAND_ID),
         run: (plugin) => runInsertBracketsCommand(plugin),
+      });
+      continue;
+    }
+    if (row.type === "command") {
+      const category = __commandField.categoryById(row.category);
+      defs.push({
+        id: commandId,
+        name: normalizeLabelPart(row.commandName, "") || (category ? category.name : "item"),
+        /* Исполняет `plugin_commands.js`: охрана кода и уведомления — те же, что у Command Field. */
+        binderCommand: { category: row.category, preset: row.preset },
+        run: () => {},
       });
       continue;
     }

@@ -29,6 +29,11 @@ export interface BinderRow {
   /** Имя команды в списке хоткеев Obsidian: его даёт реестр команд. */
   commandLabel: string;
   system: boolean;
+  /** `command` — категория Command Field с одним пресетом (4.6); иначе вставка текста. */
+  type: "insert" | "command";
+  category: string;
+  /** Независимая копия пресета; у строки вставки — `null`. */
+  preset: Record<string, unknown> | null;
 }
 
 /** Что нужно, чтобы завести строку. Текст вставки обязателен, остальное нет. */
@@ -36,6 +41,10 @@ export interface BinderDraft {
   insertText: string;
   commandName: string;
   description: string;
+  /** Строка типа `Command` (4.6): категория и её пресет вместо текста. */
+  type?: "insert" | "command";
+  category?: string;
+  preset?: Record<string, unknown>;
 }
 
 /** Итог записи: отказ обязан сказать, почему (как у переименования Field). */
@@ -60,6 +69,8 @@ export interface BinderClash {
 export interface BinderModel {
   listRows(): BinderRow[];
   setDescription(rowId: string, text: string): void;
+  /** Пресет строки `Command` — независимая копия, пишется целиком (4.6). */
+  setPreset(rowId: string, preset: Record<string, unknown>): void;
   remove(rowId: string): void;
   move(from: number, to: number): void;
   /** Повторяет ли черновик строку; окно спрашивает, пока человек печатает (C13). */
@@ -135,6 +146,7 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
       }
       return storedRows(cfg).map(row => {
         const commandId = str(row["commandId"]).trim();
+        const command = str(row["type"]) === "command";
         return {
           rowId: str(row["rowId"]).trim(),
           insertText: str(row["insertText"]),
@@ -143,6 +155,9 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
           commandId,
           commandLabel: names.get(commandId) || "",
           system: str(row["rowId"]).trim() === SYSTEM_ROW_ID,
+          type: command ? "command" : "insert",
+          category: command ? str(row["category"]) : "",
+          preset: command ? { ...asObject(row["preset"]) } : null,
         };
       });
     },
@@ -156,6 +171,16 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
         str(row["rowId"]).trim() === id ? { ...row, description: String(text ?? "") } : row
       ));
       save(next, "settings:binder:description", false);
+    },
+
+    setPreset(rowId, preset) {
+      const id = String(rowId || "").trim();
+      const rows = read();
+      if (!id || !rows.some(row => str(row["rowId"]).trim() === id && str(row["type"]) === "command")) return;
+      const next = rows.map(row => (
+        str(row["rowId"]).trim() === id ? { ...row, preset: JSON.parse(JSON.stringify(preset || {})) } : row
+      ));
+      save(next, "settings:binder:preset", false);
     },
 
     remove(rowId) {
@@ -182,15 +207,17 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
 
     add(draft) {
       const insertText = String(draft && draft.insertText || "");
-      /* Без текста вставки команда пуста (З8). */
-      if (!insertText.trim()) return { ok: false };
+      const command = draft && draft.type === "command";
+      /* Без текста вставки (или категории у `Command`) команда пуста (З8). */
+      if (command ? !String(draft.category || "").trim() : !insertText.trim()) return { ok: false };
 
       const clash = duplicateOf(draft);
       if (clash) return { ok: false, error: clash.error };
 
       const next = read().concat([{
         rowId: newRowId(),
-        insertText,
+        ...(command ? { type: "command", category: String(draft.category), preset: JSON.parse(JSON.stringify(draft.preset || {})) } : {}),
+        insertText: command ? "" : insertText,
         commandName: String(draft && draft.commandName || "").trim(),
         description: String(draft && draft.description || "").trim(),
         /* Поставит `normalizeBinderRows` на этом патче. */

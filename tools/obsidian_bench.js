@@ -1484,6 +1484,68 @@ const SCENARIOS = {
   },
 
   /* Вставка блока (6.3): команда на пустой строке, отказ на строке с текстом, снятие `previous`, вид пресета в панели. */
+  /* Binder типа `Command` (4.6): строка конфигом, команда дважды — вкл/выкл, один `Ctrl+Z`; снимок таблицы. */
+  async "binder-command"(win, browser) {
+    const doc = "- [ ] buy milk\n\t- at the shop\nafter\n";
+    const got = await win.evaluate(async (doc) => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const rows = (p.getConfig().editor.binder.rows || []).concat([{ rowId: "binder-bench-1", type: "command", category: "callouts",
+        preset: { type: "tip", fold: "-" }, insertText: "", commandName: "Tip box", description: "", commandId: "" }]);
+      p.setConfigPatch({ editor: { binder: { rows } } }, "settings:binder:add");
+      p.registerBinderCommands();
+      await new Promise((r) => setTimeout(r, 600));
+      const row = p.getConfig().editor.binder.rows.find((r) => r.rowId === "binder-bench-1");
+      const id = "inline-overhaul:" + (row ? row.commandId : "");
+      const f = await a.vault.create("bc.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 0, ch: 4 });
+      const ran = a.commands.executeCommandById(id);
+      await new Promise((r) => setTimeout(r, 400));
+      const on = e.getValue();
+      e.undo();
+      await new Promise((r) => setTimeout(r, 300));
+      const undone = e.getValue();
+      a.commands.executeCommandById(id);
+      await new Promise((r) => setTimeout(r, 300));
+      e.setCursor({ line: 1, ch: 4 });
+      a.commands.executeCommandById(id);
+      await new Promise((r) => setTimeout(r, 400));
+      return { id, ran, name: (a.commands.commands[id] || {}).name, row, on, undone, off: e.getValue() };
+    }, doc);
+    if (process.env.IO_SHOTS) {
+      await win.evaluate(async () => {
+        window.app.setting.open();
+        window.app.setting.openTabById("inline-overhaul");
+        await new Promise((r) => setTimeout(r, 1500));
+      });
+      const host = await settingsHost(win, browser);
+      await clickIn(host, "Keyboard");
+      await host.waitForTimeout(600);
+      const t = await host.$(".io-binder");
+      if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "binder-command.png") });
+      await clickIn(host, "Add command");
+      await host.waitForSelector(".io-dlg .io-seg", { timeout: 5000 });
+      await host.click(".io-dlg .io-seg__btn:nth-child(2)");
+      await host.waitForTimeout(200);
+      await host.click(".io-dlg .io-cats__pick .io-cats__tbtn");
+      await host.waitForTimeout(200);
+      await host.click(".io-dlg .io-cats__titem:has-text(\"Insert callout\")");
+      await host.waitForTimeout(300);
+      const m = await host.$(".modal:has(.io-dlg)");
+      if (m) await m.screenshot({ path: path.join(process.env.IO_SHOTS, "binder-command-dialog.png") });
+      got.dialogName = await host.evaluate(() => { const i = [...document.querySelectorAll(".io-dlg input.io-text")].find((n) => /Command name/.test(n.getAttribute("aria-label") || "")); return i ? i.value : ""; });
+      await host.keyboard.press("Escape");
+    }
+    console.log(JSON.stringify(got, null, 1));
+    const ok = got.ran === true && got.name === "inlineOverhaul: Binder: Tip box"
+      && got.on === "> [!tip]-\n> - [ ] buy milk\n> \t- at the shop\nafter\n" && got.undone === doc && got.off === doc;
+    console.log(ok ? "ok: строка Binder типа Command — вкл, Ctrl+Z, вкл и выкл, байт в байт" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   async "command-field-block"(win, browser) {
     const doc = "# Note\n\nsome text\n";
     const got = await win.evaluate(async (doc) => {

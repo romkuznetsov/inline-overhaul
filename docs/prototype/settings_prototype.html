@@ -1847,6 +1847,10 @@ body.theme-dark {
 .io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
+/* Строка Binder типа `Command` (4.6) — те же правила, что в styles.css. */
+.io-binder__cat { white-space: normal; overflow-wrap: anywhere; font-size: var(--font-ui-smaller); }
+.io-binder__preset { padding: 2px 12px 8px 30px; background: var(--background-primary); }
+.io-binder__preset > .io-cats__set, .io-binder__new > .io-cats__set { max-width: 440px; }
 /* Выбор списком: значок и цвет темы у типа коллаута (`--callout-color` — «r, g, b»), список под кнопкой. */
 .io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
 .io-cats__type { position: relative; flex: 1 1 56px; min-width: 0; }
@@ -3799,7 +3803,9 @@ const VAULT_PROPERTIES = [
 
 const BINDER_ROWS = [
   { insert:"[]", name:"Smart bracket", desc:"Cycle the brackets on cursor: text → [text] → [[text]] → text", system:true },
-  { insert:"→",  name:"Arrow",         desc:"Insert an arrow",               system:false }
+  { insert:"→",  name:"Arrow",         desc:"Insert an arrow",               system:false },
+  /* Строка типа `Command` (4.6): категория вместо текста, пресет — независимая копия, строкой под строкой. */
+  { type:"command", category:"callouts", preset:{ type:"tip", fold:"-" }, insert:"", name:"Tip box", desc:"", system:false }
 ];
 
 /* Какие Fields остаются на исходной строке после inline2note. Пусто —
@@ -6321,6 +6327,78 @@ function commandCategoriesTable(host, f) {
 
 /* Таблица категорий на списке `f.categories`; `redraw` — у хозяина: редактор
    Fields или окно Add a Field (его 💬 к тесту 1 цикла 125). */
+/* Контролы одного пресета по роду параметров (4.3): таблица категорий и строка Binder типа `Command` (4.6) — одна функция. */
+function cfPresetControls(set, catId, p, pn, captions) {
+  const reg = CF_CATEGORIES.find(r => r.id === catId);
+  /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
+  const cell = kind => {
+    const col = CF_COLUMNS[kind];
+    const node = el("div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""), set);
+    if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+    if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
+    if (col && captions) el("span", "io-cats__cap", node, col.cap).title = col.tip;
+    return node;
+  };
+  const choose = (box, options, value, aria, write) => cfPicker(box, options,
+    options.some(o => o.value === value) ? value : options[0].value, aria, "", v => { write(v); renderContent(); });
+  const types = box => cfPicker(box, CALLOUT_TYPES.map(type => ({ value:type, label:type, paint:true })), p.type || "note",
+    "Callout type of " + pn, "", v => { p.type = v; renderContent(); });
+  /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
+  const folds = box => {
+    const closed = p.fold === "-";
+    const now = CF_FOLDS[closed ? 1 : 0];
+    const b = iconBtn(box, closed ? "▸" : "▾", "Fold of " + pn, now.label + ": " + now.tip);
+    b.classList.add("io-cats__fold");
+    if (closed) b.classList.add("io-cats__fold--closed");
+    b.setAttribute("aria-pressed", String(closed));
+    b.addEventListener("click", () => { p.fold = closed ? "" : "-"; renderContent(); });
+  };
+  const prop = (box, value, placeholder, label, write) => {
+    const t = textEl(box, value, placeholder, label, "io-text io-cats__prop");
+    t.addEventListener("change", () => { write(t.value.trim()); renderContent(); });
+  };
+  (reg ? reg.params : []).forEach(kind => {
+    /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
+    if (kind === "block-wrap" && cfBlockMode(p) === "plain") return;
+    const box = cell(kind);
+    if (kind === "callout-type") types(box);
+    else if (kind === "fold") folds(box);
+    else if (kind === "block-mode") choose(box, CF_MODES, cfBlockMode(p), "Wrap of " + pn, v => { p.mode = v; });
+    else if (kind === "block-wrap") {
+      /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
+      const mode = cfBlockMode(p);
+      if (mode === "heading") {
+        prop(box, p.headingText || "", "Heading", "Heading text of " + pn, v => { p.headingText = v; });
+        choose(box, CF_LEVELS, cfBlockLevel(p), "Heading level of " + pn, v => { p.level = v; });
+      } else if (mode === "callout") {
+        types(box);
+        folds(box);
+        prop(box, p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
+      }
+    } else if (kind === "block-content") {
+      const area = el("textarea", "io-text io-cats__content", box);
+      area.value = p.content || "";
+      area.rows = 2;
+      area.placeholder = "Text or a code block to insert";
+      area.setAttribute("aria-label", "Text that " + pn + " inserts");
+      area.addEventListener("change", () => { p.content = area.value; renderContent(); });
+    } else if (CF_SECTION_CHOICES[kind]) {
+      const ch = CF_SECTION_CHOICES[kind];
+      choose(box, ch.options, String(p[ch.field] || ""), ch.aria.replace("{0}", pn), v => { p[ch.field] = v; });
+    } else if (kind === "fields") {
+      const keep = p.keep || (p.keep = []);
+      lineFields().forEach(lf => {
+        const on = keep.indexOf(lf.id) >= 0;
+        const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), box, lf.name);
+        chip.type = "button";
+        chip.setAttribute("aria-pressed", String(on));
+        chip.setAttribute("aria-label", "Keep the Values of " + lf.name);
+        chip.addEventListener("click", () => { if (on) keep.splice(keep.indexOf(lf.id), 1); else keep.push(lf.id); renderContent(); });
+      });
+    }
+  });
+}
+
 function cfTable(host, f, redraw) {
   const renderContent = redraw;
   const box = el("div", "io-vals io-cats", host);
@@ -6393,73 +6471,7 @@ function cfTable(host, f, redraw) {
       pname.addEventListener("change", () => { p.name = pname.value.trim(); renderContent(); });
       const set = el("div", "io-cats__set", prow);
       const pn = cfPresetName(c, p);
-      /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
-      const cell = kind => {
-        const col = CF_COLUMNS[kind];
-        const node = el("div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""), set);
-        if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
-        if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
-        if (col && pi === 0) el("span", "io-cats__cap", node, col.cap).title = col.tip;
-        return node;
-      };
-      const choose = (box, options, value, aria, write) => cfPicker(box, options,
-        options.some(o => o.value === value) ? value : options[0].value, aria, "", v => { write(v); renderContent(); });
-      const types = box => cfPicker(box, CALLOUT_TYPES.map(type => ({ value:type, label:type, paint:true })), p.type || "note",
-        "Callout type of " + pn, "", v => { p.type = v; renderContent(); });
-      /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
-      const folds = box => {
-        const closed = p.fold === "-";
-        const now = CF_FOLDS[closed ? 1 : 0];
-        const b = iconBtn(box, closed ? "▸" : "▾", "Fold of " + pn, now.label + ": " + now.tip);
-        b.classList.add("io-cats__fold");
-        if (closed) b.classList.add("io-cats__fold--closed");
-        b.setAttribute("aria-pressed", String(closed));
-        b.addEventListener("click", () => { p.fold = closed ? "" : "-"; renderContent(); });
-      };
-      const prop = (box, value, placeholder, label, write) => {
-        const t = textEl(box, value, placeholder, label, "io-text io-cats__prop");
-        t.addEventListener("change", () => { write(t.value.trim()); renderContent(); });
-      };
-      reg.params.forEach(kind => {
-        /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
-        if (kind === "block-wrap" && cfBlockMode(p) === "plain") return;
-        const box = cell(kind);
-        if (kind === "callout-type") types(box);
-        else if (kind === "fold") folds(box);
-        else if (kind === "block-mode") choose(box, CF_MODES, cfBlockMode(p), "Wrap of " + pn, v => { p.mode = v; });
-        else if (kind === "block-wrap") {
-          /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
-          const mode = cfBlockMode(p);
-          if (mode === "heading") {
-            prop(box, p.headingText || "", "Heading", "Heading text of " + pn, v => { p.headingText = v; });
-            choose(box, CF_LEVELS, cfBlockLevel(p), "Heading level of " + pn, v => { p.level = v; });
-          } else if (mode === "callout") {
-            types(box);
-            folds(box);
-            prop(box, p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
-          }
-        } else if (kind === "block-content") {
-          const area = el("textarea", "io-text io-cats__content", box);
-          area.value = p.content || "";
-          area.rows = 2;
-          area.placeholder = "Text or a code block to insert";
-          area.setAttribute("aria-label", "Text that " + pn + " inserts");
-          area.addEventListener("change", () => { p.content = area.value; renderContent(); });
-        } else if (CF_SECTION_CHOICES[kind]) {
-          const ch = CF_SECTION_CHOICES[kind];
-          choose(box, ch.options, String(p[ch.field] || ""), ch.aria.replace("{0}", pn), v => { p[ch.field] = v; });
-        } else if (kind === "fields") {
-          const keep = p.keep || (p.keep = []);
-          lineFields().forEach(lf => {
-            const on = keep.indexOf(lf.id) >= 0;
-            const chip = el("button", "io-cats__keep" + (on ? " io-cats__keep--on" : ""), box, lf.name);
-            chip.type = "button";
-            chip.setAttribute("aria-pressed", String(on));
-            chip.setAttribute("aria-label", "Keep the Values of " + lf.name);
-            chip.addEventListener("click", () => { if (on) keep.splice(keep.indexOf(lf.id), 1); else keep.push(lf.id); renderContent(); });
-          });
-        }
-      });
+      cfPresetControls(set, c.id, p, pn, pi === 0);
       const sig = cfPresetSignature(c, p);
       if (!p.hidden && seen.has(sig)) el("span", "io-cats__same io-cats__cell--wide", set, "same as " + seen.get(sig) + " — that one is used");
       else if (!p.hidden) seen.set(sig, cfPresetName(c, p));
@@ -7396,7 +7408,7 @@ function renderBinder(host) {
    * приём, что в таблице Values.
    */
   const COLTIP = {
-    Inserts: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
+    Inserts: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else. A <code>Command</code> row shows its category here and its preset in the line below, and that preset you can change any time",
     "Command name": "What the command is called in the command palette and on Obsidian’s <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
     Description: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
     Hotkey: "The keys assigned to this command right now. Press the cell and Obsidian’s own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself"
@@ -7411,7 +7423,8 @@ function renderBinder(host) {
     const row = el("div", "io-tablerow", inner);
     row.style.setProperty("grid-template-columns", cols);
     dragHandle(el("div", "io-grip", row, "⠿"), row, (from, to) => moveIn(BINDER_ROWS, from, to), bi);
-    el("div", "io-mono", row, r.insert);
+    const isCmd = r.type === "command";
+    el("div", "io-mono" + (isCmd ? " io-binder__cat" : ""), row, isCmd ? (CF_CATEGORIES.find(c => c.id === r.category) || { name: r.category }).name : r.insert);
     el("div", "io-cellname", row, r.name);
     const cell = el("div", null, row);
     cell.style.setProperty("min-width", "0");
@@ -7421,6 +7434,11 @@ function renderBinder(host) {
     hotkeyCell(el("div", null, row), r.name);
     const rm = iconBtn(row, r.system ? "" : "✕", "Remove " + r.name);
     if (r.system) { rm.disabled = true; rm.title = "Built in"; }
+    if (isCmd) {
+      const sub = el("div", "io-binder__preset io-cats", inner);
+      sub.setAttribute("aria-label", "Preset of " + r.name);
+      cfPresetControls(el("div", "io-cats__set", sub), r.category, r.preset, r.name, true);
+    }
   });
 
   const foot = el("div", "io-tablefoot", card);

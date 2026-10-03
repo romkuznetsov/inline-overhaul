@@ -128,6 +128,12 @@ A new row starts in a small window. Press `Inserts` and a picker opens under it 
 symbols and text faces, with a search by name; the command name fills itself in from what you
 pick, and you can change it. A Field’s `Emoji prefix` opens the same picker with the emoji only.
 
+`Type` in that window picks `Text` or `Command`. A `Command` row runs one category of an
+`Action` Field — `Insert callout`, `Cleanup`, `Insert codeblock` or `Tree ↔ section` — with a
+preset of its own, set with the same controls as in the Field. Its key works as a switch: one
+press applies the preset, the next press on its result takes it off; `Cleanup` only applies. The
+preset sits in a line under the row and can be changed any time.
+
 See it in motion: [Smart bracket](SHOWCASE.md#smart-bracket).
 
 ### Commands & Hotkeys

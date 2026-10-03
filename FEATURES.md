@@ -156,7 +156,8 @@ it to one that already exists. Off out of the box.
   line that already starts with a number loses its marker.
 - **Binder** — your own insert commands: a row defines a snippet and gets a command.
   `Smart bracket` ships with the plugin and cycles the brackets around the cursor or
-  selection.
+  selection. A row of type `Command` runs an `Action` category with one preset of its own
+  instead: one press applies it, the next press on its result takes it off.
 - **Commands & Hotkeys** — every command with the key bound to it now, and a `to hotkeys`
   button on each heading that opens Obsidian’s `Hotkeys` screen filtered to it.
 

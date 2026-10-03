@@ -8,7 +8,7 @@
  *   * сетка таблицы — в CSS (Б4).
  */
 
-import { el, btn, textInput, tipBelow, paintNeeded, type El, type ElInput } from "./dom.ts";
+import { el, btn, segmented, textInput, tipBelow, paintNeeded, type El, type ElInput } from "./dom.ts";
 import { attachPicker, pickName, PICK_ALL } from "./char_picker.ts";
 import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
@@ -37,7 +37,7 @@ export function rowTitle(row: BinderRow): string {
   const short = row.commandLabel.startsWith(LABEL_PREFIX)
     ? row.commandLabel.slice(LABEL_PREFIX.length)
     : row.commandLabel;
-  return short.trim() || row.commandName.trim() || row.insertText.trim() || T.ROW_ARIA;
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || row.category.trim() || T.ROW_ARIA;
 }
 
 /* ---- таблица ------------------------------------------------------------ */
@@ -59,6 +59,10 @@ export interface BinderViewOpts {
   showIds?: boolean;
   /** Куда сложить снятие открытых подсказок: очистка блока обязана убрать всё (С5). */
   closers?: Array<() => void>;
+  /** Имя категории строки `Command` (4.6); нет — ключ реестра. */
+  categoryName?: (id: string) => string;
+  /** Контролы пресета строки `Command` — те же, что у пресета Command Field (4.6); нет — строки контролов нет. */
+  drawPreset?: (host: El, row: BinderRow) => void;
 }
 
 /**
@@ -115,7 +119,9 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
       onMove: o.onMove,
     });
 
-    el(line, "code", "io-mono", row.insertText);
+    const command = row.type === "command";
+    el(line, "code", "io-mono" + (command ? " io-binder__cat" : ""),
+      command ? (o.categoryName ? o.categoryName(row.category) : row.category) : row.insertText);
     el(line, "div", "io-cellname", name);
 
     const cell = el(line, "div", "io-binder__desc");
@@ -156,6 +162,12 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     drop.addEventListener("click", (() => {
       if (!row.system) o.onRemove(row);
     }) as never);
+    /* Пресет строки `Command` — строкой под ней, во всю ширину таблицы (4.6). */
+    if (command && o.drawPreset) {
+      const sub = el(card, "div", "io-binder__preset io-cats");
+      sub.setAttribute("aria-label", say("ROW_PRESET_ARIA", name));
+      o.drawPreset(el(sub, "div", "io-cats__set"), row);
+    }
   });
 
   const foot = el(card, "div", "io-tablefoot");
@@ -182,10 +194,16 @@ export function renderAddForm(box: El, o: {
   /** Тумблеры `Show tips` и `Show option IDs in tips`, как у таблицы. */
   showTips?: boolean;
   showIds?: boolean;
+  /**
+   * Тип `Command` (4.6): выбор категории и контролы её пресета; `changed` —
+   * выбрана категория. Нет — выбора типа в окне нет.
+   */
+  drawCommand?: (host: El, state: { category: string; preset: Record<string, unknown> }, changed: () => void) => void;
+  categoryName?: (id: string) => string;
 }): () => void {
   const say = o.say || PLAIN;
   el(box, "h4", "io-dlg__title", say("NEW_TITLE"));
-  el(box, "p", "io-item__desc", say("NEW_NOTE"));
+  const lead = el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
   /*
    * «?» у каждого поля (2026-09-23); текст тот же, что у колонки таблицы.
@@ -223,7 +241,32 @@ export function renderAddForm(box: El, o: {
    * Обводится поле, без которого `Add` не работает (пункт 14, 2026-09-22) —
    * тот же вопрос, что гасит кнопку в `recheck`.
    */
+  /* Тип строки (4.6): `Text` — прежняя вставка, `Command` — категория с одним пресетом. */
+  let type: "insert" | "command" = "insert";
+  const cmd = { category: "", preset: {} as Record<string, unknown> };
+  let typeRow: El | null = null;
+  let cmdRow: El | null = null;
+  let drawType = (): void => {};
+  if (o.drawCommand) {
+    typeRow = el(box, "div", "io-item");
+    const info = el(typeRow, "div", "io-item__info");
+    el(el(info, "div", "io-item__namerow"), "div", "io-item__name", say("NEW_TYPE_LABEL"));
+    el(info, "div", "io-item__desc", say("NEW_TYPE_DESC"));
+    const ctl = el(typeRow, "div", "io-item__control");
+    drawType = (): void => {
+      ctl.empty();
+      segmented(ctl, [{ value: "insert", label: say("TYPE_TEXT") }, { value: "command", label: say("TYPE_COMMAND") }],
+        type, say("NEW_TYPE_LABEL"), v => { type = v === "command" ? "command" : "insert"; drawType(); shape(); });
+    };
+  }
   const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"), "COL_INSERTS_TIP", true);
+  if (o.drawCommand) {
+    cmdRow = el(box, "div", "io-binder__new io-cats");
+    const info = el(cmdRow, "div", "io-item__info");
+    el(el(info, "div", "io-item__namerow"), "div", "io-item__name", say("NEW_CATEGORY_LABEL"));
+    el(info, "div", "io-item__desc", say("NEW_CATEGORY_DESC"));
+    o.drawCommand(el(cmdRow, "div", "io-cats__set"), cmd, () => { suggest(); recheck(); });
+  }
   const command = field(say("NEW_NAME_LABEL"), say("NEW_NAME_DESC"), say("NEW_NAME_HINT"), "COL_COMMAND_NAME_TIP");
   const note = field(say("NEW_DESC_LABEL"), say("NEW_DESC_DESC"), "", "COL_DESCRIPTION_TIP");
 
@@ -232,11 +275,9 @@ export function renderAddForm(box: El, o: {
   cancel.addEventListener("click", (() => { o.cancel(); }) as never);
   const add = btn(foot, "io-btn io-btn--cta", { text: say("NEW_ADD"), label: say("ADD_COMMAND") });
 
-  const draftNow = (): BinderDraft => ({
-    insertText: insert.input.value,
-    commandName: command.input.value,
-    description: note.input.value,
-  });
+  const draftNow = (): BinderDraft => (type === "command"
+    ? { type, category: cmd.category, preset: cmd.preset, insertText: "", commandName: command.input.value, description: note.input.value }
+    : { insertText: insert.input.value, commandName: command.input.value, description: note.input.value });
 
   /*
    * Пересчёт на каждый символ: `Add` доступна при тексте вставки и без повтора;
@@ -247,7 +288,7 @@ export function renderAddForm(box: El, o: {
     const clash = o.duplicateOf ? o.duplicateOf(draft) : null;
     insert.warn.textContent = clash && clash.field === "insertText" ? clash.error : "";
     command.warn.textContent = clash && clash.field === "commandName" ? clash.error : "";
-    add.disabled = !String(draft.insertText || "").trim() || Boolean(clash);
+    add.disabled = (type === "command" ? !cmd.category : !String(draft.insertText || "").trim()) || Boolean(clash);
   };
 
   /*
@@ -258,9 +299,22 @@ export function renderAddForm(box: El, o: {
   const suggest = (): void => {
     const now = command.input.value;
     if (now.trim() && now !== suggested) return;
-    const text = insert.input.value.trim();
-    suggested = text ? (pickName(text) || say("NEW_NAME_AUTO", text)) : "";
+    if (type === "command") {
+      suggested = cmd.category && o.categoryName ? o.categoryName(cmd.category) : "";
+    } else {
+      const text = insert.input.value.trim();
+      suggested = text ? (pickName(text) || say("NEW_NAME_AUTO", text)) : "";
+    }
     command.input.value = suggested;
+  };
+
+  /* Видно то, что относится к выбранному типу; примечание окна — своё у каждого. */
+  const shape = (): void => {
+    insert.row.hidden = type === "command";
+    if (cmdRow) cmdRow.hidden = type !== "command";
+    lead.textContent = say(type === "command" ? "NEW_NOTE_COMMAND" : "NEW_NOTE");
+    suggest();
+    recheck();
   };
 
   const picker = attachPicker(insert.input, insert.row, {
@@ -279,11 +333,12 @@ export function renderAddForm(box: El, o: {
   for (const f of [insert, command, note]) {
     f.input.addEventListener("input", (() => { recheck(); }) as never);
   }
-  recheck();
+  drawType();
+  shape();
 
   add.addEventListener("click", (() => {
     const draft = draftNow();
-    if (!String(draft.insertText || "").trim()) return;
+    if (type === "command" ? !cmd.category : !String(draft.insertText || "").trim()) return;
     if (o.duplicateOf && o.duplicateOf(draft)) return;
     o.add(draft);
   }) as never);

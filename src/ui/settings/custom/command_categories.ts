@@ -212,14 +212,129 @@ export interface CategoriesTableOpts {
   setIcon?: (node: unknown, icon: string) => void;
 }
 
+/** Что нужно контролам одного пресета: тексты, Fields строки, куда писать и подписи колонок. */
+export interface PresetControlsOpts {
+  say: Say;
+  enabled: boolean;
+  lineFields: readonly FieldRow[];
+  save: () => void;
+  setIcon?: (node: unknown, icon: string) => void;
+  /** Подпись колонки над контролом: у первого пресета таблицы и у строки Binder. */
+  captions: boolean;
+}
+
+/**
+ * Контролы одного пресета по роду параметров категории (4.3): таблица категорий
+ * и строка Binder типа `Command` (4.6, «те же контролы, что у пресета») рисуют их одной функцией.
+ */
+export function drawPresetControls(set: El, categoryId: string, p: CommandPreset, pn: string, t: PresetControlsOpts): void {
+  const say = t.say;
+  const word = (k: string): string => (/^H\d$/.test(k) ? k : say(k));
+  const save = t.save;
+  const reg = CF.CATEGORIES.find(c => c.id === categoryId);
+  /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
+  const cell = (kind: string): El => {
+    const col = COLUMNS[kind];
+    const node = el(set, "div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""));
+    if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+    if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
+    if (col && t.captions) el(node, "span", "io-cats__cap", say(col.cap)).setAttribute("aria-label", say(col.tip));
+    return node;
+  };
+  const choose = (host2: El, options: readonly Choice[], value: string, aria: string, write: (v: string) => void): void => picker(host2, {
+    items: options.map(o => ({ value: o.value, label: word(o.label), tip: say(o.tip) })),
+    value: options.some(o => o.value === value) ? value : (options[0] as Choice).value,
+    aria, enabled: t.enabled, pick: v => { write(v); save(); },
+  });
+  const types = (host2: El): void => picker(host2, {
+    items: CF.CALLOUT_TYPES.map(type => ({ value: type, label: type, paint: (n: El) => paintType(n, type, t.setIcon) })),
+    value: p.type || "note", aria: say("PRESET_TYPE_ARIA", pn), enabled: t.enabled, pick: v => { p.type = v; save(); },
+  });
+  /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
+  const folds = (host2: El): void => {
+    const closed = p.fold === "-";
+    const now = FOLDS[closed ? 1 : 0] as Choice;
+    const b = btn(host2, "io-icon io-cats__fold" + (closed ? " io-cats__fold--closed" : ""), {
+      text: closed ? "▸" : "▾", label: say("PRESET_FOLD_ARIA", pn), title: say(now.label) + ": " + say(now.tip),
+    });
+    b.setAttribute("aria-pressed", closed ? "true" : "false");
+    b.disabled = !t.enabled;
+    b.addEventListener("click", (() => { p.fold = closed ? "" : "-"; save(); }) as never);
+  };
+  const prop = (host2: El, value: string, placeholder: string, label: string, write: (v: string) => void): void => {
+    const input = textInput(host2, "io-text io-cats__prop", { value, placeholder, label });
+    input.disabled = !t.enabled;
+    input.addEventListener("change", (() => { write(String(input.value || "").trim()); save(); }) as never);
+  };
+  for (const kind of reg ? reg.params : []) {
+    /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
+    if (kind === "block-wrap" && CF.blockMode(p) === "plain") continue;
+    const box2 = cell(kind);
+    if (kind === "callout-type") {
+      types(box2);
+    } else if (kind === "fold") {
+      folds(box2);
+    } else if (kind === "block-mode") {
+      choose(box2, MODES, CF.blockMode(p), say("PRESET_MODE_ARIA", pn), v => { p.mode = v; });
+    } else if (kind === "block-wrap") {
+      /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
+      const mode = CF.blockMode(p);
+      if (mode === "heading") {
+        prop(box2, p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
+        choose(box2, LEVELS, CF.blockLevel(p), say("PRESET_LEVEL_ARIA", pn), v => { p.level = v; });
+      } else if (mode === "callout") {
+        types(box2);
+        folds(box2);
+        prop(box2, p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
+      }
+    } else if (kind === "block-content") {
+      const area = el(box2, "textarea", "io-text io-cats__content") as unknown as ElInput;
+      area.value = String(p.content || "");
+      area.setAttribute("aria-label", say("PRESET_CONTENT_ARIA", pn));
+      area.setAttribute("placeholder", say("PRESET_CONTENT_PLACEHOLDER"));
+      area.setAttribute("rows", "2");
+      area.disabled = !t.enabled;
+      area.addEventListener("change", (() => { p.content = String(area.value || ""); save(); }) as never);
+    } else if (SECTION_CHOICES[kind]) {
+      const c = SECTION_CHOICES[kind] as (typeof SECTION_CHOICES)[string];
+      choose(box2, c.options, String(p[c.field] || ""), say(c.aria, pn), v => { p[c.field] = v; });
+    } else if (kind === "fields") {
+      const keep = p.keep || (p.keep = []);
+      for (const lf of t.lineFields) {
+        if (lf.parent) continue;
+        const on = keep.includes(lf.key);
+        const chip = btn(box2, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text: lf.strictName, label: say("PRESET_KEEP_ARIA", lf.strictName) });
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+        chip.disabled = !t.enabled;
+        chip.addEventListener("click", (() => {
+          if (on) keep.splice(keep.indexOf(lf.key), 1); else keep.push(lf.key);
+          save();
+        }) as never);
+      }
+    }
+  }
+}
+
+/** Выбор категории списком: подсказка варианта — её описание; без значения — серый прочерк. */
+export function drawCategoryPicker(host: El, o: { say: Say; value: string; aria: string; enabled: boolean; pick: (id: string) => void }): void {
+  picker(host, {
+    items: CF.CATEGORIES.map(c => ({ value: c.id, label: c.name, tip: CAT_DESC[c.id] ? o.say(CAT_DESC[c.id] as string) : "" })),
+    value: o.value, aria: o.aria, enabled: o.enabled, placeholder: o.say("CATS_PICK_PLACEHOLDER"), pick: o.pick,
+  });
+}
+
+/** Пресет по умолчанию категории — независимая копия (Binder, 4.6); незнакомая категория — пустой. */
+export function defaultPreset(categoryId: string): CommandPreset {
+  const reg = CF.CATEGORIES.find(c => c.id === categoryId);
+  return reg && reg.defaults[0] ? JSON.parse(JSON.stringify(reg.defaults[0])) as CommandPreset : {} as CommandPreset;
+}
+
 /**
  * Таблица категорий и пресетов на списке `cats` — одна на редактор Fields и
  * окно `Add a Field` (его `💬` к тесту 1 цикла 125: настраивать сразу при создании).
  */
 export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: CategoriesTableOpts): () => void {
   const say = t.say;
-  /* «H1»…«H6» — не ключи каталога, а сами подписи. */
-  const word = (k: string): string => (/^H\d$/.test(k) ? k : say(k));
   const closers: Array<() => void> = [];
   const save = t.save;
   const regOf = (id: string): CfCategory | undefined => CF.CATEGORIES.find(c => c.id === id);
@@ -322,87 +437,7 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
       eye(pline, p, pn);
       nameInput(pline, p.name || "", presetName(c, { ...p, name: "" }), say("PRESET_NAME_ARIA", pn), v => { p.name = v; });
       const set = el(pline, "div", "io-cats__set");
-      /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
-      const cell = (kind: string): El => {
-        const col = COLUMNS[kind];
-        const node = el(set, "div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""));
-        if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
-        if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
-        if (col && pi === 0) el(node, "span", "io-cats__cap", say(col.cap)).setAttribute("aria-label", say(col.tip));
-        return node;
-      };
-      const choose = (host2: El, options: readonly Choice[], value: string, aria: string, write: (v: string) => void): void => picker(host2, {
-        items: options.map(o => ({ value: o.value, label: word(o.label), tip: say(o.tip) })),
-        value: options.some(o => o.value === value) ? value : (options[0] as Choice).value,
-        aria, enabled: t.enabled, pick: v => { write(v); save(); },
-      });
-      const types = (host2: El): void => picker(host2, {
-        items: CF.CALLOUT_TYPES.map(type => ({ value: type, label: type, paint: (n: El) => paintType(n, type, t.setIcon) })),
-        value: p.type || "note", aria: say("PRESET_TYPE_ARIA", pn), enabled: t.enabled, pick: v => { p.type = v; save(); },
-      });
-      /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
-      const folds = (host2: El): void => {
-        const closed = p.fold === "-";
-        const now = FOLDS[closed ? 1 : 0] as Choice;
-        const b = btn(host2, "io-icon io-cats__fold" + (closed ? " io-cats__fold--closed" : ""), {
-          text: closed ? "▸" : "▾", label: say("PRESET_FOLD_ARIA", pn), title: say(now.label) + ": " + say(now.tip),
-        });
-        b.setAttribute("aria-pressed", closed ? "true" : "false");
-        b.disabled = !t.enabled;
-        b.addEventListener("click", (() => { p.fold = closed ? "" : "-"; save(); }) as never);
-      };
-      const prop = (host2: El, value: string, placeholder: string, label: string, write: (v: string) => void): void => {
-        const input = textInput(host2, "io-text io-cats__prop", { value, placeholder, label });
-        input.disabled = !t.enabled;
-        input.addEventListener("change", (() => { write(String(input.value || "").trim()); save(); }) as never);
-      };
-      for (const kind of reg ? reg.params : []) {
-        /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
-        if (kind === "block-wrap" && CF.blockMode(p) === "plain") continue;
-        const box2 = cell(kind);
-        if (kind === "callout-type") {
-          types(box2);
-        } else if (kind === "fold") {
-          folds(box2);
-        } else if (kind === "block-mode") {
-          choose(box2, MODES, CF.blockMode(p), say("PRESET_MODE_ARIA", pn), v => { p.mode = v; });
-        } else if (kind === "block-wrap") {
-          /* Настройки только своей обёртки (его 💬 к тесту 6 цикла 126: «у каждого свой набор опций»). */
-          const mode = CF.blockMode(p);
-          if (mode === "heading") {
-            prop(box2, p.headingText || "", say("PRESET_HEADING"), say("PRESET_HEADING_TEXT_ARIA", pn), v => { p.headingText = v; });
-            choose(box2, LEVELS, CF.blockLevel(p), say("PRESET_LEVEL_ARIA", pn), v => { p.level = v; });
-          } else if (mode === "callout") {
-            types(box2);
-            folds(box2);
-            prop(box2, p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
-          }
-        } else if (kind === "block-content") {
-          const area = el(box2, "textarea", "io-text io-cats__content") as unknown as ElInput;
-          area.value = String(p.content || "");
-          area.setAttribute("aria-label", say("PRESET_CONTENT_ARIA", pn));
-          area.setAttribute("placeholder", say("PRESET_CONTENT_PLACEHOLDER"));
-          area.setAttribute("rows", "2");
-          area.disabled = !t.enabled;
-          area.addEventListener("change", (() => { p.content = String(area.value || ""); save(); }) as never);
-        } else if (SECTION_CHOICES[kind]) {
-          const c = SECTION_CHOICES[kind] as (typeof SECTION_CHOICES)[string];
-          choose(box2, c.options, String(p[c.field] || ""), say(c.aria, pn), v => { p[c.field] = v; });
-        } else if (kind === "fields") {
-          const keep = p.keep || (p.keep = []);
-          for (const lf of t.lineFields) {
-            if (lf.parent) continue;
-            const on = keep.includes(lf.key);
-            const chip = btn(box2, "io-cats__keep" + (on ? " io-cats__keep--on" : ""), { text: lf.strictName, label: say("PRESET_KEEP_ARIA", lf.strictName) });
-            chip.setAttribute("aria-pressed", on ? "true" : "false");
-            chip.disabled = !t.enabled;
-            chip.addEventListener("click", (() => {
-              if (on) keep.splice(keep.indexOf(lf.key), 1); else keep.push(lf.key);
-              save();
-            }) as never);
-          }
-        }
-      }
+      drawPresetControls(set, c.id, p, pn, { ...t, captions: pi === 0 });
       const sig = reg ? reg.signature(p) : "";
       if (!p.hidden && seen.has(sig)) el(set, "span", "io-cats__same io-cats__cell--wide", say("PRESET_SAME", seen.get(sig) as string));
       else if (!p.hidden) seen.set(sig, pn);
@@ -425,9 +460,8 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
   add.disabled = true;
   const drawPick = (): void => {
     pickHost.empty();
-    picker(pickHost, {
-      items: CF.CATEGORIES.map(c => ({ value: c.id, label: c.name, tip: CAT_DESC[c.id] ? say(CAT_DESC[c.id] as string) : "" })),
-      value: chosen, aria: say("CATS_PICK_ARIA", t.fieldName), enabled: t.enabled, placeholder: say("CATS_PICK_PLACEHOLDER"),
+    drawCategoryPicker(pickHost, {
+      say, value: chosen, aria: say("CATS_PICK_ARIA", t.fieldName), enabled: t.enabled,
       pick: v => { chosen = v; add.disabled = !t.enabled || !regOf(v); drawPick(); },
     });
   };

@@ -736,12 +736,22 @@ function revertInEditor(ed, cfg, fieldKey, categoryKey) {
  */
 function runInEditor(ed, cfg, fieldKey, categoryId, step) {
   const entry = fieldCategories(cfg, fieldKey).find((c) => c.key === categoryId);
-  const category = entry ? categoryById(entry.id) : null;
+  if (!entry) return "unknown";
+  return runPresetsInEditor(ed, cfg, entry.id, entry.presets, step);
+}
+
+/**
+ * Категория по реестру с переданными пресетами: Command Field и строка Binder
+ * типа `Command` (4.6) — у той один пресет, и шаг вперёд с него снимает результат
+ * («вкл/выкл»). Ответ — как у `runInEditor`.
+ */
+function runPresetsInEditor(ed, cfg, categoryId, presets, step) {
+  const category = categoryById(categoryId);
   if (!category) return "unknown";
-  if (!entry.presets.some((p) => !p.hidden)) return "no-presets";
+  const list = (Array.isArray(presets) ? presets : []).filter((p) => p && typeof p === "object");
+  if (!list.some((p) => !p.hidden)) return "no-presets";
   const lines = String(ed.getValue()).split("\n");
-  const cursor = ed.getCursor();
-  const r = category.run({ lines, cursor, selection: selectedLines(ed), cfg, presets: entry.presets }, entry.presets, step);
+  const r = category.run({ lines, cursor: ed.getCursor(), selection: selectedLines(ed), cfg, presets: list }, list, step);
   return finish(ed, lines, r);
 }
 
@@ -754,6 +764,7 @@ module.exports = {
   categoryById,
   fieldCategories,
   runInEditor,
+  runPresetsInEditor,
   applyPresetInEditor,
   revertInEditor,
   calloutAt,

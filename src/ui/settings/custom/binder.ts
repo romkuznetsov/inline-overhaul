@@ -14,7 +14,10 @@ import { el, type El } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createBinderModel, type BinderClash, type BinderDraft, type BinderRow } from "./binder_model.ts";
-import { renderAddForm, renderBinder as drawBinder } from "./binder_view.ts";
+import { renderAddForm, renderBinder as drawBinder, rowTitle } from "./binder_view.ts";
+import { categoryName, defaultPreset, drawCategoryPicker, drawPresetControls } from "./command_categories.ts";
+import { createFieldsModel, type CommandPreset, type DeepState, type FieldRow } from "./fields_model.ts";
+import deepStateModule from "../../../core/order_deep_editor_state.js";
 import { escapeScope } from "./char_picker.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
@@ -52,6 +55,10 @@ function askAddModal(
   say?: (name: string, ...args: readonly (string | number)[]) => string,
   Scope?: unknown,
   tips?: { showTips: boolean; showIds: boolean },
+  command?: {
+    drawCommand: (host: El, state: { category: string; preset: Record<string, unknown> }, changed: () => void) => void;
+    categoryName: (id: string) => string;
+  },
 ): void {
   let answered = false;
   let dropForm: () => void = () => {};
@@ -74,6 +81,7 @@ function askAddModal(
         ...(say ? { say } : {}),
         ...(holdKeys ? { holdKeys } : {}),
         ...(tips || {}),
+        ...(command || {}),
       });
     }
 
@@ -137,7 +145,51 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
         finally { draw(); }
       };
 
+      /*
+       * Строка `Command` (4.6): контролы пресета — те же, что у Command Field;
+       * Fields строки для «Очистки» — из той же модели, что у редактора Fields.
+       */
+      const fsay = sayIn("field-editor", ctx);
+      const bsay = sayIn("binder-table", ctx);
+      let lineFields: readonly FieldRow[] = [];
+      try {
+        lineFields = createFieldsModel({
+          plugin: plugin as never,
+          normalizePkmOrder: p.normalizePkmOrder as never,
+          pkmOrderFields: p.pkmOrderFields,
+          cfg: p.getConfig() as never,
+          deepState: deepStateModule as unknown as DeepState,
+        }).listLineFields();
+      } catch (e) {
+        /* Украшение: без списка у «Очистки» нет чипов Fields, остальное работает. */
+        console.error("inline-overhaul: Fields строки для Binder не прочитались", e);
+      }
+      const catName = (id: string): string => categoryName({ id, presets: [] });
+      const presetOpts = (save: () => void) => ({
+        say: fsay, enabled: true, lineFields, captions: true, save,
+        ...(p.setIcon ? { setIcon: p.setIcon } : {}),
+      });
+      const drawCommand = (host2: El, state: { category: string; preset: Record<string, unknown> }, changed: () => void): void => {
+        const draw2 = (): void => {
+          host2.empty();
+          drawCategoryPicker(el(host2, "div", "io-cats__pick"), {
+            say: fsay, value: state.category, aria: bsay("NEW_CATEGORY_ARIA"), enabled: true,
+            pick: id => { state.category = id; state.preset = defaultPreset(id) as unknown as Record<string, unknown>; draw2(); changed(); },
+          });
+          if (state.category) {
+            drawPresetControls(host2, state.category, state.preset as unknown as CommandPreset, catName(state.category), presetOpts(draw2));
+          }
+        };
+        draw2();
+      };
+
       drawBinder(next, {
+        categoryName: catName,
+        drawPreset: (host2, row) => {
+          const preset = { ...(row.preset || {}) } as unknown as CommandPreset;
+          drawPresetControls(host2, row.category, preset, rowTitle(row),
+            presetOpts(() => commit(() => { model.setPreset(row.rowId, preset as unknown as Record<string, unknown>); })));
+        },
         say: sayIn("binder-table", ctx),
         showTips: Boolean(ctx.get("general.help.showTips")),
         showIds: Boolean(ctx.get("advanced.showSettingIds")),
@@ -161,7 +213,7 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
         }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx), p.Scope, {
           showTips: Boolean(ctx.get("general.help.showTips")),
           showIds: Boolean(ctx.get("advanced.showSettingIds")),
-        }),
+        }, { drawCommand, categoryName: catName }),
       });
     } catch (e) {
       /* Неудачная попытка выбрасывается целиком, на экране остаётся рабочее —

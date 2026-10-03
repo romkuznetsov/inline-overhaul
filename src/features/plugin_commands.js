@@ -331,6 +331,29 @@ function runCommandField(plugin, cfg, def) {
   }
 }
 
+/**
+ * Строка Binder типа `Command` (4.6): категория с одним пресетом, хоткей —
+ * вкл/выкл. Охрана кода и уведомления — те же, что у пары Command Field.
+ */
+function runBinderCommand(plugin, def) {
+  const ed = plugin.getActiveEditor();
+  if (!ed) {
+    new Notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first"));
+    return;
+  }
+  const { category, preset } = def.binderCommand;
+  if (category !== "block" && onCodeOrTableLine(ed)) {
+    new Notice(__say(__noticeKey("pkm", "code-line"), "Tags & PKM does not work in a code block, a table, note properties or a divider line"));
+    return;
+  }
+  const got = __commandField.runPresetsInEditor(ed, plugin.getConfig(), category, [preset], 1);
+  if (got === "nothing" || got === "unknown" || got === "no-presets") {
+    new Notice(__say(__noticeKey("pkm", "nothing-to-do"), "{0}: nothing to change on this line", def.name));
+  } else if (got && got.refuse) {
+    new Notice(__commandField.refusalText(got, def.name));
+  }
+}
+
 function registerBinder(plugin) {
   const registry = getCommandRegistry();
   const cfgNow = plugin.getConfig();
@@ -365,7 +388,8 @@ function registerBinder(plugin) {
       callback: async () => {
         if (textCommandBlocked(plugin)) return;
         const fresh = registry.buildBinderCommandDefs(plugin.getConfig()).find((x) => x && x.id === id);
-        if (fresh) await Promise.resolve(fresh.run(plugin));
+        if (fresh && fresh.binderCommand) runBinderCommand(plugin, fresh);
+        else if (fresh) await Promise.resolve(fresh.run(plugin));
       },
     });
     plugin._registeredBinderCommandIds.add(id);
