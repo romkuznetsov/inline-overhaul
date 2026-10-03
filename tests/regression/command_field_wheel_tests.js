@@ -28,12 +28,12 @@ function config(o = {}) {
     visual: { tagWheel: { customTab: true } },
     pkm: { fields: {
       order: {
-        left: o.left ? ["Type", "Fmt"] : ["Type"], right: o.left || o.custom ? [] : ["Fmt"],
-        labels: Object.assign({ Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" }, o.sub ? { Fmt_sub: o.sub } : {}),
-        strictNames: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" },
+        left: o.left ? ["Type", "Fmt"] : ["Type"], right: o.left || o.custom ? [] : ["Fmt"].concat(o.two ? ["Cl"] : []),
+        labels: Object.assign({ Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone", Cl: "Cl" }, o.sub ? { Fmt_sub: o.sub } : {}),
+        strictNames: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone", Cl: "Cl" },
         /* Mood и Tone — только в custom block: без него они уехали бы в правый Block. */
-        types: Object.assign({ Type: "tag", Fmt: "command" }, o.custom ? { Mood: "tag", Tone: "tag" } : {}),
-        active: { Type: "yes", Fmt: o.active || "yes" },
+        types: Object.assign({ Type: "tag", Fmt: "command" }, o.two ? { Cl: "command" } : {}, o.custom ? { Mood: "tag", Tone: "tag" } : {}),
+        active: { Type: "yes", Fmt: o.active || "yes", Cl: "yes" },
         custom: o.custom ? [{ id: "b1", name: "Block one", keys: ["Mood", "Fmt"] }, { id: "b2", name: "Block two", keys: ["Tone"] }] : [],
       },
       tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] }].concat(o.custom
@@ -44,7 +44,7 @@ function config(o = {}) {
         { id: "cleanup", key: "cleanup", presets: [{ name: "", keep: [] }] },
       ].concat(o.block ? [
         { id: "block", key: "block", presets: [{ name: "Toc", content: "```toc\n```", heading: true, headingText: "Contents", headingLevel: 2, callout: false }] },
-      ] : []) } } },
+      ] : []) }, Cl: { categories: [{ id: "cleanup", key: "cleanup", presets: [{ name: "", keep: [] }] }] } } },
     } },
   });
 }
@@ -209,6 +209,15 @@ async function run() {
     assert.equal(full.doc, DOC, "на строке с текстом блок вставлен");
     assert.ok(full.said.some((m) => /empty line/.test(m)), "отказ без причины: " + JSON.stringify(full.said));
     ok("вставка блока из колеса: на пустой строке — блок, на строке с текстом — уведомление");
+  }
+
+  /* 10. Два Command Field за один Enter (его пункт «Новое» 2026-10-03): оба применяются, нетронутый молчит. */
+  {
+    const r = await drive(config({ two: true }), "- #todo Research plan\n\t- read papers", [OPEN, UP, RIGHT, UP, RIGHT, UP, ENTER]);
+    assert.equal(r.doc, "> [!note]\n> - Research plan\n> \t- read papers", "применился не каждый выбранный Command Field");
+    const untouched = await drive(config({ two: true }), "- #todo Research plan", [OPEN, UP, RIGHT, UP, ENTER]);
+    assert.equal(untouched.doc, "> [!note]\n> - #todo Research plan", "нетронутый Command Field что-то сделал");
+    ok("два Command Field за один Enter: оба применены; нетронутый молчит");
   }
 
   console.log(`command_field_wheel: ${passed} passed`);

@@ -43,7 +43,7 @@ function wheelInput(cfg) {
           presets.push({ index, name: String(p.name || "").trim() || reg.defaultName(p, fieldName) });
         });
         return {
-          key: c.key, name: c.name, presets,
+          id: c.id, key: c.key, name: c.name, presets,
           /* Какой пресет стоит под кареткой; у категории без результата (Очистка) — никакой. */
           recognize: (ctx) => (typeof reg.recognize === "function" ? reg.recognize(ctx, c.presets) : -1),
         };
@@ -129,38 +129,50 @@ function clearSelections(rules, session) {
 }
 
 /**
- * `Enter` на ячейке Command Field: снять полосу (`cancel`) и применить пресет.
+ * Что сделать одному Command Field по его выбору: `{ field, category, index }`
+ * (применить пресет), `{ field, category }` (снять результат) или `null`.
  * Пустое значение — результата нет (его `💬` к тесту 1 цикла 125, «универсальное
- * правило»): каретка в результате категории — он снимается, вне — ничего. У
- * категории с одним пресетом её выбор и есть пресет. `false` — ячейка не его.
+ * правило»): снимается выбранная категория, без неё — та, в чьём результате
+ * каретка. У категории с одним пресетом её выбор и есть пресет.
+ */
+function planOf(f, selected, ctx) {
+  const pick = String(selected[f.key + SUB] || "");
+  const chosen = f.categories.find((x) => x.name === String(selected[f.key] || ""));
+  if (pick) {
+    const slash = pick.lastIndexOf("/");
+    const category = f.categories.find((c) => c.key === pick.slice(0, slash));
+    return category ? { field: f, category, index: Number(pick.slice(slash + 1)) } : null;
+  }
+  if (chosen && chosen.presets.length === 1) return { field: f, category: chosen, index: chosen.presets[0].index };
+  const undo = chosen || f.categories.find((c) => c.recognize(ctx) >= 0);
+  return undo ? { field: f, category: undo } : null;
+}
+
+/**
+ * `Enter` на ячейке Command Field: снять полосу (`cancel`) и применить выбор
+ * каждого Command Field полосы (его пункт «Новое» 2026-10-03: выбрал Cleanup и
+ * коллаут — применился один). Решения — по тексту до правок: иначе коллаут,
+ * поставленный первым, второй Field прочёл бы как свой и снял. Порядок — полосы.
+ * `false` — ячейка не его.
  */
 function enter(state, cancel) {
   const fid = String(state.session.activeFieldId || "");
-  const field = [].concat(state.rules.leftMode.fields, state.rules.rightMode.fields).find((f) => f.id === fid);
-  if (!isCommandField(field)) return false;
-  const key = fid.endsWith(SUB) ? fid.slice(0, -SUB.length) : fid;
+  const all = [].concat(state.rules.leftMode.fields, state.rules.rightMode.fields);
+  if (!isCommandField(all.find((f) => f.id === fid))) return false;
   const input = state.commandFields;
-  const own = input && input.fields.find((f) => f.key === key);
-  const pick = String(state.session.selected[key + SUB] || "");
-  const catName = String(state.session.selected[key] || "");
-  const chosen = own ? own.categories.find((x) => x.name === catName) : null;
-  let target = null;
-  if (own && pick) {
-    const slash = pick.lastIndexOf("/");
-    target = { category: pick.slice(0, slash), index: Number(pick.slice(slash + 1)) };
-  } else if (chosen && chosen.presets.length === 1) {
-    target = { category: chosen.key, index: chosen.presets[0].index };
-  }
-  /* Пустое: снять результат выбранной категории, а без категории — той, в чьём результате каретка. */
-  const ctx = target || !own ? null : { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
-  const undo = ctx ? (chosen || own.categories.find((c) => c.recognize(ctx) >= 0)) : null;
+  const selected = Object.assign({}, state.session.selected);
   cancel(state);
-  const got = target ? input.apply(state.editor, key, target.category, target.index)
-    : undo ? input.revert(state.editor, key, undo.key) : null;
-  /* Неприменимая команда не прячется — текст не меняется, причина вслух (4.5); `Notice` — как у tagWheel. */
-  if (got && got.refuse && typeof globalThis.Notice === "function") {
-    const cat = own.categories.find((c) => c.key === (target ? target.category : ""));
-    new globalThis.Notice(__commandField.refusalText(got, own.label + " · " + (cat ? cat.name : "")));
+  if (!input) return true;
+  const ctx = { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
+  const plans = input.fields.filter((f) => all.some((x) => x.id === f.key))
+    .map((f) => planOf(f, selected, ctx)).filter(Boolean);
+  for (const p of plans) {
+    const got = p.index != null ? input.apply(state.editor, p.field.key, p.category.key, p.index)
+      : input.revert(state.editor, p.field.key, p.category.key);
+    /* Неприменимая команда не прячется — текст не меняется, причина вслух (4.5); `Notice` — как у tagWheel. */
+    if (got && got.refuse && typeof globalThis.Notice === "function") {
+      new globalThis.Notice(__commandField.refusalText(got, p.field.label + " · " + p.category.name));
+    }
   }
   return true;
 }

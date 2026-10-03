@@ -150,6 +150,10 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   assert.deepEqual(clean("", [], null, tree).lines, ["- a"], "без выделения тронуты потомки");
   const r = clean("", [], { from: 0, to: 2 }, tree);
   assert.deepEqual(apply(tree, r), ["- a", "  - b", "- c"]);
+  /* В коллауте — как вне его (его пункт «Новое» 2026-10-03: в коллауте не ушла приставка). */
+  for (const l of [line, "- [ ] #todo #high || call"]) {
+    assert.deepEqual(clean("> " + l, []).lines, ["> " + clean(l, []).lines[0]], "в коллауте очистка другая: " + l);
+  }
   ok("очистка: Values уходят, оставленный Field и текст — на месте, пустая строка шага не заводит");
 }
 
@@ -230,6 +234,11 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   const asSection = apply(doneTree, go(doneTree, 0, inPlace));
   assert.deepEqual(asSection, ["# call bank #done"]);
   assert.deepEqual(apply(asSection, go(asSection, 0, inPlace, doneCfg)), doneTree, "маркер не вернул отметку");
+  /* Круг «после списка» пустых строк не копит (его `💬` к тесту 5 цикла 126). */
+  const round = (d: string[]): string[] => { const s = apply(d, go(d, 1)); return apply(s, go(s, 2)); };
+  const his = ["### В", "- #todo :: Research plan", "\t- read papers", "", "## 6"];
+  assert.deepEqual(round(his), his, "круг дерево → раздел → дерево не вернул строки");
+  assert.deepEqual(round(round(his)), his, "второй круг добавил строку");
   ok("дерево ↔ раздел: пример 6.4, уровень, три положения, код и таблицы, подзаголовки, R-2 на месте, отметка по маркеру");
 }
 
