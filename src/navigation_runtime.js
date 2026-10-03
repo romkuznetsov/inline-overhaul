@@ -200,6 +200,8 @@ function getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total) {
     const level = getHeaderLevel(lineText);
     return { bStart: curLine, bEnd: sectionEnd(editor, curLine, level, total) };
   }
+  /* `Heading only` — одна строка: «деревом» заголовок забирал строки с отступом под собой (цикл 121). */
+  if (isHeaderAt(editor, curLine)) return { bStart: curLine, bEnd: curLine };
   if (cfg.noSelectionMode === "with-children") {
     return { bStart: curLine, bEnd: treeEndOf(editor, curLine, total) };
   }
@@ -243,6 +245,7 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
     /* Выше — родительский заголовок: подраздел упирается (`В-241`; BUGHUNT N5). */
     return null;
   }
+  if (bStart === bEnd && isHeaderAt(editor, bStart)) return headingStepUp(editor, bStart - 1, cfg, yamlEnd, total);
   /*
    * Пустая строка — одна остановка (`В-241`, BUGHUNT N6): иначе строка уезжала
    * в чужой абзац.
@@ -308,6 +311,7 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
     /* Ниже — заголовок выше уровнем: подраздел в чужой раздел не уходит (`В-241`, N5). */
     return null;
   }
+  if (bStart === bEnd && isHeaderAt(editor, bStart)) return headingStepDown(editor, bEnd + 1, cfg, total);
   /* Пустая строка — одна остановка (`В-241`, N6). */
   if (bEnd + 1 < total && String(nz(editor.getLine(bEnd + 1), "")).trim() === "" && !isHeader(myText)) {
     return bEnd + 1;
@@ -341,6 +345,36 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   return next;
 }
 
+/*
+ * Заголовок при `Heading only` шагает единицей: пустой строкой, заголовком, блоком
+ * кода или деревом строки (она и строки глубже). Внутри дерева он рвал список и
+ * забирал строки с отступом, а вверх и вниз шагал по разным границам (его `🐛`
+ * цикла 121). Единицы не зависят от места заголовка — два нажатия возвращают заметку.
+ */
+function headingStepDown(editor, from, cfg, total) {
+  if (from >= total) return null;
+  if (String(nz(editor.getLine(from), "")).trim() === "") return from;
+  if (isHeaderAt(editor, from)) return cfg.crossSectionAllowed ? from : null;
+  const code = codeBlockEdgeDown(editor, from, total);
+  if (code !== undefined) return code;
+  return treeEndOf(editor, from, total);
+}
+function headingStepUp(editor, from, cfg, yamlEnd, total) {
+  if (from < 0 || (yamlEnd !== -1 && from <= yamlEnd)) return null;
+  if (isHeaderAt(editor, from)) return cfg.crossSectionAllowed ? from - 1 : null;
+  const code = codeBlockEdgeUp(editor, from);
+  if (code !== undefined) return code;
+  /* Единица, в которой стоит `from`, — разбиением от ближней границы выше. */
+  let at = from;
+  while (at - 1 >= 0 && !(yamlEnd !== -1 && at - 1 <= yamlEnd) && !isHeaderAt(editor, at - 1)
+    && !__sharedUtils.isFenceLine(nz(editor.getLine(at - 1), ""))) at--;
+  for (;;) {
+    const end = String(nz(editor.getLine(at), "")).trim() === "" ? at : treeEndOf(editor, at, total);
+    if (end >= from) return at - 1;
+    at = end + 1;
+  }
+}
+
 function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scrollBefore, selRestore, cursorRestore, cfg) {
   const doc = editor.getValue();
   const lines = doc.split("\n");
@@ -371,13 +405,19 @@ function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scro
    */
   if (newDoc !== doc) {
     const from = Math.min(bStart, newBodyStart);
-    const to = Math.max(bEnd, movedEnd);
+    let to = Math.max(bEnd, movedEnd);
     /*
      * Номера считаем сами (`renumberOrderedWindow`, 2026-09-20): фильтр Obsidian
      * берёт номер первого элемента подсписка из старого документа, а готовые
      * верные номера не трогает (измерено на его фильтре).
      */
-    const numbered = __sharedUtils.renumberOrderedWindow(finalLines, from, to);
+    /* Номера за окном переносом тоже сдвинуты — до конца списка, но пишется только
+       изменившееся (заголовок, ушедший из-между списков, их сливал, цикл 121). */
+    let listEnd = to;
+    while (listEnd + 1 < finalLines.length && finalLines[listEnd + 1].trim() !== "" && !isHeader(finalLines[listEnd + 1])) listEnd++;
+    const numbered = __sharedUtils.renumberOrderedWindow(finalLines, from, listEnd);
+    while (listEnd > to && numbered[listEnd] === finalLines[listEnd]) listEnd--;
+    to = listEnd;
     editor.replaceRange(
       numbered.slice(from, to + 1).join("\n"),
       { line: from, ch: 0 },

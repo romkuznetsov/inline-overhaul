@@ -1071,8 +1071,8 @@ function renumberOrderedWindow(lines, from, to) {
     let number = 1;
     for (let j = i - 1; j >= 0; j--) {
       const text = String(nz(src[j], ""));
-      /* Пустая строка кончает список: ниже неё начинается новый. */
-      if (!text.trim()) break;
+      /* Пустая строка и заголовок кончают список: ниже начинается новый (цикл 121). */
+      if (!text.trim() || /^#{1,6}\s/.test(text)) break;
       const prev = ORDERED_ITEM_RE.exec(text);
       const prevLevel = listIndentLevel(/^[ \t]*/.exec(text)[0]);
       if (prev && prevLevel === level) { number = Number(prev[2]) + 1; break; }

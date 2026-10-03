@@ -222,6 +222,7 @@ const PREPARE = {
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
+  "move-heading"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
      в корне — прежняя автокопия (самая новая) и копия человека, в подпапке — две старые. */
   "autosave-folder"(vault) {
@@ -766,6 +767,50 @@ const SCENARIOS = {
     if (![esc, enter, pick, stay].every((r) => r.opened)) { console.log("КОНТРОЛЬ: панель не открылась"); return false; }
     const ok = esc.ch === at && esc.text === line && enter.ch === at && enter.text === line;
     console.log(ok ? "ok: Esc и Enter без выбора оставляют каретку на месте" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
+  /*
+   * Его `🐛` цикла 121: `Move line up/down` по заголовку при `Heading only` ломал
+   * соседние строки, и вверх-вниз не возвращало заметку. Каждый заголовок,
+   * k = 1…4 нажатий туда и столько же обратно — заметка обязана вернуться.
+   */
+  async "move-heading"(win) {
+    const B = ["# Title", "", "Intro.", "", "## Alpha", "- a1", "    - sub a1", "- a2", "", "## Beta", "beta 1", "beta 2", "",
+      "## Gamma", "1. one", "2. two", "", "## Delta", "1. d", "2. e", ""];
+    const res = await win.evaluate(async (B) => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+      await sleep(600);
+      const ed = window.app.workspace.activeEditor.editor;
+      const cfg = window.app.plugins.plugins["inline-overhaul"].getConfig().navigation.moveLine;
+      const run = (id) => window.app.commands.executeCommandById("inline-overhaul:" + id);
+      const bad = [];
+      let runs = 0, steps = 0;
+      for (let i = 0; i < B.length; i++) {
+        if (!/^#/.test(B[i])) continue;
+        for (const [a, b] of [["move-line-up", "move-line-down"], ["move-line-down", "move-line-up"]]) {
+          for (let k = 1; k <= 4; k++) {
+            ed.setValue(B.join("\n"));
+            ed.setCursor({ line: i, ch: 2 });
+            await sleep(60);
+            let moved = 0;
+            for (let s = 0; s < k; s++) { const was = ed.getValue(); run(a); await sleep(80); if (ed.getValue() !== was) moved++; }
+            for (let s = 0; s < moved; s++) { run(b); await sleep(80); }
+            steps += moved;
+            runs++;
+            if (ed.getValue() !== B.join("\n") && bad.length < 3) bad.push({ head: B[i], a, k, got: ed.getValue() });
+            else if (ed.getValue() !== B.join("\n")) bad.push(null);
+          }
+        }
+      }
+      return { cfg: { mode: cfg.noSelectionMode, heading: cfg.headerMode, jump: cfg.jumpNeighborTrees, highlight: cfg.highlightMovedLines }, runs, steps, bad };
+    }, B);
+    console.log("настройки: " + JSON.stringify(res.cfg) + " | прогонов " + res.runs + ", сдвигов " + res.steps + ", не вернулось " + res.bad.length);
+    for (const x of res.bad.filter(Boolean)) console.log("\n" + JSON.stringify(x.head) + " " + x.a + "×" + x.k + ":\n" + x.got);
+    if (res.steps === 0) { console.log("КОНТРОЛЬ: ни одного сдвига — мерить нечего"); return false; }
+    const ok = res.bad.length === 0 && res.cfg.heading === "move-as-line";
+    console.log(ok ? "ok: каждый заголовок возвращается на место" : "РАСХОДИТСЯ");
     return ok;
   },
 

@@ -145,7 +145,7 @@ const LIST = [
     "\t2. второй дочерний",
     "10. десятый",
     "\t1. третий дочерний",
-    "\t1. свой дочерний",
+    "\t2. свой дочерний",
   ].join("\n"), "перенос вниз переставил не те строки или не те номера");
   ok("перенос вниз: строка уехала под другого родителя и начала его подсписок с единицы");
 }
@@ -158,7 +158,7 @@ const LIST = [
     "\t2. второй дочерний",
     "10. десятый",
     "\t1. третий дочерний",
-    "\t1. свой дочерний",
+    "\t2. свой дочерний",
   ].join("\n"), "перенос вверх переставил не те строки или не те номера");
   ok("перенос вверх двигает строку через соседнюю");
 }
@@ -340,6 +340,47 @@ const LIST = [
   const SIB = ["# H1", "## A", "a", "## B", "b"].join("\n");
   assert.equal(move(SIB, 3, "up", sec).text, ["# H1", "## B", "b", "## A", "a"].join("\n"), "отрицательный контроль: соседние подразделы меняются местами");
   ok("`В-241`: пустая строка — одна остановка, подраздел упирается в родителя");
+}
+
+{
+  /*
+   * Его `🐛` цикла 121: при `Heading only` заголовок, сдвинутый вверх и затем вниз,
+   * ломал соседние строки. Заголовок шагает единицей (пустая, заголовок, код,
+   * дерево) и не забирает строки с отступом; k вверх и k вниз возвращают заметку.
+   * Его настройки: `Whole tree`, `Jump over neighbor trees`, `Highlight moved lines`.
+   */
+  const HIS = { noSelectionMode: "with-children", jumpNeighborTrees: true, highlightMovedLines: true };
+  const DOCS = [
+    ["# Title", "", "Intro.", "", "## Alpha", "- a1", "    - sub a1", "- a2", "", "## Beta", "beta 1", "beta 2", "", "## Gamma", "1. one", "2. two", ""],
+    ["# A", "a text", "# B", "b text", "# C", "- c1", "- c2", "# D"],
+    ["## H1", "1. a", "2. b", "3. c", "## H2", "1. d", "2. e", "## H3"],
+    ["# A", "```", "", "code", "```", "# B", "", "", "text"],
+  ];
+  let runs = 0;
+  for (const cfg of [HIS, {}]) for (const lines of DOCS) {
+    const text = lines.join("\n");
+    lines.forEach((t, i) => {
+      if (!/^#/.test(t)) return;
+      for (const [a, b] of [["up", "down"], ["down", "up"]]) for (let k = 1; k <= 4; k++) {
+        const ed = fakeEditor(text, { line: i, ch: 0 });
+        const all = Object.assign({}, CFG, cfg);
+        let moved = 0;
+        for (let s = 0; s < k; s++) { const was = ed.getValue(); nav.moveLine(ed, a, all); if (ed.getValue() !== was) moved++; }
+        for (let s = 0; s < moved; s++) nav.moveLine(ed, b, all);
+        assert.equal(ed.getValue(), text, JSON.stringify(t) + " " + a + "×" + k + " и обратно не вернул заметку");
+        runs++;
+      }
+    });
+  }
+  /* Над строкой с отступом заголовок её не забирает. */
+  const KID = ["# H", "- a", "    - b"].join("\n");
+  assert.equal(move(KID, 0, "down", HIS).text, ["- a", "    - b", "# H"].join("\n"), "заголовок встал внутрь дерева");
+  /* `Heading only` — одна строка, даже когда под ней строка с отступом. */
+  assert.equal(move(["# H", "    - x", "- a"].join("\n"), 0, "down", HIS).text, ["    - x", "# H", "- a"].join("\n"),
+    "заголовок унёс строку с отступом под собой");
+  /* Контроль: обычная строка по-прежнему идёт деревом. */
+  assert.equal(move(["- x", "- a", "    - b"].join("\n"), 0, "down", HIS).text, ["- a", "    - b", "- x"].join("\n"), "контроль: дерево");
+  ok("Heading only: " + runs + " раз k вверх и k вниз возвращают заметку, заголовок шагает целым деревом");
 }
 
 console.log("\n" + passed + " проверок пройдено");
