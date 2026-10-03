@@ -91,11 +91,12 @@ function directionLabel(direction) {
 }
 
 /**
- * ID команды поля PKM — из строгого имени Field, не ключа Order. Совпадения
- * kebab (`date_due`/`date-due`) разводятся номером.
+ * ID команды поля PKM — из ключа Order, а не из имени: переименование меняет
+ * только имя, хоткей остаётся (этап 0 Command Field, В-275). Совпадения kebab
+ * (`date_due`/`date-due`) разводятся номером.
  */
-function pkmFieldCommandId(strictName, direction, used) {
-  const base = kebab(strictName) || "field";
+function pkmFieldCommandId(orderKey, direction, used) {
+  const base = kebab(orderKey) || "field";
   const suffix = directionLabel(direction);
   const usedSet = used instanceof Set ? used : new Set();
   let candidate = base + "-" + suffix;
@@ -165,8 +166,8 @@ function pkmCommandSeeds(order) {
 function pkmCommandIdSet(order, featureOrder) {
   const used = reservedCommandIds(featureOrder);
   for (const s of pkmCommandSeeds(order)) {
-    pkmFieldCommandId(s.strict, "increase", used);
-    pkmFieldCommandId(s.strict, "decrease", used);
+    pkmFieldCommandId(s.key, "increase", used);
+    pkmFieldCommandId(s.key, "decrease", used);
   }
   for (const b of (order && Array.isArray(order.custom) ? order.custom : [])) {
     if (b && b.id) used.add(customBlockCommandId(b.id));

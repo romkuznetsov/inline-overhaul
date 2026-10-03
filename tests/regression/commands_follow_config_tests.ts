@@ -95,12 +95,13 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   const renamed = config([{ rowId: "r2", insertText: "QQ", commandName: "Quote", commandId: "quote" }]);
   renamed.pkm.fields.order.strictNames.Status = "State";
   write(I.migrateConfig(renamed));
-  assert.ok(commands.has("state-next"), "S6: переименованный Field не получил команду нового имени");
-  assert.ok(!commands.has("status-next") && removed.includes("status-next"), "S6: прежнее имя осталось в палитре");
+  /* В-275: адрес — из ключа, хоткей держится; имя в палитре — новое (S6). */
+  assert.ok(!commands.has("state-next"), "В-275: переименование сменило адрес команды");
+  assert.match(String(commands.get("status-next") && commands.get("status-next").name), /State next/, "S6: в палитре прежнее имя");
 
   const gone = I.migrateConfig({ ...cfg, pkm: { fields: { order: { left: [], right: [], strictNames: {}, types: {} }, tags: { fields: [] } } } });
   write(gone);
-  assert.ok(!commands.has("state-next"), "S7: команда удалённого Field осталась");
+  assert.ok(!commands.has("status-next") && removed.includes("status-next"), "S7: команда удалённого Field осталась");
 
   await commands.get("quote").callback();
   assert.deepEqual(inserted, ["QQ"], "Binder не вставил свой текст");
@@ -115,6 +116,35 @@ const rowIds = (cfg: Any): string[] => cfg.editor.binder.rows.map((r: Any) => r.
   write(I.migrateConfig(dropped));
   assert.ok(!commands.has("quote") && removed.includes("quote"), "Д-1: удалённая строка Binder осталась командой");
   ok("запись в хранилище переименовывает и снимает команды Field и Binder, текст Binder — нынешний");
+}
+
+/*
+ * 2а. В-275: у Field, переименованного до перехода на адрес из ключа, хоткей
+ * переезжает со старого адреса при загрузке; у непереименованного — не трогается.
+ */
+{
+  const cfg = config([]);
+  cfg.pkm.fields.order.strictNames.Status = "State";
+  const custom: Record<string, unknown> = {
+    "inline-overhaul:state-next": [{ modifiers: ["Mod"], key: "J" }],
+    "inline-overhaul:other": [{ modifiers: ["Mod"], key: "K" }],
+  };
+  let saves = 0;
+  const hotkeyManager = {
+    get customKeys() { return { ...custom }; },
+    setHotkeys: (id: string, keys: unknown[]) => { custom[id] = keys; },
+    removeHotkeys: (id: string) => { delete custom[id]; },
+    save: () => { saves++; },
+  };
+  const plugin: Any = { getConfig: () => cfg, addCommand: () => {}, removeCommand: () => {}, app: { hotkeyManager } };
+  I.registerPkm(plugin);
+  assert.deepEqual(custom["inline-overhaul:status-next"], [{ modifiers: ["Mod"], key: "J" }], "хоткей не переехал на адрес из ключа");
+  assert.ok(!("inline-overhaul:state-next" in custom) && saves === 1, "старый адрес не снят или файл не записан");
+  assert.ok("inline-overhaul:other" in custom, "тронут чужой хоткей");
+  const fresh: Any = { getConfig: () => config([]), addCommand: () => {}, removeCommand: () => {}, app: { hotkeyManager } };
+  I.registerPkm(fresh);
+  assert.equal(saves, 1, "отрицательный контроль: у непереименованного Field что-то переносилось");
+  ok("В-275: хоткей переименованного раньше Field переезжает на адрес из ключа");
 }
 
 /* 3а. BUGHUNT S19, S20: запись не из панели пересобирает панель, своя — нет. */

@@ -259,7 +259,7 @@ function allDefs(cfg: Any): Any[] {
 
 {
   /*
-   * Два Field, чьи строгие имена дают один kebab. Без разводки вторая пара
+   * Два Field, чьи ключи Order дают один kebab (адрес — из ключа, В-275). Без разводки вторая пара
    * команд затёрла бы первую — Obsidian просто не зарегистрирует второй
    * `addCommand` с тем же идентификатором, и человек потеряет команду молча.
    *
@@ -271,18 +271,18 @@ function allDefs(cfg: Any): Any[] {
     pkm: {
       behavior: {
         order: {
-          left: ["a", "b"],
+          left: ["date_due", "date-due"],
           right: [],
-          labels: { a: "A", b: "B" },
-          strictNames: { a: "date_due", b: "date-due" },
-          types: { a: "tag", b: "tag" },
-          active: { a: "yes", b: "yes" },
-          enabled: { a: true, b: true },
+          labels: { date_due: "A", "date-due": "B" },
+          strictNames: { date_due: "DueA", "date-due": "DueB" },
+          types: { date_due: "tag", "date-due": "tag" },
+          active: { date_due: "yes", "date-due": "yes" },
+          enabled: { date_due: true, "date-due": true },
         },
         leftMode: {
           fields: [
-            { id: "a", orderKey: "a", prefix: "#", values: [{ token: "#one" }] },
-            { id: "b", orderKey: "b", prefix: "#", values: [{ token: "#two" }] },
+            { id: "date_due", orderKey: "date_due", prefix: "#", values: [{ token: "#one" }] },
+            { id: "date-due", orderKey: "date-due", prefix: "#", values: [{ token: "#two" }] },
           ],
         },
         rightMode: { fields: [] },
@@ -294,7 +294,7 @@ function allDefs(cfg: Any): Any[] {
   const defs = registry.buildPkmCommandDefs(
     () => "{}", () => "{}", internals.normalizePkmOrder, cfg, FEATURE_ORDER,
   ) as Any[];
-  const forFields = defs.filter(d => ["a", "b"].includes(String(d.orderKey || "")));
+  const forFields = defs.filter(d => ["date_due", "date-due"].includes(String(d.orderKey || "")));
   assert.equal(forFields.length, 4,
     "у двух Fields должно быть четыре команды, найдено " + forFields.length);
 
@@ -303,7 +303,7 @@ function allDefs(cfg: Any): Any[] {
     "команды разных Fields делят идентификатор — вторая затрёт первую: " + idList.join(", "));
   assert.ok(idList.includes("date-due-next") && idList.includes("date-due-2-next"),
     "разводка не сработала: " + idList.join(", "));
-  ok("совпадение строгих имён разводится, и ни одна команда не затирает другую");
+  ok("совпадение ключей разводится, и ни одна команда не затирает другую");
 }
 
 /* ---- корень Б-11: поиск хоткея находит команду реестра ------------------ */

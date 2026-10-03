@@ -696,7 +696,7 @@ async function run() {
    * реестр её не повторяет: из трёх копий вырос дефект Б-11. Проверяется не
    * шаблон строки, а то, что реестр спрашивает модуль.
    */
-  assertTrue(/__commandIds\.pkmFieldCommandId\(strict, dir, usedIds\)/.test(commandRegistrySrc), "command registry asks the shared module for field command IDs");
+  assertTrue(/__commandIds\.pkmFieldCommandId\(orderKey, dir, usedIds\)/.test(commandRegistrySrc), "command registry asks the shared module for field command IDs");
   assertFalse(/inlineOverhaul_/.test(commandRegistrySrc), "command registry has no legacy command ID of its own");
   /*
    * **Старую форму идентификатора помнит карта, а не функция** (ревизия

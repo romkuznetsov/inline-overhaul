@@ -220,6 +220,33 @@ function registerNavigation(plugin) {
   }
 }
 
+/**
+ * Адрес команды Field строился из имени, теперь из ключа (В-275): у Field,
+ * переименованного раньше, хоткей переезжает со старого адреса — один раз, при
+ * загрузке. Служебное API хоткеев — как у восстановления копии (Б18).
+ */
+function carryRenamedFieldHotkeys(plugin, defs) {
+  const hm = plugin && plugin.app ? plugin.app.hotkeyManager : null;
+  /* Проба: служебного API может не быть — переносить нечем. */
+  if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function" || !hm.customKeys) return;
+  const prefix = (plugin.manifest && plugin.manifest.id ? plugin.manifest.id : "inline-overhaul") + ":";
+  const live = new Set(defs.map((d) => String(d && d.id ? d.id : "")));
+  let moved = false;
+  for (const d of defs) {
+    if (!d || !d.orderKey || !d.strictName) continue;
+    const oldId = __commandIds.kebab(d.strictName) + "-" + __commandIds.directionLabel(d.direction);
+    if (live.has(oldId)) continue;
+    const keys = hm.customKeys[prefix + oldId];
+    if (!Array.isArray(keys) || !keys.length || hm.customKeys[prefix + d.id]) continue;
+    hm.setHotkeys(prefix + d.id, keys);
+    hm.removeHotkeys(prefix + oldId);
+    moved = true;
+  }
+  if (moved && typeof hm.save === "function") {
+    Promise.resolve(hm.save()).catch((e) => console.error("[inline-overhaul] hotkeys.json not saved", e));
+  }
+}
+
 function registerPkm(plugin) {
   const registry = getCommandRegistry();
   const cfgNow = plugin.getConfig();
@@ -235,6 +262,7 @@ function registerPkm(plugin) {
     return;
   }
 
+  if (!plugin._registeredPkmCommandIds) carryRenamedFieldHotkeys(plugin, defs);
   plugin._registeredPkmCommandIds = plugin._registeredPkmCommandIds || new Set();
   plugin._registeredPkmCommandNames = plugin._registeredPkmCommandNames || new Map();
 

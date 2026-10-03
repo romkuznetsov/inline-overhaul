@@ -324,11 +324,11 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
    */
   const usedIds = __commandIds.reservedCommandIds(featureOrder);
   const pushDef = (strict, dir, orderKey, v2Command, makeExtra) => {
-    const id = __commandIds.pkmFieldCommandId(strict, dir, usedIds);
+    const id = __commandIds.pkmFieldCommandId(orderKey, dir, usedIds);
     /*
      * В имени команды — строгое имя Field (`Name`), а не `Name in TagWheel`
-     * (2026-09-04). Идентификатор — из того же строгого имени и не меняется:
-     * хоткей переживает переименование.
+     * (2026-09-04). Идентификатор — из ключа Order: хоткей переживает
+     * переименование (В-275).
      */
     const shown = normalizeLabelPart(strict, "field");
     const strictLabel = shown;
