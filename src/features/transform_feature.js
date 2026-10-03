@@ -1973,17 +1973,22 @@ function backlinkTargetsFromContext(context, cfg) {
   return out;
 }
 
+/** Поля-ссылки из конфига; один проход на оба вопроса о MOC (Н-17). */
+function linkFields(cfg) {
+  const links = __sharedUtils.readCfgPath(cfg, "pkm.fields.links.fields");
+  return Array.isArray(links) ? links : [];
+}
+
 /**
  * Link, который не MOC (цикл 98, тест 3): к нему backlinks не применяются.
  * Карта — `useAsMoc` в Order; `false` — «нет», нет ключа — «да». Отдаёт id полей.
  */
 function notMocFieldIds(cfg) {
-  const fields = isObj(cfg) && isObj(cfg.pkm) && isObj(cfg.pkm.fields) ? cfg.pkm.fields : {};
-  const map = isObj(fields.order) && isObj(fields.order.useAsMoc) ? fields.order.useAsMoc : {};
+  const raw = __sharedUtils.readCfgPath(cfg, "pkm.fields.order.useAsMoc");
+  const map = isObj(raw) ? raw : {};
   const off = new Set(Object.keys(map).filter((k) => map[k] === false).map((k) => String(k).trim()));
   if (!off.size) return off;
-  const links = isObj(fields.links) && Array.isArray(fields.links.fields) ? fields.links.fields : [];
-  for (const f of links) if (f && off.has(String(f.orderKey || "").trim())) off.add(String(f.id || "").trim());
+  for (const f of linkFields(cfg)) if (f && off.has(String(f.orderKey || "").trim())) off.add(String(f.id || "").trim());
   return off;
 }
 
@@ -1992,8 +1997,7 @@ function notMocTargets(cfg) {
   const off = notMocFieldIds(cfg);
   const out = new Set();
   if (!off.size) return out;
-  const links = isObj(cfg.pkm.fields.links) && Array.isArray(cfg.pkm.fields.links.fields) ? cfg.pkm.fields.links.fields : [];
-  for (const f of links) {
+  for (const f of linkFields(cfg)) {
     if (!f || !off.has(String(f.id || "").trim())) continue;
     for (const v of Array.isArray(f.values) ? f.values : []) {
       const tok = String(v && v.token || v || "").trim();
