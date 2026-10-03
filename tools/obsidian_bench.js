@@ -1357,10 +1357,23 @@ const SCENARIOS = {
       presets: document.querySelectorAll(".io-cats .io-vals__row--child").length,
       yaml: [...document.querySelectorAll(".io-fields .io-sub")].map((n) => n.textContent.trim()),
     }));
+    /* Выбор типа: значок и цвет от темы (его 💬 к тесту 1 цикла 125). */
+    await host.click(".io-fields .io-cats__tbtn");
+    await host.waitForTimeout(300);
+    Object.assign(table, await host.evaluate(() => {
+      const items = [...document.querySelectorAll(".io-fields .io-cats__titem")];
+      return {
+        types: items.length,
+        icons: items.filter((n) => n.querySelector(".io-cats__ticon svg")).length,
+        /* Цвет действует, а не только задан: у темы Minimal он hex, и `rgb(var())` был недействителен. */
+        colored: items.filter((n) => getComputedStyle(n).color !== getComputedStyle(n.parentElement).color).length,
+      };
+    }));
     if (process.env.IO_SHOTS) {
       const t = await host.$(".io-fields__detail");
       if (t) await t.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field.png") });
     }
+    await host.keyboard.press("Escape").catch(() => {});
     await host.keyboard.press("Escape").catch(() => {});
     const got = await win.evaluate(async () => {
       const a = window.app;
@@ -1387,6 +1400,7 @@ const SCENARIOS = {
     Object.assign(got, table);
     console.log(JSON.stringify(got, null, 1));
     const ok = got.type === "command" && !got.defs.length && got.cats === 1 && got.presets === 3
+      && got.types === 13 && got.icons === 13 && got.colored === 13
       && got.commands.join() === "inline-overhaul:format-callouts-next,inline-overhaul:format-callouts-previous"
       && got.after === "> [!note]\n> - Research plan\n>   - read papers\n- buy bread\n" && got.undone;
     console.log(ok ? "ok: Command Field заведён окном, категория пришла с пресетами, команда — одна правка и один Ctrl+Z" : "РАСХОДИТСЯ");
@@ -1454,6 +1468,57 @@ const SCENARIOS = {
       && after === "> [!tip]\n> - Research plan\n> \t- read papers\n- buy bread\n" && undone === got.doc;
     console.log(ok ? "ok: Command Field в колесе — категория, пресет, Enter одной правкой, Ctrl+Z" : "РАСХОДИТСЯ");
     return ok;
+  },
+
+  /* Скроллер у перенесённой ячейки (его снимок к тесту 1 цикла 125): коробка у ячейки, а не во всю заметку. */
+  async "scroller-wrapped-cell"(win) {
+    await win.evaluate(async () => {
+      const a = window.app;
+      const f = await a.vault.create("wrap.md", "x\n");
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    /* Активная ячейка — по координатам её начала и конца, как у самого оверлея. */
+    const measure = () => win.evaluate(() => {
+      const e = window.app.workspace.activeEditor.editor;
+      const line = e.getLine(0);
+      const m = /\*\*\[(.*?)\]\*\*/.exec(line);
+      const box = [...document.querySelectorAll(".io-twscroller--shown")][0];
+      if (!m || !box) return null;
+      const cm = e.cm;
+      const a = cm.coordsAtPos(e.posToOffset({ line: 0, ch: m.index + 3 }));
+      const b = cm.coordsAtPos(e.posToOffset({ line: 0, ch: m.index + m[0].length - 3 }));
+      const r = box.getBoundingClientRect();
+      return { cell: m[1], wrapped: b.top > a.bottom - 1, aLeft: a.left, bLeft: b.left, boxL: r.left, boxW: r.width };
+    });
+    for (let words = 1; words < 60; words++) {
+      await win.evaluate((words) => {
+        const e = window.app.workspace.activeEditor.editor;
+        e.setValue("- " + "lorem ".repeat(words).trim() + "\n");
+        e.setCursor({ line: 0, ch: 2 });
+        e.focus();
+      }, words);
+      await win.waitForTimeout(120);
+      await runCommand(win, "open-tagwheel-right");
+      await win.waitForTimeout(300);
+      for (let i = 0; i < 12; i++) {
+        const m = await measure();
+        if (m && m.wrapped) {
+          console.log("слов:", words, JSON.stringify(m));
+          await win.keyboard.press("Escape");
+          /* Коробка у начала ячейки или у её второй части, а не у начала строки заметки. */
+          const ok = Math.abs(m.boxL - m.aLeft) < 12 || Math.abs(m.boxL - (m.bLeft - 8)) < 12;
+          console.log(ok ? "ok: скроллер у перенесённой ячейки стоит у неё" : "РАСХОДИТСЯ");
+          return ok;
+        }
+        await win.keyboard.press("ArrowRight");
+        await win.waitForTimeout(100);
+      }
+      await win.keyboard.press("Escape");
+      await win.waitForTimeout(150);
+    }
+    console.log("перенесённой ячейки не получилось — КОНТРОЛЬ: стенду нечего мерить");
+    return false;
   },
 
   async "new-field"(win, browser) {

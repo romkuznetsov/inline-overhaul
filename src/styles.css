@@ -3721,6 +3721,26 @@ body.theme-dark {
 .io-cats .io-cats__keep--on { border-color: var(--interactive-accent); color: var(--text-normal); background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary)); }
 .io-cats__same { color: var(--text-warning); font-size: var(--font-ui-smaller); }
 .io-cats__empty { padding: 8px 10px; }
+/* Выбор типа коллаута: значок и цвет темы (`--callout-color` — «r, g, b»), список под кнопкой. */
+.io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
+.io-cats__type { position: relative; flex: 1 1 96px; min-width: 0; }
+.io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: auto; min-height: 26px; padding: 2px 8px;
+  justify-content: flex-start; font-size: var(--font-ui-smaller); box-shadow: none;
+  color: rgb(var(--io-callout-rgb, var(--mono-rgb-100))); background: rgba(var(--io-callout-rgb, var(--mono-rgb-100)), 0.1);
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+}
+.io-cats .io-cats__titem { border: none; border-radius: 0; }
+.io-cats .io-cats__titem--on { font-weight: 600; }
+.io-cats__ticon { display: inline-flex; width: 14px; height: 14px; flex: none; }
+.io-cats__ticon svg { width: 14px; height: 14px; }
+.io-cats__tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-cats__tlist {
+  /* В потоке ячейки: у таблицы `overflow: hidden`, всплывающий список она обрезала (стенд). */
+  margin-top: 2px; max-height: 260px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1px; padding: 3px;
+  background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: var(--shadow-s);
+}
 /* Выбор категории до выбора — серым, как `not set` у хоткея; варианты списка — обычным цветом. */
 .io-cats .io-select.io-select--unset { color: var(--text-faint); }
 .io-cats .io-select.io-select--unset option { color: var(--text-normal); }

@@ -98,6 +98,11 @@ function getAnchorRect(editor, lineNumber, controlLine) {
     let a = cm.coordsAtPos(from);
     let b = cm.coordsAtPos(to);
     if (!a || !b) return null;
+    /* Ячейка перенесена: верх — у первой части, низ — у последней (его снимок, цикл 125). */
+    if (Number(b.top) > Number(a.bottom || a.top)) {
+      return { left: Number(a.left), right: Number(a.right || a.left), top: Number(a.top), bottom: Number(b.bottom || b.top),
+        downLeft: Math.max(0, Number(b.left) - 8), width: 8 };
+    }
     let left = Math.min(a.left, b.left);
     let right = Math.max(a.right || a.left, b.right || b.left);
     let top = Math.min(a.top, b.top);
@@ -213,7 +218,8 @@ function createTagWheelScrollerOverlay(options) {
     let rect = target.root.getBoundingClientRect();
     let w = Math.ceil(rect.width);
     let h = Math.ceil(rect.height);
-    let left = clamp(anchor.left, 4, Math.max(4, vw - w - 4));
+    let from = mode === "up" || anchor.downLeft == null ? anchor.left : anchor.downLeft;
+    let left = clamp(from, 4, Math.max(4, vw - w - 4));
     let top = mode === "up"
       ? (anchor.top - h - gap)
       : (anchor.bottom + gap);

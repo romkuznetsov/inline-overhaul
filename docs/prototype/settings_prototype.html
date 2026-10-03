@@ -1810,6 +1810,19 @@ body.theme-dark {
 .io-cats__inner { min-width: 330px; }
 /* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
 .io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
+.io-cats__type { position: relative; flex: 1 1 96px; min-width: 0; }
+.io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding: 2px 8px; justify-content: flex-start; font-size: var(--font-ui-smaller);
+  color: rgb(var(--io-callout-rgb, 120, 120, 120)); background: rgba(var(--io-callout-rgb, 120, 120, 120), 0.1);
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); cursor: pointer;
+}
+.io-cats .io-cats__titem { border: none; border-radius: 0; }
+.io-cats .io-cats__titem--on { font-weight: 600; }
+.io-cats__ticon { display: inline-flex; width: 14px; justify-content: center; flex: none; }
+.io-cats__tname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-cats__tlist { margin-top: 2px; max-height: 260px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1px; padding: 3px; background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
@@ -3665,7 +3678,15 @@ const CF_CATEGORIES = [
     defaults:[{ name:"", keep:[] }] }
 ];
 const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
-const CALLOUT_FOLDS = [{ value:"", label:"Open" }, { value:"-", label:"Folded" }, { value:"+", label:"Unfolded" }];
+/* Значок и цвет коллаута — как у темы по умолчанию; в плагине их отдаёт сама тема
+   (`--callout-icon`, `--callout-color`), здесь — мокданные (Р8). */
+const CALLOUT_LOOK = {
+  note: ["✎", "8, 109, 221"], abstract: ["📋", "0, 191, 188"], info: ["ℹ", "8, 109, 221"], todo: ["☑", "8, 109, 221"],
+  tip: ["🔥", "0, 191, 188"], success: ["✓", "8, 185, 78"], question: ["?", "236, 117, 0"], warning: ["⚠", "236, 117, 0"],
+  failure: ["✕", "233, 49, 71"], danger: ["⚡", "233, 49, 71"], bug: ["🐞", "233, 49, 71"], example: ["☰", "120, 82, 238"], quote: ["❝", "158, 158, 158"]
+};
+/* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
+const CALLOUT_FOLDS = [{ value:"", label:"Open" }, { value:"-", label:"Closed" }];
 
 /* The properties this vault already uses, with the type Obsidian has for
    them. In the plugin this list comes from the metadata cache. */
@@ -6126,7 +6147,7 @@ function cfPresetName(c, p) {
   if (String(p.name || "").trim()) return p.name.trim();
   if (c.id === "callouts") {
     const t = String(p.type || "note");
-    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · folded" : p.fold === "+" ? " · unfolded" : "");
+    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · closed" : "");
   }
   const kept = (p.keep || []).map(id => (field(id) || { name:id }).name);
   return kept.length ? "Keep " + kept.join(", ") : "Clear all";
@@ -6220,10 +6241,34 @@ function cfTable(host, f, redraw) {
       const set = el("div", "io-cats__set", prow);
       reg.params.forEach(kind => {
         if (kind === "callout-type") {
-          const t = selectEl(set, CALLOUT_TYPES, p.type || "note", "Callout type of " + cfPresetName(c, p), "io-select");
-          t.addEventListener("change", () => { p.type = t.value; renderContent(); });
+          /* Значок и цвет рядом с типом (его 💬 к тесту 1 цикла 125): обычный select их не рисует. */
+          const paint = (host, type) => {
+            const look = CALLOUT_LOOK[type] || ["", ""];
+            if (look[1]) cssVar(host, "--io-callout-rgb", look[1]);
+            el("span", "io-cats__ticon", host, look[0]);
+            el("span", "io-cats__tname", host, type);
+          };
+          const wrap = el("div", "io-cats__type", set);
+          const b = el("button", "io-cats__tbtn", wrap);
+          b.type = "button";
+          b.setAttribute("aria-label", "Callout type of " + cfPresetName(c, p));
+          b.setAttribute("aria-haspopup", "listbox");
+          paint(b, p.type || "note");
+          b.addEventListener("click", () => {
+            const open = wrap.querySelector && wrap.querySelector(".io-cats__tlist");
+            if (open) { open.remove(); return; }
+            const list = el("div", "io-cats__tlist", wrap);
+            list.setAttribute("role", "listbox");
+            CALLOUT_TYPES.forEach(type => {
+              const item = el("button", "io-cats__titem" + (type === (p.type || "note") ? " io-cats__titem--on" : ""), list);
+              item.type = "button";
+              item.setAttribute("role", "option");
+              paint(item, type);
+              item.addEventListener("click", () => { p.type = type; renderContent(); });
+            });
+          });
         } else if (kind === "fold") {
-          const fo = selectEl(set, CALLOUT_FOLDS, p.fold || "", "Fold of " + cfPresetName(c, p), "io-select");
+          const fo = selectEl(set, CALLOUT_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + cfPresetName(c, p), "io-select");
           fo.addEventListener("change", () => { p.fold = fo.value; renderContent(); });
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);

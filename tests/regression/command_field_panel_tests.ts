@@ -130,6 +130,23 @@ const panel = makePanel(base);
   ok("категория приходит с пресетами; глаз, клон и пометка совпавшего");
 }
 
+/* 2б. Тип коллаута — свой выбор со значком (его `💬` к тесту 1 цикла 125); свёрнутость — Open и Closed. */
+{
+  const tbtn = labelled(panel.host, "Callout type of Warning");
+  click(tbtn);
+  const items = all(panel.host, "io-cats__titem");
+  assert.equal(items.length, 13, "в списке не все типы коллаутов");
+  click(items.find(n => n.getAttribute("aria-label") === "danger") as StubNode);
+  const presets = panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets;
+  assert.equal(presets[3].type, "danger", "выбор типа не записался");
+  const fold = labelled(panel.host, "Fold of Note");
+  assert.deepEqual(fold.children.map(n => (n as Any).value), ["", "-"], "у свёрнутости не два положения");
+  /* Обратно — дальше проверки опираются на Warning. */
+  click(labelled(panel.host, "Callout type of Warning"));
+  click(all(panel.host, "io-cats__titem").find(n => n.getAttribute("aria-label") === "warning") as StubNode);
+  ok("выбор типа коллаута списком со значком; свёрнутость — Open и Closed");
+}
+
 /* 3. У Command Field нет Prefix behavior и свойства заметки; есть пара команд на категорию. */
 {
   const all_ = text(panel.host);

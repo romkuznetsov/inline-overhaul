@@ -5,7 +5,7 @@
  */
 
 import type { El, DragEv } from "./dom.ts";
-import { el, btn, selectInput, textInput, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, selectInput, textInput, tipBelow } from "./dom.ts";
 import type { CommandCategory, CommandPreset, FieldRow } from "./fields_model.ts";
 /* Реестр категорий Command Field — один дом с командами (4.3, У-32). */
 import commandField from "../../../features/command_field.js";
@@ -30,11 +30,97 @@ const CAT_DESC: Record<string, string> = {
 };
 
 /** Свёрнутость коллаута (6.1): значения — разметки Obsidian, подписи — каталога. */
+/* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
 const FOLD_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "", label: "FOLD_OPEN" },
-  { value: "-", label: "FOLD_FOLDED" },
-  { value: "+", label: "FOLD_UNFOLDED" },
+  { value: "-", label: "FOLD_CLOSED" },
 ];
+
+/** Вид коллаута у темы: значок и цвет из `.callout[data-callout]` (переменные Obsidian). */
+interface CalloutLook { icon: string; color: string }
+const looks = new Map<string, CalloutLook>();
+function calloutLook(type: string): CalloutLook | null {
+  const cached = looks.get(type);
+  if (cached) return cached;
+  const g = globalThis as unknown as { document?: { body?: El }; getComputedStyle?: (n: unknown) => { getPropertyValue(k: string): string } };
+  const body = g.document && g.document.body;
+  if (!body || typeof g.getComputedStyle !== "function") return null;
+  /* Проба: узел коллаута платформы, вне экрана; без тела документа — без вида. */
+  const probe = body.createDiv();
+  probe.addClass("callout", "io-cats__probe");
+  probe.setAttribute("data-callout", type);
+  const style = g.getComputedStyle(probe);
+  const look = {
+    icon: String(style.getPropertyValue("--callout-icon") || "").trim(),
+    color: rgbTriple(String(style.getPropertyValue("--callout-color") || "")),
+  };
+  probe.remove();
+  looks.set(type, look);
+  return look;
+}
+
+/**
+ * Цвет коллаута тройкой «r, g, b». Тема по умолчанию так его и пишет, а Minimal
+ * — hex-цветом (`#6c99bb`, стенд на его теме): `rgb(var(...))` от hex недействителен.
+ */
+function rgbTriple(raw: string): string {
+  const v = String(raw || "").trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+  if (hex) {
+    const h = (hex[1] as string).length === 3 ? (hex[1] as string).split("").map(c => c + c).join("") : hex[1] as string;
+    return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ");
+  }
+  const fn = /^rgba?\(([^)]*)\)$/i.exec(v);
+  if (fn) return (fn[1] as string).split(/[\s,/]+/).filter(Boolean).slice(0, 3).join(", ");
+  return /^\d+\s*,\s*\d+\s*,\s*\d+$/.test(v) ? v : "";
+}
+
+/** Значок и цвет типа в узле; без платформы — только имя. */
+function paintType(host: El, type: string, setIcon?: (node: unknown, icon: string) => void): void {
+  const look = calloutLook(type);
+  const icon = el(host, "span", "io-cats__ticon");
+  if (look && look.color) cssVar(host, "--io-callout-rgb", look.color);
+  if (look && look.icon && setIcon) setIcon(icon, look.icon);
+  el(host, "span", "io-cats__tname", type);
+}
+
+/**
+ * Выбор типа коллаута: кнопка со значком и цветом, список — так же (его `💬` к
+ * тесту 1 цикла 125: «чтобы пользователь понимал, что он получит»). Обычный
+ * `select` значков не рисует.
+ */
+function typePicker(host: El, value: string, label: string, enabled: boolean,
+  setIcon: ((node: unknown, icon: string) => void) | undefined, pick: (type: string) => void): void {
+  const wrap = el(host, "div", "io-cats__type");
+  const button = btn(wrap, "io-cats__tbtn", { label });
+  button.setAttribute("aria-haspopup", "listbox");
+  button.setAttribute("aria-expanded", "false");
+  button.disabled = !enabled;
+  paintType(button, value, setIcon);
+  let list: El | null = null;
+  const close = (): void => {
+    if (list) list.remove();
+    list = null;
+    button.setAttribute("aria-expanded", "false");
+  };
+  button.addEventListener("click", (() => {
+    if (list) { close(); return; }
+    list = el(wrap, "div", "io-cats__tlist");
+    list.setAttribute("role", "listbox");
+    button.setAttribute("aria-expanded", "true");
+    for (const type of CF.CALLOUT_TYPES) {
+      const item = btn(list, "io-cats__titem" + (type === value ? " io-cats__titem--on" : ""), { label: type });
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", type === value ? "true" : "false");
+      paintType(item, type, setIcon);
+      item.addEventListener("click", (() => { close(); if (type !== value) pick(type); }) as never);
+    }
+  }) as never);
+  wrap.addEventListener("focusout", ((ev: { relatedTarget?: unknown }) => {
+    const next = ev && ev.relatedTarget as { closest?: (s: string) => unknown } | undefined;
+    if (!next || typeof next.closest !== "function" || next.closest(".io-cats__type") !== wrap) close();
+  }) as never);
+}
 
 /** Имя категории: своё, иначе реестра (4.1). */
 export function categoryName(c: CommandCategory): string {
@@ -52,6 +138,8 @@ export interface CategoriesTableOpts {
   fieldName: string;
   /** Список `cats` уже изменён на месте: хозяин пишет его и перерисовывает. */
   save: () => void;
+  /** Значок платформы (`setIcon`): нет платформы — выбор типа без значков. */
+  setIcon?: (node: unknown, icon: string) => void;
 }
 
 /**
@@ -162,14 +250,10 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
       const set = el(pline, "div", "io-cats__set");
       for (const kind of reg ? reg.params : []) {
         if (kind === "callout-type") {
-          const ty = selectInput(set, "io-select", {
-            options: CF.CALLOUT_TYPES.map(v => ({ value: v, label: v })), value: p.type || "note", label: say("PRESET_TYPE_ARIA", pn),
-          });
-          ty.disabled = !t.enabled;
-          ty.addEventListener("change", (() => { p.type = String(ty.value); save(); }) as never);
+          typePicker(set, p.type || "note", say("PRESET_TYPE_ARIA", pn), t.enabled, t.setIcon, v => { p.type = v; save(); });
         } else if (kind === "fold") {
           const f = selectInput(set, "io-select", {
-            options: FOLD_OPTIONS.map(x => ({ value: x.value, label: say(x.label) })), value: p.fold || "", label: say("PRESET_FOLD_ARIA", pn),
+            options: FOLD_OPTIONS.map(x => ({ value: x.value, label: say(x.label) })), value: p.fold === "-" ? "-" : "", label: say("PRESET_FOLD_ARIA", pn),
           });
           f.disabled = !t.enabled;
           f.addEventListener("change", (() => { p.fold = String(f.value); save(); }) as never);

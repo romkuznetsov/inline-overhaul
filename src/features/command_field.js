@@ -145,7 +145,7 @@ const callouts = {
   /** Имя по умолчанию — из параметров (4.1): `Note · folded`. */
   defaultName(p) {
     const t = String(p.type || "note");
-    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · folded" : p.fold === "+" ? " · unfolded" : "");
+    return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · closed" : "");
   },
   /** Что делает пресет неотличимым на тексте (В-281). */
   signature: (p) => String(p.type || "").toLowerCase() + "|" + (p.fold || ""),
@@ -163,6 +163,11 @@ const callouts = {
     const box = calloutAt(ctx.lines, ctx.cursor.line);
     if (!box) return -1;
     return presets.findIndex((p) => p && !p.hidden && callouts.signature(p) === box.type.toLowerCase() + "|" + box.fold);
+  },
+  /** Пустое значение в tagWheel — коллаута нет: снять тот, в котором каретка; вне — менять нечего. */
+  revert(ctx) {
+    const box = calloutAt(ctx.lines, ctx.cursor.line);
+    return box ? unwrapCallout(ctx.lines, box, ctx.cursor) : null;
   },
   /** Выбран в tagWheel (4.5): вне коллаута — обернуть, внутри — сменить тип; тот же — менять нечего. */
   apply(ctx, preset) {
@@ -305,6 +310,18 @@ function applyPresetInEditor(ed, cfg, fieldKey, categoryKey, presetIndex) {
   return "done";
 }
 
+/** Снять результат категории (пустое значение в tagWheel); у категории без обратного — менять нечего. */
+function revertInEditor(ed, cfg, fieldKey, categoryKey) {
+  const entry = fieldCategories(cfg, fieldKey).find((c) => c.key === categoryKey);
+  const category = entry ? categoryById(entry.id) : null;
+  if (!category || typeof category.revert !== "function") return "nothing";
+  const lines = String(ed.getValue()).split("\n");
+  const r = category.revert({ lines, cursor: ed.getCursor(), selection: null, cfg });
+  if (!r) return "nothing";
+  commit(ed, lines, r);
+  return "done";
+}
+
 /**
  * Исполнить категорию в редакторе: одна транзакция — один шаг `Ctrl+Z` (R-1).
  * Ответ: `"done"`, `"nothing"` (менять нечего), `"no-presets"`, `"unknown"`.
@@ -329,6 +346,7 @@ module.exports = {
   fieldCategories,
   runInEditor,
   applyPresetInEditor,
+  revertInEditor,
   calloutAt,
   stripQuoteLevel,
 };

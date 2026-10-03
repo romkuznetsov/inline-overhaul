@@ -115,13 +115,19 @@ async function run() {
     ok("один шаг отмены на пресет из колеса");
   }
 
-  /* 3. Выбрана только категория — первый видимый пресет (4.4); Escape ничего не пишет. */
+  /* 3. Пустое значение — результата нет (его 💬 к тесту 1 цикла 125): вне коллаута Enter ничего не создаёт,
+        в коллауте снимает его; Escape ничего не пишет. */
   {
     const r = await drive(config(), DOC, [OPEN, UP, ENTER]);
-    assert.equal(r.doc.split("\n")[0], "> [!note]", "категория без пресета применила не первый");
+    assert.equal(r.doc, DOC, "категория без пресета создала коллаут");
+    const inside = "> [!note]\n> - Research plan\n- buy bread";
+    const off = await drive(config(), inside, [OPEN, RIGHT, DOWN, ENTER], { line: 1, ch: 4 });
+    assert.equal(off.doc, "- Research plan\n- buy bread", "пустой пресет в коллауте его не снял");
+    const offCat = await drive(config(), inside, [OPEN, DOWN, ENTER], { line: 1, ch: 4 });
+    assert.equal(offCat.doc, "- Research plan\n- buy bread", "пустая категория в коллауте его не сняла");
     const esc = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, { key: "Escape" }]);
     assert.equal(esc.doc, DOC, "Escape что-то записал");
-    ok("Enter на категории — первый пресет; Escape — без следа");
+    ok("пустое значение: вне — ничего, в коллауте — снимает; Escape — без следа");
   }
 
   /* 4. Enter на обычном Field: выбор Command Field в строку не пишется. */

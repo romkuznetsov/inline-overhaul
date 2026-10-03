@@ -1618,6 +1618,7 @@ export function renderCommandCategories(host: El, row: FieldRow, o: FieldsViewOp
   closers.push(drawCategoriesTable(sec, cats, {
     say, enabled: o.enabled, showTips: o.showTips, showIds: o.showIds,
     lineFields: o.model.listLineFields(), fieldName: row.strictName,
+    ...(o.ctx.platform ? { setIcon: o.ctx.platform.setIcon } : {}),
     save: () => { o.model.setCommandCategories(row.key, cats); o.redraw(); },
   }));
   return () => { closers.forEach(fn => fn()); };

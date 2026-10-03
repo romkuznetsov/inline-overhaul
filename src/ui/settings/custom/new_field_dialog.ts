@@ -529,6 +529,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       closers.push(drawCategoriesTable(body, d.categories, {
         say, enabled: true, showTips: o.showTips, showIds: o.showIds,
         lineFields: o.lineFields || [], fieldName: d.name.trim() || say("NEW_FIELD_NAME_HINT"),
+        ...(o.ctx.platform ? { setIcon: o.ctx.platform.setIcon } : {}),
         save: () => { tick = 0; draw(); },
       }));
       refresh();

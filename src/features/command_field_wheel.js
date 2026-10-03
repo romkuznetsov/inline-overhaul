@@ -57,6 +57,7 @@ function wheelInput(cfg) {
     fields,
     apply: (editor, key, categoryKey, presetIndex) =>
       __commandField.applyPresetInEditor(editor, cfg, key, categoryKey, presetIndex),
+    revert: (editor, key, categoryKey) => __commandField.revertInEditor(editor, cfg, key, categoryKey),
   };
 }
 
@@ -96,7 +97,7 @@ function inject(rules, input) {
 function hydrate(session, input, editor) {
   /* Command Field нет — документ не читается вовсе; редактор без `getValue` — проба, «нет» — ответ. */
   if (!input || !Array.isArray(input.fields) || !input.fields.length || !editor || typeof editor.getValue !== "function") return;
-  const ctx ={ lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
+  const ctx = { lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
   for (const f of input.fields) {
     for (const c of f.categories) {
       const index = c.recognize(ctx);
@@ -121,9 +122,10 @@ function clearSelections(rules, session) {
 }
 
 /**
- * `Enter` на ячейке Command Field: снять полосу (`cancel`) и применить пресет;
- * выбрана только категория — её первый видимый пресет (4.4). `false` — ячейка
- * не его, колесо ведёт себя как обычно.
+ * `Enter` на ячейке Command Field: снять полосу (`cancel`) и применить пресет.
+ * Пустое значение — результата нет (его `💬` к тесту 1 цикла 125, «универсальное
+ * правило»): каретка в результате категории — он снимается, вне — ничего. У
+ * категории с одним пресетом её выбор и есть пресет. `false` — ячейка не его.
  */
 function enter(state, cancel) {
   const fid = String(state.session.activeFieldId || "");
@@ -134,16 +136,20 @@ function enter(state, cancel) {
   const own = input && input.fields.find((f) => f.key === key);
   const pick = String(state.session.selected[key + SUB] || "");
   const catName = String(state.session.selected[key] || "");
+  const chosen = own ? own.categories.find((x) => x.name === catName) : null;
   let target = null;
   if (own && pick) {
     const slash = pick.lastIndexOf("/");
     target = { category: pick.slice(0, slash), index: Number(pick.slice(slash + 1)) };
-  } else if (own && catName) {
-    const c = own.categories.find((x) => x.name === catName);
-    if (c) target = { category: c.key, index: c.presets[0].index };
+  } else if (chosen && chosen.presets.length === 1) {
+    target = { category: chosen.key, index: chosen.presets[0].index };
   }
+  /* Пустое: снять результат выбранной категории, а без категории — той, в чьём результате каретка. */
+  const ctx = target || !own ? null : { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
+  const undo = ctx ? (chosen || own.categories.find((c) => c.recognize(ctx) >= 0)) : null;
   cancel(state);
   if (target) input.apply(state.editor, key, target.category, target.index);
+  else if (undo) input.revert(state.editor, key, undo.key);
   return true;
 }
 
