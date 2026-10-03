@@ -2629,3 +2629,9 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 **Что сделано.** `core/pkm_line_finalize_unified.js`: `isClearedLine` (признак `Clear line`, `В-260`) нормализовал конец круга своей копией `normalizeCycleEnd`, хотя `applyCycleEndAndInvariants` строкой выше уже получил то же значение от `applyCycleEndPostProcessing` (`cycleEndBehavior` в ответе). Предикаты двух копий совпадают условие в условие (`clear-prefix`, `off`, `of`, `none`, подстроки `clear` и `empty`, после `trim` и нижнего регистра). Копия снята, значение приходит аргументом. Расхождение с `defaultNoContent` на `parseLine → null`, названное в ревизии, этой правкой не тронуто: `parseLine` движков пустым не отвечает, и разбирать его нечем.
 
 **Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме двух строк часов у `Now`. Мутация (неверное имя поля ответа) роняет `starter_line_tests.ts`. Откат — коммит.
+
+**Исключение сто девяносто четвёртое, разрешение — постоянное слово В-120 (уборка с нулевым расхождением), строка Н-23 ревизии `AUDIT_2026-10-03`.**
+
+**Что сделано.** `core/line_pipeline.js`: `demoteLeftBodyToText` и `extractOriginalTextFromRawLine` снимали с начала тела формы (`stripLeadingValues`) и Value списка без формы (`В-247`) одной и той же петлёй до неподвижной точки, разница — набор узнаваемых слов и метки. Петля стала функцией `stripLeadingRun(text, markers, known)`; метки второго места (`getRightMarkers`) считаются один раз, а не на каждом круге — функция чистая.
+
+**Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме часов `Now` и номера процесса. Мутация (Value списка не узнаётся) роняет `done_marker_tests.js` и `starter_line_tests.ts`. Откат — коммит.

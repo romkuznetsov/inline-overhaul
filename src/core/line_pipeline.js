@@ -294,15 +294,7 @@ function demoteLeftBodyToText(leftRaw, shape, noFirstSeparator) {
    * список.
    */
   const words = __sharedUtils.lineWords(parts.body);
-  let rest = parts.body;
-  for (;;) {
-    const w = __sharedUtils.lineWords(stripLeadingValues(rest, shape.markers));
-    let k = 0;
-    while (k < w.length && shape.values.has(w[k])) k++;
-    const next = w.slice(k).join(" ");
-    if (next === rest) break;
-    rest = next;
-  }
+  const rest = stripLeadingRun(parts.body, shape.markers, shape.values);
   if (!rest) return null;
   const head = words.slice(0, words.length - __sharedUtils.lineWords(rest).length).join(" ");
   if (!shape.stayText) {
@@ -623,6 +615,23 @@ function stripLeadingValues(body, markers) {
   return left;
 }
 
+/**
+ * Чередует формы (`stripLeadingValues`) и Value списка без формы (`В-247`,
+ * `🙂‍↕️да`), пока с начала есть что снять. Общий для
+ * `extractOriginalTextFromRawLine` и `demoteLeftBodyToText` (Н-23).
+ */
+function stripLeadingRun(text, markers, known) {
+  let rest = text;
+  for (;;) {
+    const w = __sharedUtils.lineWords(stripLeadingValues(rest, markers));
+    let k = 0;
+    while (k < w.length && known.has(w[k])) k++;
+    const next = w.slice(k).join(" ");
+    if (next === rest) return rest;
+    rest = next;
+  }
+}
+
 function extractOriginalTextFromRawLine(rawLine, rules) {
   const seg = splitSegments(rawLine, rules);
   if (String(seg.text || "").trim()) {
@@ -636,16 +645,7 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
   /* Начало строки — общее объявление. */
   left = String(__sharedUtils.lineStartOf(left).body || "").trim();
   const managed = collectManagedTokens(rules);
-  /* Чередуются формы (`stripLeadingValues`) и Value списка без формы
-     (`В-247`, `🙂‍↕️да`); то же в `demoteLeftBodyToText`. */
-  for (;;) {
-    const w = __sharedUtils.lineWords(stripLeadingValues(left, getRightMarkers(rules)));
-    let k = 0;
-    while (k < w.length && managed.has(w[k])) k++;
-    const next = w.slice(k).join(" ");
-    if (next === left) break;
-    left = next;
-  }
+  left = stripLeadingRun(left, getRightMarkers(rules), managed);
   /* Объявленные токены снимаются по всему телу, не только с начала: иначе
      проза попадала в строку дважды (A18). */
   if (managed.size) {
