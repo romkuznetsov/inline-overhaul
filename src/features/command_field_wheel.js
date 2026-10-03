@@ -33,10 +33,18 @@ function wheelInput(cfg) {
       const categories = __commandField.fieldCategories(cfg, key).filter((c) => !c.hidden).map((c) => {
         const reg = __commandField.categoryById(c.id);
         const presets = [];
+        /* Совпавший клон в скроллере не виден, как скрытый (его `💬` к тесту 3 цикла 125, В-281). */
+        const seen = new Set();
         c.presets.forEach((p, index) => {
-          if (!p.hidden) presets.push({ index, name: String(p.name || "").trim() || reg.defaultName(p, fieldName) });
+          if (p.hidden || seen.has(reg.signature(p))) return;
+          seen.add(reg.signature(p));
+          presets.push({ index, name: String(p.name || "").trim() || reg.defaultName(p, fieldName) });
         });
-        return { key: c.key, name: c.name, presets };
+        return {
+          key: c.key, name: c.name, presets,
+          /* Какой пресет стоит под кареткой; у категории без результата (Очистка) — никакой. */
+          recognize: (ctx) => (typeof reg.recognize === "function" ? reg.recognize(ctx, c.presets) : -1),
+        };
       }).filter((c) => c.presets.length);
       fields.push({
         key, side, after: i ? list[i - 1] : "",
@@ -71,11 +79,33 @@ function inject(rules, input) {
       id: f.key + SUB, orderKey: f.key + SUB, prefix: "", kind: KIND, dependsOn: f.key, parentIsNavigator: true,
       /* Ячейка пресетов называется по уровню, как `sub` у дочернего Field. */
       placeholder: "preset",
-      values: [].concat(...f.categories.map((c) => c.presets.map((p) => ({ id: c.key + "/" + p.index, token: p.name, allowedParentValues: [c.name] })))),
+      /* Один пресет — ячейки пресетов у категории нет: её выбор и есть пресет (его `💬` к тесту 2 цикла 125). */
+      values: [].concat(...f.categories.filter((c) => c.presets.length > 1)
+        .map((c) => c.presets.map((p) => ({ id: c.key + "/" + p.index, token: p.name, allowedParentValues: [c.name] })))),
     }, f.side, 0, opts));
     const list = Array.isArray(order[f.side]) ? order[f.side] : (order[f.side] = []);
     const at = f.after ? list.indexOf(f.after) : -1;
     list.splice(at + 1, 0, f.key);
+  }
+}
+
+/**
+ * Колесо открыто в результате категории (в коллауте) — её пресет выбран сразу,
+ * как Value обычного Field (его `💬` к тесту 1 цикла 125). Зовётся после разбора строки.
+ */
+function hydrate(session, input, editor) {
+  /* Command Field нет — документ не читается вовсе; редактор без `getValue` — проба, «нет» — ответ. */
+  if (!input || !Array.isArray(input.fields) || !input.fields.length || !editor || typeof editor.getValue !== "function") return;
+  const ctx ={ lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
+  for (const f of input.fields) {
+    for (const c of f.categories) {
+      const index = c.recognize(ctx);
+      const preset = c.presets.find((p) => p.index === index);
+      if (!preset) continue;
+      session.selected[f.key] = c.name;
+      if (c.presets.length > 1) session.selected[f.key + SUB] = c.key + "/" + preset.index;
+      break;
+    }
   }
 }
 
@@ -117,4 +147,4 @@ function enter(state, cancel) {
   return true;
 }
 
-module.exports = { wheelInput, inject, clearSelections, enter, isCommandField };
+module.exports = { wheelInput, inject, hydrate, clearSelections, enter, isCommandField };

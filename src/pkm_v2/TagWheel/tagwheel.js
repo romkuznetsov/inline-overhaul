@@ -2789,6 +2789,8 @@ async function runTagWheel(input, quickAddSettings) {
     if (d.length < 2) d = '0' + d
     session.__todayIso = y + '-' + m + '-' + d
     core.hydrateStateFromParsedLine(rules, session, parsedLine)
+    /* Каретка в результате категории — её пресет выбран сразу (№ 199). */
+    __commandFieldWheel.hydrate(session, runtimeInput.commandFields, editor)
     core.sanitizeState(rules, session)
     /* «На каком Field открывать» кладётся в правила, как порядок: движок читает правила (10.13.76). */
     core.applyActiveFieldChoiceToRules(rules, {

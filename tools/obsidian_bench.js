@@ -1432,6 +1432,20 @@ const SCENARIOS = {
     await win.keyboard.press("Enter");
     await win.waitForTimeout(500);
     const after = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    /* Снова колесо, каретка в коллауте: его пресет уже выбран (его 💬 к тесту 1 цикла 125). */
+    await runCommand(win, "open-tagwheel-right");
+    await win.waitForTimeout(500);
+    for (let i = 0; i < 20 && !/Callouts|\*\*\[Format\]\*\*/.test(await win.evaluate(() => { const e = window.app.workspace.activeEditor.editor; return e.getLine(e.getCursor().line); })); i++) {
+      await win.keyboard.press("ArrowRight");
+      await win.waitForTimeout(150);
+    }
+    const reopened = await win.evaluate(() => { const e = window.app.workspace.activeEditor.editor; return e.getLine(e.getCursor().line); });
+    await win.keyboard.press("Escape");
+    await win.waitForTimeout(300);
+    const afterEsc = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+    strips.push(reopened);
+    if (afterEsc !== after) { console.log("РАСХОДИТСЯ: Escape изменил текст", JSON.stringify(afterEsc)); return false; }
+    if (!/Callouts/.test(reopened) || !/Tip/.test(reopened)) { console.log("повторное открытие:", reopened, "| РАСХОДИТСЯ: выбранный пресет не показан"); return false; }
     await win.evaluate(() => window.app.workspace.activeEditor.editor.undo());
     await win.waitForTimeout(300);
     const undone = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());

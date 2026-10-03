@@ -155,6 +155,15 @@ const callouts = {
     { name: "Warning", type: "warning", fold: "" },
   ],
   hasRevert: true,
+  /**
+   * Каретка в коллауте — какой пресет стоит (его `💬` к тесту 1 цикла 125):
+   * номер в `presets`, первый совпавший (В-281); `-1` — не в коллауте или тип чужой.
+   */
+  recognize(ctx, presets) {
+    const box = calloutAt(ctx.lines, ctx.cursor.line);
+    if (!box) return -1;
+    return presets.findIndex((p) => p && !p.hidden && callouts.signature(p) === box.type.toLowerCase() + "|" + box.fold);
+  },
   /** Выбран в tagWheel (4.5): вне коллаута — обернуть, внутри — сменить тип; тот же — менять нечего. */
   apply(ctx, preset) {
     const box = calloutAt(ctx.lines, ctx.cursor.line);

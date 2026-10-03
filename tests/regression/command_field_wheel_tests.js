@@ -33,7 +33,8 @@ function config(o = {}) {
       },
       tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] }] },
       commands: { byField: { Fmt: { categories: [
-        { id: "callouts", key: "callouts", presets: [{ name: "Note", type: "note", fold: "" }, { name: "Tip", type: "tip", fold: "", hidden: !!o.hideTip }, { name: "Warning", type: "warning", fold: "" }] },
+        { id: "callouts", key: "callouts", presets: [{ name: "Note", type: "note", fold: "" }].concat(o.clone ? [{ name: "Note (copy)", type: "note", fold: "" }] : [],
+          [{ name: "Tip", type: "tip", fold: "", hidden: !!o.hideTip }, { name: "Warning", type: "warning", fold: "" }]) },
         { id: "cleanup", key: "cleanup", presets: [{ name: "", keep: [] }] },
       ] } } },
     } },
@@ -56,9 +57,9 @@ function windowMock() {
 }
 
 /** Документ после команд и клавиш; `cells` — что видно в ячейках колеса после открытия. */
-async function drive(cfg, doc, steps) {
+async function drive(cfg, doc, steps, at = { line: 0, ch: 3 }) {
   const editor = bench.makeCmEditor(doc);
-  editor.setCursor({ line: 0, ch: 3 });
+  editor.setCursor(at);
   const app = { workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } }, vault: {} };
   const said = [];
   const seen = [];
@@ -71,14 +72,14 @@ async function drive(cfg, doc, steps) {
       if (step.key) {
         global.window.fire("keydown", { key: step.key, code: step.key, preventDefault() {}, stopPropagation() {} });
         const st = global.window.__tagWheelState;
-        seen.push(st && st.active ? editor.getLine(0) : null);
+        seen.push(st && st.active ? editor.getLine(at.line) : null);
         continue;
       }
       if (step.undo) { editor.undo(); continue; }
       const def = defs(cfg).find((d) => d.id === step.run);
       assert.ok(def, "нет команды " + step.run);
       await runtime.runCommand({ app, command: def.v2Command, settings: Object.assign(bench.paneSettings(cfg), def.makeSettings(cfg)) });
-      seen.push(editor.getLine(0));
+      seen.push(editor.getLine(at.line));
     }
   } finally {
     global.window = prevWindow;
@@ -146,6 +147,24 @@ async function run() {
     const clean = await drive(config(), "- #todo buy milk", [OPEN, DOWN, ENTER]);
     assert.equal(clean.doc, "- buy milk", "Очистка из колеса не сработала");
     ok("скрытое не видно, выключенное не стоит, Очистка применяется из колеса");
+  }
+
+  /* 6. Каретка в коллауте — его пресет выбран сразу (его `💬` к тесту 1 цикла 125). */
+  {
+    const inside = "> [!note]\n> - Research plan\n- buy bread";
+    const r = await drive(config(), inside, [OPEN, RIGHT, UP, ENTER], { line: 1, ch: 4 });
+    assert.ok(/Callouts/.test(r.seen[0]) && /Note/.test(r.seen[0]), "в коллауте колесо не показало выбранное: " + r.seen[0]);
+    assert.equal(r.doc, "> [!tip]\n> - Research plan\n- buy bread", "шаг от выбранного Note не дал Tip");
+    ok("в коллауте колесо открывается на его категории и пресете");
+  }
+
+  /* 7. Один пресет — ячейки пресетов нет (его `💬` к тесту 2); совпавший клон в скроллере не виден (к тесту 3). */
+  {
+    const one = await drive(config(), DOC, [OPEN, DOWN]);
+    assert.ok(/Cleanup/.test(one.seen[1]) && !/preset/.test(one.seen[1]), "у категории с одним пресетом ячейка пресетов: " + one.seen[1]);
+    const clone = await drive(config({ clone: true }), DOC, [OPEN, UP, RIGHT, UP, UP]);
+    assert.ok(/\[Tip\]/.test(clone.seen[4]), "совпавший клон в колесе: " + clone.seen[4]);
+    ok("один пресет — без ячейки пресетов; совпавший клон не виден");
   }
 
   console.log(`command_field_wheel: ${passed} passed`);
