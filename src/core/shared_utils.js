@@ -851,6 +851,8 @@ function lineStartOf(text) {
     indent,
     quote,
     callout,
+    /* Внешнее оформление строки — всё, что стоит до заголовка и знака списка (Н-25). */
+    outer: indent + quote + callout,
     heading,
     marker,
     checkbox,
@@ -1299,7 +1301,7 @@ function lineStartPrefixOf(text) {
   const src = String(nz(text, ""));
   const start = lineStartOf(src);
   if (start.marker) return src.slice(0, start.at).replace(/[ \t]+$/, "");
-  const head = start.indent + start.quote + start.callout;
+  const head = start.outer;
   const rest = src.slice(head.length);
   const m = rest.match(new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]+|$)"));
   if (m) return (head + m[0]).replace(/[ \t]+$/, "");
@@ -1310,7 +1312,7 @@ function lineStartPrefixOf(text) {
 function stripLineStart(text) {
   const src = String(nz(text, ""));
   const start = lineStartOf(src);
-  const head = start.indent + start.quote + start.callout;
+  const head = start.outer;
   const rest = src.slice(head.length);
   if (start.marker) return rest.slice(start.marker.length + start.checkbox.length);
   const m = rest.match(new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]+|$)"));
@@ -1334,7 +1336,7 @@ function preserveLineStartShape(rawLine, nextLine) {
   const raw = String(nz(rawLine, ""));
   if (isListItemLine(raw) || startsWithBracketPair(raw)) return reapplyLineStart(raw, nextLine);
   const start = lineStartOf(raw);
-  return start.indent + start.quote + start.callout + stripLineStart(nextLine).trimStart();
+  return start.outer + stripLineStart(nextLine).trimStart();
 }
 
 module.exports = {

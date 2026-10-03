@@ -2641,3 +2641,9 @@ line` — ноль различий. `navigation_prefix_cycle_tests.js` (N1, N3,
 **Что сделано.** Поля правил обеих сторон подряд собирались в четырёх местах двух файлов под З3: `modeFieldsUnified` и петля по `["leftMode", "rightMode"]` в `panelOfMarkerToken` (`core/pkm_line_finalize_unified.js`), склейка `sideFields(left).concat(sideFields(right))` в `fieldsShape` и петля по сторонам в `collectManagedTokens` (`core/line_pipeline.js`). Тело `modeFieldsUnified` переехало в `shared_utils.js` под именем `ruleFields`, все четыре места зовут его. Порядок тот же (левая сторона, затем правая), охрана та же (сторона без массива `fields` пропускается). `fieldHasValues` в `command_registry.js` (вне З3) не тронута: общего модуля у файла нет, а `require` ради одной строки дороже её.
 
 **Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме часов `Now` и номера процесса. Мутация (`ruleFields` без правой стороны) роняет `starter_line_tests.ts` и `status_runtime_behavior_tests.js`. Откат — коммит.
+
+**Исключение сто девяносто шестое, разрешение — постоянное слово В-120 (уборка с нулевым расхождением), строка Н-25 ревизии `AUDIT_2026-10-03`.**
+
+**Что сделано.** Внешнее оформление строки — отступ, цитата и каллаут — складывалось из ответа `lineStartOf` в семи местах: два в `core/line_pipeline.js` (отступ строки в разборе и сборка строки обратно), одно в `core/pkm_line_finalize_unified.js` (`outerStart`), три в `shared_utils.js` и одно в `smart_delete_engine.js`. `lineStartOf` отдаёт это поле сам — `outer`, остальные места его читают. Сумма та же, порядок слагаемых тот же.
+
+**Мера.** `line_matrix.js --all` до и после: вывод совпал, кроме часов `Now` и номера процесса; набор зелёный. Мутация (`outer` без каллаута) роняет `status_runtime_behavior_tests.js`. Откат — коммит.

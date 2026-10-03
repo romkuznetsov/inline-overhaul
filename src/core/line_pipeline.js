@@ -316,7 +316,7 @@ function splitSegments(rawLine, rules) {
   /* Цитата и каллаут — внешнее оформление: снимаются вместе с отступом и
      возвращаются тем же `indent` (10.13.118, В-115). */
   const outer = __sharedUtils.lineStartOf(raw);
-  const indent = outer.indent + outer.quote + outer.callout;
+  const indent = outer.outer;
   const s = raw.slice(indent.length).trim();
   const markers = getRightMarkers(rules);
   const shape = fieldsShape(rules);
@@ -526,7 +526,7 @@ function stripPrefixKeepIndent(line, removeCheckbox) {
   /* Здесь только выбор, снимать ли задачу со знаком списка. */
   const start = __sharedUtils.lineStartOf(line);
   const kept = removeCheckbox ? "" : start.checkbox;
-  return start.indent + start.quote + start.callout + start.heading + kept + start.body;
+  return start.outer + start.heading + kept + start.body;
 }
 
 function escapeRx(s) {

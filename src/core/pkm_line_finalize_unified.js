@@ -344,7 +344,7 @@ function applyResolvedPrefixToLine(options) {
    * ломал цитату (В-115).
    */
   const outerStart = __sharedUtils.lineStartOf(line);
-  const indent = outerStart.indent + outerStart.quote + outerStart.callout;
+  const indent = outerStart.outer;
   let body = line.slice(indent.length);
   if (allowHeadingRewrite) {
     while (/^#{1,6}(?:\s+|$)/.test(body)) body = body.replace(/^#{1,6}(?:\s+|$)/, "");

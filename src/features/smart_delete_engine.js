@@ -25,7 +25,7 @@ function segmentsOf(line, rules) {
   /* `prefix` у `lineStartOf` включает отступ: спрашивается сам знак. */
   if (start.marker || start.checkbox || start.heading || !String(start.body || "").trim()) return __linePipeline.splitSegments(line, rules);
   const seg = __linePipeline.splitSegments("- " + start.body, rules);
-  return { ...seg, indent: start.indent + start.quote + start.callout, left: String(__sharedUtils.lineStartOf(String(seg.left || "")).body || "") };
+  return { ...seg, indent: start.outer, left: String(__sharedUtils.lineStartOf(String(seg.left || "")).body || "") };
 }
 
 /**
