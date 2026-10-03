@@ -180,6 +180,13 @@ _Intro:_ Where to start, and how much help you want along the way
 
 _Tip:_ <code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay
 
+- **Show callouts** — `show-callouts`, `toggle`, path `general.help.showCallouts`, default `true`
+  - desc: Keep the boxes that say what a tab or a block of settings is for
+  - tip: Callouts are the boxes with a colored edge at the top of each tab and under each block of settings. <code>Show tips</code> is a separate switch for the <code>?</code> marks. Know your way around? Turn both off; the one-line descriptions stay
+  - старые названия для поиска: «Show intro boxes»
+- **Show tips** — `show-tips`, `toggle`, path `general.help.showTips`, default `true`
+  - desc: Put a ? beside anything that needs more explanation
+  - tip: Click a <code>?</code> to open a short explanation, usually with an example. Turn this off when you no longer need them; the one-line descriptions stay either way
 - **Guide** — `howto`, `buttons`
   - desc: Worked examples of the things people set up first
   - tip: The first press creates the guide note in your vault, later presses open it. Inside: which commands are worth a key, how to set up your first Fields, how tagWheel feels, and ready setups to copy. Edit, move or rename it freely — the plugin never writes over it
@@ -188,13 +195,6 @@ _Tip:_ <code>Read</code> opens a guide note in your vault; it is yours to change
   - desc: What changed in this version, and in every one before it
   - tip: Opens <code>CHANGELOG.md</code> in your browser: every release, newest first. The window you see after an update shows the same text for the newest release
   - кнопки: `open-changelog` Open
-- **Show callouts** — `show-callouts`, `toggle`, path `general.help.showCallouts`, default `true`
-  - desc: Keep the boxes that say what a tab or a block of settings is for
-  - tip: Callouts are the boxes with a colored edge at the top of each tab and under each block of settings. <code>Show tips</code> is a separate switch for the <code>?</code> marks. Know your way around? Turn both off; the one-line descriptions stay
-  - старые названия для поиска: «Show intro boxes»
-- **Show tips** — `show-tips`, `toggle`, path `general.help.showTips`, default `true`
-  - desc: Put a ? beside anything that needs more explanation
-  - tip: Click a <code>?</code> to open a short explanation, usually with an example. Turn this off when you no longer need them; the one-line descriptions stay either way
 
 #### Modules — `modules` (вкладка `general`)
 

@@ -360,6 +360,14 @@ function scanChangelog(text) {
     "сводка выпуска разошлась с его пунктами — соберите её заново:\n"
     + "  node tools/build/gen_release_notes.js --summaries\n  "
     + wrongSummary.join("\n  "));
+  /* Порядок пунктов — его слово 2026-10-03: «сначала новые фичи ✨, потом изменения 🎨, затем баги 🐛». */
+  assert.ok(gen.sortItems(text) === text,
+    "пункты выпуска не по роду (✨ 🎨 🐛 🚀 🔧) — пересоберите:\n"
+    + "  node tools/build/gen_release_notes.js --summaries");
+  /* Контроль: перемешанный выпуск сортировка обязана переписать, а сортированный — нет. */
+  const mixed = "## 9.9.9\n\n1. 🐛 **b**\n2. ✨ **a**\n3. 🎨 **c**";
+  assert.equal(gen.sortItems(mixed), "## 9.9.9\n\n1. ✨ **a**\n2. 🎨 **c**\n3. 🐛 **b**",
+    "сортировка не переставила перемешанный выпуск");
   ok("CHANGELOG.md: " + scan.sections + " разделов со сводкой, " + scan.items
     + " пунктов со знаком рода, ни одного разрыва и ни одного длинного");
 }

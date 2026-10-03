@@ -48,10 +48,10 @@ reference disagreeing.
 
 | Control | Default | What it does |
 |---|---|---|
-| `Guide` → `Read` | — | Writes the guide note into your vault the first time, and opens it every time after. The note is yours from then on; the plugin never writes over it |
-| `Changelog` → `Open` | — | Opens `CHANGELOG.md` in your browser: every release, newest first |
 | `Show callouts` | on | Keeps the boxes that say what a tab or a block of settings is for |
 | `Show tips` | on | Puts a `?` beside anything that needs more explanation |
+| `Guide` → `Read` | — | Writes the guide note into your vault the first time, and opens it every time after. The note is yours from then on; the plugin never writes over it |
+| `Changelog` → `Open` | — | Opens `CHANGELOG.md` in your browser: every release, newest first, grouped as new things, visible changes and bug fixes |
 
 ### Modules
 

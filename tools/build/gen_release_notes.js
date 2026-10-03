@@ -84,6 +84,36 @@ const MARK_WORDS = {
 /** Порядок в сводке — его порядок слов: починки, потом вид, потом новое. */
 const SUMMARY_ORDER = ["🐛", "🎨", "✨", "🚀", "🔧"];
 
+/** Порядок пунктов в выпуске — его слово 2026-10-03: новое, потом вид, потом починки. */
+const ITEM_ORDER = ["✨", "🎨", "🐛", "🚀", "🔧"];
+
+/**
+ * Пункты каждого выпуска — по роду, порядок внутри рода прежний, номера заново
+ * сквозные. Сортируется подряд идущий список: заголовок `###` старых выпусков
+ * его рвёт, и пункт под чужой заголовок не переезжает.
+ */
+function sortItems(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const rank = (line) => ITEM_ORDER.indexOf(String(line.match(/^\d+\.\s+(\S+)/)[1]));
+  const isItem = (line) => /^\d+\.\s+\S/.test(line);
+  let inRelease = false;
+  let n = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const head = lines[i].match(/^##\s+(\S+)\s*$/);
+    if (head) { inRelease = /^\d/.test(head[1]); n = 0; continue; }
+    if (!inRelease || !isItem(lines[i])) continue;
+    let end = i;
+    while (end < lines.length && isItem(lines[end])) end++;
+    const run = lines.slice(i, end)
+      .map((line, k) => ({ line, k }))
+      .sort((a, b) => (rank(a.line) - rank(b.line)) || (a.k - b.k))
+      .map((it) => it.line.replace(/^\d+\./, () => ++n + "."));
+    lines.splice(i, end - i, ...run);
+    i = end - 1;
+  }
+  return lines.join("\n");
+}
+
 /** Пункты раздела: номер, знак рода и текст. */
 function sectionItems(body) {
   const out = [];
@@ -204,7 +234,7 @@ function applySummaries(text) {
 function writeSummaries(root) {
   const file = path.join(root, "CHANGELOG.md");
   const text = fs.readFileSync(file, "utf8");
-  const next = applySummaries(text);
+  const next = applySummaries(sortItems(text));
   if (next !== text) fs.writeFileSync(file, next, "utf8");
   return { changed: next !== text, sections: summarySpots(next).length };
 }
@@ -239,6 +269,7 @@ module.exports = {
   applySummaries,
   writeSummaries,
   sectionItems,
+  sortItems,
   headlineOf,
   CHANGE_MARKS,
   OUT_DIR,
