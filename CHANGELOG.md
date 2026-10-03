@@ -21,7 +21,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. ✨ **A new Field type, `Command`, turns edits of the line into hotkeys.** Its categories — `Callouts` and `Cleanup` — come with ready-made presets you can rename, hide, clone and reorder, and each category gets its own `next` and `previous` commands.
+1. ✨ **A new Field type, `Command`, turns edits of the line into hotkeys.** Its categories — `Callouts` and `Cleanup` — come with ready-made presets you can rename, hide, clone and reorder, each category gets its own `next` and `previous` commands, and tagWheel offers its presets — `Enter` applies the one you pick.
 2. 🎨 **`Show callouts` and `Show tips` come first in `Help`,** above `Guide` and `Changelog`.
 3. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
 4. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
