@@ -3,7 +3,7 @@
 /**
  * Command Field (постановка `test-vault/command-field.md`, разбор и ответы
  * В-272…В-283): реестр категорий и их действия над строками заметки — этап 1
- * Коллауты и Очистка, этап 2 Вставка блока.
+ * Коллауты и Очистка, этап 2 Вставка блока и Дерево ↔ раздел.
  * Чистые функции: на входе строки документа и место каретки, на выходе одна
  * замена отрезка строк — одна транзакция, один шаг `Ctrl+Z` (R-1). `null` —
  * менять нечего, шага отмены нет.
@@ -15,6 +15,7 @@
 const __transform = require("./transform_feature.js");
 const __lineFinalize = require("../core/pkm_line_finalize_unified.js");
 const __sayModule = require("../core/say.js");
+const __sharedUtils = require("../core/shared_utils.js");
 
 /* ---- Коллауты (6.1) ------------------------------------------------------ */
 
@@ -399,8 +400,206 @@ const insertBlockCategory = {
   },
 };
 
+/* ---- Дерево ↔ раздел (6.4) ----------------------------------------------- */
+
+const FENCE_RE = /^[\t ]*(```|~~~)/;
+const LIST_RE = /^([\t ]*)(?:[-*+]|\d+[.)])[\t ]+(?:\[.\][\t ]+)?/;
+
+/** Какие строки лежат в блоке кода: заголовок там — текст, а не раздел. */
+function fenceMask(lines) {
+  const mask = [];
+  let open = "";
+  for (const l of lines) {
+    const m = String(l).match(FENCE_RE);
+    if (open) { mask.push(true); if (m && m[1] === open) open = ""; continue; }
+    if (m) { open = m[1]; mask.push(true); continue; }
+    mask.push(false);
+  }
+  return mask;
+}
+
+function headingAt(lines, mask, i) {
+  if (mask[i]) return null;
+  const m = String(lines[i]).match(HEADING_RE);
+  return m ? { level: m[1].length, text: m[2] } : null;
+}
+
+/** Уровень нового раздела (6.4): на один глубже ближайшего заголовка выше, H1 без них, не глубже H6 (его ответ 8). */
+function sectionLevel(lines, mask, at, preset) {
+  const fixed = Math.trunc(Number(preset.level));
+  if (fixed >= 1 && fixed <= 6) return fixed;
+  for (let i = at - 1; i >= 0; i--) {
+    const h = headingAt(lines, mask, i);
+    if (h) return Math.min(6, h.level + 1);
+  }
+  return 1;
+}
+
+/** Строки потомков без одного уровня отступа: тот, что стоит у первого потомка. */
+function dedentChildren(lines, from, to, rootIndent) {
+  const first = lines.slice(from, to + 1).find((l) => String(l).trim());
+  const unit = first ? String(first).match(/^[\t ]*/)[0].slice(rootIndent.length) : "";
+  const cut = rootIndent + unit;
+  return lines.slice(from, to + 1).map((l) => {
+    const s = String(l);
+    if (!s.trim()) return "";
+    if (s.startsWith(cut)) return s.slice(cut.length);
+    return s.replace(/^[\t ]*/, (ws) => ws.slice(Math.min(ws.length, cut.length)));
+  });
+}
+
+/** Куда встаёт раздел: индекс строки, перед которой он вставляется. */
+function sectionTarget(lines, mask, at, end, place) {
+  if (place === "in-place") return at;
+  if (place === "section-end") {
+    let level = 0;
+    for (let i = at - 1; i >= 0 && !level; i--) { const h = headingAt(lines, mask, i); if (h) level = h.level; }
+    for (let i = end + 1; i < lines.length; i++) {
+      const h = headingAt(lines, mask, i);
+      if (h && (!level || h.level <= level)) return i;
+    }
+    return lines.length;
+  }
+  /* После конца списка: подряд идущие пункты и строки с отступом. */
+  let k = end + 1;
+  while (k < lines.length && String(lines[k]).trim() && (LIST_RE.test(lines[k]) || /^[\t ]/.test(lines[k]))) k += 1;
+  return k;
+}
+
+function treeToSection(ctx, preset) {
+  const { lines } = ctx;
+  const at = ctx.cursor.line;
+  const line = String(lines[at]);
+  if (!line.trim() || quoteDepth(line)) return null;
+  const mask = fenceMask(lines);
+  if (mask[at]) return null;
+  const end = treeEnd(lines, at);
+  const rootIndent = line.match(/^[\t ]*/)[0];
+  const text = line.slice(rootIndent.length).replace(LIST_RE, "").trim() || line.trim();
+  const level = sectionLevel(lines, mask, at, preset);
+  const section = ["#".repeat(level) + " " + text].concat(dedentChildren(lines, at + 1, end, rootIndent).filter((l, i, all) => l || i < all.length - 1));
+  const place = String(preset.place || "after-list");
+  if (place === "in-place") {
+    return { from: at, to: end, lines: section, cursor: { line: at, ch: section[0].length } };
+  }
+  const target = sectionTarget(lines, mask, at, end, place);
+  /* Одна пустая строка до заголовка и после тела раздела (6.4, пустые строки). */
+  const middle = lines.slice(end + 1, target);
+  while (middle.length && !String(middle[middle.length - 1]).trim()) middle.pop();
+  const before = middle.length || at > 0 ? [""] : [];
+  const after = target < lines.length && String(lines[target]).trim() ? [""] : [];
+  const out = middle.concat(before, section, after);
+  const to = target - 1 >= at ? target - 1 : at;
+  return { from: at, to, lines: out, cursor: { line: at + middle.length + before.length, ch: section[0].length } };
+}
+
+/** Приставка пункта из раздела (6.4): маркер выполненной — `- [x]` (его ответ 11), иначе по Prefix Values, иначе `- `. */
+function itemPrefix(text, cfg) {
+  const marker = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.doneMarker && cfg.pkm.behavior.doneMarker.token || "").trim();
+  if (marker && new RegExp("(^|\\s)" + __sharedUtils.escapeRe(marker) + "(?=\\s|$)").test(text)) return "- [x] " + text;
+  const plain = "- " + text;
+  if (!cfg) return plain;
+  try {
+    const parsed = __transform.parseInlineLine(plain, cfg);
+    const tctx = __transform.buildTransformContext(parsed, cfg);
+    const ids = (tctx && Array.isArray(tctx.matches) ? tctx.matches : []).map((m) => m.fieldId);
+    return __transform.applySourcePrefixResolution(plain, plain, tctx, ids, cfg, __lineFinalize) || plain;
+  } catch (_) {
+    /* Приставка — украшение: не разобралась строка — обычный пункт, текст человека цел. */
+    return plain;
+  }
+}
+
+/** Раздел под заголовком `h` — пункт списка с деревом; вынесенное копится в `moved`. */
+function sectionItems(lines, mask, h, stop, depth, unit, preset, cfg, moved) {
+  const head = headingAt(lines, mask, h);
+  const out = [unit.repeat(depth) + itemPrefix(head.text, cfg)];
+  const child = unit.repeat(depth + 1);
+  let i = h + 1;
+  while (i < stop) {
+    const s = String(lines[i]);
+    const sub = headingAt(lines, mask, i);
+    if (sub) {
+      let next = i + 1;
+      while (next < stop && !(headingAt(lines, mask, next) && headingAt(lines, mask, next).level <= sub.level)) next += 1;
+      out.push(...sectionItems(lines, mask, i, next, depth + 1, unit, preset, cfg, moved));
+      i = next;
+      continue;
+    }
+    if (FENCE_RE.test(s)) {
+      /* Блок кода — до закрывающей той же разметкой; текст внутри не меняется (6.4). */
+      const open = s.match(FENCE_RE)[1];
+      let close = i + 1;
+      while (close < stop - 1 && !String(lines[close]).trim().startsWith(open)) close += 1;
+      const block = lines.slice(i, close + 1).map(String);
+      if (preset.code === "after") moved.push(block);
+      else out.push(...block.map((l) => child + l));
+      i = close + 1;
+      continue;
+    }
+    if (/^[\t ]*\|/.test(s)) {
+      let k = i;
+      while (k < stop && /^[\t ]*\|/.test(lines[k])) k += 1;
+      const table = lines.slice(i, k).map(String);
+      if (preset.tables === "keep") out.push(...table);
+      else moved.push(table);
+      i = k;
+      continue;
+    }
+    /* Пустые строки внутри дерева уходят — иначе список «разреженный» (6.4). */
+    if (s.trim()) out.push(child + s);
+    i += 1;
+  }
+  return out;
+}
+
+function sectionToTree(ctx, preset) {
+  const { lines } = ctx;
+  const at = ctx.cursor.line;
+  const mask = fenceMask(lines);
+  const head = headingAt(lines, mask, at);
+  if (!head) return null;
+  let stop = at + 1;
+  while (stop < lines.length && !(headingAt(lines, mask, stop) && headingAt(lines, mask, stop).level <= head.level)) stop += 1;
+  let last = stop - 1;
+  while (last > at && !String(lines[last]).trim()) last -= 1;
+  /* Единица отступа — та, что уже стоит у пунктов раздела; нет их — табуляция, как у Obsidian. */
+  let unit = "\t";
+  for (let i = at + 1; i <= last; i++) {
+    if (!mask[i] && LIST_RE.test(lines[i]) && /^[\t ]/.test(lines[i])) { unit = String(lines[i]).match(/^[\t ]*/)[0]; break; }
+  }
+  const moved = [];
+  const tree = sectionItems(lines, mask, at, last + 1, 0, unit, preset, ctx.cfg, moved);
+  const out = moved.reduce((acc, block) => acc.concat([""], block), tree);
+  return { from: at, to: last, lines: out, cursor: { line: at, ch: out[0].length } };
+}
+
+const PLACE_NAMES = { "in-place": "in place", "after-list": "after the list", "section-end": "at the section end" };
+
+const sectionCategory = {
+  id: "section",
+  name: "Tree ↔ section",
+  params: ["heading-level", "section-place", "code-blocks", "tables"],
+  defaultName(p) {
+    const fixed = Math.trunc(Number(p.level));
+    return (fixed >= 1 && fixed <= 6 ? "H" + fixed : "Section") + " · " + (PLACE_NAMES[p.place] || PLACE_NAMES["after-list"]);
+  },
+  signature: (p) => [p.level || "auto", p.place || "after-list", p.code || "nest", p.tables || "after"].join("|"),
+  defaults: [{ name: "", level: "auto", place: "after-list", code: "nest", tables: "after" }],
+  /* Переключатель (его ответ 7): результата, в котором «стоят», нет — пресет задаёт параметры. */
+  hasRevert: false,
+  apply(ctx, preset) {
+    return headingAt(ctx.lines, fenceMask(ctx.lines), ctx.cursor.line) ? sectionToTree(ctx, preset) : treeToSection(ctx, preset);
+  },
+  /** `next` и `previous` одинаково переключают первым видимым пресетом. */
+  run(ctx, presets) {
+    const preset = presets.find((p) => p && !p.hidden);
+    return preset ? sectionCategory.apply(ctx, preset) : null;
+  },
+};
+
 /** Реестр: picker, перебор и команды строятся по нему (4.3). */
-const CATEGORIES = [callouts, cleanup, insertBlockCategory];
+const CATEGORIES = [callouts, cleanup, insertBlockCategory, sectionCategory];
 
 function categoryById(id) {
   return CATEGORIES.find((c) => c.id === id) || null;

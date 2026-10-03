@@ -3685,8 +3685,18 @@ const CF_CATEGORIES = [
     defaults:[{ name:"", keep:[] }] },
   { id:"block", name:"Insert block", params:["block-content", "block-heading", "block-callout"],
     desc:"On an empty line, inserts your text, such as a code block of another plugin, under a heading or in a callout; inside it, steps through the presets and then takes the block off, keeping the lines you added",
-    defaults:[{ name:"Contents", content:"```table-of-contents\n```", heading:true, headingText:"Contents", headingLevel:2, callout:true, type:"note", fold:"-", title:"Contents" }] }
+    defaults:[{ name:"Contents", content:"```table-of-contents\n```", heading:true, headingText:"Contents", headingLevel:2, callout:true, type:"note", fold:"-", title:"Contents" }] },
+  { id:"section", name:"Tree ↔ section", params:["heading-level", "section-place", "code-blocks", "tables"],
+    desc:"On a list item, turns it and its tree into a section under a heading; on a heading, turns the section back into a list item with its tree. Your Fields stay in the heading",
+    defaults:[{ name:"", level:"auto", place:"after-list", code:"nest", tables:"after" }] }
 ];
+/* Выборы пресета Дерево ↔ раздел (6.4): первое значение — умолчание постановки. */
+const CF_SECTION_CHOICES = {
+  "heading-level": { field:"level", aria:"Heading level of {0}", options:[{ value:"auto", label:"One below the heading above" }].concat([1, 2, 3, 4, 5, 6].map(n => ({ value:String(n), label:"H" + n }))) },
+  "section-place": { field:"place", aria:"Where the section of {0} goes", options:[{ value:"after-list", label:"After the list" }, { value:"in-place", label:"In place" }, { value:"section-end", label:"At the section end" }] },
+  "code-blocks": { field:"code", aria:"Code blocks of {0}", options:[{ value:"nest", label:"Code nested" }, { value:"after", label:"Code after the tree" }] },
+  "tables": { field:"tables", aria:"Tables of {0}", options:[{ value:"after", label:"Tables after the tree" }, { value:"keep", label:"Tables in place" }] }
+};
 const CALLOUT_TYPES = ["note", "abstract", "info", "todo", "tip", "success", "question", "warning", "failure", "danger", "bug", "example", "quote"];
 /* Значок и цвет коллаута — как у темы по умолчанию; в плагине их отдаёт сама тема
    (`--callout-icon`, `--callout-color`), здесь — мокданные (Р8). */
@@ -6159,6 +6169,11 @@ function cfPresetName(c, p) {
     const t = String(p.type || "note");
     return t.charAt(0).toUpperCase() + t.slice(1) + (p.fold === "-" ? " · closed" : "");
   }
+  if (c.id === "section") {
+    const fixed = Math.trunc(Number(p.level));
+    const place = { "in-place":"in place", "after-list":"after the list", "section-end":"at the section end" }[p.place] || "after the list";
+    return (fixed >= 1 && fixed <= 6 ? "H" + fixed : "Section") + " · " + place;
+  }
   if (c.id === "block") {
     const first = String(p.content || "").split("\n").find(l => l.trim()) || "";
     return String(p.heading && p.headingText || "").trim() || String(p.callout && p.title || "").trim() || first.trim().slice(0, 24) || "Block";
@@ -6167,6 +6182,7 @@ function cfPresetName(c, p) {
   return kept.length ? "Keep " + kept.join(", ") : "Clear all";
 }
 function cfPresetSignature(c, p) {
+  if (c.id === "section") return [p.level || "auto", p.place || "after-list", p.code || "nest", p.tables || "after"].join("|");
   if (c.id === "block") return JSON.stringify([p.content || "", p.heading ? [p.headingText, p.headingLevel] : 0, p.callout ? [p.type, p.fold, p.title] : 0]);
   return c.id === "callouts" ? String(p.type || "").toLowerCase() + "|" + (p.fold || "") : (p.keep || []).slice().sort().join(",");
 }
@@ -6191,7 +6207,7 @@ function cfTable(host, f, redraw) {
   const head = el("div", "io-vals__head io-cats__row", inner);
   const COLTIP = {
     Name: "What tagWheel and its scroller call this category or preset. Leave it empty to use the name built from its settings",
-    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line, for <b>Insert block</b> the text it inserts and whether a heading or a callout goes around it"
+    Settings: "What the preset does: for a callout its type and whether it starts folded, for <b>Cleanup</b> the Fields whose Values stay on the line, for <b>Insert block</b> the text it inserts and whether a heading or a callout goes around it, for <b>Tree ↔ section</b> the heading level, where the section goes and what happens to code blocks and tables"
   };
   const tipSlot = el("div", "io-vals__tipslot", inner);
   ["", "", "Name", "Settings", ""].forEach(t => {
@@ -6319,6 +6335,11 @@ function cfTable(host, f, redraw) {
         } else if (kind === "fold") {
           const fo = selectEl(set, CALLOUT_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + cfPresetName(c, p), "io-select");
           fo.addEventListener("change", () => { p.fold = fo.value; renderContent(); });
+        } else if (CF_SECTION_CHOICES[kind]) {
+          const ch = CF_SECTION_CHOICES[kind];
+          const now = String(p[ch.field] || "");
+          const sel = selectEl(set, ch.options, ch.options.some(o => o.value === now) ? now : ch.options[0].value, ch.aria.replace("{0}", pn), "io-select");
+          sel.addEventListener("change", () => { p[ch.field] = sel.value; renderContent(); });
         } else if (kind === "callout-title") {
           prop(p.title || "", "Callout title", "Callout title of " + pn, v => { p.title = v; });
         } else if (kind === "fields") {

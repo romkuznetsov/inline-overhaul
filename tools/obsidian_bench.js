@@ -1529,6 +1529,60 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Дерево ↔ раздел (6.4) на его конфиге: дерево с Value → раздел → дерево, приставка по его Prefix, Ctrl+Z. */
+  async "command-field-section"(win) {
+    const got = await win.evaluate(async () => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const cfg = p.getConfig();
+      const order = cfg.pkm.fields.order;
+      const sep = String(cfg.pkm.lineFormat && cfg.pkm.lineFormat.separator1 || "::");
+      p.setConfigPatch({ pkm: { fields: {
+        order: { right: order.right.concat(["Format"]), types: { Format: "command" }, strictNames: { Format: "Format" }, labels: { Format: "Format" }, active: { Format: "yes" } },
+        commands: { byField: { Format: { categories: [{ id: "section", key: "section", name: "", hidden: false, presets: [
+          { name: "", level: "auto", place: "in-place", code: "nest", tables: "after", hidden: false }] }] } } },
+      } } }, "pkm:fields:commands:Format");
+      await new Promise((r) => setTimeout(r, 800));
+      const doc = "## Log\n- [ ] #todo " + sep + " Research plan\n\t- read papers\n";
+      const f = await a.vault.create("cfs.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: 1, ch: 8 });
+      a.commands.executeCommandById("inline-overhaul:format-section-next");
+      await new Promise((r) => setTimeout(r, 400));
+      const section = e.getValue();
+      e.setCursor({ line: 1, ch: 4 });
+      a.commands.executeCommandById("inline-overhaul:format-section-previous");
+      await new Promise((r) => setTimeout(r, 400));
+      const back = e.getValue();
+      e.undo();
+      await new Promise((r) => setTimeout(r, 300));
+      const undo1 = e.getValue();
+      e.undo();
+      await new Promise((r) => setTimeout(r, 300));
+      const undone = e.getValue() === doc;
+      /* Отметка по его маркеру (ответ 11): `- [x]` с `#done` уходит в раздел и возвращается. */
+      const ticked = "- [x] call bank #done\n";
+      e.setValue(ticked);
+      e.setCursor({ line: 0, ch: 8 });
+      a.commands.executeCommandById("inline-overhaul:format-section-next");
+      await new Promise((r) => setTimeout(r, 300));
+      const tickedSection = e.getValue();
+      e.setCursor({ line: 0, ch: 3 });
+      a.commands.executeCommandById("inline-overhaul:format-section-next");
+      await new Promise((r) => setTimeout(r, 300));
+      return { doc, section, back, undo1, undone, marker: cfg.pkm.behavior.doneMarker, tickedSection, tickedBack: e.getValue() };
+    });
+    console.log(JSON.stringify(got, null, 1));
+    const ok = /^## Log\n### #todo /.test(got.section) && /\n- read papers\n$/.test(got.section)
+      /* Prefix у его `#todo` не задан — пункт возвращается обычным `- ` (6.4); чекбокс без Value теряется (разбор 2.7). */
+      && got.back === got.doc.replace("- [ ] ", "- ") && got.undo1 === got.section && got.undone
+      && got.tickedSection === "# call bank #done\n" && got.tickedBack === "- [x] call bank #done\n";
+    console.log(ok ? "ok: дерево ↔ раздел на его конфиге — раздел, обратно пунктом, два Ctrl+Z, отметка по #done" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* Command Field в custom block (исключение № 200): колесо блока, категория, пресет, Enter одной правкой. */
   async "command-field-custom"(win) {
     const doc = "- Research plan\n\t- read papers\n- buy bread\n";

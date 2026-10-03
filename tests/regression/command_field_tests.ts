@@ -193,4 +193,44 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   ok("вставка блока: пример 6.3, отказы, четыре обёртки, правка внутри, снятие с дописанным, круг пресетов, отказ командой");
 }
 
+/* 11. Дерево ↔ раздел (6.4): переключатель (ответ 7), пример постановки, уровень, три положения, обратный путь. */
+{
+  const sec = CF.categoryById("section");
+  const def = sec.defaults[0];
+  const go = (lines: string[], line: number, preset: Any = def, cfg: Any = null): Any =>
+    sec.run({ lines, cursor: { line, ch: 0 }, cfg }, [preset], 1);
+  const doc = ["## Log", "- [ ] #todo || Research plan || [[Project A]]", "  - read papers", "  - interview users", "- buy bread"];
+  const r = go(doc, 1);
+  const out = apply(doc, r);
+  assert.deepEqual(out, ["## Log", "- buy bread", "", "### #todo || Research plan || [[Project A]]", "- read papers", "- interview users"], "пример 6.4");
+  assert.equal(out[r.cursor.line], "### #todo || Research plan || [[Project A]]", "каретка не на новом заголовке");
+  /* Уровень: без заголовков выше — H1; под H6 — H6 (ответ 8); фиксированный — свой. */
+  assert.equal(apply(["- a"], go(["- a"], 0))[0], "# a");
+  assert.equal(apply(["###### deep", "- a"], go(["###### deep", "- a"], 1)).slice(-1)[0], "###### a");
+  assert.equal(apply(["# t", "- a"], go(["# t", "- a"], 1, { ...def, level: "4", place: "in-place" }))[1], "#### a");
+  /* На месте: строки после дерева становятся телом раздела (ограничение 8). */
+  assert.deepEqual(apply(["- a", "\t- b", "- c"], go(["- a", "\t- b", "- c"], 0, { ...def, place: "in-place" })), ["# a", "- b", "- c"]);
+  /* В конец раздела: до следующего заголовка того же уровня; список вне дерева остаётся списком. */
+  const sd = ["## A", "- x", "\t- y", "- z", "", "text", "## B"];
+  assert.deepEqual(apply(sd, go(sd, 1, { ...def, place: "section-end" })), ["## A", "- z", "", "text", "", "### x", "- y", "", "## B"]);
+  const gap = ["## A", "- x", "- z", "", "## B"];
+  assert.deepEqual(apply(gap, go(gap, 1, { ...def, place: "section-end" })), ["## A", "- z", "", "### x", "", "## B"], "пустых строк подряд две");
+  /* Раздел → дерево: строка `#` в блоке кода — не заголовок; абзац, код с отступом, таблица после дерева, подзаголовок — пунктом. */
+  const src = ["### Research plan", "Short intro.", "- read papers", "```js", "# not a heading", "```", "| a | b |", "|---|---|", "#### Sub", "deep", "## Next"];
+  const t = apply(src, go(src, 0));
+  assert.deepEqual(t, ["- Research plan", "\tShort intro.", "\t- read papers", "\t```js", "\t# not a heading", "\t```", "\t- Sub", "\t\tdeep", "", "| a | b |", "|---|---|", "## Next"]);
+  assert.deepEqual(apply(src, go(src, 0, { ...def, code: "after", tables: "keep" })).slice(0, 7),
+    ["- Research plan", "\tShort intro.", "\t- read papers", "| a | b |", "|---|---|", "\t- Sub", "\t\tdeep"]);
+  /* R-2 «на месте»: дерево → раздел → дерево байт в байт; маркер выполненной возвращает `- [x]` (ответ 11). */
+  const tree = ["- Research plan", "\t- read papers", "\t- interview users"];
+  const inPlace = { ...def, place: "in-place" };
+  assert.deepEqual(apply(apply(tree, go(tree, 0, inPlace)), go(apply(tree, go(tree, 0, inPlace)), 0, inPlace)), tree, "R-2 на месте");
+  const doneCfg = { pkm: { behavior: { doneMarker: { token: "#done" } } } };
+  const doneTree = ["- [x] call bank #done"];
+  const asSection = apply(doneTree, go(doneTree, 0, inPlace));
+  assert.deepEqual(asSection, ["# call bank #done"]);
+  assert.deepEqual(apply(asSection, go(asSection, 0, inPlace, doneCfg)), doneTree, "маркер не вернул отметку");
+  ok("дерево ↔ раздел: пример 6.4, уровень, три положения, код и таблицы, подзаголовки, R-2 на месте, отметка по маркеру");
+}
+
 console.log(passed + " проверок пройдено");

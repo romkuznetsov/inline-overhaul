@@ -112,6 +112,8 @@ export interface CommandPreset {
   name?: string; hidden?: boolean; type?: string; fold?: string; keep?: string[];
   /* Вставка блока (6.3): содержимое, заголовок, коллаут и его заголовок. */
   content?: string; heading?: boolean; headingText?: string; headingLevel?: number; callout?: boolean; title?: string;
+  /* Дерево ↔ раздел (6.4): уровень (`auto` или 1–6), положение, блоки кода, таблицы. */
+  level?: string; place?: string; code?: string; tables?: string;
 }
 
 /** Категория Command Field в конфиге: `id` — реестра, `key` — адрес команд (клон — `callouts-2`). */

@@ -189,6 +189,24 @@ const panel = makePanel(base);
   ok("вставка блока в таблице: содержимое, заголовок и коллаут пресета пишутся, выключенное прячет поля");
 }
 
+/* 3г. Дерево ↔ раздел (6.4): четыре выбора пресета с умолчаниями постановки, выбор пишется. */
+{
+  const pick = labelled(panel.host, "Category to add to Fmt");
+  (pick as Any).value = "section";
+  pick.dispatch("change", { target: pick });
+  click(all(panel.host, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  const name = "Section · after the list";
+  const values = ["Heading level of {0}", "Where the section of {0} goes", "Code blocks of {0}", "Tables of {0}"].map(a => (labelled(panel.host, a.replace("{0}", name)) as Any).value);
+  assert.deepEqual(values, ["auto", "after-list", "nest", "after"], "умолчания пресета не те, что в постановке");
+  const place = labelled(panel.host, "Where the section of " + name + " goes");
+  (place as Any).value = "in-place";
+  place.dispatch("change", { target: place });
+  const sec = panel.cfg().pkm.fields.commands.byField.Fmt.categories.find((c: Any) => c.id === "section");
+  assert.equal(sec.presets[0].place, "in-place", "положение не записалось");
+  click(labelled(panel.host, "Remove the category Tree ↔ section"));
+  ok("дерево ↔ раздел в таблице: четыре выбора с умолчаниями постановки, выбор пишется");
+}
+
 /* 3б. `Child name in tagWheel` у Command Field — подпись ячейки пресетов, без своего имени `preset`. */
 {
   const input = labelled(panel.host, "Child name in tagWheel for Fmt");

@@ -28,9 +28,22 @@ const CAT_DESC: Record<string, string> = {
   callouts: "CAT_DESC_CALLOUTS",
   cleanup: "CAT_DESC_CLEANUP",
   block: "CAT_DESC_BLOCK",
+  section: "CAT_DESC_SECTION",
 };
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6].map(n => ({ value: String(n), label: "H" + n }));
+
+/*
+ * Дерево ↔ раздел (6.4): выборы пресета — значение в конфиге и ключ подписи
+ * каталога; первое значение — умолчание постановки.
+ */
+const SECTION_CHOICES: Record<string, { field: "level" | "place" | "code" | "tables"; aria: string; options: ReadonlyArray<{ value: string; label: string }> }> = {
+  "heading-level": { field: "level", aria: "PRESET_LEVEL_ARIA", options: [{ value: "auto", label: "SECTION_LEVEL_AUTO" }].concat(HEADING_LEVELS) },
+  "section-place": { field: "place", aria: "PRESET_PLACE_ARIA", options: [
+    { value: "after-list", label: "SECTION_PLACE_AFTER_LIST" }, { value: "in-place", label: "SECTION_PLACE_IN_PLACE" }, { value: "section-end", label: "SECTION_PLACE_SECTION_END" }] },
+  "code-blocks": { field: "code", aria: "PRESET_CODE_ARIA", options: [{ value: "nest", label: "SECTION_CODE_NEST" }, { value: "after", label: "SECTION_CODE_AFTER" }] },
+  "tables": { field: "tables", aria: "PRESET_TABLES_ARIA", options: [{ value: "after", label: "SECTION_TABLES_AFTER" }, { value: "keep", label: "SECTION_TABLES_KEEP" }] },
+};
 
 /** Свёрнутость коллаута (6.1): значения — разметки Obsidian, подписи — каталога. */
 /* `+` от пустого отличается только стрелкой в режиме чтения — два положения (его 💬 к тесту 1 цикла 125). */
@@ -297,6 +310,13 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
             foldSelect();
             prop(p.title || "", say("PRESET_TITLE_PLACEHOLDER"), say("PRESET_TITLE_ARIA", pn), v => { p.title = v; });
           }
+        } else if (SECTION_CHOICES[kind]) {
+          const c = SECTION_CHOICES[kind] as (typeof SECTION_CHOICES)[string];
+          const options = c.options.map(o => ({ value: o.value, label: /^H\d$/.test(o.label) ? o.label : say(o.label) }));
+          const now = String(p[c.field] || "");
+          const s = selectInput(set, "io-select", { options, value: options.some(o => o.value === now) ? now : (options[0] as { value: string }).value, label: say(c.aria, pn) });
+          s.disabled = !t.enabled;
+          s.addEventListener("change", (() => { p[c.field] = String(s.value); save(); }) as never);
         } else if (kind === "fields") {
           const keep = p.keep || (p.keep = []);
           for (const lf of t.lineFields) {
