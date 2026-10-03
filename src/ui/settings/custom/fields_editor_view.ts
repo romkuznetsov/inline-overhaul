@@ -6,7 +6,7 @@
  */
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
-import { el, btn, cssVar, onEnter, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
+import { el, btn, cssVar, itemRow, onEnter, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
 import type { CustomBlock, FieldSide, FieldsModel, FieldRow, NewFieldSetup, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
@@ -634,31 +634,6 @@ function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
 }
 
 /* ---- правая колонка: выбранный Field ----------------------------------- */
-
-/** Строка настройки внутри блока; своя — платформенный `Setting` рисует строку целиком. */
-function itemRow(host: El, o: {
-  name: string;
-  desc: string;
-  tip?: string;
-  tipId?: string;
-  showTips: boolean;
-  showIds?: boolean;
-}): { control: El; info: El; row: El; closeTip: () => void } {
-  const row = el(host, "div", "io-item");
-  const info = el(row, "div", "io-item__info");
-  const nameRow = el(info, "div", "io-item__namerow");
-  el(nameRow, "div", "io-item__name", o.name);
-  /*
-   * Подсказка — в строке, а не в колонке описания, чтобы раскрываться во всю
-   * ширину (`15.png`, 2026-09-07); перенос — `flex-wrap` у `.io-item`.
-   */
-  const closeTip = o.tip && o.tipId
-    ? tipBelow({ head: nameRow, host: row, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds })
-    : () => {};
-  rich(el(info, "div", "io-item__desc"), o.desc);
-  /* `info` наружу: предупреждение под описанием принадлежит строке (B21). */
-  return { control: el(row, "div", "io-item__control"), info, row, closeTip };
-}
 
 /**
  * Предусловие Field (10.13.4): есть ли; при `Yes` — какой Field и

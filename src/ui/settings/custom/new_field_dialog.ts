@@ -12,7 +12,7 @@
  */
 
 import type { El, ElButton, ElInput } from "./dom.ts";
-import { el, btn, cssVar, onEnter, rich, textInput, themePair, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, itemRow, onEnter, textInput, themePair } from "./dom.ts";
 import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink, wheelColors } from "./previews.ts";
@@ -455,21 +455,14 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   cancel.addEventListener("click", (() => finish(null)) as never);
   add.addEventListener("click", confirm as never);
 
-  const item = (host: El, name: string, desc: string, tip?: string, stack?: boolean): El => itemRow(host, name, desc, tip, stack).control;
-  /* `stack` — переключатель во всю ширину под подписью: в ряд он мнёт описание. */
-  const itemRow = (host: El, name: string, desc: string, tip?: string, stack?: boolean): { control: El; row: El } => {
-    const row = el(host, "div", "io-item" + (stack ? " io-item--stack" : ""));
-    const info = el(row, "div", "io-item__info");
-    const head = el(info, "div", "io-item__namerow");
-    el(head, "div", "io-item__name", say(name));
-    if (tip) {
-      closers.push(tipBelow({
-        head, host: row, text: say(tip), label: say(name),
-        id: "io-nf-" + name.toLowerCase().replace(/_/g, "-"), showTips: o.showTips, showIds: o.showIds,
-      }));
-    }
-    rich(el(info, "div", "io-item__desc"), say(desc));
-    return { control: el(row, "div", "io-item__control"), row };
+  const item = (host: El, name: string, desc: string, tip?: string, stack?: boolean): El => setting(host, name, desc, tip, stack).control;
+  const setting = (host: El, name: string, desc: string, tip?: string, stack?: boolean): { control: El; row: El } => {
+    const r = itemRow(host, {
+      name: say(name), desc: say(desc), stack, showTips: o.showTips, showIds: o.showIds,
+      ...(tip ? { tip: say(tip), tipId: "io-nf-" + name.toLowerCase().replace(/_/g, "-") } : {}),
+    });
+    closers.push(r.closeTip);
+    return r;
   };
 
   /* Поле имени живёт через перерисовку тела: смена типа не должна уносить набранное. */
@@ -634,7 +627,7 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* У списка знак стоит в каждом Value, и строк знака и формата нет (`В-247`). */
     const listMode = d.value === "list";
     if (!listMode) {
-    const emoji = itemRow(body, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_LABEL", "NEW_FIELD_MARKER_TIP");
+    const emoji = setting(body, "NEW_FIELD_MARKER", "NEW_FIELD_MARKER_LABEL", "NEW_FIELD_MARKER_TIP");
     const marker = textInput(emoji.control, "io-text", {
       value: d.marker, placeholder: say("NEW_FIELD_MARKER_HINT"), label: say("NEW_FIELD_MARKER_ARIA"), needed: true,
     });

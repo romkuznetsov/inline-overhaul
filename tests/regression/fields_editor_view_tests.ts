@@ -3382,6 +3382,11 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.ok(walk(f2, "io-text").some(x => x.getAttribute("aria-label") === "Amount"), "у даты, которая шагает, нет шага");
   const own = BLOCK_TEXTS["field-editor"] as Record<string, string>;
   assert.ok(own.NEW_FIELD_NAME_TIP && own.NF_BLOCK_TIP && own.NEW_FIELD_MARKER_TIP, "у подсказок окна нет текста в каталоге");
+  /* Н-2: строка окна — общий `itemRow`; переключатель Block под подписью, имя — в ряд. */
+  const rowOf = (name: string): StubNode | undefined => walk(f2, "io-item")
+    .find(r => String(walk(r, "io-item__name")[0]?.textContent || "").trim() === name);
+  assert.ok(rowOf(say("NF_BLOCK"))?.classList.contains("io-item--stack"), "Block окна не под подписью");
+  assert.ok(!rowOf(say("NEW_FIELD_NAME"))?.classList.contains("io-item--stack"), "имя окна ушло под подпись");
   /* `В-247`: `List` — Values со своим знаком каждое; знака и формата у Field нет. */
   let answer3: Any = "не звали";
   askNewFieldModal(FakeModal as never, {}, a => { answer3 = a; }, say, opts(true));

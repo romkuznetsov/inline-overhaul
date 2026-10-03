@@ -131,6 +131,33 @@ export function onEnter(node: El, fn: () => void): void {
   }) as never);
 }
 
+/** Строка настройки внутри блока; своя — платформенный `Setting` рисует строку целиком. */
+export function itemRow(host: El, o: {
+  name: string;
+  desc: string;
+  tip?: string;
+  tipId?: string;
+  showTips: boolean;
+  showIds?: boolean;
+  /** Контрол во всю ширину под подписью: в ряд он мнёт описание. */
+  stack?: boolean;
+}): { control: El; info: El; row: El; closeTip: () => void } {
+  const row = el(host, "div", "io-item" + (o.stack ? " io-item--stack" : ""));
+  const info = el(row, "div", "io-item__info");
+  const nameRow = el(info, "div", "io-item__namerow");
+  el(nameRow, "div", "io-item__name", o.name);
+  /*
+   * Подсказка — в строке, а не в колонке описания, чтобы раскрываться во всю
+   * ширину (`15.png`, 2026-09-07); перенос — `flex-wrap` у `.io-item`.
+   */
+  const closeTip = o.tip && o.tipId
+    ? tipBelow({ head: nameRow, host: row, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds })
+    : () => {};
+  rich(el(info, "div", "io-item__desc"), o.desc);
+  /* `info` наружу: предупреждение под описанием принадлежит строке (B21). */
+  return { control: el(row, "div", "io-item__control"), info, row, closeTip };
+}
+
 /** Класс обязательного незаполненного поля. Одно имя на код и стили (У-103). */
 export const NEEDED_CLASS = "io-text--needed";
 
