@@ -24,6 +24,12 @@ const __domainRegistry = require("../core/pkm_domain_registry.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __editorVisualsConfig = require("../core/editor_visuals_config.js");
 
+/** Объект по пути конфига или запасное значение — вместо лестниц `cfg && cfg.pkm && …` (Н-13). */
+function cfgObject(cfg, path, fallback) {
+  const v = __sharedUtils.readCfgPath(cfg, path);
+  return isObj(v) ? v : fallback;
+}
+
 function getRulesShapeModule() { return __rulesShape; }
 
 const DEFAULT_INLINE2NOTE = {
@@ -480,7 +486,7 @@ function collectTemplateOptions(app, folder) {
 }
 
 function resolveIoSeparators(cfg) {
-  const io = isObj(cfg && cfg.pkm && cfg.pkm.lineFormat) ? cfg.pkm.lineFormat : null;
+  const io = cfgObject(cfg, "pkm.lineFormat", null);
   const s1 = String(io && io.separator1 || "").trim();
   const s2 = String(io && io.separator2 || "").trim();
   if (!s1 || !s2) {
@@ -507,9 +513,7 @@ function extractPrimaryPayloadText(line, separators) {
 
 /** Values всех Element в режиме списка (`В-247`). */
 function getElementListValuesFromConfig(cfg) {
-  const byField = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements && cfg.pkm.fields.elements.byField)
-    ? cfg.pkm.fields.elements.byField
-    : {};
+  const byField = cfgObject(cfg, "pkm.fields.elements.byField", {});
   const out = new Set();
   for (const key of Object.keys(byField)) {
     for (const v of __pkmOrderConfig.elementListValues(byField[key]) || []) out.add(v);
@@ -525,11 +529,9 @@ function getElementListValuesFromConfig(cfg) {
 function getElementMarkerRulesFromConfig(cfg) {
   const out = [];
   const seen = new Set();
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const order = cfgObject(cfg, "pkm.fields.order", {});
   const orderTypes = isObj(order.types) ? order.types : {};
-  const elements = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements)
-    ? cfg.pkm.fields.elements
-    : {};
+  const elements = cfgObject(cfg, "pkm.fields.elements", {});
   const byField = isObj(elements.byField) ? elements.byField : {};
   const fields = getModeFields(cfg);
   for (let i = 0; i < fields.length; i++) {
@@ -963,7 +965,7 @@ function parseInlineLine(rawLine, cfg) {
 }
 
 function getModeFields(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const behavior = cfgObject(cfg, "pkm.fields", {});
   const left = isObj(behavior.tags) && Array.isArray(behavior.tags.fields) ? behavior.tags.fields : [];
   const right = isObj(behavior.links) && Array.isArray(behavior.links.fields) ? behavior.links.fields : [];
   return left.concat(right).filter((f) => isObj(f) && String(f.id || "").trim());
@@ -1023,12 +1025,10 @@ function resolveEffectiveFieldType(field, orderTypes, fieldId) {
 
 function buildTransformContext(parsed, cfg) {
   const p = isObj(parsed) ? parsed : { line: "", tags: [], wikilinks: [], emojis: [], payloadText: "" };
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const order = cfgObject(cfg, "pkm.fields.order", {});
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const orderTypes = isObj(order.types) ? order.types : {};
-  const elementsByField = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements && cfg.pkm.fields.elements.byField)
-    ? cfg.pkm.fields.elements.byField
-    : {};
+  const elementsByField = cfgObject(cfg, "pkm.fields.elements.byField", {});
   const fields = getModeFields(cfg);
   /*
    * Block Field говорит Order, а не список определений (B21, B11; ловушка
@@ -1293,7 +1293,7 @@ function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
     ? transformContext.matches
     : Object.keys(byFieldId).map((k) => byFieldId[k]), cfg);
   const yamlFormat = String(cfg && cfg.transform && cfg.transform.inline2note && cfg.transform.inline2note.yamlNoteFormat || "raw").trim().toLowerCase();
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const order = cfgObject(cfg, "pkm.fields.order", {});
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const cardinalityByField = isObj(order.yamlCardinalityByField) ? order.yamlCardinalityByField : {};
   const propertyFieldCounts = {};
@@ -1388,7 +1388,7 @@ function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
  */
 function withNavigatorRows(rows, cfg) {
   const fields = getModeFields(cfg);
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const order = cfgObject(cfg, "pkm.fields.order", {});
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const out = [];
   const added = new Set();
@@ -1529,7 +1529,7 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
     if (!keysExisting.includes(k)) keysExisting.push(k);
   }
 
-  const orderCfg = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
+  const orderCfg = cfgObject(cfg, "pkm.fields.order", {});
   const pbf = isObj(orderCfg.propertiesByField) ? orderCfg.propertiesByField : {};
   const orderLeft = Array.isArray(orderCfg.left) ? orderCfg.left.slice() : [];
   const orderRight = Array.isArray(orderCfg.right) ? orderCfg.right.slice() : [];
@@ -2458,7 +2458,7 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
   if (!lineFinalize || typeof lineFinalize.buildPrefixUnified !== "function") {
     throw new Error("shared prefix resolver unavailable");
   }
-  const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
+  const pkm = cfgObject(cfg, "pkm", {});
   /*
    * Правила приставок — у общего сборщика `pkm_rules_shape`, а не у ветки
    * `pkm.prefixRules` (форма версии 1, панель её не пишет; пути
@@ -2626,7 +2626,7 @@ function normalizeSourceLineAfterCleanup(line, separators) {
 }
 
 function getActiveOrderedFieldIds(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const behavior = cfgObject(cfg, "pkm.fields", {});
   const order = isObj(behavior.order) ? behavior.order : {};
   const left = Array.isArray(order.left) ? order.left.slice() : [];
   const right = Array.isArray(order.right) ? order.right.slice() : [];
@@ -2690,7 +2690,7 @@ const PREVIEW_LINE_PREFIX = "- [ ] ";
 
 function buildPreviewBaseLine(cfg) {
   const separators = resolveIoSeparators(cfg);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const behavior = cfgObject(cfg, "pkm.fields", {});
   const order = isObj(behavior.order) ? behavior.order : {};
   const orderTypes = isObj(order.types) ? order.types : {};
   const fields = getModeFields(cfg);
