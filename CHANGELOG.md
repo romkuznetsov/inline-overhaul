@@ -19,7 +19,17 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.14.0
+
+_2026-10-03 · [all changes since 0.13.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.13.0...0.14.0)_
+
+> [!NOTE]
+> 🐛 **4** bug fixes · 🎨 **3** changes you can see · ✨ **3** new things
+>
+> **New in this release**
+> - **Smart Enter on `Shift+Enter`**
+> - **Autosaves in their own folder, as many as you choose**
+> - **tagWheel keeps your selection**
 
 1. ✨ **Smart Enter on `Shift+Enter`.** `Use Shift+Enter instead`, under Smart Enter, moves it to `Shift+Enter` and leaves `Enter` as usual.
 2. ✨ **Autosaves in their own folder, as many as you choose.** Autosaves go into `autosave` inside the backup folder, earlier ones move there on the next start, and `Autosaves to keep` sets how many stay — 10 when empty.
