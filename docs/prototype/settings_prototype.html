@@ -765,7 +765,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   background: var(--background-primary); color: var(--text-normal); font-weight: 500;
   box-shadow: inset 2px 0 0 var(--interactive-accent);
 }
-.io-fields__item .io-chip { margin-left: auto; }
 .io-fields__add { margin-top: 4px; border-top: 1px solid var(--background-modifier-border); padding-top: 6px;
   display: flex; flex-wrap: wrap; gap: 8px; }
 /* Его пункт 2026-09-24: «кнопка add field выглядит некрасиво». Рядом с обычной
@@ -1643,19 +1642,20 @@ body.theme-dark {
   border-top: 2px dashed var(--interactive-accent);
   opacity: 0.65;
 }
-.io-fields__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.io-fields__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Тип в списке — точка цвета типа, имя Field занимает всю строку (его 💬 к тесту 1, цикл 127). */
+.io-typedot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--io-chip-bg, var(--text-faint)); }
 .io-fields__tools {
   display: inline-flex; gap: 0; flex: 0 0 auto;
-  width: 34px; justify-content: flex-end;
+  /* Место под стрелки — только у строки, с которой работают: у остальных имя идёт до края (его 💬 к тесту 1 цикла 127). */
+  width: 0; overflow: hidden; justify-content: flex-end;
   opacity: 0; transition: opacity 90ms ease-out;
 }
 .io-fields__item:hover .io-fields__tools,
 .io-fields__item:focus-within .io-fields__tools,
-.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; }
+.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; width: 34px; }
 /* Стрелки узкие: вместе с чипом типа они съедали имя Field. */
 .io-fields__tools .io-icon { width: 16px; height: 20px; padding: 0; font-size: 10px; }
-.io-fields__item .io-chip { margin-left: 4px; }
-.io-fields__item[aria-current="true"] .io-chip { margin-left: 4px; }
 
 /* Две колонки с общей строкой шапки: решение заказчика по В-92, 2026-09-08.
    Обёрток-колонок нет — ячейки лежат в сетке сами; черта между колонками
@@ -1806,21 +1806,28 @@ body.theme-dark {
 
 
 /* Command Field: категории и пресеты (постановка command-field.md, 4.1). Те же классы, что в styles.css. */
-.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 2.4fr) 48px; }
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(84px, 1.2fr) minmax(120px, 2.2fr) 48px; }
 /* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
 .io-cats__inner { min-width: 300px; }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
 .io-cats__eye--off { color: var(--text-faint); }
-.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
+/* Описание категории — две строки, целиком в подсказке (его 💬 к тесту 1 цикла 127: «выглядит не очень»). */
+.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); cursor: help;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 /*
  * Колонки пресета (его 💬 к тесту 2 цикла 126): ячейка на параметр, подпись
  * колонки — над контролом первого пресета; узко — ячейки переносятся вместе с ней.
  */
 .io-cats__set { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: flex-end; min-width: 0; }
-/* Ячейка не уже своей подписи: в узком окне она переносится целиком, а не режется (снимок стенда). */
-.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 64px; }
+/* Ячейки пресета — одной строкой, пока помещаются по своей ширине `--io-cats-min`, иначе переносятся целиком (его 💬 к тесту 1 цикла 127). */
+.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 var(--io-cats-min, 64px); min-width: 0; }
+/* Столбцом: ширина по содержимому у переносящего флекса — подпись и кнопка в одну линию (стенд: 51 px вместо 26). */
+.io-cats__cell--fit { flex: 0 0 auto; flex-direction: column; align-items: flex-start; }
+/* Переключатель свёрнутости: стрелка вниз — открыт, вправо — свёрнут. */
+.io-cats .io-cats__fold { width: 26px; min-height: 26px; color: var(--text-muted); }
+.io-cats .io-cats__fold--closed { color: var(--text-normal); }
 .io-cats__cell--wide { flex-basis: 100%; }
 .io-cats__cap { flex: 0 0 100%; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Вставка блока (6.3): содержимое во всю ширину, текстовые поля пресета — по месту. И в редакторе Fields, и в окне `Add a Field`. */
@@ -1836,10 +1843,10 @@ body.theme-dark {
 .io-cats__empty { padding: 8px 10px; }
 /* Выбор списком: значок и цвет темы у типа коллаута (`--callout-color` — «r, g, b»), список под кнопкой. */
 .io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
-.io-cats__type { position: relative; flex: 1 0 auto; }
+.io-cats__type { position: relative; flex: 1 1 56px; min-width: 0; }
 .io-cats__pick { flex: 1 1 160px; min-width: 0; }
 .io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
-  display: flex; align-items: center; gap: 6px; width: 100%; height: auto; min-height: 26px; padding: 2px 8px;
+  display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; height: auto; min-height: 26px; padding: 2px 8px;
   justify-content: flex-start; font-size: var(--font-ui-smaller); box-shadow: none;
   color: var(--text-normal); background: var(--background-primary);
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
@@ -1854,7 +1861,9 @@ body.theme-dark {
 .io-cats .io-cats__tbtn--unset { color: var(--text-faint); }
 .io-cats__ticon { display: inline-flex; width: 14px; height: 14px; flex: none; }
 .io-cats__ticon svg { width: 14px; height: 14px; }
-.io-cats__tname { white-space: nowrap; }
+.io-cats__tname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* В открытом списке вариант читается целиком: узкая ячейка переносит, а не режет. */
+.io-cats__tlist .io-cats__tname { white-space: normal; }
 .io-cats__tlist {
   /* В потоке ячейки: у таблицы `overflow: hidden`, всплывающий список она обрезала (стенд). */
   margin-top: 2px; max-height: 260px; overflow-y: auto;
@@ -3738,15 +3747,15 @@ const CF_SECTION_CHOICES = {
 };
 /* Колонки пресета — по роду параметра, подпись над контролом первого пресета (его 💬 к тесту 2 цикла 126). */
 const CF_COLUMNS = {
-  "callout-type": { cap:"Type", tip:"The kind of callout; its icon and color come from your theme" },
-  "fold": { cap:"Fold", tip:"Whether the callout starts open or folded" },
+  "callout-type": { cap:"Type", tip:"The kind of callout; its icon and color come from your theme", min:96 },
+  "fold": { cap:"Fold", tip:"Whether the callout starts open or folded", fit:true },
   "fields": { cap:"Keep", tip:"The Fields whose Values stay on the line; the Values of all other Fields are taken off" },
-  "heading-level": { cap:"Heading", tip:"The level of the heading the list item becomes" },
-  "section-place": { cap:"Where", tip:"Where the new section goes" },
-  "code-blocks": { cap:"Code blocks", tip:"What happens to the code blocks of a section when it turns back into a tree" },
-  "tables": { cap:"Tables", tip:"What happens to the tables of a section when it turns back into a tree" },
-  "block-mode": { cap:"Wrap", tip:"What goes around your text: nothing, a heading above it or a callout around it" },
-  "block-wrap": { cap:"Wrap settings", tip:"For a heading its text and level, for a callout its type, fold and title", weight:3 },
+  "heading-level": { cap:"Heading", tip:"The level of the heading the list item becomes", min:64 },
+  "section-place": { cap:"Where", tip:"Where the new section goes", min:96 },
+  "code-blocks": { cap:"Code blocks", tip:"What happens to the code blocks of a section when it turns back into a tree", min:88 },
+  "tables": { cap:"Tables", tip:"What happens to the tables of a section when it turns back into a tree", min:88 },
+  "block-mode": { cap:"Wrap", tip:"What goes around your text: nothing, a heading above it or a callout around it", min:84 },
+  "block-wrap": { cap:"Wrap settings", tip:"For a heading its text and level, for a callout its type, fold and title", weight:3, min:140 },
   "block-content": { cap:"Text", tip:"What the preset inserts, such as a code block of another plugin", wide:true }
 };
 /* Обёртка пресета — одна из трёх; прежняя форма — по флагам, коллаут старше. */
@@ -5846,8 +5855,8 @@ function renderFieldList(list) {
       /* выбор — кнопка внутри ряда, а не сам ряд: рядом стоят ещё две кнопки */
       const pick = el("button", "io-fields__pick", b);
       pick.type = "button";
+      { const d = el("span", "io-typedot", pick); d.setAttribute("aria-label", TYPE_LABEL[f.type]); cssVar(d, "--io-chip-bg", TYPE_COLOR[f.type]); }
       el("span", "io-fields__name", pick, f.name);
-      { const c = el("span", "io-chip io-chip--typed", pick, TYPE_LABEL[f.type]); cssVar(c, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(c, "--io-chip-fg", typeInk(f.type)); }
       pick.addEventListener("click", () => { selectedFieldId = f.id; renderContent(); });
 
       /* Дочерний Field ходит за родителем, своих стрелок у него нет */
@@ -6351,7 +6360,7 @@ function cfTable(host, f, redraw) {
     eye(row, c, cfCategoryName(c));
     const name = textEl(row, c.name || "", reg.name, "Name of the category " + cfCategoryName(c), "io-text");
     name.addEventListener("change", () => { c.name = name.value.trim(); renderContent(); });
-    el("div", "io-cats__desc", row, reg.desc || "");
+    el("div", "io-cats__desc", row, reg.desc || "").title = reg.desc || "";
     const tools = el("div", "io-valtools", row);
     const clone = iconBtn(tools, "⧉", "Clone the category " + cfCategoryName(c));
     clone.addEventListener("click", () => {
@@ -6375,8 +6384,9 @@ function cfTable(host, f, redraw) {
       /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
       const cell = kind => {
         const col = CF_COLUMNS[kind];
-        const node = el("div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : ""), set);
+        const node = el("div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""), set);
         if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+        if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
         if (col && pi === 0) el("span", "io-cats__cap", node, col.cap).title = col.tip;
         return node;
       };
@@ -6384,12 +6394,23 @@ function cfTable(host, f, redraw) {
         options.some(o => o.value === value) ? value : options[0].value, aria, "", v => { write(v); renderContent(); });
       const types = box => cfPicker(box, CALLOUT_TYPES.map(type => ({ value:type, label:type, paint:true })), p.type || "note",
         "Callout type of " + pn, "", v => { p.type = v; renderContent(); });
-      const folds = box => choose(box, CF_FOLDS, p.fold === "-" ? "-" : "", "Fold of " + pn, v => { p.fold = v; });
+      /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
+      const folds = box => {
+        const closed = p.fold === "-";
+        const now = CF_FOLDS[closed ? 1 : 0];
+        const b = iconBtn(box, closed ? "▸" : "▾", "Fold of " + pn, now.label + ": " + now.tip);
+        b.classList.add("io-cats__fold");
+        if (closed) b.classList.add("io-cats__fold--closed");
+        b.setAttribute("aria-pressed", String(closed));
+        b.addEventListener("click", () => { p.fold = closed ? "" : "-"; renderContent(); });
+      };
       const prop = (box, value, placeholder, label, write) => {
         const t = textEl(box, value, placeholder, label, "io-text io-cats__prop");
         t.addEventListener("change", () => { write(t.value.trim()); renderContent(); });
       };
       reg.params.forEach(kind => {
+        /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
+        if (kind === "block-wrap" && cfBlockMode(p) === "plain") return;
         const box = cell(kind);
         if (kind === "callout-type") types(box);
         else if (kind === "fold") folds(box);

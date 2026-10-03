@@ -449,21 +449,24 @@ function dragToSide(from: StubNode, side: StubNode): void {
 /* ---- Ф4: чип типа со своим цветом -------------------------------------- */
 {
   const v = makeView();
-  const chips = all(all(v.host, "io-fields__list")[0] as StubNode, "io-chip").map(c => ({
-    text: String(c.textContent || "").trim(),
+  /* В списке тип — точка цвета типа с подписью в подсказке: чип съедал имя
+     Field (его 💬 к тесту 1 цикла 127). Чипа в списке быть не должно. */
+  const list = all(v.host, "io-fields__list")[0] as StubNode;
+  assert.equal(all(list, "io-chip").length, 0, "в списке Fields чипа типа нет — имя занимает строку");
+  const dots = all(list, "io-typedot").map(c => ({
+    text: String(c.getAttribute("aria-label") || ""),
     bg: c.style.getPropertyValue("--io-chip-bg"),
-    fg: c.style.getPropertyValue("--io-chip-fg"),
   }));
-  /* Подписи короткие: `Emoji` вместо `Element` — иначе чип съедал имя Field
-     в узкой колонке (замечание заказчика 2026-08-27). В конфиге тип прежний. */
-  assert.deepEqual(chips.map(c => c.text), ["Tag", "Emoji"],
-    "тип показан подписью, а ссылка называется Link, хотя в конфиге wikilink");
-  assert.equal(chips[0]?.bg, "var(--io-type-tag)", "цвет типа приходит переменной, а не литералом");
-  assert.equal(chips[1]?.bg, "var(--io-type-element)", "у element свой цвет типа");
+  assert.deepEqual(dots.map(c => c.text), ["Tag", "Emoji"],
+    "тип назван подсказкой точки коротким словом: Emoji, хотя в конфиге element");
+  assert.equal(dots[0]?.bg, "var(--io-type-tag)", "цвет типа приходит переменной, а не литералом");
+  assert.equal(dots[1]?.bg, "var(--io-type-element)", "у element свой цвет типа");
   /* Бренд-бук (`В-198`): тег — янтарь, и белый на нём не читается. Текст чипа
-     приходит парой к заливке, и у тега он свой. */
-  assert.equal(chips[0]?.fg, "var(--io-type-tag-ink)", "на янтаре тега текст обязан быть тёмным");
-  assert.equal(chips[1]?.fg, "var(--text-on-accent)", "у остальных — белый темы");
+     в шапке выбранного Field приходит парой к заливке, и у тега он свой. */
+  const headChip = (): StubNode => all(v.host, "io-chip--typed")[0] as StubNode;
+  assert.equal(headChip().style.getPropertyValue("--io-chip-fg"), "var(--io-type-tag-ink)", "на янтаре тега текст обязан быть тёмным");
+  one(rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode, "io-fields__pick").click();
+  assert.equal(headChip().style.getPropertyValue("--io-chip-fg"), "var(--text-on-accent)", "у остальных — белый темы");
 
   /*
    * Контраст пар спрашивается у самих значений в `styles.css`, тем же
@@ -490,14 +493,14 @@ function dragToSide(from: StubNode, side: StubNode): void {
   ok("Ф4: тип показан чипом с цветом типа, цвет задан переменной");
 }
 
-/* ---- Ф18: место под стрелки занято всегда ------------------------------ */
+/* ---- Ф18: узел стрелок есть в каждой строке ---------------------------- */
 {
   const v = makeView();
   for (const row of rowsOf(v.host)) {
     assert.equal(all(row, "io-fields__tools").length, 1,
-      "место под стрелки отведено в каждой строке: их появление не двигает вёрстку");
+      "узел стрелок в каждой строке: место под них стили дают строке, с которой работают (💬 к тесту 1 цикла 127)");
   }
-  ok("Ф18: место под стрелки занято в каждой строке");
+  ok("Ф18: узел стрелок есть в каждой строке");
 }
 
 /* ---- Ф3: строки дочернего Field в списке нет --------------------------- */
@@ -649,8 +652,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.deepEqual(layout(v.host).right, ["Due", "client"],
     "новый Field встаёт в Right Block под тем именем, что назвали в окне");
   assert.equal(v.state.selected, "client", "новый Field сразу выбран: за добавлением идёт настройка");
-  const chips = all(all(v.host, "io-fields__list")[0] as StubNode, "io-chip")
-    .map(c => String(c.textContent || "").trim());
+  const chips = all(all(v.host, "io-fields__list")[0] as StubNode, "io-typedot")
+    .map(c => String(c.getAttribute("aria-label") || ""));
   assert.ok(chips.includes("Link"), "тип из окна доехал до Field: без окна Link создать нечем");
   ok("Ф5: Add Field — нейтральная кнопка, окно спрашивает имя и тип");
 }
@@ -1954,8 +1957,12 @@ function heightBtn(host: StubNode): StubNode {
 {
   const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const tools = /\.io-fields__tools \{([\s\S]*?)\n\}/.exec(css);
-  const width = /width:\s*(\d+)px/.exec(String(tools?.[1]));
-  assert.ok(width && Number(width[1]) <= 34,
+  /* В покое места под стрелки нет вовсе (💬 к тесту 1 цикла 127), у рабочей строки — не шире 34px. */
+  const width = /width:\s*(\d+)(?:px)?;/.exec(String(tools?.[1]));
+  assert.ok(width && Number(width[1]) === 0,
+    "в покое строка не держит места под стрелки: имя Field идёт до края");
+  const active = /\[aria-current="true"\] \.io-fields__tools \{[^}]*width:\s*(\d+)px/.exec(css);
+  assert.ok(active && Number(active[1]) <= 34,
     "место под стрелки сузилось: вместе с чипом типа они съедали имя Field");
   const icon = /\.io-fields__tools \.io-icon \{([^}]*)\}/.exec(css);
   const iconWidth = /width:\s*(\d+)px/.exec(String(icon?.[1]));

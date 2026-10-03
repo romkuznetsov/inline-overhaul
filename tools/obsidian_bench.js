@@ -1359,6 +1359,15 @@ const SCENARIOS = {
       cats: document.querySelectorAll(".io-cats__cat").length,
       presets: document.querySelectorAll(".io-cats .io-vals__row--child").length,
       yaml: [...document.querySelectorAll(".io-fields .io-sub")].map((n) => n.textContent.trim()),
+      /* Тип и Fold пресета — одна зрительная строка (его 💬 к тесту 1 цикла 127): верх у кнопок выбора один. */
+      lines: [...document.querySelectorAll(".io-fields .io-cats .io-vals__row--child")].map((r) =>
+        new Set([...r.querySelectorAll(".io-cats__tbtn, .io-cats__fold")].map((b) => Math.round(b.getBoundingClientRect().top))).size),
+      /* Тип читается целиком: имя типа не обрезано «…». */
+      cut: [...document.querySelectorAll(".io-fields .io-cats .io-vals__row--child .io-cats__tbtn .io-cats__tname")].filter((n) => n.scrollWidth > n.clientWidth).length,
+      setW: Math.round((document.querySelector(".io-fields .io-cats__set") || { getBoundingClientRect: () => ({ width: 0 }) }).getBoundingClientRect().width),
+      /* В списке Fields чипа нет: имя кончается там, где кончается кнопка выбора, а не перед чипом. */
+      listChips: document.querySelectorAll(".io-fields__list .io-chip").length,
+      dots: document.querySelectorAll(".io-fields__list .io-typedot").length,
     }));
     /* Выбор типа: значок и цвет от темы (его 💬 к тесту 1 цикла 125). */
     await host.click(".io-fields .io-cats__tbtn");
@@ -1405,7 +1414,8 @@ const SCENARIOS = {
     const ok = got.type === "command" && !got.defs.length && got.cats === 1 && got.presets === 3
       && got.types === 13 && got.icons === 13 && got.colored === 13
       && got.commands.join() === "inline-overhaul:format-callouts-next,inline-overhaul:format-callouts-previous"
-      && got.after === "> [!note]\n> - Research plan\n>   - read papers\n- buy bread\n" && got.undone;
+      && got.after === "> [!note]\n> - Research plan\n>   - read papers\n- buy bread\n" && got.undone
+      && got.lines.length === 3 && got.lines.every((n) => n === 1) && got.cut === 0 && got.listChips === 0 && got.dots > 0;
     console.log(ok ? "ok: Command Field заведён окном, категория пришла с пресетами, команда — одна правка и один Ctrl+Z" : "РАСХОДИТСЯ");
     return ok;
   },

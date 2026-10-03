@@ -165,16 +165,19 @@ const panel = makePanel(base);
   click(items.find(n => n.getAttribute("aria-label") === "danger") as StubNode);
   const presets = panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets;
   assert.equal(presets[3].type, "danger", "выбор типа не записался");
-  click(opener(panel.host, "Fold of Note"));
-  const folds = all(panel.host, "io-cats__titem").map(n => String(n.getAttribute("aria-label")));
-  assert.deepEqual(folds.map(a => a.split(" — ")[0]), ["Open", "Closed"], "у свёрнутости не два положения");
-  assert.ok(folds.every(a => a.split(" — ")[1]), "у положения нет подсказки");
-  click(all(panel.host, "io-cats__titem").find(n => named(n, "Closed")) as StubNode);
+  /* Свёрнутость — переключатель (его 💬 к тесту 1 цикла 127): подпись называет положение и подсказку. */
+  const fold = (): StubNode => all(panel.host, "io-cats__fold").find(n => named(n, "Fold of Note")) as StubNode;
+  assert.ok(fold(), "у пресета Note нет переключателя свёрнутости");
+  assert.equal(all(panel.host, "io-cats__tbtn").filter(n => named(n, "Fold of Note")).length, 0, "свёрнутость осталась списком");
+  assert.match(String(fold().getAttribute("aria-label")), /^Fold of Note — Open: \S/, "подпись не называет положение Open с подсказкой");
+  click(fold());
   assert.equal(panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets[0].fold, "-", "свёрнутость не записалась");
-  pickIn(panel.host, "Fold of Note", "Open");
+  assert.match(String(fold().getAttribute("aria-label")), /— Closed: \S/, "после щелчка подпись не Closed");
+  click(fold());
+  assert.equal(panel.cfg().pkm.fields.commands.byField.Fmt.categories[0].presets[0].fold, "", "второй щелчок не открыл коллаут");
   /* Обратно — дальше проверки опираются на Warning. */
   pickIn(panel.host, "Callout type of Warning", "warning");
-  ok("выбор типа коллаута списком со значком; свёрнутость — Open и Closed");
+  ok("выбор типа коллаута списком со значком; свёрнутость — переключатель Open/Closed");
 }
 
 /* 3. У Command Field нет Prefix behavior и свойства заметки; есть пара команд на категорию. */

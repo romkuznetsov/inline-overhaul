@@ -1254,26 +1254,27 @@ body.theme-dark {
   padding: 2px 0;
   border-radius: var(--radius-s);
 }
-.io-fields__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.io-fields__item .io-chip { margin-left: 4px; }
+.io-fields__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Тип в списке — точка цвета типа, имя Field занимает всю строку (его 💬 к тесту 1, цикл 127). */
+.io-typedot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--io-chip-bg, var(--text-faint)); }
 /*
- * Место под стрелки занято всегда, видны они только у строки, с которой
- * работают (Ф18). Появление кнопки не двигает вёрстку - иначе строка прыгает
- * под курсором.
+ * Стрелки — только у строки, с которой работают (Ф18), и место под них тоже:
+ * у остальных имя Field идёт до края (его 💬 к тесту 1 цикла 127). Строка не
+ * прыгает — сдвигается лишь «…» длинного имени под курсором.
  */
 .io-fields__tools {
   display: inline-flex;
   gap: 0;
   flex: 0 0 auto;
-  /* Узкие: вместе с чипом типа стрелки съедали имя Field (2026-08-27). */
-  width: 34px;
+  width: 0;
+  overflow: hidden;
   justify-content: flex-end;
   opacity: 0;
   transition: opacity 90ms ease-out;
 }
 .io-fields__item:hover .io-fields__tools,
 .io-fields__item:focus-within .io-fields__tools,
-.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; }
+.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; width: 34px; }
 .io-fields__tools .io-icon { width: 16px; height: 20px; padding: 0; font-size: 10px; }
 .io-fields__add {
   margin-top: 4px;
@@ -3705,21 +3706,28 @@ body.theme-dark {
 
 /* ---- Command Field: категории и пресеты (постановка command-field.md, 4.1) ----
    Таблица — та же `io-vals`, своя сетка колонок; вид — прототип. */
-.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(70px, 1fr) minmax(110px, 2.4fr) 48px; }
+.io-cats .io-cats__row { grid-template-columns: 14px 22px minmax(84px, 1.2fr) minmax(120px, 2.2fr) 48px; }
 /* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
 .io-cats__inner { min-width: 300px; }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }
 .io-cats__eye--off { color: var(--text-faint); }
-.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); }
+/* Описание категории — две строки, целиком в подсказке (его 💬 к тесту 1 цикла 127: «выглядит не очень»). */
+.io-cats__desc { color: var(--text-muted); font-weight: 400; font-size: var(--font-ui-smaller); cursor: help;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 /*
  * Колонки пресета (его 💬 к тесту 2 цикла 126): ячейка на параметр, подпись
  * колонки — над контролом первого пресета; узко — ячейки переносятся вместе с ней.
  */
 .io-cats__set { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: flex-end; min-width: 0; }
-/* Ячейка не уже своей подписи: в узком окне она переносится целиком, а не режется (снимок стенда). */
-.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 64px; }
+/* Ячейки пресета — одной строкой, пока помещаются по своей ширине `--io-cats-min`, иначе переносятся целиком (его 💬 к тесту 1 цикла 127). */
+.io-cats__cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: var(--io-cats-grow, 1) 1 var(--io-cats-min, 64px); min-width: 0; }
+/* Столбцом: ширина по содержимому у переносящего флекса — подпись и кнопка в одну линию (стенд: 51 px вместо 26). */
+.io-cats__cell--fit { flex: 0 0 auto; flex-direction: column; align-items: flex-start; }
+/* Переключатель свёрнутости: стрелка вниз — открыт, вправо — свёрнут. */
+.io-cats .io-cats__fold { width: 26px; min-height: 26px; color: var(--text-muted); }
+.io-cats .io-cats__fold--closed { color: var(--text-normal); }
 .io-cats__cell--wide { flex-basis: 100%; }
 .io-cats__cap { flex: 0 0 100%; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Вставка блока (6.3): содержимое во всю ширину, текстовые поля пресета — по месту. И в редакторе Fields, и в окне `Add a Field`. */
@@ -3735,10 +3743,10 @@ body.theme-dark {
 .io-cats__empty { padding: 8px 10px; }
 /* Выбор списком: значок и цвет темы у типа коллаута (`--callout-color` — «r, g, b»), список под кнопкой. */
 .io-cats__probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
-.io-cats__type { position: relative; flex: 1 0 auto; }
+.io-cats__type { position: relative; flex: 1 1 56px; min-width: 0; }
 .io-cats__pick { flex: 1 1 160px; min-width: 0; }
 .io-cats .io-cats__tbtn, .io-cats .io-cats__titem {
-  display: flex; align-items: center; gap: 6px; width: 100%; height: auto; min-height: 26px; padding: 2px 8px;
+  display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; height: auto; min-height: 26px; padding: 2px 8px;
   justify-content: flex-start; font-size: var(--font-ui-smaller); box-shadow: none;
   color: var(--text-normal); background: var(--background-primary);
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
@@ -3753,7 +3761,9 @@ body.theme-dark {
 .io-cats .io-cats__tbtn--unset { color: var(--text-faint); }
 .io-cats__ticon { display: inline-flex; width: 14px; height: 14px; flex: none; }
 .io-cats__ticon svg { width: 14px; height: 14px; }
-.io-cats__tname { white-space: nowrap; }
+.io-cats__tname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* В открытом списке вариант читается целиком: узкая ячейка переносит, а не режет. */
+.io-cats__tlist .io-cats__tname { white-space: normal; }
 .io-cats__tlist {
   /* В потоке ячейки: у таблицы `overflow: hidden`, всплывающий список она обрезала (стенд). */
   margin-top: 2px; max-height: 260px; overflow-y: auto;

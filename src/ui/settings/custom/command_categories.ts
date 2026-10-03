@@ -75,16 +75,17 @@ const SECTION_CHOICES: Record<string, { field: "level" | "place" | "code" | "tab
  * стоит над контролом первого пресета категории и переносится вместе с ним в
  * узком окне; `weight` — доля ширины, `wide` — во всю ширину.
  */
-const COLUMNS: Record<string, { cap: string; tip: string; weight?: number; wide?: boolean }> = {
-  "callout-type": { cap: "CAP_TYPE", tip: "CAP_TYPE_TIP" },
-  "fold": { cap: "CAP_FOLD", tip: "CAP_FOLD_TIP" },
+/* `min` — ширина, ниже которой ячейка уходит на новую строку, а не режет выбор до пустоты; `fit` — по содержимому (его 💬 к тесту 1 цикла 127). */
+const COLUMNS: Record<string, { cap: string; tip: string; weight?: number; wide?: boolean; min?: number; fit?: boolean }> = {
+  "callout-type": { cap: "CAP_TYPE", tip: "CAP_TYPE_TIP", min: 96 },
+  "fold": { cap: "CAP_FOLD", tip: "CAP_FOLD_TIP", fit: true },
   "fields": { cap: "CAP_KEEP", tip: "CAP_KEEP_TIP" },
-  "heading-level": { cap: "CAP_LEVEL", tip: "CAP_LEVEL_TIP" },
-  "section-place": { cap: "CAP_PLACE", tip: "CAP_PLACE_TIP" },
-  "code-blocks": { cap: "CAP_CODE", tip: "CAP_CODE_TIP" },
-  "tables": { cap: "CAP_TABLES", tip: "CAP_TABLES_TIP" },
-  "block-mode": { cap: "CAP_WRAP", tip: "CAP_WRAP_TIP" },
-  "block-wrap": { cap: "CAP_WRAP_SETTINGS", tip: "CAP_WRAP_SETTINGS_TIP", weight: 3 },
+  "heading-level": { cap: "CAP_LEVEL", tip: "CAP_LEVEL_TIP", min: 64 },
+  "section-place": { cap: "CAP_PLACE", tip: "CAP_PLACE_TIP", min: 96 },
+  "code-blocks": { cap: "CAP_CODE", tip: "CAP_CODE_TIP", min: 88 },
+  "tables": { cap: "CAP_TABLES", tip: "CAP_TABLES_TIP", min: 88 },
+  "block-mode": { cap: "CAP_WRAP", tip: "CAP_WRAP_TIP", min: 84 },
+  "block-wrap": { cap: "CAP_WRAP_SETTINGS", tip: "CAP_WRAP_SETTINGS_TIP", weight: 3, min: 140 },
   "block-content": { cap: "CAP_TEXT", tip: "CAP_TEXT_TIP", wide: true },
 };
 
@@ -301,7 +302,9 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
     grip(line, "cat", ci, cats, cn);
     eye(line, c, cn);
     nameInput(line, c.name || "", reg ? reg.name : c.id, say("CAT_NAME_ARIA", cn), v => { c.name = v; });
-    el(line, "div", "io-cats__desc", CAT_DESC[c.id] ? say(CAT_DESC[c.id] as string) : "");
+    const desc = CAT_DESC[c.id] ? say(CAT_DESC[c.id] as string) : "";
+    /* Две строки, целиком — подсказкой (его 💬 к тесту 1 цикла 127). */
+    el(line, "div", "io-cats__desc", desc).setAttribute("aria-label", desc);
     const tools = el(line, "div", "io-valtools");
     tool(tools, "⧉", say("CAT_CLONE", cn), () => {
       let n = 2;
@@ -322,8 +325,9 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
       /* Ячейка колонки; у первого пресета — подпись колонки над контролом, подсказка — при наведении. */
       const cell = (kind: string): El => {
         const col = COLUMNS[kind];
-        const node = el(set, "div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : ""));
+        const node = el(set, "div", "io-cats__cell" + (col && col.wide ? " io-cats__cell--wide" : "") + (col && col.fit ? " io-cats__cell--fit" : ""));
         if (col && col.weight) cssVar(node, "--io-cats-grow", String(col.weight));
+        if (col && col.min) cssVar(node, "--io-cats-min", col.min + "px");
         if (col && pi === 0) el(node, "span", "io-cats__cap", say(col.cap)).setAttribute("aria-label", say(col.tip));
         return node;
       };
@@ -336,13 +340,25 @@ export function drawCategoriesTable(sec: El, cats: CommandCategory[], t: Categor
         items: CF.CALLOUT_TYPES.map(type => ({ value: type, label: type, paint: (n: El) => paintType(n, type, t.setIcon) })),
         value: p.type || "note", aria: say("PRESET_TYPE_ARIA", pn), enabled: t.enabled, pick: v => { p.type = v; save(); },
       });
-      const folds = (host2: El): void => choose(host2, FOLDS, p.fold === "-" ? "-" : "", say("PRESET_FOLD_ARIA", pn), v => { p.fold = v; });
+      /* Свёрнутость — два положения: переключатель, а не список, и тип рядом читается целиком (его 💬 к тесту 1 цикла 127). */
+      const folds = (host2: El): void => {
+        const closed = p.fold === "-";
+        const now = FOLDS[closed ? 1 : 0] as Choice;
+        const b = btn(host2, "io-icon io-cats__fold" + (closed ? " io-cats__fold--closed" : ""), {
+          text: closed ? "▸" : "▾", label: say("PRESET_FOLD_ARIA", pn), title: say(now.label) + ": " + say(now.tip),
+        });
+        b.setAttribute("aria-pressed", closed ? "true" : "false");
+        b.disabled = !t.enabled;
+        b.addEventListener("click", (() => { p.fold = closed ? "" : "-"; save(); }) as never);
+      };
       const prop = (host2: El, value: string, placeholder: string, label: string, write: (v: string) => void): void => {
         const input = textInput(host2, "io-text io-cats__prop", { value, placeholder, label });
         input.disabled = !t.enabled;
         input.addEventListener("change", (() => { write(String(input.value || "").trim()); save(); }) as never);
       };
       for (const kind of reg ? reg.params : []) {
+        /* У простой вставки настроек обёртки нет — и пустой ячейки с подписью тоже (его 💬 к тесту 1 цикла 127). */
+        if (kind === "block-wrap" && CF.blockMode(p) === "plain") continue;
         const box2 = cell(kind);
         if (kind === "callout-type") {
           types(box2);

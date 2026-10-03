@@ -23,9 +23,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 1. ✨ **A new Field type, `Action`, turns edits of the line into hotkeys.** Its categories — `Insert callout`, `Cleanup`, `Insert codeblock` and `Tree ↔ section` — come with ready-made presets you can rename, hide, clone and reorder, each category gets its own `next` and `previous` commands, and tagWheel offers its presets in every Block, custom blocks too — `Enter` applies every one you pick.
 2. 🎨 **`Show callouts` and `Show tips` come first in `Help`,** above `Guide` and `Changelog`.
-3. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
-4. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
-5. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
+3. 🎨 **The list of Fields marks the type with a colored dot,** so a long Field name reads in full; the type is named on hover and above the Field settings.
+4. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
+5. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
+6. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
 
 ## 0.14.0
 
