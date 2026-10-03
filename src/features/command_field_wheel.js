@@ -51,6 +51,8 @@ function wheelInput(cfg) {
       fields.push({
         key, side, block: block || "", after: i ? list[i - 1] : "",
         label: String(order.labels[key] || "").trim() || fieldName(key),
+        /* `Child name in tagWheel` — подпись ячейки пресетов, без него `preset`. */
+        subLabel: String(order.labels[key + SUB] || "").trim() || "preset",
         categories,
       });
     });
@@ -83,8 +85,7 @@ function inject(rules, input, block) {
     }, f.side, 0, opts));
     mode.fields.push(__normalizer.normalizeField({
       id: f.key + SUB, orderKey: f.key + SUB, prefix: "", kind: KIND, dependsOn: f.key, parentIsNavigator: true,
-      /* Ячейка пресетов называется по уровню, как `sub` у дочернего Field. */
-      placeholder: "preset",
+      placeholder: f.subLabel || "preset",
       /* Один пресет — ячейки пресетов у категории нет: её выбор и есть пресет (его `💬` к тесту 2 цикла 125). */
       values: [].concat(...f.categories.filter((c) => c.presets.length > 1)
         .map((c) => c.presets.map((p) => ({ id: c.key + "/" + p.index, token: p.name, allowedParentValues: [c.name] })))),

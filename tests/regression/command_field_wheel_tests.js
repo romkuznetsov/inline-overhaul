@@ -29,13 +29,15 @@ function config(o = {}) {
     pkm: { fields: {
       order: {
         left: o.left ? ["Type", "Fmt"] : ["Type"], right: o.left || o.custom ? [] : ["Fmt"],
-        labels: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" },
+        labels: Object.assign({ Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" }, o.sub ? { Fmt_sub: o.sub } : {}),
         strictNames: { Type: "Type", Fmt: "Fmt", Mood: "Mood", Tone: "Tone" },
-        types: { Type: "tag", Fmt: "command", Mood: "tag", Tone: "tag" }, active: { Type: "yes", Fmt: o.active || "yes" },
+        /* Mood и Tone — только в custom block: без него они уехали бы в правый Block. */
+        types: Object.assign({ Type: "tag", Fmt: "command" }, o.custom ? { Mood: "tag", Tone: "tag" } : {}),
+        active: { Type: "yes", Fmt: o.active || "yes" },
         custom: o.custom ? [{ id: "b1", name: "Block one", keys: ["Mood", "Fmt"] }, { id: "b2", name: "Block two", keys: ["Tone"] }] : [],
       },
-      tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] },
-        { id: "Mood", prefix: "#", values: [{ token: "calm" }] }, { id: "Tone", prefix: "#", values: [{ token: "soft" }] }] },
+      tags: { fields: [{ id: "Type", prefix: "#", values: [{ token: "todo" }, { token: "done" }] }].concat(o.custom
+        ? [{ id: "Mood", prefix: "#", values: [{ token: "calm" }] }, { id: "Tone", prefix: "#", values: [{ token: "soft" }] }] : []) },
       commands: { byField: { Fmt: { categories: [
         { id: "callouts", key: "callouts", presets: [{ name: "Note", type: "note", fold: "" }].concat(o.clone ? [{ name: "Note (copy)", type: "note", fold: "" }] : [],
           [{ name: "Tip", type: "tip", fold: "", hidden: !!o.hideTip }, { name: "Warning", type: "warning", fold: "" }]) },
@@ -174,7 +176,9 @@ async function run() {
     assert.ok(/Cleanup/.test(one.seen[1]) && !/preset/.test(one.seen[1]), "у категории с одним пресетом ячейка пресетов: " + one.seen[1]);
     const clone = await drive(config({ clone: true }), DOC, [OPEN, UP, RIGHT, UP, UP]);
     assert.ok(/\[Tip\]/.test(clone.seen[4]), "совпавший клон в колесе: " + clone.seen[4]);
-    ok("один пресет — без ячейки пресетов; совпавший клон не виден");
+    const named = await drive(config({ sub: "style" }), DOC, [OPEN, UP]);
+    assert.ok(/`style`/.test(named.seen[1]) && !/preset/.test(named.seen[1]), "Child name in tagWheel не подписал ячейку пресетов: " + named.seen[1]);
+    ok("один пресет — без ячейки пресетов; совпавший клон не виден; ячейка пресетов — по Child name in tagWheel");
   }
 
   /* 8. Command Field в custom block: ячейка у блока, Enter — пресет, Field блока его не пишет, Tab по кругу без двойных ячеек. */

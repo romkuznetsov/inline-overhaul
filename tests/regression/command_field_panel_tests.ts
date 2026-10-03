@@ -32,6 +32,7 @@ const rulesShape = requireCjs(path.join(root, "src", "core", "pkm_rules_shape.js
 const orderConfig = requireCjs(path.join(root, "src", "core", "pkm_order_config.js")) as Any;
 const registry = requireCjs(path.join(root, "src", "features", "command_registry.js")) as Any;
 const CF = requireCjs(path.join(root, "src", "features", "command_field.js")) as Any;
+const wheelMod = requireCjs(path.join(root, "src", "features", "command_field_wheel.js")) as Any;
 const internals = loadPluginInternals();
 const deepState = (deepStateModule as { default?: unknown }).default || deepStateModule;
 
@@ -161,6 +162,22 @@ const panel = makePanel(base);
   assert.ok(!JSON.stringify(rules.behavior.order).includes("Fmt"), "движки видят Command Field в Order");
   assert.ok(!orderConfig.serializePkmOrderForMacro(cfg).includes("Fmt"), "порядок для макро видит Command Field");
   ok("пара команд на категорию, движки строки Command Field не видят");
+}
+
+/* 3б. `Child name in tagWheel` у Command Field — подпись ячейки пресетов, без своего имени `preset`. */
+{
+  const input = labelled(panel.host, "Child name in tagWheel for Fmt");
+  assert.equal((input as Any).placeholder, "preset", "умолчание ячейки пресетов не preset");
+  let p: Any = input;
+  while (p && !p.classList.contains("io-item")) p = p.parent;
+  assert.ok(p && !p.hidden, "у категории три пресета, а строка подписи спрятана");
+  (input as Any).value = "style";
+  input.dispatch("change", { target: input });
+  const wheel = wheelMod.wheelInput(panel.cfg());
+  assert.equal(wheel.fields.find((f: Any) => f.key === "Fmt").subLabel, "style", "подпись не дошла до колеса");
+  panel.model().setSubLabel("Fmt_sub", "");
+  assert.equal(wheelMod.wheelInput(panel.cfg()).fields.find((f: Any) => f.key === "Fmt").subLabel, "preset", "пустая подпись не вернула preset");
+  ok("Child name in tagWheel у Command Field: виден, пишется, доходит до колеса, пустое — preset");
 }
 
 /* 4. Исполнение в редакторе — одна транзакция (R-1); скрытый пресет перебор пропускает. */

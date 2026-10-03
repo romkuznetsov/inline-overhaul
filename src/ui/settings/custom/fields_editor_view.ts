@@ -808,7 +808,10 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * Имя дочернего Field в tagWheel (2026-09-29): спрятано без дочерних Values
    * (З8), но не снято — снятое сдвигало бы дерево под фокусом (`keepview`).
    */
-  if (row.subKey) {
+  /* У Command Field дочерняя ячейка — пресеты: видна, когда у категории их больше одного, умолчание `preset`. */
+  const cmd = row.kind === "command";
+  const subKey = row.subKey || (cmd ? row.key + "_sub" : "");
+  if (subKey) {
     const subRow = itemRow(detail, {
       name: say("SHORT_SUB_NAME"),
       desc: say("SHORT_SUB_DESC"),
@@ -817,16 +820,18 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
       showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(subRow.closeTip);
-    subRow.row.hidden = !o.model.valuesEditor(row.key).tree.some(n => (n.children || []).length > 0);
+    subRow.row.hidden = cmd
+      ? !o.model.getCommandCategories(row.key).some(c => (c.presets || []).length > 1)
+      : !o.model.valuesEditor(row.key).tree.some(n => (n.children || []).length > 0);
     const sub = textInput(subRow.control, "io-text io-text--prop", {
-      value: o.model.getSubLabel(row.subKey),
-      placeholder: o.model.subLabelShown(),
+      value: o.model.getSubLabel(subKey),
+      placeholder: cmd ? "preset" : o.model.subLabelShown(),
       label: say("SHORT_SUB_NAME") + " for " + row.strictName,
     });
     sub.disabled = !o.enabled;
     sub.addEventListener("change", (() => {
       if (!o.enabled) return;
-      o.model.setSubLabel(row.subKey, sub.value);
+      o.model.setSubLabel(subKey, sub.value);
       o.redraw();
     }) as never);
   }
