@@ -9,7 +9,7 @@ import type { CustomRender, FieldKind, SettingsCtx } from "../types.ts";
 import { el, onEnter, rich, type El } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
-import { createFieldsModel, type DeepState } from "./fields_model.ts";
+import { createFieldsModel, type DeepState, type FieldRow } from "./fields_model.ts";
 import {
   renderFieldsEditor,
   FIELDS_HEIGHT_PATH,
@@ -92,6 +92,7 @@ export function askNewFieldModal(
     checkName: (name: string) => string;
     valueTaken?: (token: string, kind: FieldKind) => boolean;
     holdKeys?: (onEscape: () => void) => () => void;
+    lineFields?: readonly FieldRow[];
   },
 ): void {
   let answered = false;
@@ -113,6 +114,7 @@ export function askNewFieldModal(
         say, ctx: o.ctx, showTips: o.showTips, showIds: o.showIds, blocks: o.blocks, checkName: o.checkName,
         ...(o.valueTaken ? { valueTaken: o.valueTaken } : {}),
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
+        ...(o.lineFields ? { lineFields: o.lineFields } : {}),
         notes,
         noteExists: t => !!(cache && typeof cache.getFirstLinkpathDest === "function" && cache.getFirstLinkpathDest(t, "")),
         done: answer => { finish(answer); this.close(); },
@@ -454,6 +456,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
           blocks: model.listBlocks().map(b => ({ id: b.id, name: b.name })),
           checkName: n => model.fieldNameError(n),
           valueTaken: (t, k) => model.valueTaken(t, k),
+          lineFields: model.listLineFields(),
           ...(() => {
             const holdKeys = escapeScope(p.Scope, app, app && (app as { scope?: unknown }).scope);
             return holdKeys ? { holdKeys } : {};

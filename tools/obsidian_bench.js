@@ -1336,10 +1336,21 @@ const SCENARIOS = {
     await host.waitForTimeout(200);
     await host.fill("input[aria-label=\"Name of the new Field\"]", "Format");
     await host.waitForTimeout(150);
-    await host.click(".io-nf .io-btn--cta");
-    await host.waitForTimeout(900);
-    await host.selectOption("select[aria-label=\"Category to add to Format\"]", "callouts");
+    /* Категория — прямо в окне (его 💬 к тесту 1 цикла 125). */
+    await host.selectOption(".io-nf .io-cats .io-vals__foot select", "callouts");
     await clickIn(host, "Add category");
+    await host.waitForTimeout(400);
+    const inDialog = await host.evaluate(() => ({
+      presets: document.querySelectorAll(".io-nf .io-cats .io-vals__row--child").length,
+      wheel: [...document.querySelectorAll(".io-nf .io-wheelval")].map((n) => n.textContent).join(),
+    }));
+    if (process.env.IO_SHOTS) {
+      const m = await host.$(".modal:has(.io-nf)");
+      if (m) await m.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-dialog.png") });
+    }
+    if (inDialog.presets !== 3) { console.log("в окне:", JSON.stringify(inDialog), "| РАСХОДИТСЯ: категории в окне нет"); return false; }
+    /* У `Add category` тот же акцентный класс: кнопка окна — в подвале. */
+    await host.click(".io-nf .io-nf__foot .io-btn--cta");
     await host.waitForTimeout(900);
     const table = await host.evaluate(() => ({
       cats: document.querySelectorAll(".io-cats__cat").length,

@@ -3707,7 +3707,10 @@ body.theme-dark {
 /* Узкая колонка Fields (около 400px): инструменты строки не уходят под прокрутку. */
 .io-cats__inner { min-width: 330px; }
 /* Тип и свёрнутость — в ряд, а не столбиком во всю ячейку. */
-.io-fields .io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
+/* И в редакторе Fields, и в окне `Add a Field`: правила ширины у обоих свои. */
+.io-cats .io-cats__set .io-select,
+.io-fields .io-cats .io-cats__set .io-select,
+.io-nf .io-cats .io-cats__set .io-select { width: auto; flex: 1 1 64px; }
 .io-cats__cat { background: var(--background-primary); font-weight: 600; }
 .io-cats__cat .io-text { font-weight: 600; }
 .io-cats__row--hidden .io-text, .io-cats__row--hidden .io-cats__set, .io-cats__row--hidden .io-cats__desc { opacity: 0.45; }

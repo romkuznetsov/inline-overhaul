@@ -96,6 +96,8 @@ export interface NewFieldSetup {
   moc?: boolean;
   /** Свойство YAML, в которое уходит Value. */
   property?: string;
+  /** Command Field: категории из окна (его `💬` к тесту 1 цикла 125). */
+  categories?: CommandCategory[];
 }
 
 /** Custom block так, как его читает вёрстка: `id`, имя и его Field. */
@@ -2284,6 +2286,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       if (e.mode !== "list") setYamlValueRule(k, "clean");
     }
     if (kind === "wikilink" && setup.moc === false) setUseAsMoc(k, false);
+    if (kind === "command" && setup.categories && setup.categories.length) setCommandCategories(k, setup.categories);
     if (setup.property) setProperty(k, setup.property);
     return error ? { ok: false, error } : { ok: true };
   };

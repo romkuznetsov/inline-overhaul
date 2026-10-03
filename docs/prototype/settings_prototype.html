@@ -6140,6 +6140,13 @@ function commandCategoriesTable(host, f) {
   attachTipItem(vh, host, { name:"Categories",
     tip:"A category is a kind of edit, such as <b>Callouts</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands. Outside its result <code>next</code> applies the first visible preset and <code>previous</code> the last; inside it they step through the presets, and one step past the end takes the result off again. Nothing here is written into the line as a Value" });
   subComment(vh, host, "categories/header");
+  cfTable(host, f, renderContent);
+}
+
+/* Таблица категорий на списке `f.categories`; `redraw` — у хозяина: редактор
+   Fields или окно Add a Field (его 💬 к тесту 1 цикла 125). */
+function cfTable(host, f, redraw) {
+  const renderContent = redraw;
   const box = el("div", "io-vals io-cats", host);
   const scroll = el("div", "io-scroll", box);
   const inner = el("div", "io-vals__inner io-cats__inner", scroll);
@@ -7683,7 +7690,7 @@ function renderSourcePreview(host) {
  */
 function renderAddFieldDialog() {
   const d = dialog;
-  if (!d.values) Object.assign(d, { side: "left", sideChosen: false, values: [], marker: "", value: "datetime", shows: "date",
+  if (!d.values) Object.assign(d, { categories: [], side: "left", sideChosen: false, values: [], marker: "", value: "datetime", shows: "date",
     press: "step", step: 1, random: "randomN", format: "YYYY-MM-DD", moc: true, property: "", tick: 0 });
   const scrim = el("div", "io-scrim", document.body);
   const stop = () => { if (d.timer) { clearInterval(d.timer); d.timer = null; } };
@@ -7720,6 +7727,8 @@ function renderAddFieldDialog() {
   const bare = t => String(t || "").trim().replace(/^#+/, "").replace(/^\[\[|\]\]$/g, "");
   const step = () => Math.max(1, Math.trunc(Number(d.step) || 1));
   const values = () => {
+    /* Command Field: скроллер показывает видимые категории, в строку не пишется ничего. */
+    if (d.type === "command") return d.categories.filter(c => !c.hidden).map(c => ({ text:cfCategoryName(c) }));
     if (d.type === "tag") return d.values.map(v => ({ text: "#" + bare(v.token), fill: v.fill, color: v.text }));
     if (d.type === "wikilink") return d.values.map(v => ({ text: "[[" + bare(v.token) + "]]" }));
     /* Element-список (`В-247`): Value пишется как есть, знак в нём самом. */
@@ -7771,7 +7780,8 @@ function renderAddFieldDialog() {
     const lineRow = el("div", "io-nf__pane", pbody);
     el("div", "io-nf__plabel", lineRow, "Line");
     shape(el("div", "io-line io-nf__pline", lineRow), side => {
-      if (!cur) { el("span", "io-nf__pempty", side, d.type === "command" ? "nothing is written into the line" : name); return; }
+      if (d.type === "command") { el("span", "io-nf__pempty", side, "nothing is written into the line"); return; }
+      if (!cur) { el("span", "io-nf__pempty", side, name); return; }
       const v = el("span", d.type === "tag" ? "io-nf__pval io-nf__chiptext--tag" : "io-nf__pval", side, cur.text);
       if (cur.fill) cssVar(v, "--io-nf-chip-bg", cur.fill);
       if (cur.color) cssVar(v, "--io-nf-chip-fg", cur.color);
@@ -7881,7 +7891,7 @@ function renderAddFieldDialog() {
     /* Command Field: категории заводятся в таблице Fields (4.1), свойства заметки нет (раздел 3). */
     if (d.type === "command") {
       el("div", "io-sub io-nf__sub", body, "Categories");
-      el("div", "io-nf__chipshint", body, "Once the Field is added, pick its categories in the Fields table: each one brings its ready-made presets and its own pair of commands");
+      cfTable(body, { name:String(d.name || "").trim() || "Priority", categories:d.categories }, draw);
       refresh();
       return;
     }
@@ -7936,7 +7946,7 @@ function renderAddFieldDialog() {
       marker:d.value === "list" ? "" : d.marker || "", format:d.format || "",
       step:d.value === "list" ? "list" : d.value === "random" || (d.value === "datetime" && d.press === "now") ? "command" : "increment",
       values:d.type === "command" ? [] : d.values.map(v => ({ token:d.value === "list" ? String(v.token).trim() : bare(v.token), fill:v.fill || "" })),
-      ...(d.type === "command" ? { categories:[] } : {}) });
+      ...(d.type === "command" ? { categories:d.categories } : {}) });
     selectedFieldId = id;
     stop();
     dialog = null;

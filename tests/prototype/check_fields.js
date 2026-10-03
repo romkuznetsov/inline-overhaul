@@ -162,6 +162,15 @@ run('(() => { const b = ' + inContent("io-icon") + '.find(n => String(n.getAttri
 check('клон пресета помечен как совпавший', run(inContent("io-cats__same") + '.map(n => n._text).join()'), 'same as Note — that one is used');
 run('(() => { const b = ' + inContent("io-btn") + '.find(n => n._text === "Add category"); b.dispatch("click", { target: b }); return true; })()');
 check('Add category заводит категорию с её пресетами', run('field("format").categories.map(c => c.key + ":" + c.presets.length).join()'), 'callouts:4,cleanup:1,callouts-2:3');
+/* Категории — прямо в окне Add a Field (его 💬 к тесту 1 цикла 125). */
+clickText('Add Field');
+run('(() => { ' + inScrim("io-nf__type") + ' found[3].dispatch("pointerdown", { target: found[3] }); return true; })()');
+run('(() => { let input = null; const go = n => { if (n.tagName === "INPUT" && !input) input = n; n.children.forEach(go); }; go(' + scrim + '[0]); input.value = "Wrap"; input.dispatch("input", { target: input }); return true; })()');
+run('(() => { let b = null; const go = n => { if (String(n._text) === "Add category") b = n; n.children.forEach(go); }; go(' + scrim + '[0]); b.dispatch("click", { target: b }); return true; })()');
+check('окно Command: категория с пресетами прямо в окне', run('(() => { ' + inScrim("io-vals__row--child") + ' return found.length; })()'), '3');
+check('окно Command: скроллер предпросмотра показывает категорию', run('(() => { ' + inScrim("io-wheelval") + ' return found.map(n => n._text).join(); })()'), 'Callouts');
+run('(() => { const b = ' + addInScrim + '; b.dispatch("click", { preventDefault() {}, target: b }); return true; })()');
+check('Add Field уносит категории в новый Field', run('(f => f ? f.type + ":" + f.categories.map(c => c.id + "/" + c.presets.length).join() : "нет Field")(field("wrap"))'), 'command:callouts/3');
 
 console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию; окно Add Field спрашивает тип карточками, имя и Block");
 process.exit(failures ? 1 : 0);

@@ -301,7 +301,6 @@ export const BLOCK_TEXTS = {
     NEW_FIELD_TYPE_COMMAND: "Command",
     NF_TYPE_COMMAND_DESC: "Edits of the line, such as a callout or a cleanup, one hotkey each",
     NF_CATEGORIES_HEAD: "Categories",
-    NF_CATEGORIES_HINT: "Once the Field is added, pick its categories in the Fields table: each one brings its ready-made presets and its own pair of commands",
     NF_PREVIEW_NO_CATEGORIES: "No categories yet",
     NF_PREVIEW_NOTHING: "nothing is written into the line",
     NF_NEED_NAME: "Name the Field",

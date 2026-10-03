@@ -18,6 +18,8 @@ import { createFieldsModel } from "../../src/ui/settings/custom/fields_model.ts"
 import { renderFieldsEditor, type FieldsViewState } from "../../src/ui/settings/custom/fields_editor_view.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 import * as deepStateModule from "../../src/core/order_deep_editor_state.js";
+import { renderNewFieldForm } from "../../src/ui/settings/custom/new_field_dialog.ts";
+import { sayIn } from "../../src/ui/settings/texts_blocks.ts";
 
 setupGlobals();
 type Any = ReturnType<typeof JSON.parse>;
@@ -164,6 +166,36 @@ const panel = makePanel(base);
   const defs = registry.buildPkmCommandDefs(orderConfig.serializePkmOrderForMacro, orderConfig.serializeDateRuntimeConfigForMacro, orderConfig.normalizePkmOrder, cfg, []);
   assert.ok(!defs.some((d: Any) => d.orderKey === "Fmt"));
   ok("удаление снимает категории и команды");
+}
+
+/* 6. Окно `Add a Field`: категории настраиваются сразу (его `💬` к тесту 1 цикла 125). */
+{
+  const box = makeNode("div");
+  let answer: Any = null;
+  renderNewFieldForm(box as unknown as El, {
+    say: sayIn("field-editor", {}),
+    ctx: { get: (p: string) => (/separator/.test(p) ? "::" : 100), set: async () => {}, run: async () => {}, watch: () => () => {} } as never,
+    showTips: false, showIds: false, blocks: [], checkName: () => "",
+    lineFields: panel.model().listLineFields(),
+    done: a => { answer = a; },
+  });
+  const card = all(box, "io-nf__type")[3] as StubNode;
+  card.dispatch("pointerdown", { target: card });
+  const name = labelled(box, "Name of the new Field");
+  (name as Any).value = "Wrap";
+  name.dispatch("input", { target: name });
+  ((all(box, "io-vals__foot")[0] as StubNode).children[0] as Any).value = "cleanup";
+  click(all(box, "io-btn").find(n => n.textContent === "Add category") as StubNode);
+  click(labelled(box, "Keep the Values of status"));
+  assert.equal(all(box, "io-vals__row--child").length, 1, "пресет Очистки не встал в окне");
+  assert.match(text(all(box, "io-nf__pane")[0] as StubNode), /Cleanup/, "скроллер предпросмотра не показывает категорию");
+  click(all(box, "io-btn--cta").find(n => n.textContent === "Add Field") as StubNode);
+  assert.ok(answer, "окно не ответило");
+  const res = panel.model().addField(answer.name, answer.kind);
+  panel.model().configureNewField(res.key, answer.setup);
+  const cats = panel.cfg().pkm.fields.commands.byField.Wrap.categories;
+  assert.deepEqual(cats.map((c: Any) => c.id + ":" + JSON.stringify(c.presets[0].keep)), ['cleanup:["status"]']);
+  ok("окно Add a Field: категория и её пресет настраиваются сразу и доходят до конфига");
 }
 
 console.log(`command_field_panel: ${passed} passed`);

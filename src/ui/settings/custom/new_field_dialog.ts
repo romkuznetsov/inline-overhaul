@@ -13,7 +13,8 @@
 
 import type { El, ElButton, ElInput } from "./dom.ts";
 import { el, btn, cssVar, insertAtCaret, itemRow, onEnter, textInput, themePair } from "./dom.ts";
-import type { NewFieldSetup, FieldSide } from "./fields_model.ts";
+import type { CommandCategory, FieldRow, NewFieldSetup, FieldSide } from "./fields_model.ts";
+import { categoryName, drawCategoriesTable } from "./command_categories.ts";
 import type { FieldKind, SettingsCtx } from "../types.ts";
 import { applyTagVars, bubble, drawWrittenLink, wheelColors } from "./previews.ts";
 import { attachPicker, PICK_ALL } from "./char_picker.ts";
@@ -47,6 +48,8 @@ export interface NewFieldFormOpts {
   /** Это написание уже у другого Field (`В-209`); нет шва — не спрашиваем. */
   valueTaken?: (token: string, kind: FieldKind) => boolean;
   holdKeys?: (onEscape: () => void) => () => void;
+  /** Fields строки — пресетам Очистки в таблице категорий Command Field. */
+  lineFields?: readonly FieldRow[];
   done: (answer: NewFieldAnswer | null) => void;
 }
 
@@ -89,6 +92,8 @@ export interface NewFieldDraft {
   /** Link: писать ли ссылки на новые заметки в заметки его Values. */
   moc: boolean;
   property: string;
+  /** Command Field: категории с пресетами, настроенные в окне. */
+  categories: CommandCategory[];
 }
 
 /** Block по умолчанию: тег слева, ссылка и Element справа — как у стартового набора. */
@@ -98,7 +103,7 @@ export function freshDraft(): NewFieldDraft {
   return {
     kind: "tag", name: "", side: "left", sideChosen: false, values: [], marker: "",
     value: "datetime", shows: "date", press: "step", step: 1, random: "randomN", format: "YYYY-MM-DD",
-    moc: true, property: "",
+    moc: true, property: "", categories: [],
   };
 }
 
@@ -157,6 +162,7 @@ export function answerOf(d: NewFieldDraft): NewFieldAnswer {
     });
   }
   if (d.kind === "wikilink" && !d.moc) setup.moc = false;
+  if (d.kind === "command") setup.categories = d.categories;
   if (d.property.trim()) setup.property = d.property.trim();
   const out: NewFieldAnswer = { name: d.name.trim(), kind: d.kind, setup };
   if (d.kind === "element" && d.value !== "list") out.marker = d.marker.trim();
@@ -174,8 +180,8 @@ const SERIES = 5;
  * три примера). `now` — снаружи: проверка задаёт своё время (правило 76).
  */
 export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string; fill?: string; color?: string }> {
-  /* У Command Field Values нет: категории заводятся в таблице Fields (4.1). */
-  if (d.kind === "command") return [];
+  /* У Command Field Values нет: скроллер показывает видимые категории (4.1, 4.5). */
+  if (d.kind === "command") return d.categories.filter(c => !c.hidden).map(c => ({ text: categoryName(c) }));
   if (d.kind === "tag") return d.values.map(v => ({ text: "#" + bare(v.token, "tag"), ...(v.fill ? { fill: v.fill } : {}), ...(v.text ? { color: v.text } : {}) }));
   if (d.kind === "wikilink") return d.values.map(v => ({ text: linkText(v.token) }));
   /* Element-список: Value пишется как есть, знак в нём самом. */
@@ -276,7 +282,9 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
   /* Без заливки Block: полоса над одним Value читалась как рамка (тест 3 цикла 99). */
   applyTagVars(line, ctx, { blockFill: false });
   shape(line, side => {
-    if (!cur) { el(side, "span", "io-nf__pempty", say(d.kind === "command" ? "NF_PREVIEW_NOTHING" : "NF_PREVIEW_VALUE")); return; }
+    /* Command Field в строку не пишет, даже когда категории выбраны (4.1). */
+    if (d.kind === "command") { el(side, "span", "io-nf__pempty", say("NF_PREVIEW_NOTHING")); return; }
+    if (!cur) { el(side, "span", "io-nf__pempty", say("NF_PREVIEW_VALUE")); return; }
     if (d.kind === "tag") {
       bubble(side, { token: bare(cur.text, "tag"), fill: cur.fill || "", ...(cur.color ? { text: cur.color } : {}), shown: "value", depth: 0 });
     } else if (d.kind === "wikilink") drawWrittenLink(side, cur.text);
@@ -518,7 +526,11 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
     /* Command Field: категории — в таблице Fields, свойства заметки нет (4.1, раздел 3). */
     if (d.kind === "command") {
       el(body, "div", "io-sub io-nf__sub", say("NF_CATEGORIES_HEAD"));
-      el(body, "div", "io-nf__chipshint", say("NF_CATEGORIES_HINT"));
+      closers.push(drawCategoriesTable(body, d.categories, {
+        say, enabled: true, showTips: o.showTips, showIds: o.showIds,
+        lineFields: o.lineFields || [], fieldName: d.name.trim() || say("NEW_FIELD_NAME_HINT"),
+        save: () => { tick = 0; draw(); },
+      }));
       refresh();
       return;
     }
