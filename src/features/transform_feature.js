@@ -2430,8 +2430,9 @@ function planSourceCleanup(line, transformContext, cleanupFieldIds, separators) 
     .sort((a, b) => b.start - a.start);
   let out = src;
   for (let i = 0; i < removable.length; i++) out = out.slice(0, removable[i].start) + out.slice(removable[i].end);
-  const leadingIndent = String((out.match(/^\s*/) || [""])[0] || "");
-  out = String(out.slice(leadingIndent.length) || "");
+  /* Отступ — у исходной строки: пробел за снятым Value в начале отступом не был (Command Field, Очистка). */
+  const leadingIndent = String((src.match(/^[\t ]*/) || [""])[0] || "");
+  out = out.replace(/^\s+/, "");
   const s1 = String(separators && separators.separator1 || "").trim();
   if (!s1) throw new Error("separator1 is required for source cleanup");
   out = out
@@ -2596,7 +2597,8 @@ function planSourceLineAfterCleanup(line, separators, singleIsSecond, sweptSomet
    * приходит: план зовут, только когда уборка что-то сняла.
    */
   if (parts.length === 2 && sweptSomething === true) {
-    const marker = String((parts[0].match(/^[-*+]\s*(?:\[.\]\s*)?/u) || [""])[0] || "");
+    /* Начало строки — у общего дома: номер, цитата, заголовок тоже (BUGHUNT T2, правило 113). */
+    const marker = String(__sharedUtils.lineStartOf(src.split(s1)[0]).prefix || "");
     const headLeft = String(parts[0] || "").slice(marker.length).trim();
     const tail = String(parts[1] || "").trim();
     if (!headLeft && tail) {

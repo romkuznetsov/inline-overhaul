@@ -768,6 +768,22 @@ const I2N_WORDS = { noteName: { mode: "auto", delimiters: "[]", wordCount: 6 } }
 }
 
 {
+  /*
+   * То же правило на всех формах начала строки (правило 113): маркер искался
+   * только у буллета, и `1.`, `>`, `##`, коллаут оставляли `:: текст`. Отступ —
+   * у исходной строки: у строки без начала уборка давала ведущий пробел.
+   */
+  const both = { separator1: "::", separator2: "::" };
+  for (const start of ["1. ", "> ", "> - ", "## ", "> [!note] ", "  - ", ""]) {
+    const line = start + "#work :: 12";
+    const ctx = { matches: [{ fieldId: "Category", span: { start: start.length, end: start.length + 5 } }] } as Any;
+    const plan = transform.planSourceCleanup(line, ctx, [], both);
+    assert.equal(plan.line, start + "12", "осиротевший Separator или пробел на " + JSON.stringify(line) + ": " + JSON.stringify(plan.line));
+  }
+  ok("пустой левый Block уносит Separator при любом начале строки, отступ не растёт");
+}
+
+{
   /* Метка `#processed` в правой панели: правая часть человека — не текст, и
      второй Separator метке не нужен. */
   const cleaned = "\u002d ывыв ывы :: \u{1F4C5}2026-09-07 18:56";
