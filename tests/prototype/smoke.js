@@ -112,7 +112,7 @@ const sandbox = {
   window: { localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } } },
   requestAnimationFrame: fn => fn(),
   queueMicrotask: fn => fn(),
-  setTimeout: (fn) => { try { fn(); } catch (_) {} return 0; },
+  setTimeout: (fn) => { try { fn(); } catch (_) { /* подделка таймера: отказ колбэка — его дело */ } return 0; },
   clearTimeout: () => {},
   console
 };

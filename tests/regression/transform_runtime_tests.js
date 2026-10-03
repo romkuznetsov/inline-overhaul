@@ -251,7 +251,7 @@ async function testSourceFailureRestoresOverwrittenTarget() {
   const editor = makeEditor("- [ ] :: Restore", { failReplace: true });
   const config = makeConfig({ nameCollision: { mode: "overwrite" } });
   const plugin = makePlugin(config, editor, { initialFiles: { "Notes/Restore.md": "original" } });
-  try { await transform.runInline2Note(plugin, { lineFinalize }); } catch (_) {}
+  try { await transform.runInline2Note(plugin, { lineFinalize }); } catch (_) { /* отказ здесь и есть случай проверки */ }
   assertEq(plugin.files.get("Notes/Restore.md"), "original", "overwrite target restored after source failure");
 }
 

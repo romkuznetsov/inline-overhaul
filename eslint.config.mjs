@@ -97,7 +97,6 @@ export default [
         varsIgnorePattern: "^_",
         caughtErrorsIgnorePattern: "^_",
       }],
-      "no-empty": ["warn", { allowEmptyCatch: true }],
       "no-cond-assign": ["error", "except-parens"],
       "no-control-regex": "off",
       "no-prototype-builtins": "off",
@@ -196,5 +195,16 @@ export default [
         },
       ],
     },
+  },
+
+  /*
+   * Пустой блок — ошибка во всём репозитории, и пустой `catch` тоже: молчание
+   * объясняется комментарием внутри блока (раздел «Отказы» в CLAUDE.md, Д-4).
+   * Заменил свой сторож `silent_failures_tests.ts` (У-29 ревизии 09-26): в `src`
+   * оба называли одно множество, линтер строже и видит тесты и инструменты.
+   */
+  {
+    files: ["**/*.js", "**/*.cjs", "**/*.mjs", "**/*.ts"],
+    rules: { "no-empty": ["error", { allowEmptyCatch: false }] },
   },
 ];
