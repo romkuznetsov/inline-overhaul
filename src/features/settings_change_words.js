@@ -254,25 +254,25 @@ function valuesByToken(field) {
  * Что сделано с определениями Fields и их Values. Отдельно от обхода листьев:
  * там список дал бы `10 items → 10 items` (S8). Отдаёт части, собирает отрисовка.
  */
+/** Ключи обеих сторон без повторов, в порядке первого появления (У-21 ревизии 09-26). */
+function keysOf(a, b) {
+  return [...new Set(Object.keys(a).concat(Object.keys(b)))];
+}
+
 function fieldDefChanges(before, after) {
   const out = [];
   const was = fieldDefs(before);
   const now = fieldDefs(after);
   const orderNow = isObj(after) && isObj(after.pkm) && isObj(after.pkm.fields)
     ? after.pkm.fields.order : null;
-  const orderWas = isObj(before) && isObj(before.pkm) && isObj(before.pkm.fields)
-    ? before.pkm.fields.order : null;
   for (const [id, field] of now) {
     /* Заведённое поле названо перестановкой; перечислять его значения — шум. */
     if (!was.has(id)) continue;
     const old = was.get(id);
     const label = fieldLabel(orderNow, id);
     /* Свойства самого Field: имя строки панели, а не ключ конфига. */
-    const keys = Object.keys(old).concat(Object.keys(field));
-    const done = Object.create(null);
-    for (const key of keys) {
-      if (done[key] || key === "id" || key === "values" || DERIVED_KEYS[key]) continue;
-      done[key] = true;
+    for (const key of keysOf(old, field)) {
+      if (key === "id" || key === "values" || DERIVED_KEYS[key]) continue;
       if (JSON.stringify(old[key]) === JSON.stringify(field[key])) continue;
       if (isNoChange(old[key], field[key])) continue;
       out.push({
@@ -290,11 +290,8 @@ function fieldDefChanges(before, after) {
         continue;
       }
       const oldValue = valuesWas.get(token);
-      const vkeys = Object.keys(oldValue).concat(Object.keys(value));
-      const vdone = Object.create(null);
-      for (const key of vkeys) {
-        if (vdone[key] || key === "token" || DERIVED_KEYS[key]) continue;
-        vdone[key] = true;
+      for (const key of keysOf(oldValue, value)) {
+        if (key === "token" || DERIVED_KEYS[key]) continue;
         if (JSON.stringify(oldValue[key]) === JSON.stringify(value[key])) continue;
         if (isNoChange(oldValue[key], value[key])) continue;
         out.push({
@@ -311,7 +308,6 @@ function fieldDefChanges(before, after) {
     }
   }
   /* Снятое поле называет перестановка — «removed from the Left Block». */
-  void orderWas;
   return out;
 }
 
@@ -331,25 +327,13 @@ function valueVisualChanges(before, after) {
   const now = pick(after);
   const orderNow = isObj(after) && isObj(after.pkm) && isObj(after.pkm.fields)
     ? after.pkm.fields.order : null;
-  const fieldIds = Object.keys(was).concat(Object.keys(now));
-  const doneField = Object.create(null);
-  for (const fieldId of fieldIds) {
-    if (doneField[fieldId]) continue;
-    doneField[fieldId] = true;
+  for (const fieldId of keysOf(was, now)) {
     const a = isObj(was[fieldId]) ? was[fieldId] : {};
     const b = isObj(now[fieldId]) ? now[fieldId] : {};
-    const tokens = Object.keys(a).concat(Object.keys(b));
-    const doneToken = Object.create(null);
-    for (const token of tokens) {
-      if (doneToken[token]) continue;
-      doneToken[token] = true;
+    for (const token of keysOf(a, b)) {
       const rowWas = isObj(a[token]) ? a[token] : {};
       const rowNow = isObj(b[token]) ? b[token] : {};
-      const keys = Object.keys(rowWas).concat(Object.keys(rowNow));
-      const doneKey = Object.create(null);
-      for (const key of keys) {
-        if (doneKey[key]) continue;
-        doneKey[key] = true;
+      for (const key of keysOf(rowWas, rowNow)) {
         if (JSON.stringify(rowWas[key]) === JSON.stringify(rowNow[key])) continue;
         if (isNoChange(rowWas[key], rowNow[key])) continue;
         out.push({
@@ -378,7 +362,6 @@ function sayPath(path) {
 /** Листья с другим значением; ключ, которого не стало, — такая же правка. */
 function changedLeaves(before, after) {
   const out = [];
-  const seen = Object.create(null);
   const walk = (a, b, path) => {
     /* Ветки со своим разбором — `describedApart`. */
     if (describedApart(path)) return;
@@ -391,17 +374,12 @@ function changedLeaves(before, after) {
     const leaf = !aObj || !bObj;
     if (leaf) {
       if (JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b)) return;
-      if (seen[path]) return;
-      seen[path] = true;
       out.push({ path, from: a, to: b });
       return;
     }
-    const done = Object.create(null);
     const left = isObj(a) ? a : {};
     const right = isObj(b) ? b : {};
-    for (const key of Object.keys(left).concat(Object.keys(right))) {
-      if (done[key]) continue;
-      done[key] = true;
+    for (const key of keysOf(left, right)) {
       walk(left[key], right[key], path ? path + "." + key : key);
     }
   };
