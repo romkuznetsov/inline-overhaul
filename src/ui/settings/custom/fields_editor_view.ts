@@ -14,6 +14,7 @@ import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { attachPicker, PICK_ALL } from "./char_picker.ts";
 import { attachNoteSuggest } from "./new_field_dialog.ts";
+import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import { attachPrefixPicker } from "./prefix_picker.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 import { TYPE_COLOR, bareToken, typeColor, typeInk } from "./preview_data.ts";
@@ -1789,36 +1790,14 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       closers.push(picker.close);
     };
     const box = el(own, "div", "io-vals io-elist");
-    /* Что тянут: номер строки переживает перерисовку, узел — нет. */
-    let dragged = -1;
+    const held: DragHold = { taken: null };
     values.forEach((token, i) => {
       const item = el(box, "div", "io-elist__row");
-      const grip = el(item, "div", "io-grip", "⠿");
-      grip.setAttribute("role", "button");
-      grip.setAttribute("aria-label", say("VALUE_DRAG", token));
-      grip.draggable = o.enabled;
-      grip.addEventListener("dragstart", ((ev: DragEv) => {
-        dragged = i;
-        item.classList.add("io-dragging");
-        try { ev.dataTransfer?.setData("text/plain", token); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
-      }) as never);
-      grip.addEventListener("dragend", (() => {
-        item.classList.remove("io-dragging");
-        dragged = -1;
-      }) as never);
-      item.addEventListener("dragover", ((ev: DragEv) => {
-        ev.preventDefault();
-        item.classList.add("io-dragover");
-      }) as never);
-      item.addEventListener("dragleave", (() => item.classList.remove("io-dragover")) as never);
-      item.addEventListener("drop", ((ev: DragEv) => {
-        ev.preventDefault();
-        item.classList.remove("io-dragover");
-        if (dragged < 0 || dragged === i || !o.enabled) return;
+      attachRowDrag({
+        row: item, index: i, label: say("VALUE_DRAG", token), enabled: o.enabled, held,
         /* Встаёт на место той строки, на которую бросили: как у таблицы тега. */
-        values.splice(i, 0, ...values.splice(dragged, 1));
-        save();
-      }) as never);
+        onMove: (from, to) => { values.splice(to, 0, ...values.splice(from, 1)); save(); },
+      });
       const input = textInput(item, "io-text io-text--mono", { value: token, label: say("ELEMENT_LIST_FOR", row.strictName) });
       input.disabled = !o.enabled;
       const put = (): void => {
