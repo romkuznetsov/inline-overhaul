@@ -28,7 +28,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
-  id: "line-format", tab: "pkm", order: 200, heading: "Separators",
+  id: "line-format", tab: "pkm", order: 200, heading: "Separators", folded: true,
   intro: "Two markers split your line. Your own text goes between them, and the Fields sit before and after. To choose which side a Field goes on, drag it across the line under <code>Fields</code>",
   tip: "Pick these once and leave them. Lines you already wrote keep the old Separator, so if you change it the plugin stops recognizing them. Use two or more characters Markdown doesn’t use: <code>||</code> or <code>::</code> are good, but <code>==</code> is not, because Obsidian shows it as a highlight",
   items: [

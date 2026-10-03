@@ -220,6 +220,7 @@ export class SettingsPane {
     this.deps = deps;
     this.describer = new Describer(deps.fragments);
     this.defaults = buildDefaultConfig(deps.schema);
+    for (const g of deps.schema) if (g.folded) this.folded.add(g.id);
     const first = deps.tabs.find(t => deps.schema.some(g => g.tab === t.id));
     this.active = (first ? first.id : "general") as TabId;
     /* Запомненная вкладка (`Р-13`) — по схеме панели: список в нормализации старый

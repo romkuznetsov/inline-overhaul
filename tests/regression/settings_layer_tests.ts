@@ -1888,6 +1888,12 @@ async function main(): Promise<void> {
       "и сама группа должна прийти свёрнутой");
   });
 
+  await test("группа Separators приходит свёрнутой, остальные — развёрнутыми (цикл 121)", () => {
+    const { pane } = makePane();
+    assert.equal(pane.isFolded("line-format"), true, "его пункт: Separators нужен редко");
+    assert.equal(pane.isFolded("help"), false, "флаг не сворачивает соседей");
+  });
+
   await test("ни одно правило стилей не ищет класс, которого никто не ставит", () => {
     /*
      * Заказчик дважды написал, что таблица `Color your Tags` серая. Первая

@@ -189,6 +189,8 @@ export interface SettingsGroup {
    */
   commands?: readonly string[];
   visible?: Predicate;
+  /** Свёрнута при первом показе: группа, нужная редко (его пункт цикла 121). */
+  folded?: true;
   items: readonly SettingDef[];
 }
 
