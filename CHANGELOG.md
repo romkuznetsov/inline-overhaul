@@ -29,7 +29,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 _2026-10-03 · [all changes since 0.13.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.13.0...0.14.0)_
 
 > [!NOTE]
-> 🐛 **4** bug fixes · 🎨 **3** changes you can see · ✨ **3** new things
+> ✨ **3** new things · 🎨 **3** changes you can see · 🐛 **4** bug fixes
 >
 > **New in this release**
 > - **Smart Enter on `Shift+Enter`**
@@ -52,7 +52,7 @@ _2026-10-03 · [all changes since 0.13.0](https://github.com/romkuznetsov/inline
 _2026-10-02 · [all changes since 0.12.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.12.0...0.13.0)_
 
 > [!NOTE]
-> 🐛 **45** bug fixes · 🎨 **6** changes you can see · ✨ **4** new things
+> ✨ **4** new things · 🎨 **6** changes you can see · 🐛 **45** bug fixes
 >
 > **New in this release**
 > - **A mark for a ticked line**
@@ -121,7 +121,7 @@ _2026-10-02 · [all changes since 0.12.0](https://github.com/romkuznetsov/inline
 _2026-09-30 · [all changes since 0.11.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.11.0...0.12.0)_
 
 > [!NOTE]
-> 🐛 **5** bug fixes · 🎨 **3** changes you can see · ✨ **4** new things
+> ✨ **4** new things · 🎨 **3** changes you can see · 🐛 **5** bug fixes
 >
 > **New in this release**
 > - **An Element can be a list of your own Values**
@@ -147,7 +147,7 @@ _2026-09-30 · [all changes since 0.11.0](https://github.com/romkuznetsov/inline
 _2026-09-28 · [all changes since 0.10.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.10.0...0.11.0)_
 
 > [!NOTE]
-> 🐛 **12** bug fixes · 🎨 **3** changes you can see · ✨ **9** new things
+> ✨ **9** new things · 🎨 **3** changes you can see · 🐛 **12** bug fixes
 >
 > **New in this release**
 > - **`Delete` and `Backspace` merge the Fields of two lines**
@@ -190,7 +190,7 @@ _2026-09-28 · [all changes since 0.10.0](https://github.com/romkuznetsov/inline
 _2026-09-26 · [all changes since 0.9.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.9.0...0.10.0)_
 
 > [!NOTE]
-> 🐛 **4** bug fixes · 🎨 **2** changes you can see · ✨ **7** new things
+> ✨ **7** new things · 🎨 **2** changes you can see · 🐛 **4** bug fixes
 >
 > **New in this release**
 > - **Child Fields for links**
@@ -220,7 +220,7 @@ _2026-09-26 · [all changes since 0.9.0](https://github.com/romkuznetsov/inline-
 _2026-09-24 · [all changes since 0.8.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.1...0.9.0)_
 
 > [!NOTE]
-> 🐛 **2** bug fixes · 🎨 **8** changes you can see · ✨ **4** new things
+> ✨ **4** new things · 🎨 **8** changes you can see · 🐛 **2** bug fixes
 >
 > **New in this release**
 > - **Custom blocks write where the cursor is**
@@ -248,7 +248,7 @@ _2026-09-24 · [all changes since 0.8.1](https://github.com/romkuznetsov/inline-
 _2026-09-24 · [all changes since 0.8.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.8.0...0.8.1)_
 
 > [!NOTE]
-> 🐛 **1** bug fix · 🎨 **3** changes you can see
+> 🎨 **3** changes you can see · 🐛 **1** bug fix
 
 1. 🎨 **Two Visual groups have clearer names.** `Jump highlight` is now `Cursor jump highlight`, and `Color your Tags` is now `Color custom tags`: it colours the tags that are not a Value of any Field in `Tags & PKM → Fields`, and says so.
 2. 🎨 **`Color custom tags` moved to the bottom of `Visual`.**
@@ -260,7 +260,7 @@ _2026-09-24 · [all changes since 0.8.0](https://github.com/romkuznetsov/inline-
 _2026-09-23 · [all changes since 0.7.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.7.0...0.8.0)_
 
 > [!NOTE]
-> 🐛 **1** bug fix · 🎨 **5** changes you can see · ✨ **3** new things
+> ✨ **3** new things · 🎨 **5** changes you can see · 🐛 **1** bug fix
 >
 > **New in this release**
 > - **Pick what Binder inserts instead of hunting for it**
@@ -282,7 +282,7 @@ _2026-09-23 · [all changes since 0.7.0](https://github.com/romkuznetsov/inline-
 _2026-09-22 · [all changes since 0.6.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.6.0...0.7.0)_
 
 > [!NOTE]
-> 🐛 **7** bug fixes · 🎨 **6** changes you can see · ✨ **5** new things
+> ✨ **5** new things · 🎨 **6** changes you can see · 🐛 **7** bug fixes
 >
 > **New in this release**
 > - **Every subheading in the settings folds**
@@ -315,7 +315,7 @@ _2026-09-22 · [all changes since 0.6.0](https://github.com/romkuznetsov/inline-
 _2026-09-21 · [all changes since 0.5.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.1...0.6.0)_
 
 > [!NOTE]
-> 🐛 **5** bug fixes · 🎨 **5** changes you can see · ✨ **6** new things
+> ✨ **6** new things · 🎨 **5** changes you can see · 🐛 **5** bug fixes
 >
 > **New in this release**
 > - **The scroller can label Values the way you print them**
@@ -347,7 +347,7 @@ _2026-09-21 · [all changes since 0.5.1](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.5.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.0...0.5.1)_
 
 > [!NOTE]
-> 🐛 **2** bug fixes · 🎨 **4** changes you can see · ✨ **3** new things
+> ✨ **3** new things · 🎨 **4** changes you can see · 🐛 **2** bug fixes
 >
 > **New in this release**
 > - **New: a tutorial**
@@ -369,7 +369,7 @@ _2026-09-20 · [all changes since 0.5.0](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.4.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.4.0...0.5.0)_
 
 > [!NOTE]
-> 🐛 **4** bug fixes · 🎨 **3** changes you can see · ✨ **4** new things · 🔧 **1** internal change
+> ✨ **4** new things · 🎨 **3** changes you can see · 🐛 **4** bug fixes · 🔧 **1** internal change
 >
 > **New in this release**
 > - **Every heading in `Commands & Hotkeys` has a `to hotkeys` button**
@@ -395,7 +395,7 @@ _2026-09-20 · [all changes since 0.4.0](https://github.com/romkuznetsov/inline-
 _2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.2...0.4.0)_
 
 > [!NOTE]
-> 🐛 **8** bug fixes · 🎨 **5** changes you can see · ✨ **5** new things · 🔧 **3** internal changes
+> ✨ **5** new things · 🎨 **5** changes you can see · 🐛 **8** bug fixes · 🔧 **3** internal changes
 >
 > **New in this release**
 > - **Block text size is set for each side on its own**
@@ -440,7 +440,7 @@ _2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-
 _2026-09-18 · [all changes since 0.3.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.1...0.3.2)_
 
 > [!NOTE]
-> 🐛 **1** bug fix · 🎨 **1** change you can see · 🚀 **1** speed-up · 🔧 **4** internal changes
+> 🎨 **1** change you can see · 🐛 **1** bug fix · 🚀 **1** speed-up · 🔧 **4** internal changes
 
 ### Changed
 
@@ -480,7 +480,7 @@ _2026-09-18 · [all changes since 0.3.0](https://github.com/romkuznetsov/inline-
 _2026-09-17 · [all changes since 0.2.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.2.0...0.3.0)_
 
 > [!NOTE]
-> 🐛 **25** bug fixes · 🎨 **3** changes you can see · ✨ **6** new things
+> ✨ **6** new things · 🎨 **3** changes you can see · 🐛 **25** bug fixes
 >
 > **New in this release**
 > - **New: a jump can show you where the cursor landed**
@@ -538,7 +538,7 @@ _2026-09-17 · [all changes since 0.2.0](https://github.com/romkuznetsov/inline-
 _2026-09-16 · [all changes since 0.1.0-beta.6](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.6...0.2.0)_
 
 > [!NOTE]
-> 🐛 **11** bug fixes · ✨ **4** new things · 🔧 **1** internal change
+> ✨ **4** new things · 🐛 **11** bug fixes · 🔧 **1** internal change
 >
 > **New in this release**
 > - **New: `Values in the other Block`**
@@ -604,7 +604,7 @@ _2026-09-10 · [all changes since 0.1.0-beta.4](https://github.com/romkuznetsov/
 _2026-09-06 · [all changes since 0.1.0-beta.3](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.3...0.1.0-beta.4)_
 
 > [!NOTE]
-> 🐛 **3** bug fixes · 🎨 **3** changes you can see · ✨ **3** new things
+> ✨ **3** new things · 🎨 **3** changes you can see · 🐛 **3** bug fixes
 >
 > **New in this release**
 > - **The settings panel can speak another language**
@@ -628,7 +628,7 @@ Known limitations: the Fields editor and its neighbours, the guide note and the 
 _2026-09-06 · [all changes since 0.1.0-beta.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.2...0.1.0-beta.3)_
 
 > [!NOTE]
-> 🐛 **4** bug fixes · 🎨 **1** change you can see · ✨ **2** new things
+> ✨ **2** new things · 🎨 **1** change you can see · 🐛 **4** bug fixes
 >
 > **New in this release**
 > - **`Save a backup` asks what to save**
