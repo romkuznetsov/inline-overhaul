@@ -700,6 +700,19 @@ function detectDateUnit(format) {
   return "day";
 }
 
+/** Шаг даты на `delta` единиц формата; один дом движка и предпросмотра (Н-3 ревизии 2026-10-03). */
+function addByUnit(base, unit, delta) {
+  const dt = new Date(base.getTime());
+  const d = Math.trunc(Number(delta || 0));
+  if (unit === "second") dt.setSeconds(dt.getSeconds() + d);
+  else if (unit === "minute") dt.setMinutes(dt.getMinutes() + d);
+  else if (unit === "hour") dt.setHours(dt.getHours() + d);
+  else if (unit === "month") dt.setMonth(dt.getMonth() + d);
+  else if (unit === "year") dt.setFullYear(dt.getFullYear() + d);
+  else dt.setDate(dt.getDate() + d);
+  return dt;
+}
+
 function isObj(x) {
   return x && typeof x === "object" && !Array.isArray(x);
 }
@@ -1408,6 +1421,7 @@ module.exports = {
   backwardStepByCurrent,
   getSearchLimitByUnit,
   detectDateUnit,
+  addByUnit,
   resolveOffsetByFormatValue,
   isObj,
   deepMerge,

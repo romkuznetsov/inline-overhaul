@@ -1343,16 +1343,9 @@ function getFieldMarkerByRuntimeCfg(rules, field) {
   return String(field && field.marker || '').trim()
 }
 
+/* Тело — в `shared_utils`, общее с предпросмотром диалога (Н-3 ревизии 2026-10-03). */
 function addByUnit(base, unit, delta) {
-  var dt = new Date(base.getTime())
-  var d = Math.trunc(Number(delta || 0))
-  if (unit === 'second') dt.setSeconds(dt.getSeconds() + d)
-  else if (unit === 'minute') dt.setMinutes(dt.getMinutes() + d)
-  else if (unit === 'hour') dt.setHours(dt.getHours() + d)
-  else if (unit === 'month') dt.setMonth(dt.getMonth() + d)
-  else if (unit === 'year') dt.setFullYear(dt.getFullYear() + d)
-  else dt.setDate(dt.getDate() + d)
-  return dt
+  return getSharedUtils().addByUnit(base, unit, delta)
 }
 
 function getReferenceDateForUnit(state, unit) {

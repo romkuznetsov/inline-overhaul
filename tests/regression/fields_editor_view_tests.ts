@@ -26,7 +26,7 @@ import {
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
 import { BLOCK_TEXTS, sayIn } from "../../src/ui/settings/texts_blocks.ts";
 import { askNewFieldModal } from "../../src/ui/settings/custom/fields_editor.ts";
-import { draftProblem, freshDraft } from "../../src/ui/settings/custom/new_field_dialog.ts";
+import { draftProblem, freshDraft, previewValues } from "../../src/ui/settings/custom/new_field_dialog.ts";
 import { CONTRAST_FLOOR, contrastRatio } from "../../src/ui/settings/custom/contrast.ts";
 
 setupGlobals();
@@ -3654,5 +3654,14 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
 }
 
 console.log("");
+
+{
+  /* Н-3 ревизии 2026-10-03: шаг предпросмотра — функциями движка; копия не знала секунд. */
+  const at = new Date(2026, 9, 3, 23, 59, 58);
+  const texts = (format: string) => previewValues({ ...freshDraft(), kind: "element", format, marker: "" } as Any, at).map(v => v.text);
+  assert.deepEqual(texts("HH:mm:ss").slice(0, 3), ["23:59:58", "23:59:59", "00:00:00"], "секунды шагают секундами");
+  assert.deepEqual(texts("YYYY-MM-DD").slice(0, 2), ["2026-10-03", "2026-10-04"], "контроль: дата шагает днями");
+  ok("предпросмотр Element шагает той же единицей, что движок");
+}
 
 console.log("\n" + passed + " проверок пройдено");

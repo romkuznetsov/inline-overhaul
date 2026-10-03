@@ -163,28 +163,6 @@ export function answerOf(d: NewFieldDraft): NewFieldAnswer {
 
 /* ---- значения для предпросмотра ----------------------------------------- */
 
-/**
- * Единица шага даты — самая мелкая в формате, как у движка: `mm` — минуты,
- * `HH` — часы, `DD` — дни. Регистр различает минуты и месяц.
- */
-function unitOf(format: string): "minute" | "hour" | "day" | "month" | "year" {
-  if (/mm/.test(format)) return "minute";
-  if (/HH/.test(format)) return "hour";
-  if (/DD/.test(format)) return "day";
-  if (/MM/.test(format)) return "month";
-  return "year";
-}
-
-function addUnit(now: Date, unit: ReturnType<typeof unitOf>, n: number): Date {
-  const at = new Date(now.getTime());
-  if (unit === "minute") at.setMinutes(at.getMinutes() + n);
-  else if (unit === "hour") at.setHours(at.getHours() + n);
-  else if (unit === "day") at.setDate(at.getDate() + n);
-  else if (unit === "month") at.setMonth(at.getMonth() + n);
-  else at.setFullYear(at.getFullYear() + n);
-  return at;
-}
-
 /** Сколько значений Element показывает скроллер: сегодня и четыре шага вперёд. */
 const SERIES = 5;
 
@@ -210,9 +188,10 @@ export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string
   }
   const mask = fmt || "YYYY-MM-DD";
   if (d.press === "now") return [{ text: d.marker + String(sharedUtils.formatDateByMask(now, mask)) }];
-  const unit = unitOf(mask);
+  /* Единица и шаг — те же функции, что у движка (Н-3: копия не знала секунд). */
+  const unit = sharedUtils.detectDateUnit(mask);
   return Array.from({ length: SERIES }, (_, k) => ({
-    text: d.marker + String(sharedUtils.formatDateByMask(addUnit(now, unit, k * stepOf(d)), mask)),
+    text: d.marker + String(sharedUtils.formatDateByMask(sharedUtils.addByUnit(now, unit, k * stepOf(d)), mask)),
   }));
 }
 
