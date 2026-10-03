@@ -1563,6 +1563,12 @@ function tagwheelPanelSpans(text, colors, placeholders) {
   const activeColor = String(colors && colors.activeTextColor || "") || textColor;
   const chosenColor = String(colors && colors.chosenValueColor || "");
   const showPrefix = !(colors && colors.showPrefix === false);
+  /* Виджет подмены цвет не наследует: берёт стиль самой внутренней цветной пометки над ним (BUGHUNT D6). */
+  const coverColor = (from, to) => {
+    const cover = out.filter((s) => /(?:^|;)\s*color:/.test(s.style || "") && s.start <= from && s.end >= to)
+      .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
+    return cover ? String((/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "").trim() : "";
+  };
 
   /*
    * Пометка на всю строку с переменной `--io-twfill`; заливку рисует перекрашенная
@@ -1669,12 +1675,7 @@ function tagwheelPanelSpans(text, colors, placeholders) {
         ? (m[2] && /\s/.test(text.charAt(start - 1)) ? raw : "")
         : formatTagwheelDisplayToken(raw, false);
       if (!shown || (!showPrefix && shown === raw)) continue;
-      /* Виджет подмены цвет не наследует: берёт стиль самой внутренней цветной пометки
-         над ним (BUGHUNT D6). Полужирное имя поля цвета не несёт. */
-      const cover = out.filter((s) => s.kind !== "line" && /(?:^|;)\s*color:/.test(s.style || "") && s.start <= start && s.end >= end)
-        .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
-      const color = cover ? (/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "" : "";
-      out.push({ kind: "replace", start, end, text: shown, color: String(color).trim() });
+      out.push({ kind: "replace", start, end, text: shown, color: coverColor(start, end) });
     }
   }
 
@@ -1698,10 +1699,7 @@ function tagwheelPanelSpans(text, colors, placeholders) {
       if (!shown) continue;
       const start = innerAt + open;
       const end = innerAt + after + 1;
-      const cover = out.filter((s) => s.kind !== "line" && s.kind !== "replace" && /(?:^|;)\s*color:/.test(s.style || "") && s.start <= start + 1 && s.end >= end - 1)
-        .sort((x, y) => TAGWHEEL_SPAN_RANK[y.kind] - TAGWHEEL_SPAN_RANK[x.kind])[0];
-      const color = cover ? (/(?:^|;)\s*color:\s*([^;]+);/.exec(cover.style) || [])[1] || "" : "";
-      out.push({ kind: "replace", start, end, text: "[" + label + shown + "]", color: String(color).trim() });
+      out.push({ kind: "replace", start, end, text: "[" + label + shown + "]", color: coverColor(start + 1, end - 1) });
     }
   }
 
