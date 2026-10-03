@@ -1056,7 +1056,7 @@ function applyCycleEndAndInvariants(options) {
    * остаются (`В-260`, BUGHUNT A18, У-184); знак списка и задача — нет. Дом
    * зовут все три дороги.
    */
-  const cleared = isClearedLine(finalLine, opts);
+  const cleared = isClearedLine(finalLine, opts, cyclePost && cyclePost.cycleEndBehavior);
   if (cleared) finalLine = outerShapeOf(rawLine);
   return {
     finalLine,
@@ -1076,19 +1076,14 @@ function outerShapeOf(line) {
  * Строка опустела при `Clear line` (ни значений, ни дат, ни текста, не
  * заголовок): начало уходит (`В-260`).
  */
-function isClearedLine(line, opts) {
-  if (normalizeCycleEnd(opts && opts.cycleEndBehavior) !== "clear-prefix") return false;
+function isClearedLine(line, opts, cycleEndBehavior) {
+  /* Конец круга уже нормализован `applyCycleEndPostProcessing` (Н-21 ревизии 2026-10-03). */
+  if (cycleEndBehavior !== "clear-prefix") return false;
   if (typeof (opts && opts.parseLine) !== "function") return false;
   const parsed = opts.parseLine(String(line || ""), opts.rules) || {};
   if (parsed.headingToken) return false;
   if (Array.isArray(parsed.tags) && parsed.tags.length) return false;
   return !String(parsed.dates || "").trim() && !String(parsed.text || "").trim();
-}
-
-function normalizeCycleEnd(raw) {
-  const v = String(raw || "").trim().toLowerCase();
-  return v === "clear-prefix" || v === "off" || v === "of" || v === "none" || v.indexOf("clear") !== -1 || v.indexOf("empty") !== -1
-    ? "clear-prefix" : "keep-bullet";
 }
 
 function isSimplePlainRaw(rawLine, rules, options) {
