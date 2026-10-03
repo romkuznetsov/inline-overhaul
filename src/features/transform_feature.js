@@ -3469,6 +3469,8 @@ module.exports = {
   resolveSourceCleanupFieldIds,
   applySourceCleanupByFieldIds,
   planSourceCleanup,
+  /* Очистка Command Field идёт той же дорогой (В-274). */
+  resolveIoSeparators,
   planSourceLineAfterCleanup,
   applySourcePrefixResolution,
   insertProcessedToken,
