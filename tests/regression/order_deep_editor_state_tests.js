@@ -14,8 +14,8 @@
  * Чего здесь нет и почему: диалог конфликта и удаление Field живут не в этом
  * модуле, а в рендерере (`settings_sections_renderer.js`), и снимаются
  * отдельно — на заглушке DOM, вместе с переносом самого редактора. Здесь
- * закреплено состояние: токены, дерево, черновики, история, разбор
- * wikilink-строк.
+ * закреплено состояние: токены и дерево значений; черновики, история и разбор
+ * wikilink-строк старой доски сняты 2026-10-03 (У-2 ревизии 09-26) — их не звал никто.
  */
 const path = require("path");
 const mod = require(path.join(__dirname, "..", "..", "src", "core", "order_deep_editor_state.js"));
@@ -117,108 +117,6 @@ const checkboxByToken = { "#p1": "- [I]", "#s2": "[x]" };
     "подзначение остаётся, только если у него остался родитель");
   assertTrue(!Object.prototype.hasOwnProperty.call(cut.checkboxByToken, "#p1"),
     "чекбокс удалённого значения тоже уходит");
-}
-
-/* ---- черновик -------------------------------------------------------- */
-{
-  const ok = mod.validateDraft({
-    rows: [
-      { key: "status", kind: "tag" },
-      { key: "project", kind: "wikilink" },
-      { key: "due", kind: "element", emoji: "\u{1F4C5}", format: "YYYY-MM-DD", behaviorMode: "command", command: "now" },
-      { key: "est", kind: "element", emoji: "\u{23F1}", format: "HH:mm", behaviorMode: "increment", incrementBy: 15 },
-      { key: "cyc", kind: "element", emoji: "\u{1F501}", format: "x", behaviorMode: "custom", customRaw: ["a", "b"] },
-    ],
-  });
-  assertTrue(ok.ok === true, "правильный черновик принимается");
-  assertEq(ok.errors, [], "и не приносит ошибок");
-
-  const bad = mod.validateDraft({
-    rows: [
-      { key: "", kind: "tag" },
-      { key: "dup", kind: "tag" },
-      { key: "dup", kind: "tag" },
-      { key: "weird", kind: "spaceship" },
-      { key: "e1", kind: "element", behaviorMode: "increment", incrementBy: "много" },
-      { key: "e2", kind: "element", emoji: "x", format: "f", behaviorMode: "command", command: "tomorrow" },
-      { key: "e3", kind: "element", emoji: "x", format: "f", behaviorMode: "custom", customRaw: ["  "] },
-      { key: "e4", kind: "element", emoji: "x", format: "f", behaviorMode: "" },
-    ],
-  });
-  assertTrue(bad.ok === false, "черновик с ошибками отклоняется");
-  const has = (needle) => bad.errors.some((e) => e.includes(needle));
-  assertTrue(has("row[0]: empty key"), "пустой ключ назван с номером строки");
-  assertTrue(has("row[2]: duplicate key 'dup'"), "дубль ключа назван вместе с ключом");
-  assertTrue(has("row[3]: unsupported kind 'spaceship'"), "неизвестный вид назван");
-  assertTrue(has("row[4]: emoji is required"), "элементу нужен значок");
-  assertTrue(has("row[4]: format is required"), "и формат");
-  assertTrue(has("row[4]: incrementBy must be numeric"), "шаг увеличения обязан быть числом");
-  assertTrue(has("row[5]: command must be one of now|randomN|randomE"), "команда только из списка");
-  assertTrue(has("row[6]: custom increment list is empty"), "пустой список из пробелов не считается");
-  assertTrue(has("row[7]: behavior mode is required"), "режим поведения обязателен");
-
-  assertTrue(mod.validateDraft(null).ok === true, "пустой черновик не ломает разбор");
-  assertTrue(mod.validateDraft({ rows: "не массив" }).ok === true, "мусор вместо строк не ломает разбор");
-}
-
-/* ---- история --------------------------------------------------------- */
-{
-  let h = mod.createHistory(4);
-  assertEq(h.max, 10, "предел истории не опускается ниже десяти");
-  assertEq(mod.createHistory(150).max, 150, "заданный предел выше десяти сохраняется");
-  assertEq(mod.createHistory().max, mod.IO_TEMP_HISTORY_LIMIT, "без предела берётся значение модуля");
-
-  /* снимок клонируется: изменение источника не должно менять историю */
-  const live = { a: 1 };
-  h = mod.pushHistory(h, live);
-  live.a = 99;
-  const un = mod.undoHistory(h, { a: 2 });
-  assertTrue(un.changed === true, "отмена сработала");
-  assertEq(un.snapshot.a, 1, "в истории лежит копия, а не ссылка");
-
-  const rd = mod.redoHistory(un.history, { a: 3 });
-  assertTrue(rd.changed === true, "повтор сработал");
-  assertEq(rd.snapshot.a, 2, "повтор возвращает то, что было до отмены");
-
-  /* новая запись обесценивает повтор */
-  const h2 = mod.pushHistory(mod.undoHistory(mod.pushHistory(mod.createHistory(), { a: 1 }), { a: 2 }).history, { a: 5 });
-  assertEq(h2.future.length, 0, "запись после отмены очищает будущее");
-  assertTrue(mod.redoHistory(h2, { a: 6 }).changed === false, "повторять больше нечего");
-
-  const empty = mod.createHistory();
-  assertTrue(mod.undoHistory(empty, { a: 1 }).changed === false, "отменять в пустой истории нечего");
-  assertEq(mod.undoHistory(empty, { a: 1 }).snapshot, { a: 1 }, "и текущее состояние остаётся собой");
-
-  /* предел: старые записи вытесняются, новые остаются */
-  let deep = mod.createHistory(10);
-  for (let i = 0; i < 15; i++) deep = mod.pushHistory(deep, { i });
-  assertEq(deep.past.length, 10, "история не растёт выше предела");
-  assertEq(deep.past[0], { i: 5 }, "вытесняются самые старые записи");
-
-  const reset = mod.resetHistory(deep);
-  assertEq([reset.past.length, reset.future.length], [0, 0], "сброс очищает обе стороны");
-}
-
-/* ---- wikilink-строки ------------------------------------------------- */
-{
-  const rows = [
-    { token: "Entity Alpha", parentToken: "p1" },
-    { token: "[[Entity Beta]]", parentToken: "ghost" },
-    { token: "Entity Alpha", parentToken: "p1" },   // дубль выпадает
-    { token: "", parentToken: "p1" },               // пустой выпадает
-  ];
-  const part = mod.partitionWikilinkRows(rows, ["p1", "#p2"]);
-  assertEq(part.linked.length, 1, "с известным родителем — одна строка");
-  assertEq(part.linked[0].token, "[[Entity Alpha]]", "токен нормализован");
-  assertEq(part.linked[0].parentToken, "#p1", "родитель нормализован");
-  assertEq(part.orphans.length, 1, "с неизвестным родителем — одна строка");
-  assertEq(part.orphans[0].token, "[[Entity Beta]]", "и её токен сохранён");
-
-  const mixed = [{ token: "[[Alpha]]" }, { token: "[[alpha]]" }];
-  assertEq(mod.partitionWikilinkRows(mixed, []).orphans.length, 2,
-    "по умолчанию регистр различается");
-  assertEq(mod.partitionWikilinkRows(mixed, [], { caseSensitiveIdentity: false }).orphans.length, 1,
-    "с выключенным различением регистра второй считается дублем");
 }
 
 /* ---- знак чекбокса: ровно один (У-91) -------------------------------- */

@@ -2,18 +2,10 @@
 
 const __sharedUtils = require("./shared_utils.js");
 
-const IO_TEMP_HISTORY_LIMIT = 100;
-
 function isObj(x) {
   /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
      возвращала «да/нет» (10.13.135). */
   return __sharedUtils.isObj(x);
-}
-
-function cloneJson(x) {
-  /* Правило объявлено один раз — `cloneJson` в `shared_utils.js`
-     (10.13.137); здесь стояло то же тело слово в слово. */
-  return __sharedUtils.cloneJson(x);
 }
 
 function normalizeToken(raw, kind) {
@@ -144,125 +136,9 @@ function applyTagTreeToFields(tree, parentField, subField, kind) {
   return { parentField: nextParent, subField: nextSub, checkboxByToken };
 }
 
-function validateDraft(draft) {
-  const errors = [];
-  const d = isObj(draft) ? draft : {};
-  const rows = Array.isArray(d.rows) ? d.rows : [];
-  const seen = new Set();
-  for (let i = 0; i < rows.length; i++) {
-    const row = isObj(rows[i]) ? rows[i] : {};
-    const key = String(row.key || "").trim();
-    if (!key) {
-      errors.push(`row[${i}]: empty key`);
-      continue;
-    }
-    if (seen.has(key)) errors.push(`row[${i}]: duplicate key '${key}'`);
-    seen.add(key);
-    const kind = String(row.kind || "").trim().toLowerCase();
-    if (!["tag", "wikilink", "element"].includes(kind)) {
-      errors.push(`row[${i}]: unsupported kind '${kind}'`);
-      continue;
-    }
-    if (kind === "element") {
-      const emoji = String(row.emoji || "").trim();
-      const format = String(row.format || "").trim();
-      const mode = String(row.behaviorMode || "").trim();
-      if (!emoji) errors.push(`row[${i}]: emoji is required`);
-      if (!format) errors.push(`row[${i}]: format is required`);
-      if (!["increment", "command", "custom"].includes(mode)) {
-        errors.push(`row[${i}]: behavior mode is required`);
-      }
-      if (mode === "command") {
-        const cmd = String(row.command || "").trim();
-        if (!["now", "randomN", "randomE"].includes(cmd)) {
-          errors.push(`row[${i}]: command must be one of now|randomN|randomE`);
-        }
-      }
-      if (mode === "increment") {
-        const n = Number(row.incrementBy);
-        if (!Number.isFinite(n)) errors.push(`row[${i}]: incrementBy must be numeric`);
-      }
-      if (mode === "custom") {
-        const list = Array.isArray(row.customRaw) ? row.customRaw.map((x) => String(x || "").trim()).filter(Boolean) : [];
-        if (!list.length) errors.push(`row[${i}]: custom increment list is empty`);
-      }
-    }
-  }
-  return { ok: errors.length === 0, errors };
-}
-
-function createHistory(limit) {
-  const max = Number.isFinite(Number(limit)) ? Math.max(10, Math.trunc(Number(limit))) : IO_TEMP_HISTORY_LIMIT;
-  return { max, past: [], future: [] };
-}
-
-function pushHistory(history, snapshot) {
-  const h = isObj(history) ? history : createHistory();
-  h.past.push(cloneJson(snapshot));
-  while (h.past.length > h.max) h.past.shift();
-  h.future = [];
-  return h;
-}
-
-function undoHistory(history, currentSnapshot) {
-  const h = isObj(history) ? history : createHistory();
-  if (!h.past.length) return { changed: false, snapshot: currentSnapshot, history: h };
-  const prev = h.past.pop();
-  h.future.push(cloneJson(currentSnapshot));
-  return { changed: true, snapshot: prev, history: h };
-}
-
-function redoHistory(history, currentSnapshot) {
-  const h = isObj(history) ? history : createHistory();
-  if (!h.future.length) return { changed: false, snapshot: currentSnapshot, history: h };
-  const next = h.future.pop();
-  h.past.push(cloneJson(currentSnapshot));
-  return { changed: true, snapshot: next, history: h };
-}
-
-function resetHistory(history) {
-  const h = isObj(history) ? history : createHistory();
-  h.past = [];
-  h.future = [];
-  return h;
-}
-
-function partitionWikilinkRows(rows, validParentTokens, options) {
-  const list = Array.isArray(rows) ? rows : [];
-  const opts = isObj(options) ? options : {};
-  const seen = new Set();
-  const parents = Array.isArray(validParentTokens)
-    ? validParentTokens.map((x) => normalizeToken(x, "tag")).filter(Boolean)
-    : [];
-  const validSet = new Set(parents);
-  const linked = [];
-  const orphans = [];
-  for (let i = 0; i < list.length; i++) {
-    const row = isObj(list[i]) ? list[i] : {};
-    const token = normalizeToken(row.token, "wikilink");
-    if (!token) continue;
-    const dedupKey = opts.caseSensitiveIdentity === false ? token.toLowerCase() : token;
-    if (seen.has(dedupKey)) continue;
-    seen.add(dedupKey);
-    const parentToken = normalizeToken(row.parentToken, "tag");
-    const next = { ...row, token, parentToken };
-    if (parentToken && validSet.has(parentToken)) linked.push(next);
-    else orphans.push(next);
-  }
-  return { linked, orphans };
-}
-
 module.exports = {
-  IO_TEMP_HISTORY_LIMIT,
   normalizeToken,
   normalizeCheckboxInput,
   buildTagTree,
   applyTagTreeToFields,
-  validateDraft,
-  createHistory,
-  pushHistory,
-  undoHistory,
-  redoHistory,
-  resetHistory,
-  partitionWikilinkRows,
 };
