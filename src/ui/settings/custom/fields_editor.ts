@@ -32,7 +32,7 @@ import { renderNewFieldForm } from "./new_field_dialog.ts";
 
 /** То немногое от vault Obsidian, что спрашивает окно `Add a Field`. */
 interface VaultFile { path: string }
-interface VaultLike { getAllLoadedFiles?: () => VaultFile[] }
+interface VaultLike { getMarkdownFiles?: () => VaultFile[] }
 
 const deepState = deepStateModule as unknown as DeepState;
 
@@ -102,7 +102,8 @@ export function askNewFieldModal(
   };
   const vault = (app as { vault?: VaultLike }).vault;
   const cache = (app as { metadataCache?: { getFirstLinkpathDest?: (t: string, from: string) => unknown } }).metadataCache;
-  const files = (): VaultFile[] => (vault && typeof vault.getAllLoadedFiles === "function" ? vault.getAllLoadedFiles() : []);
+  /* Заметки — платформой, как в `fields_editor_view.ts` (Н-7). */
+  const notes = (): string[] => (vault && typeof vault.getMarkdownFiles === "function" ? vault.getMarkdownFiles().map(f => f.path) : []);
 
   class AddFieldModal extends Modal {
     drop: () => void = () => {};
@@ -112,7 +113,7 @@ export function askNewFieldModal(
         say, ctx: o.ctx, showTips: o.showTips, showIds: o.showIds, blocks: o.blocks, checkName: o.checkName,
         ...(o.valueTaken ? { valueTaken: o.valueTaken } : {}),
         ...(o.holdKeys ? { holdKeys: o.holdKeys } : {}),
-        notes: () => files().filter(f => /\.md$/i.test(f.path)).map(f => f.path),
+        notes,
         noteExists: t => !!(cache && typeof cache.getFirstLinkpathDest === "function" && cache.getFirstLinkpathDest(t, "")),
         done: answer => { finish(answer); this.close(); },
       });
