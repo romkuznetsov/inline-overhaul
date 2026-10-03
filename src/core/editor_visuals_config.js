@@ -1759,7 +1759,7 @@ function getSourceMarksFromConfig(cfg) {
   /* Метка отмеченной строки (`done-marker`) — тот же род отметки (Tags & PKM). */
   const dm = isObj(readCfgPath(cfg, "pkm.behavior.doneMarker")) ? readCfgPath(cfg, "pkm.behavior.doneMarker") : {};
   const dmVisual = isObj(dm.visual) ? dm.visual : {};
-  const doneToken = String(dm.token || "").trim();
+  const doneToken = __doneMarker.readDoneMarker(cfg).token;
   const donePct = Number(dmVisual.opacity);
   const pkmOn = readCfgPath(cfg, "features.pkm.enabled") === true && !!doneToken;
   return {
