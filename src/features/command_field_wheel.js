@@ -15,6 +15,8 @@ const __orderConfig = require("../core/pkm_order_config.js");
 const __commandField = require("./command_field.js");
 
 const SUB = "_sub";
+/* Снимок выбора при открытии — ключ в сессии колеса. */
+const OPENED = "__ioOpenedSelection";
 /* Признак синтетического Field колеса: по нему его находят Enter и уборка. */
 const KIND = "command";
 
@@ -103,7 +105,10 @@ function inject(rules, input, block) {
 function hydrate(session, input, editor, block) {
   const own = input && Array.isArray(input.fields) ? input.fields.filter((f) => (f.block || "") === (block || "")) : [];
   /* Command Field нет — документ не читается вовсе; редактор без `getValue` — проба, «нет» — ответ. */
-  if (!own.length || !editor || typeof editor.getValue !== "function") return;
+  if (!own.length) return;
+  /* Выбор Values при открытии: Enter пишет строку, только если его меняли (иначе пустая строка получила бы `- `). */
+  session[OPENED] = Object.assign({}, session.selected);
+  if (!editor || typeof editor.getValue !== "function") return;
   const ctx = { lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
   for (const f of own) {
     for (const c of f.categories) {
@@ -149,23 +154,25 @@ function planOf(f, selected, ctx) {
 }
 
 /**
- * `Enter` на ячейке Command Field: снять полосу (`cancel`) и применить выбор
- * каждого Command Field полосы (его пункт «Новое» 2026-10-03: выбрал Cleanup и
- * коллаут — применился один). Решения — по тексту до правок: иначе коллаут,
- * поставленный первым, второй Field прочёл бы как свой и снял. Порядок — полосы.
- * `false` — ячейка не его.
+ * `Enter` в полосе с Command Field — всё выбранное разом (его ответ 2026-10-03
+ * «Enter делает всё»): менявшиеся Values пишутся своей дорогой записи строки
+ * (`write`, она снимает выбор Command Field), нет — полоса снимается (`cancel`); затем применяется выбор каждого Command Field
+ * (его пункт «Новое»: выбрал Cleanup и коллаут — применился один). Решения — по
+ * тексту до правок пресетов: иначе коллаут, поставленный первым, второй Field
+ * прочёл бы как свой и снял. Порядок — полосы. `false` — Command Field в полосе нет.
  */
-function enter(state, cancel) {
-  const fid = String(state.session.activeFieldId || "");
+function enter(state, cancel, write) {
   const all = [].concat(state.rules.leftMode.fields, state.rules.rightMode.fields);
-  if (!isCommandField(all.find((f) => f.id === fid))) return false;
   const input = state.commandFields;
+  const own = input ? input.fields.filter((f) => all.some((x) => x.id === f.key)) : [];
+  if (!own.length) return false;
   const selected = Object.assign({}, state.session.selected);
-  cancel(state);
-  if (!input) return true;
+  /* Без снимка (соседний custom block по `Tab`) — менялся тот, у кого что-то выбрано. */
+  const opened = state.session[OPENED] || {};
+  const changed = all.some((f) => !isCommandField(f) && String(selected[f.id] || "") !== String(opened[f.id] || ""));
+  if (changed) write(state, state.core); else cancel(state);
   const ctx = { lines: String(state.editor.getValue()).split("\n"), cursor: state.editor.getCursor() };
-  const plans = input.fields.filter((f) => all.some((x) => x.id === f.key))
-    .map((f) => planOf(f, selected, ctx)).filter(Boolean);
+  const plans = own.map((f) => planOf(f, selected, ctx)).filter(Boolean);
   for (const p of plans) {
     const got = p.index != null ? input.apply(state.editor, p.field.key, p.category.key, p.index)
       : input.revert(state.editor, p.field.key, p.category.key);

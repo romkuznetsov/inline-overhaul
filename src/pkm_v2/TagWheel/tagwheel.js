@@ -2489,8 +2489,8 @@ async function runTagWheel(input, quickAddSettings) {
           ensureActiveFieldId(state)
           handled = true
         } else if (e.key === (keymap.apply || 'Enter')) {
-          /* Enter на Command Field: полоса снимается, пресет — одной правкой (№ 199). */
-          if (!__commandFieldWheel.enter(state, cancelSelection)) applySelection(state, state.core)
+          /* Enter с Command Field в полосе: Values строки, затем их пресеты (№ 199, № 201). */
+          if (!__commandFieldWheel.enter(state, cancelSelection, applySelection)) applySelection(state, state.core)
           handled = true
         } else if (e.key === (keymap.cancel || 'Escape')) {
           cancelSelection(state)

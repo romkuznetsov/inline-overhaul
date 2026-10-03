@@ -238,10 +238,14 @@ const run = (lines: string[], line: number, step: number, list: Any[] = presets,
   assert.deepEqual(asSection, ["# call bank #done"]);
   assert.deepEqual(apply(asSection, go(asSection, 0, inPlace, doneCfg)), doneTree, "маркер не вернул отметку");
   /* Круг «после списка» пустых строк не копит (его `💬` к тесту 5 цикла 126). */
-  const round = (d: string[]): string[] => { const s = apply(d, go(d, 1)); return apply(s, go(s, 2)); };
+  const round = (d: string[]): string[] => { const s = apply(d, go(d, 1)); return apply(s, go(s, 1)); };
   const his = ["### В", "- #todo :: Research plan", "\t- read papers", "", "## 6"];
   assert.deepEqual(round(his), his, "круг дерево → раздел → дерево не вернул строки");
   assert.deepEqual(round(round(his)), his, "второй круг добавил строку");
+  assert.deepEqual(apply(his, go(his, 1)).slice(0, 2), ["### В", "#### #todo :: Research plan"], "над разделом на месте пункта появилась строка");
+  /* Чужая пустая строка над заголовком обратным путём не съедается. */
+  const spaced = ["text", "", "## H", "body"];
+  assert.deepEqual(apply(spaced, go(spaced, 2)), ["text", "", "- H", "\tbody"], "обратный путь тронул пустую строку человека");
   ok("дерево ↔ раздел: пример 6.4, уровень, три положения, код и таблицы, подзаголовки, R-2 на месте, отметка по маркеру");
 }
 

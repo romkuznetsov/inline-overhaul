@@ -518,8 +518,12 @@ function treeToSection(ctx, preset) {
   /* Одна пустая строка до заголовка и после тела раздела (6.4, пустые строки). */
   const middle = lines.slice(end + 1, target);
   while (middle.length && !String(middle[middle.length - 1]).trim()) middle.pop();
-  /* Пустая над строкой уже стоит — вторую не ставить (его `💬` к тесту 5 цикла 126: строки копились). */
-  const before = middle.length || (at > 0 && String(lines[at - 1]).trim()) ? [""] : [];
+  /*
+   * Раздел на месте пункта — без пустой строки сверху: над строкой ничего не
+   * появляется (его `💬` к тесту 5 цикла 126, «логично и удобно»). Уехал ниже
+   * других строк — отделён от них одной пустой.
+   */
+  const before = middle.length ? [""] : [];
   const after = target < lines.length && String(lines[target]).trim() ? [""] : [];
   const out = middle.concat(before, section, after);
   const to = target - 1 >= at ? target - 1 : at;
@@ -604,9 +608,7 @@ function sectionToTree(ctx, preset) {
   const moved = [];
   const tree = sectionItems(lines, mask, at, last + 1, 0, unit, preset, ctx.cfg, moved);
   const out = moved.reduce((acc, block) => acc.concat([""], block), tree);
-  /* Пустую над заголовком ставило «дерево → раздел» (6.4) — пункт уходит в список без неё, круг не копит строк. */
-  const from = at > 1 && !String(lines[at - 1]).trim() && String(lines[at - 2]).trim() ? at - 1 : at;
-  return { from, to: last, lines: out, cursor: { line: from, ch: out[0].length } };
+  return { from: at, to: last, lines: out, cursor: { line: at, ch: out[0].length } };
 }
 
 const PLACE_NAMES = { "in-place": "in place", "after-list": "after the list", "section-end": "at the section end" };

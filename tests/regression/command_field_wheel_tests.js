@@ -138,11 +138,15 @@ async function run() {
     ok("пустое значение: вне — ничего, в коллауте — снимает; Escape — без следа");
   }
 
-  /* 4. Enter на обычном Field: выбор Command Field в строку не пишется. */
+  /* 4. Enter делает всё (его ответ 2026-10-03): Value обычного Field пишется, пресет применяется, имя Command Field в строку не попадает. */
   {
     const r = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, { key: "Tab" }, UP, ENTER]);
-    assert.ok(!/Insert callout|Note/.test(r.doc.split("\n")[0]), "Command Field записан в строку: " + r.doc.split("\n")[0]);
-    assert.ok(/#todo/.test(r.doc.split("\n")[0]), "обычный Field не записался: " + r.doc.split("\n")[0]);
+    assert.ok(!/Insert callout|Note/.test(r.doc), "Command Field записан в строку: " + r.doc);
+    assert.ok(/^> \[!note\]\n> - .*#todo/.test(r.doc), "Enter на обычном Field не сделал всё: " + JSON.stringify(r.doc));
+    const back = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, { key: "Tab" }, UP, ENTER, { undo: true }, { undo: true }]);
+    assert.equal(back.doc, DOC, "два Ctrl+Z не вернули строку");
+    const mixed = await drive(config(), DOC, [OPEN, { key: "Tab" }, UP, { key: "Tab" }, UP, RIGHT, UP, ENTER]);
+    assert.ok(/^> \[!note\]\n> - .*#todo/.test(mixed.doc), "Enter на Command Field потерял Value обычного Field: " + JSON.stringify(mixed.doc));
     /* Повтор команды закрывает колесо как Enter (тот же путь, что печать и щелчок, `В-237`), но пресет не пишет. */
     const typed = await drive(config(), DOC, [OPEN, UP, RIGHT, UP, OPEN]);
     assert.ok(!/Insert callout|Note|> \[!/.test(typed.doc), "повтор команды на ячейке Command Field записал его: " + typed.doc.split("\n")[0]);
@@ -204,7 +208,7 @@ async function run() {
   /* 9. Вставка блока из колеса (6.3): на пустой строке — блок, на строке с текстом — причина вслух, текст как был (4.5). */
   {
     const empty = await drive(config({ block: true }), "- a\n\n- b", [OPEN, DOWN, ENTER], { line: 1, ch: 0 });
-    assert.equal(empty.doc, "- a\n## Contents\n```toc\n```\n- b", "блок из колеса не вставлен");
+    assert.equal(empty.doc, "- a\n## Contents\n```toc\n```\n- b", "блок из колеса не вставлен: " + JSON.stringify(empty.doc) + " " + JSON.stringify(empty.said));
     const full = await drive(config({ block: true }), DOC, [OPEN, DOWN, ENTER]);
     assert.equal(full.doc, DOC, "на строке с текстом блок вставлен");
     assert.ok(full.said.some((m) => /empty line/.test(m)), "отказ без причины: " + JSON.stringify(full.said));

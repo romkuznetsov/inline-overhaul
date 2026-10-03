@@ -1452,7 +1452,7 @@ const SCENARIOS = {
     /* Снова колесо, каретка в коллауте: его пресет уже выбран (его 💬 к тесту 1 цикла 125). */
     await runCommand(win, "open-tagwheel-right");
     await win.waitForTimeout(500);
-    for (let i = 0; i < 20 && !/Callouts|\*\*\[Format\]\*\*/.test(await win.evaluate(() => { const e = window.app.workspace.activeEditor.editor; return e.getLine(e.getCursor().line); })); i++) {
+    for (let i = 0; i < 20 && !/Insert callout|\*\*\[Format\]\*\*/.test(await win.evaluate(() => { const e = window.app.workspace.activeEditor.editor; return e.getLine(e.getCursor().line); })); i++) {
       await win.keyboard.press("ArrowRight");
       await win.waitForTimeout(150);
     }
@@ -1462,12 +1462,12 @@ const SCENARIOS = {
     const afterEsc = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
     strips.push(reopened);
     if (afterEsc !== after) { console.log("РАСХОДИТСЯ: Escape изменил текст", JSON.stringify(afterEsc)); return false; }
-    if (!/Callouts/.test(reopened) || !/Tip/.test(reopened)) { console.log("повторное открытие:", reopened, "| РАСХОДИТСЯ: выбранный пресет не показан"); return false; }
+    if (!/Insert callout/.test(reopened) || !/Tip/.test(reopened)) { console.log("повторное открытие:", reopened, "| РАСХОДИТСЯ: выбранный пресет не показан"); return false; }
     await win.evaluate(() => window.app.workspace.activeEditor.editor.undo());
     await win.waitForTimeout(300);
     const undone = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
     console.log(JSON.stringify({ strips, after, undone: undone === got.doc }, null, 1));
-    const ok = strips.some((l) => /Callouts/.test(l)) && strips.some((l) => /Tip/.test(l))
+    const ok = strips.some((l) => /Insert callout/.test(l)) && strips.some((l) => /Tip/.test(l))
       && after === "> [!tip]\n> - Research plan\n> \t- read papers\n- buy bread\n" && undone === got.doc;
     console.log(ok ? "ok: Command Field в колесе — категория, пресет, Enter одной правкой, Ctrl+Z" : "РАСХОДИТСЯ");
     return ok;
@@ -1581,7 +1581,8 @@ const SCENARIOS = {
     console.log(JSON.stringify(got, null, 1));
     const ok = /^## Log\n### #todo /.test(got.section) && /\n- read papers\n$/.test(got.section)
       /* Prefix у его `#todo` не задан — пункт возвращается обычным `- ` (6.4); чекбокс без Value теряется (разбор 2.7). */
-      && got.back === got.doc.replace("- [ ] ", "- ") && got.undo1 === got.section && got.undone
+      /* Чекбокс возвращает Prefix у `#todo` — его он задал после В-284; без Prefix пункт простой. */
+      && (got.back === got.doc || got.back === got.doc.replace("- [ ] ", "- ")) && got.undo1 === got.section && got.undone
       && got.tickedSection === "# call bank #done\n" && got.tickedBack === "- [x] call bank #done\n";
     console.log(ok ? "ok: дерево ↔ раздел на его конфиге — раздел, обратно пунктом, два Ctrl+Z, отметка по #done" : "РАСХОДИТСЯ");
     return ok;
