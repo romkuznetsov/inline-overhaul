@@ -571,13 +571,6 @@ function spacedMarkerValueGaps(text, marks) {
   return out.sort((a, b) => b.from - a.from);
 }
 
-/** Строка без пробелов между знаком и значением — ответ `spacedMarkerValueGaps`, применённый. */
-function joinSpacedMarkerValues(text, marks) {
-  let out = String(text == null ? "" : text);
-  for (const g of spacedMarkerValueGaps(out, marks)) out = out.slice(0, g.from) + out.slice(g.to);
-  return out;
-}
-
 function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
   const fmt = String(format || "").trim() || "1";
   const cmd = String(commandRaw || "").trim().toLowerCase();
@@ -1413,7 +1406,6 @@ module.exports = {
   removeMarkerValueTokens,
   firstMarkerValueToken,
   spacedMarkerValueGaps,
-  joinSpacedMarkerValues,
   ELEMENT_VALUE_CHARS,
   shouldHydrateGenericElementRaw,
   buildCustomPlanFromIncrement,

@@ -536,7 +536,6 @@ function closeTagWheelSession() {
 }
 
 module.exports = {
-  focusOutsideNoteText,
   textCommandBlocked,
   closeTagWheelSession,
   openTagWheelSession,

@@ -25,7 +25,9 @@ let passed = 0;
 const ok = (what) => { passed++; console.log("  ok   " + what); };
 
 const marks = [{ marker: "📅", format: "YY-MM-DD" }, { marker: "🕒", format: "YYYY-MM-DD HH:mm" }, { marker: "🔢", format: "1" }];
-const join = (l) => shared.joinSpacedMarkerValues(l, marks);
+/* Отрезки дома, снятые справа налево, — так их снимает шов команд (Н-16: продукт склейки не зовёт). */
+const joinWith = (l, m) => shared.spacedMarkerValueGaps(l, m).reduce((s, g) => s.slice(0, g.from) + s.slice(g.to), l);
+const join = (l) => joinWith(l, marks);
 
 /* Общий дом: своё значение и общий вид даты — да, слово — нет. */
 assert.equal(join("- задача 📅 26-09-30"), "- задача 📅26-09-30", "формат поля с пробелом");
@@ -37,7 +39,7 @@ assert.equal(join("- 📅 26-09-30 и 📅 26-10-01"), "- 📅26-09-30 и 📅26
 assert.equal(join("- задача 📅 встреча"), "- задача 📅 встреча", "знак со словом — текст человека");
 assert.equal(join("- a📅 26-09-30"), "- a📅 26-09-30", "знак внутри слова — не наш");
 assert.equal(join("- 📅26-09-30"), "- 📅26-09-30", "запись плагина не меняется");
-assert.equal(shared.joinSpacedMarkerValues("- 📅 26-09-30", []), "- 📅 26-09-30", "без Field Element — ничего");
+assert.equal(joinWith("- 📅 26-09-30", []), "- 📅 26-09-30", "без Field Element — ничего");
 ok("общий дом: значение через пробел узнаётся строго, слово и чужой знак не трогаются");
 
 /* Шов: команды полей видят строку без пробела. */
