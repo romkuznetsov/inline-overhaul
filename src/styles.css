@@ -4068,3 +4068,12 @@ select.io-select { background-color: var(--background-modifier-form-field); padd
 
 /* Число в одну-две цифры — узким полем справа налево, а не полем под абзац. */
 [class*="io-group-"] .setting-item-control > input[type="number"] { width: 72px; text-align: right; }
+
+/* `to hotkeys` — маленькой меткой цвета уровня, как задумано: правило Obsidian на `button` давало ей высоту поля, тень и серый фон. */
+:is(.vertical-tab-content, .modal) button.io-tohk { height: auto; box-shadow: none; padding: 1px 8px; font-size: 10px; background: color-mix(in srgb, var(--interactive-accent) 28%, transparent); }
+:is(.vertical-tab-content, .modal) button.io-tohk--part { background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); }
+:is(.vertical-tab-content, .modal) button.io-tohk--field { background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); }
+
+/* Пустое описание строки Binder — без рамки, пока на него не навели или не встали: девять пустых коробок забирали взгляд у самих команд. */
+.io-binder__desc .io-text:placeholder-shown:not(:hover):not(:focus) { border-color: transparent; background-color: transparent; }
+

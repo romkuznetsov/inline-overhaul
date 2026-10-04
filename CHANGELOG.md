@@ -29,7 +29,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 6. 🎨 **Drop-down lists in the settings open over the panel** instead of pushing it down, and `Escape` closes the list, not the settings.
 7. 🎨 **In a preset of `Insert codeblock` the text comes first, the wrap is a switch — `No (Plain)`, `Heading`, `Callout` — and each of its settings has its own label.** Preset names line up with their settings, and the eye is a line icon, not an emoji.
 8. 🎨 **A Binder row of an `Action` category looks like any other row;** a triangle at its name shows its preset settings.
-9. 🎨 **The settings panel is calmer:** the `?` of a setting sits at the end of its description instead of on a line of its own, icon buttons, fold arrows and clear crosses are flat, the drop-down lists of the Field editor show their arrow, slider values line up and number boxes are narrow.
+9. 🎨 **The settings panel is calmer:** the `?` of a setting ends its description, icon buttons and fold arrows are flat, lists show their arrow, slider values line up, number boxes are narrow, `to hotkeys` is a small label and an empty Binder description reads `Add a note`.
 10. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
 11. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
 12. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.

@@ -159,6 +159,7 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
       const desc = textInput(cell, "io-text", {
         value: row.description,
         label: say("ROW_DESC_ARIA", name),
+        placeholder: say("ROW_DESC_PLACEHOLDER"),
       });
       desc.addEventListener("change", (() => {
         o.onDescription(row, desc.value);

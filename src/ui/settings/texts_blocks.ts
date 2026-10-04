@@ -603,6 +603,7 @@ export const BLOCK_TEXTS = {
     NEW_CATEGORY_ARIA: "Category of the new command",
     NEW_NOTE_COMMAND: "One press applies the preset, the next press on its result takes it off; Cleanup only applies",
     ROW_PRESET_ARIA: "Preset of {0}",
+    ROW_DESC_PLACEHOLDER: "Add a note",
     ROW_PRESET_SHOW: "Show the settings of {0}",
     ROW_PRESET_HIDE: "Hide the settings of {0}",
     NEW_NOTE: "The command is made from the row, so the text it inserts cannot be changed afterwards",

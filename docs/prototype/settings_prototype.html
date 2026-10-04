@@ -7517,7 +7517,7 @@ function renderBinder(host) {
     el("span", "io-binder__name", nameCell, r.name);
     const cell = el("div", null, row);
     cell.style.setProperty("min-width", "0");
-    const input = textEl(cell, r.desc, null, "Description for " + r.name);
+    const input = textEl(cell, r.desc, "Add a note", "Description for " + r.name);
     input.style.setProperty("width", "100%");
     input.style.setProperty("min-width", "0");
     hotkeyCell(el("div", null, row), r.name);
