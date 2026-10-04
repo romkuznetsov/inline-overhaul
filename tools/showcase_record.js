@@ -47,6 +47,7 @@
  *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
+ *   mark off | on            подсветка строки у нажатий (у клавиш выделения — off: сливается с выделением)
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
  *
@@ -203,13 +204,15 @@ const overlay = (win, id, text) => win.evaluate(([id, t]) => {
  * сверяет заметку каждый кадр и в том же кадре, где строка переехала, переносит подсветку
  * на новое место (`moved`). Запись в этом не участвует — её задержка до экрана не доходит.
  */
-const markStart = (win) => win.evaluate((movedSrc) => {
+const markStart = (win, bg) => win.evaluate(([movedSrc, bg]) => {
   const moved = (0, eval)("(" + movedSrc + ")");
   const ed = window.app.workspace.activeEditor.editor, cm = ed.cm;
   const snap = () => ({ lines: ed.getValue().split("\n"), at: ed.getCursor().line });
   const before = snap();
   let text = before.lines.join("\n"), span = [before.at, before.at];
   const d = document.createElement("div"); d.className = "io-rec-mark";
+  /* `mark off`: фон гасится — у клавиш выделения он сливается с самим выделением; плашка остаётся. */
+  if (!bg) d.style.background = "none";
   /* Клавиша — у самой строки, а не в углу (его слово 2026-10-04): видно, что нажатие и правка одно. */
   const k = document.createElement("div"); k.className = "io-rec-hk"; k.style.opacity = "0";
   document.body.append(d, k);
@@ -231,7 +234,7 @@ const markStart = (win) => win.evaluate((movedSrc) => {
   };
   place();
   window.__ioRecMark = st;
-}, moved.toString());
+}, [moved.toString(), bg]);
 
 /** Плашка клавиши у строки — тем же вызовом, что и нажатие, без промежутка. */
 const markPress = (win, label) => win.evaluate((label) => {
@@ -445,7 +448,7 @@ async function run(win, steps, cut, log) {
       /* Нажатие ждёт, пока субтитр прочитан; панель между ними — тоже время чтения. */
       await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
       /* Подряд идущие нажатия — одна подсветка: она идёт за строкой, плашка мигает на каждом. */
-      if (!run.marking) { await markStart(win); await win.waitForTimeout(250); }
+      if (!run.marking) { await markStart(win, !run.noMark); await win.waitForTimeout(250); }
       /* Плашка — раньше нажатия: глаз читает команду, потом видит её действие (его слово 2026-10-04). */
       await markPress(win, label);
       await win.waitForTimeout(450);
@@ -462,6 +465,8 @@ async function run(win, steps, cut, log) {
       /* Только для показов в самой панели: после `set` панель закрывается сама. */
       await win.evaluate(() => window.app.setting.close());
       await win.waitForTimeout(450);
+    } else if (op === "mark") {
+      run.noMark = arg === "off";
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
