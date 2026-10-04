@@ -426,7 +426,7 @@ export const BLOCK_TEXTS = {
     NF_PREVIEW_LINE: "Line",
     NF_PREVIEW_NO_VALUES: "No Values yet",
     NF_PREVIEW_VALUE: "Value",
-    NF_SAMPLE_TEXT: "lorem ipsum",
+    NF_SAMPLE_TEXT: "your text",
     /* Link как MOC: окно и правая колонка. */
     MOC_NAME: "Use as MOC",
     MOC_DESC: "Let <code>Link the notes you mention</code> file new notes into the notes of these Values",

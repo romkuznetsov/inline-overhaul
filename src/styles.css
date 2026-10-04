@@ -3825,15 +3825,15 @@ body.theme-dark {
 }
 .io-eye { --io-eye-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E"); }
 .io-eye--off { --io-eye-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.73 5.08a10.74 10.74 0 0 1 11.2 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49'/%3E%3Cpath d='M14.08 14.16a3 3 0 0 1-4.24-4.24'/%3E%3Cpath d='M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14'/%3E%3Cpath d='m2 2 20 20'/%3E%3C/svg%3E"); }
-/* Тип Field — плиткой со знаком типа, в стиле бейджей бренд-бука (flat-square): `#`, `[[`, `📅`, `/`. */
+/* Тип Field — плиткой со знаком типа, в стиле бейджей бренд-бука (flat-square): `#`, `[[`, `☺`, `/`. */
 .io-typedot {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 16px; border-radius: 3px;
   font-family: var(--font-monospace); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: -0.5px;
   color: var(--io-chip-ink, var(--text-on-accent));
 }
-/* Эмодзи на заливке цветом типа читается плохо (его 💬 к тесту 1 цикла 129): светлая подложка, рамка цветом типа. */
-.io-typedot--element { background: color-mix(in srgb, var(--io-chip-bg) 18%, var(--background-primary)); box-shadow: inset 0 0 0 1px var(--io-chip-bg); font-family: var(--font-interface); font-size: 11px; }
+/* Смайлик — заливка как у соседей, знак шрифтом интерфейса и крупнее: моноширинный рисует его мелко (его 💬 к тесту 1 цикла 130). */
+.io-typedot--element { font-family: var(--font-interface); font-size: 14px; font-weight: 400; }
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
@@ -3974,6 +3974,7 @@ body.theme-dark {
 .io-nf .io-item__control:has(> .io-nf__blockpane) { flex-wrap: wrap; column-gap: 20px; }
 .io-nf__blockpane { min-width: 0; }
 .io-nf__blockline { white-space: nowrap; }
+.io-nf__blockline .io-line__bullet { margin-right: 0.5em; color: var(--list-marker-color, var(--text-faint)); }
 .io-nf__blockline .io-line__sep { margin: 0 0.35em; }
 .io-nf__preview { margin: 0; }
 .io-nf .io-nf__foot { margin-top: 10px; }

@@ -2370,7 +2370,8 @@ function buildGroupDisplay(group, mode, state, rules, labels) {
     for (ti = 0; ti < tokens.length; ti++) shown.push(valueLabelInStrip(tokens[ti], labels))
     text = shown.join('+')
   } else {
-    var ph = String(group.placeholder || '')
+    /* Пустая ячейка — `-` перед именем, как `-` умолчания в скроллере (его пункт «Новое» цикла 130, З3 № 205). */
+    var ph = '-' + String(group.placeholder || '')
     if (hasActive) {
       text = ph
     } else {

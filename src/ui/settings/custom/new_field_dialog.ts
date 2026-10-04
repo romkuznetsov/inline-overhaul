@@ -209,7 +209,7 @@ export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string
 const WHEEL_WINDOW = 5;
 
 /**
- * Строка одной формы с его разделителями: `имя :: lorem ipsum` у Left,
+ * Строка одной формы с его разделителями: `имя :: your text` у Left,
  * наоборот у Right, внутри текста у custom block; `slot` рисует место Field.
  */
 function lineShape(line: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, slot: (side: El) => void): void {
@@ -247,12 +247,14 @@ export function drawBlockLine(host: El, ctx: SettingsCtx, d: NewFieldDraft, say:
   host.empty();
   const line = el(host, "div", "io-line io-line--wheel io-nf__blockline");
   applyTagVars(line, ctx, { blockFill: false, plainSize: true });
+  /* Знак списка — чтобы читалось как пример строки (его 💬 к тесту 5 цикла 130). */
+  el(line, "span", "io-line__bullet", "•");
   lineShape(line, ctx, d, say, side => wheelCell(side, ctx, d, say));
 }
 
 /**
  * Предпросмотр: tagWheel и строка рядом (тест 3 цикла 98). Строка одной формы и
- * с его разделителями: `имя :: lorem ipsum` у Left, наоборот у Right, внутри
+ * с его разделителями: `имя :: your text` у Left, наоборот у Right, внутри
  * текста у custom block. Слева на месте Field — ячейка имени и скроллер Values,
  * справа — Value под курсором; `at` — его номер. Классы — предпросмотров панели
  * (`io-wheel*`, `io-line`, `applyTagVars`, У-32).

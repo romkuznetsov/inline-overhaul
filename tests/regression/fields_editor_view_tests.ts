@@ -3361,6 +3361,7 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const blockLine = walk(form, "io-nf__blockline")[0] as StubNode;
   assert.ok(blockLine, "у выбора Block нет строки");
   assert.equal(String((walk(blockLine, "io-wheelcell--active")[0] as StubNode).textContent), "[Field name]", "в строке у Block нет ячейки Field");
+  assert.equal(String((blockLine.children[0] as StubNode).textContent), "•", "строка у Block без знака списка");
   name.value = "status";
   name.dispatch("input");
   assert.equal(addBtn.disabled, true, "занятое имя пропущено");
@@ -3391,11 +3392,11 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const panes = walk(form, "io-nf__pline") as StubNode[];
   assert.equal(panes.length, 2, "половин предпросмотра не две");
   const [wheelLine, line] = panes as [StubNode, StubNode];
-  assert.ok(/#calm/.test(text(line)) && /::/.test(text(line)) && /lorem ipsum/.test(text(line)), "строка предпросмотра без Value, разделителя и текста: " + text(line));
+  assert.ok(/#calm/.test(text(line)) && /::/.test(text(line)) && /your text/.test(text(line)), "строка предпросмотра без Value, разделителя и текста: " + text(line));
   assert.ok(walk(line, "io-line__side--left").length === 1, "Tag встал не в левый Block");
   const active = walk(wheelLine, "io-wheelcell--active")[0] as StubNode;
   assert.equal(String(active.textContent), "[mood]", "ячейка tagWheel — не имя Field");
-  assert.ok(/::/.test(text(wheelLine)) && /lorem ipsum/.test(text(wheelLine)), "строка tagWheel не той формы: " + text(wheelLine));
+  assert.ok(/::/.test(text(wheelLine)) && /your text/.test(text(wheelLine)), "строка tagWheel не той формы: " + text(wheelLine));
   assert.deepEqual(walk(wheelLine, "io-wheelval").map(n => String(n.textContent)), ["#calm"], "скроллер не показывает Values");
   assert.equal(walk(wheelLine, "io-wheelval--on").length, 1, "курсора в скроллере нет");
   assert.ok(walk(form, "io-nf__bottom").length === 1 && walk(walk(form, "io-nf__bottom")[0]!, "io-btn--cta").length === 1,
