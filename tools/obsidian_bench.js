@@ -788,6 +788,41 @@ const SCENARIOS = {
    * закрытия ставит её в конец. Каретка до панели — за словом `банк`; после
    * `Esc` и после `Enter` без выбора она обязана стоять там же.
    */
+  /* В-289: набор имени в `Templates folder` по букве — поле не пустеет, чужой правки не объявлено. */
+  async "templates-folder-typing"(win, browser) {
+    await win.evaluate(async () => {
+      const p = window.app.plugins.plugins["inline-overhaul"];
+      p.setConfigPatch({ transform: { inline2note: { enabled: true, templatesFolder: "" } } }, "bench:templates-folder");
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Transform");
+    await host.waitForTimeout(600);
+    const input = host.locator("input[placeholder='Pick or type a folder']").first();
+    await input.click();
+    const seen = [];
+    for (const ch of "Templ") {
+      await host.keyboard.type(ch);
+      await host.waitForTimeout(Number(process.env.IO_PAUSE) || 250);
+      seen.push(await host.evaluate(() => { const i = document.querySelector("input[placeholder='Pick or type a folder']"); return i ? i.value : "<нет поля>"; }));
+    }
+    await host.waitForTimeout(1200);
+    const out = await win.evaluate(() => ({
+      cfg: window.app.plugins.plugins["inline-overhaul"].getConfig().transform.inline2note.templatesFolder,
+      notices: [...document.querySelectorAll(".notice")].map((n) => n.textContent.trim()),
+    }));
+    const finalValue = await host.evaluate(() => { const i = document.querySelector("input[placeholder='Pick or type a folder']"); return i ? i.value : "<нет поля>"; });
+    const hostNotices = await host.evaluate(() => [...document.querySelectorAll(".notice")].map((n) => n.textContent.trim()));
+    console.log("поле по буквам: " + JSON.stringify(seen) + " | в конце " + JSON.stringify(finalValue) + " | конфиг " + JSON.stringify(out.cfg));
+    console.log("уведомления: " + JSON.stringify(out.notices.concat(hostNotices)));
+    const ok = seen.join(",") === "T,Te,Tem,Temp,Templ" && finalValue === "Templ"
+      && !out.notices.concat(hostNotices).some((t) => /changed on disk/i.test(t));
+    console.log(ok ? "ok: набор не сбрасывается" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* В-290: отмена `Visual → off` командой `Undo last settings change` возвращает оформление заметки сразу. */
   async "undo-visual-redraw"(win) {
     const line = "- [ ] #todo #high :: Buy groceries";
