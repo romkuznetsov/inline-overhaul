@@ -101,15 +101,18 @@ function inject(rules, input, block) {
 /**
  * Колесо открыто в результате категории (в коллауте) — её пресет выбран сразу,
  * как Value обычного Field (его `💬` к тесту 1 цикла 125). Зовётся после разбора строки.
+ * Ответ — id ячейки, на которой колесо открывается: пресет листается сразу (его
+ * `💬` к тесту 4 цикла 129); пусто — ничего не узнано.
  */
 function hydrate(session, input, editor, block) {
   const own = input && Array.isArray(input.fields) ? input.fields.filter((f) => (f.block || "") === (block || "")) : [];
   /* Command Field нет — документ не читается вовсе; редактор без `getValue` — проба, «нет» — ответ. */
-  if (!own.length) return;
+  if (!own.length) return "";
   /* Выбор Values при открытии: Enter пишет строку, только если его меняли (иначе пустая строка получила бы `- `). */
   session[OPENED] = Object.assign({}, session.selected);
-  if (!editor || typeof editor.getValue !== "function") return;
+  if (!editor || typeof editor.getValue !== "function") return "";
   const ctx = { lines: String(editor.getValue()).split("\n"), cursor: editor.getCursor() };
+  let active = "";
   for (const f of own) {
     for (const c of f.categories) {
       const index = c.recognize(ctx);
@@ -117,11 +120,13 @@ function hydrate(session, input, editor, block) {
       if (!preset) continue;
       session.selected[f.key] = c.name;
       if (c.presets.length > 1) session.selected[f.key + SUB] = c.key + "/" + preset.index;
+      if (!active) active = c.presets.length > 1 ? f.key + SUB : f.key;
       break;
     }
   }
   /* Узнанный пресет — тоже выбор при открытии: `Enter` без перемены его не переписывает (его 💬 к тесту 6 цикла 128). */
   session[OPENED] = Object.assign({}, session.selected);
+  return active;
 }
 
 function isCommandField(field) {

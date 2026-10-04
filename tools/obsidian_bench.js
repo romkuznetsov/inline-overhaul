@@ -1772,6 +1772,49 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Тест 4 цикла 129 на его конфиге: колесо его custom block, каретка в теле `[!warning]+` — какую полосу он видит. */
+  async "command-field-reopen-custom"(win) {
+    /* IO_DOC — его заметка целиком; каретка в последней строке `> - Research plan` (у Б и В один текст). */
+    const doc = process.env.IO_DOC ? fs.readFileSync(process.env.IO_DOC, "utf8") : "> [!warning]+\n> - Research plan\n";
+    const at = doc.split("\n").lastIndexOf("> - Research plan");
+    const block = await win.evaluate(async ({ doc, at }) => {
+      const a = window.app;
+      const p = a.plugins.plugins["inline-overhaul"];
+      const custom = p.getConfig().pkm.fields.order.custom || [];
+      const b = custom.find((x) => x.keys.some((k) => p.getConfig().pkm.fields.order.types[k] === "command"));
+      const f = await a.vault.create("cfr.md", doc);
+      await a.workspace.getLeaf(false).openFile(f, { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const e = a.workspace.activeEditor.editor;
+      e.setCursor({ line: at, ch: 17 });
+      e.focus();
+      /* Соседний блок — для второго прохода: прийти в блок `Tab`, а не командой. */
+      return b ? { id: b.id, other: (custom[custom.indexOf(b) - 1] || custom[custom.indexOf(b) + 1] || {}).id } : null;
+    }, { doc, at });
+    if (!block) { console.log("нет custom block с Command Field"); return false; }
+    const line = () => win.evaluate((at) => window.app.workspace.activeEditor.editor.getLine(at), at);
+    /* Активная ячейка полосы — в `**[…]**`; ждём узнанный пресет именно там. */
+    const runs = [];
+    for (const via of [{ open: block.id, tabs: 0 }, { open: block.other, tabs: 1 }]) {
+      if (!via.open) continue;
+      await win.evaluate((at) => { const e = window.app.workspace.activeEditor.editor; e.setCursor({ line: at, ch: 17 }); e.focus(); }, at);
+      await runCommand(win, "open-tagwheel-custom-" + via.open);
+      await win.waitForTimeout(600);
+      for (let i = 0; i < via.tabs; i++) { await win.keyboard.press("Tab"); await win.waitForTimeout(400); }
+      const strip = await line();
+      if (process.env.IO_SHOTS) await win.screenshot({ path: path.join(process.env.IO_SHOTS, "command-field-reopen-" + via.tabs + ".png") });
+      await win.keyboard.press("Enter");
+      await win.waitForTimeout(500);
+      const after = await win.evaluate(() => window.app.workspace.activeEditor.editor.getValue());
+      runs.push({ via, strip, same: after === doc, ok: /\*\*\[Warning\]\*\*/.test(strip) && after === doc });
+      if (after !== doc) await win.evaluate((d) => window.app.workspace.activeEditor.editor.setValue(d), doc);
+    }
+    console.log(JSON.stringify(runs, null, 1));
+    const ok = runs.length > 0 && runs.every((r) => r.ok);
+    console.log(ok ? "ok: колесо в коллауте открыто на узнанном пресете — командой и по Tab, Enter без перемены — без правки" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* Скроллер у перенесённой ячейки (его снимок к тесту 1 цикла 125): коробка у ячейки, а не во всю заметку. */
   /*
    * Тест 7 цикла 126: щелчок по галочке на его конфиге (маркер `#done`, Prefix `[ ]`
@@ -1910,17 +1953,15 @@ const SCENARIOS = {
     const dragged = await host.evaluate(() => [...document.querySelectorAll(".io-nf__chiptext")].map((n) => n.textContent));
     await host.dragAndDrop(".io-nf__chip:nth-child(2) > .io-grip", ".io-nf__chip:nth-child(1)");
     await host.waitForTimeout(300);
-    /* Скроллер у Left — внутри рамки предпросмотра; подпись Preview сворачивает. */
-    const inside = await host.evaluate(() => {
-      const p = document.querySelector(".io-nf__preview").getBoundingClientRect();
-      const w = document.querySelector(".io-nf .io-wheelpanel").getBoundingClientRect();
-      return w.left >= p.left && w.right <= p.right;
-    });
-    await host.click(".io-nf__pcap");
-    await host.waitForTimeout(150);
+    /* Preview свёрнут при открытии (цикл 129), подпись разворачивает; скроллер у Left — внутри его рамки. */
     const folded = await host.evaluate(() => getComputedStyle(document.querySelector(".io-nf__pbody")).display === "none");
     await host.click(".io-nf__pcap");
     await host.waitForTimeout(150);
+    const inside = await host.evaluate(() => {
+      const p = document.querySelector(".io-nf__preview").getBoundingClientRect();
+      const w = document.querySelector(".io-nf .io-wheelpanel").getBoundingClientRect();
+      return w.width > 0 && w.left >= p.left && w.right <= p.right;
+    });
     /* Заливка и цвет текста у первого Value — точками в фишке (тест 3 цикла 98). */
     await host.evaluate(() => {
       const set = (sel, c) => { const d = document.querySelector(sel); d.value = c; d.dispatchEvent(new Event("input")); };

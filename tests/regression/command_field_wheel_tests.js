@@ -129,7 +129,9 @@ async function run() {
     const r = await drive(config(), DOC, [OPEN, UP, ENTER]);
     assert.equal(r.doc, DOC, "категория без пресета создала коллаут");
     const inside = "> [!note]\n> - Research plan\n- buy bread";
-    const off = await drive(config(), inside, [OPEN, RIGHT, DOWN, ENTER], { line: 1, ch: 4 });
+    /* В коллауте колесо открыто на ячейке пресета (его 💬 к тесту 4 цикла 129): шаг вниз — сразу пустой пресет. */
+    const off = await drive(config(), inside, [OPEN, DOWN, ENTER], { line: 1, ch: 4 });
+    assert.ok(/\*\*\[Note\]\*\*/.test(String(off.seen[0])), "колесо открыто не на узнанном пресете: " + off.seen[0]);
     assert.equal(off.doc, "- Research plan\n- buy bread", "пустой пресет в коллауте его не снял");
     const offCat = await drive(config(), inside, [OPEN, DOWN, ENTER], { line: 1, ch: 4 });
     assert.equal(offCat.doc, "- Research plan\n- buy bread", "пустая категория в коллауте его не сняла");
@@ -170,10 +172,10 @@ async function run() {
   /* 6. Каретка в коллауте — его пресет выбран сразу (его `💬` к тесту 1 цикла 125). */
   {
     const inside = "> [!note]\n> - Research plan\n- buy bread";
-    const r = await drive(config(), inside, [OPEN, RIGHT, UP, ENTER], { line: 1, ch: 4 });
+    const r = await drive(config(), inside, [OPEN, UP, ENTER], { line: 1, ch: 4 });
     assert.ok(/Insert callout/.test(r.seen[0]) && /Note/.test(r.seen[0]), "в коллауте колесо не показало выбранное: " + r.seen[0]);
     assert.equal(r.doc, "> [!tip]\n> - Research plan\n- buy bread", "шаг от выбранного Note не дал Tip");
-    ok("в коллауте колесо открывается на его категории и пресете");
+    ok("в коллауте колесо открывается на его пресете: шаг листает пресет сразу");
   }
 
   /* 6а. `[!note]+` — тот же открытый Note: колесо его узнаёт, а Enter без перемены текст не трогает (его 💬 к тесту 6 цикла 128). */
@@ -182,7 +184,7 @@ async function run() {
     const r = await drive(config(), plus, [OPEN, ENTER], { line: 1, ch: 4 });
     assert.ok(/Insert callout/.test(r.seen[0]) && /Note/.test(r.seen[0]), "коллаут со знаком + колесо не узнало: " + r.seen[0]);
     assert.equal(r.doc, plus, "Enter без перемены выбора переписал коллаут");
-    const step = await drive(config(), plus, [OPEN, RIGHT, UP, ENTER], { line: 1, ch: 4 });
+    const step = await drive(config(), plus, [OPEN, UP, ENTER], { line: 1, ch: 4 });
     assert.equal(step.doc, "> [!tip]\n> - Research plan\n- buy bread", "шаг от узнанного Note не дал Tip");
     const folded = await drive(config(), "> [!note]-\n> - Research plan\n- buy bread", [OPEN], { line: 1, ch: 4 });
     assert.ok(/Note/.test(folded.seen[0]), "свёрнутый коллаут типа пресета колесо не узнало: " + folded.seen[0]);

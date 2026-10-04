@@ -932,6 +932,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   padding: 6px 12px; font-size: var(--font-ui-small); color: var(--text-normal);
 }
 .io-cmd__row + .io-cmd__row { border-top: 1px solid var(--background-modifier-border); }
+/* Конец группы Field — полосой: без неё подзаголовок читался строкой прошлой группы (его 💬 к тесту 10 цикла 129). */
+.io-cmd__row + .io-cmd__field { border-top: 1px solid var(--background-modifier-border-hover); }
 .io-cmd__does { font-size: var(--font-ui-smaller); color: var(--text-muted); text-align: right; max-width: 44ch; }
 /* Описание команд Field — одной строкой под подписью части (цикл 129). */
 .io-cmd__partdesc { padding: 2px 12px 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -1919,7 +1921,9 @@ body.theme-dark {
 .io-cats .io-cats__cat { align-items: center; }
 .io-cats .io-cats__cat > * { margin-top: 0; }
 .io-cats .io-cats__tbtn { min-height: var(--input-height, 30px); }
-.io-cats .io-cats__fold { min-height: var(--input-height, 30px); }
+.io-cats .io-cats__fold { min-height: var(--input-height, 30px); font-size: 17px; }
+/* Кнопки строки — по центру поля, как шесть точек и глаз (его 💬 к тесту 1 цикла 129). */
+.io-cats .io-cats__row > .io-valtools { align-self: start; min-height: var(--input-height, 30px); }
 .io-cats .io-cats__set .io-seg { min-height: var(--input-height, 30px); box-sizing: border-box; }
 .io-cats .io-cats__set .io-seg .io-seg__btn { font-size: var(--font-ui-smaller); padding: 2px 9px; }
 /* Фишки Keep — по высоте поля, первая линия на уровне имени. */
@@ -1939,6 +1943,8 @@ body.theme-dark {
   font-family: var(--font-monospace); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: -0.5px;
   color: var(--io-chip-ink, var(--text-on-accent));
 }
+/* Эмодзи на заливке цветом типа читается плохо (его 💬 к тесту 1 цикла 129): светлая подложка, рамка цветом типа. */
+.io-typedot--element { background: color-mix(in srgb, var(--io-chip-bg) 18%, var(--background-primary)); box-shadow: inset 0 0 0 1px var(--io-chip-bg); font-family: var(--font-interface); font-size: 11px; }
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -5928,7 +5934,7 @@ function renderFieldList(list) {
       /* выбор — кнопка внутри ряда, а не сам ряд: рядом стоят ещё две кнопки */
       const pick = el("button", "io-fields__pick", b);
       pick.type = "button";
-      { const d = el("span", "io-typedot", pick, TYPE_GLYPH[f.type]); d.setAttribute("aria-label", TYPE_LABEL[f.type]); cssVar(d, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(d, "--io-chip-ink", typeInk(f.type)); }
+      { const d = el("span", "io-typedot io-typedot--" + f.type, pick, TYPE_GLYPH[f.type]); d.setAttribute("aria-label", TYPE_LABEL[f.type]); cssVar(d, "--io-chip-bg", TYPE_COLOR[f.type]); cssVar(d, "--io-chip-ink", typeInk(f.type)); }
       el("span", "io-fields__name", pick, f.name);
       pick.addEventListener("click", () => { selectedFieldId = f.id; renderContent(); });
 

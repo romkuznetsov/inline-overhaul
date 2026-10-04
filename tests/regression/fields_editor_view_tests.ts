@@ -3351,10 +3351,16 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   assert.ok(!line0.classList.contains("io-line--blockfill-left") && !line0.classList.contains("io-line--blockfill-right"), "у строки предпросмотра заливка Block");
   const pcap = walk(form, "io-nf__pcap")[0] as StubNode;
   const pbody = walk(form, "io-nf__pbody")[0] as StubNode;
+  /* Свёрнут при открытии (его пункт «Новое» цикла 129); щелчок разворачивает, второй сворачивает. */
+  assert.ok(pbody.classList.contains("io-nf__pbody--closed") && pcap.getAttribute("aria-expanded") === "false", "Preview не свёрнут при открытии");
   pcap.click();
-  assert.ok(pbody.classList.contains("io-nf__pbody--closed") && pcap.getAttribute("aria-expanded") === "false", "щелчок по Preview не свернул его");
+  assert.ok(!pbody.classList.contains("io-nf__pbody--closed") && pcap.getAttribute("aria-expanded") === "true", "щелчок по Preview не развернул его");
   pcap.click();
-  assert.ok(!pbody.classList.contains("io-nf__pbody--closed"), "второй щелчок не развернул Preview");
+  assert.ok(pbody.classList.contains("io-nf__pbody--closed"), "второй щелчок не свернул Preview");
+  /* Строка у Block: ячейка с именем Field, слева от текста у Left. */
+  const blockLine = walk(form, "io-nf__blockline")[0] as StubNode;
+  assert.ok(blockLine, "у выбора Block нет строки");
+  assert.equal(String((walk(blockLine, "io-wheelcell--active")[0] as StubNode).textContent), "[Field name]", "в строке у Block нет ячейки Field");
   name.value = "status";
   name.dispatch("input");
   assert.equal(addBtn.disabled, true, "занятое имя пропущено");

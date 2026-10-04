@@ -497,7 +497,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
       const pick = btn(item, "io-fields__pick", { label: say("SHOW_FIELD", row.label) });
       /* Тип — точкой цвета типа: чип съедал имя (его 💬 к тесту 1, цикл 127); слово — в подсказке и чипом справа. */
       /* Плитка со знаком типа, в стиле бейджей бренд-бука (его 💬 к тесту 1 цикла 128). */
-      const dot = el(pick, "span", "io-typedot", TYPE_GLYPH[row.kind]);
+      const dot = el(pick, "span", "io-typedot io-typedot--" + row.kind, TYPE_GLYPH[row.kind]);
       dot.setAttribute("aria-label", say(TYPE_NAME[row.kind]));
       cssVar(dot, "--io-chip-bg", typeColor(row.kind));
       cssVar(dot, "--io-chip-ink", typeInk(row.kind));

@@ -3347,6 +3347,8 @@ body.theme-dark {
   background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
 }
 .io-cmd__row + .io-cmd__row { border-top: 1px solid var(--background-modifier-border); }
+/* Конец группы Field — полосой: без неё подзаголовок читался строкой прошлой группы (его 💬 к тесту 10 цикла 129). */
+.io-cmd__row + .io-cmd__field { border-top: 1px solid var(--background-modifier-border-hover); }
 .io-cmd__name { font-size: var(--font-ui-small); color: var(--text-normal); }
 .io-cmd__does {
   font-size: var(--font-ui-smaller);
@@ -3808,7 +3810,9 @@ body.theme-dark {
 .io-cats .io-cats__cat { align-items: center; }
 .io-cats .io-cats__cat > * { margin-top: 0; }
 .io-cats .io-cats__tbtn { min-height: var(--input-height, 30px); }
-.io-cats .io-cats__fold { min-height: var(--input-height, 30px); }
+.io-cats .io-cats__fold { min-height: var(--input-height, 30px); font-size: 17px; }
+/* Кнопки строки — по центру поля, как шесть точек и глаз (его 💬 к тесту 1 цикла 129). */
+.io-cats .io-cats__row > .io-valtools { align-self: start; min-height: var(--input-height, 30px); }
 .io-cats .io-cats__set .io-seg { min-height: var(--input-height, 30px); box-sizing: border-box; }
 .io-cats .io-cats__set .io-seg .io-seg__btn { font-size: var(--font-ui-smaller); padding: 2px 9px; }
 /* Фишки Keep — по высоте поля, первая линия на уровне имени. */
@@ -3828,6 +3832,8 @@ body.theme-dark {
   font-family: var(--font-monospace); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: -0.5px;
   color: var(--io-chip-ink, var(--text-on-accent));
 }
+/* Эмодзи на заливке цветом типа читается плохо (его 💬 к тесту 1 цикла 129): светлая подложка, рамка цветом типа. */
+.io-typedot--element { background: color-mix(in srgb, var(--io-chip-bg) 18%, var(--background-primary)); box-shadow: inset 0 0 0 1px var(--io-chip-bg); font-family: var(--font-interface); font-size: 11px; }
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
@@ -3961,6 +3967,14 @@ body.theme-dark {
   border-top: 1px solid var(--background-modifier-border);
   background: var(--modal-background, var(--background-primary));
 }
+/* Липкий низ встаёт над отступом окна, и в отступе видна прокрученная форма (его
+   пункт «Новое» цикла 129, стенд: 17 px): полоса уходит в отступ и закрывает его. */
+.io-nf__bottom { bottom: calc(-1 * var(--size-4-4, 16px)); margin-bottom: calc(-1 * var(--size-4-4, 16px)); padding-bottom: calc(var(--size-4-4, 16px) + 2px); }
+/* Строка у выбора Block — где Field встанет в строке (его пункт «Новое» цикла 129). */
+.io-nf .io-item__control:has(> .io-nf__blockpane) { flex-wrap: wrap; column-gap: 20px; }
+.io-nf__blockpane { min-width: 0; }
+.io-nf__blockline { white-space: nowrap; }
+.io-nf__blockline .io-line__sep { margin: 0 0.35em; }
 .io-nf__preview { margin: 0; }
 .io-nf .io-nf__foot { margin-top: 10px; }
 /* Две половины рядом: tagWheel и строка; на узком окне — одна под другой. */

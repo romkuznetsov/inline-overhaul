@@ -1626,6 +1626,9 @@ async function runTagWheel(input, quickAddSettings) {
     __commandFieldWheel.inject(next.rules, state_.commandFields, next.id)
     state_.session = newCustomSession(state_.core, next.rules)
     state_.session.activeField = state_.core.resolveInitialActiveField(next.rules, state_.session, 'left')
+    /* По `Tab` — то же узнавание, что при открытии: иначе блок с коллаутом приходит пустым (его 💬 к тесту 4 цикла 129). */
+    var cfActive = __commandFieldWheel.hydrate(state_.session, state_.commandFields, state_.editor, next.id)
+    if (cfActive) state_.session.activeFieldId = cfActive
   }
 
   /** Правила соседнего блока — теми же шагами, что у открытого; готовятся при открытии ради быстрого `Tab`. */
@@ -1721,7 +1724,9 @@ async function runTagWheel(input, quickAddSettings) {
       hit.fieldIds.forEach(function (fid) { session_.selected[fid] = hit.selected[fid] })
       session_.activeFieldId = hit.fieldIds[0]
     }
-    __commandFieldWheel.hydrate(session_, input_.commandFields, o.editor, blockId)
+    /* Каретка в результате Command Field — колесо открывается на его пресете (его 💬 к тесту 4 цикла 129); Value под кареткой важнее. */
+    var cfActive_ = __commandFieldWheel.hydrate(session_, input_.commandFields, o.editor, blockId)
+    if (cfActive_ && !hit) session_.activeFieldId = cfActive_
     o.core.sanitizeState(o.rules, session_)
 
     var state = {
@@ -2821,7 +2826,7 @@ async function runTagWheel(input, quickAddSettings) {
     session.__todayIso = y + '-' + m + '-' + d
     core.hydrateStateFromParsedLine(rules, session, parsedLine)
     /* Каретка в результате категории — её пресет выбран сразу (№ 199). */
-    __commandFieldWheel.hydrate(session, runtimeInput.commandFields, editor)
+    var cfActive = __commandFieldWheel.hydrate(session, runtimeInput.commandFields, editor)
     core.sanitizeState(rules, session)
     /* «На каком Field открывать» кладётся в правила, как порядок: движок читает правила (10.13.76). */
     core.applyActiveFieldChoiceToRules(rules, {
@@ -2842,6 +2847,10 @@ async function runTagWheel(input, quickAddSettings) {
       session.activeFieldId = ''
     }
     session.activeField = core.resolveInitialActiveField(rules, session, session.mode)
+    /* Узнанный пресет Command Field на открытой стороне — колесо на нём (его 💬 к тесту 4 цикла 129). */
+    if (cfActive && (session.mode === 'right' ? rules.rightMode : rules.leftMode).fields.some(function (f) { return f.id === cfActive })) {
+      session.activeFieldId = cfActive
+    }
 
     var state = {
       active: true,

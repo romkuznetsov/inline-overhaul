@@ -209,6 +209,48 @@ export function previewValues(d: NewFieldDraft, now: Date): Array<{ text: string
 const WHEEL_WINDOW = 5;
 
 /**
+ * Строка одной формы с его разделителями: `имя :: lorem ipsum` у Left,
+ * наоборот у Right, внутри текста у custom block; `slot` рисует место Field.
+ */
+function lineShape(line: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, slot: (side: El) => void): void {
+  const sample = say("NF_SAMPLE_TEXT");
+  if (String(d.side).startsWith("custom:")) {
+    const words = sample.split(" ");
+    el(line, "span", "io-line__text", (words[0] || "") + " ");
+    slot(el(line, "span", "io-line__side io-line__side--right"));
+    el(line, "span", "io-line__text", " " + words.slice(1).join(" "));
+    return;
+  }
+  if (d.side === "left") {
+    slot(el(line, "span", "io-line__side io-line__side--left"));
+    el(line, "span", "io-line__sep", String(ctx.get("pkm.lineFormat.separator1") ?? ""));
+    el(line, "span", "io-line__text", sample);
+    return;
+  }
+  el(line, "span", "io-line__text", sample);
+  el(line, "span", "io-line__sep", String(ctx.get("pkm.lineFormat.separator2") ?? ""));
+  slot(el(line, "span", "io-line__side io-line__side--right"));
+}
+
+/** Ячейка tagWheel — `[имя Field]` цветом активной ячейки. */
+function wheelCell(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say): void {
+  const cell = el(host, "span", "io-wheelcell io-wheelcell--active", "[" + (d.name.trim() || say("NEW_FIELD_NAME_HINT")) + "]");
+  const { activeText } = wheelColors(ctx);
+  if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+}
+
+/**
+ * Строка у выбора Block — где Field встанет в строке, одной строкой без
+ * скроллера (его пункт «Новое» цикла 129).
+ */
+export function drawBlockLine(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say): void {
+  host.empty();
+  const line = el(host, "div", "io-line io-line--wheel io-nf__blockline");
+  applyTagVars(line, ctx, { blockFill: false, plainSize: true });
+  lineShape(line, ctx, d, say, side => wheelCell(side, ctx, d, say));
+}
+
+/**
  * Предпросмотр: tagWheel и строка рядом (тест 3 цикла 98). Строка одной формы и
  * с его разделителями: `имя :: lorem ipsum` у Left, наоборот у Right, внутри
  * текста у custom block. Слева на месте Field — ячейка имени и скроллер Values,
@@ -218,34 +260,9 @@ const WHEEL_WINDOW = 5;
 export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft, say: Say, now: Date, at = 0,
   values: ReadonlyArray<{ text: string; fill?: string; color?: string }> = previewValues(d, now)): void {
   host.empty();
-  const name = d.name.trim() || say("NEW_FIELD_NAME_HINT");
   const n = values.length;
   const cur = n ? values[((at % n) + n) % n] : undefined;
-  const custom = String(d.side).startsWith("custom:");
-  const left = d.side === "left";
-  const sep1 = String(ctx.get("pkm.lineFormat.separator1") ?? "");
-  const sep2 = String(ctx.get("pkm.lineFormat.separator2") ?? "");
-  const sample = say("NF_SAMPLE_TEXT");
-
-  /* Строка одной формы: `slot` рисует то, что стоит на месте Field. */
-  const shape = (line: El, slot: (side: El) => void): void => {
-    if (custom) {
-      const words = sample.split(" ");
-      el(line, "span", "io-line__text", (words[0] || "") + " ");
-      slot(el(line, "span", "io-line__side io-line__side--right"));
-      el(line, "span", "io-line__text", " " + words.slice(1).join(" "));
-      return;
-    }
-    if (left) {
-      slot(el(line, "span", "io-line__side io-line__side--left"));
-      el(line, "span", "io-line__sep", sep1);
-      el(line, "span", "io-line__text", sample);
-      return;
-    }
-    el(line, "span", "io-line__text", sample);
-    el(line, "span", "io-line__sep", sep2);
-    slot(el(line, "span", "io-line__side io-line__side--right"));
-  };
+  const shape = (line: El, slot: (side: El) => void): void => lineShape(line, ctx, d, say, slot);
 
   /* tagWheel: ячейка — имя Field, скроллер — все его Values, курсор на `cur`. */
   const wheelPane = el(host, "div", "io-nf__pane io-nf__pane--wheel");
@@ -255,12 +272,11 @@ export function drawNewFieldPreview(host: El, ctx: SettingsCtx, d: NewFieldDraft
   const wline = el(wheelPane, "div", "io-line io-line--wheel io-nf__pline");
   applyTagVars(wline, ctx, { blockFill: false, plainSize: true });
   /* Цвета — тем же домом, что у предпросмотра строки (Н-9). */
-  const { activeText, scrollFill, scrollText } = wheelColors(ctx);
+  const { scrollFill, scrollText } = wheelColors(ctx);
   shape(wline, side => {
     side.addClass("io-wheelline");
     const col = el(side, "span", "io-wheelcol");
-    const cell = el(col, "span", "io-wheelcell io-wheelcell--active", "[" + name + "]");
-    if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+    wheelCell(col, ctx, d, say);
     const panel = el(col, "span", "io-wheelpanel io-wheelpanel--down");
     if (scrollFill) cssVar(panel, "--io-wheel-bg", scrollFill);
     if (scrollText) cssVar(panel, "--io-wheel-fg", scrollText);
@@ -391,11 +407,12 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   const previewBox = el(bottom, "div", "io-preview io-nf__preview");
   const previewCap = el(previewBox, "div", "io-preview__cap io-nf__pcap");
   el(previewCap, "span", undefined, say("NF_PREVIEW"));
-  const preview = el(previewBox, "div", "io-nf__pbody");
+  /* Свёрнут по умолчанию (его пункт «Новое» цикла 129): где встанет Field, показывает строка у Block. */
+  const preview = el(previewBox, "div", "io-nf__pbody io-nf__pbody--closed");
   /* Щелчок по подписи сворачивает предпросмотр (тест 3 цикла 99). */
   previewCap.setAttribute("role", "button");
   previewCap.setAttribute("tabindex", "0");
-  previewCap.setAttribute("aria-expanded", "true");
+  previewCap.setAttribute("aria-expanded", "false");
   const togglePreview = (): void => {
     const open = preview.classList.contains("io-nf__pbody--closed");
     if (open) preview.classList.remove("io-nf__pbody--closed");
@@ -418,9 +435,12 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
   let tick = 0;
   let series = previewValues(d, now());
   const paint = (): void => drawNewFieldPreview(preview, o.ctx, d, say, now(), tick, series);
+  /* Строка у выбора Block; узел — от последней перерисовки тела. */
+  let blockLine: El | null = null;
   const refresh = (): void => {
     series = previewValues(d, now());
     paint();
+    if (blockLine) drawBlockLine(blockLine, o.ctx, d, say);
     const why = draftProblem(d, o.checkName, say, o.valueTaken);
     add.disabled = !!why;
     /* Ошибку имени видно сразу — но не пустоту, пока человек ещё не начал. */
@@ -498,6 +518,8 @@ export function renderNewFieldForm(box: El, o: NewFieldFormOpts, now: () => Date
       { value: "right", label: say("NF_BLOCK_RIGHT") },
       ...o.blocks.map(b => ({ value: "custom:" + b.id, label: b.name })),
     ], d.side, say("NF_BLOCK"), v => { d.side = v as FieldSide; d.sideChosen = true; draw(); });
+    blockLine = el(sideCtl, "div", "io-nf__blockpane");
+    drawBlockLine(blockLine, o.ctx, d, say);
 
     /* Command Field: категории — в таблице Fields, свойства заметки нет (4.1, раздел 3). */
     if (d.kind === "command") {
