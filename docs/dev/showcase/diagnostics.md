@@ -19,6 +19,6 @@
 | 2 | `Undo last settings change` — сообщение `Last settings change undone`; Move up снова поднимает строку | `Undo last settings change → Move up works again` |
 | 3 | Вкладка Advanced: `Show option IDs in tips` → on; открыта подсказка `?` у `Your settings` — последней строкой в ней `settings-backup-actions` | `Show option IDs in tips → on: a tip ends with its id` |
 
-Подсвечивается строка, на которой нажимается команда; у строки — плашка с командой (`hotkey: Move up`, `hotkey: Undo last settings change`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Move up`, `hotkey: Undo last settings change`), до нажатия.
 
 Шаги записи — `steps/diagnostics.steps` (технические, не согласуются).

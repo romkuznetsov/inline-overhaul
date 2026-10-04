@@ -14,13 +14,17 @@
 
 | Этап | Что показывается | Субтитр |
 |---|---|---|
-| 1 | `bread` вправо — становится пунктом `- bread` | `Default: Move right turns plain text into a bullet…` |
-| 1 | `- bread` вправо ещё раз — список кончился, строка уходит с отступом под `milk` | `…and after the last marker it indents the line` |
-| 1 | `eggs` влево дважды — `1. eggs`, затем заголовок `##### eggs` | `Move left goes the other way: numbered, then a heading` |
-| 2 | `After the last one` → `Start over`; `bread` вправо дважды — `- bread`, затем список с начала: `# bread` | `Move right → after the bullet it starts over from #` |
-| 3 | `Cycle in both directions` → off; `bread` вправо дважды — строка стоит, плашка мигает | `Move right → plain text stays as it is` |
-| 3 | `bread` влево — `1. bread` | `Move left still changes the marker` |
+| — | заставка | `Change the line marker` / `Move left and right cycle bullet, number and heading, then indent` |
+| 1 | `bread` вправо — `- bread` | `Move right → plain text becomes a bullet` |
+| 1 | вправо ещё — отступ под `milk` | `Move right again → no marker left, so it indents` |
+| 1 | влево — отступ снят | `Move left → back out of the indent` |
+| 1 | влево — простой текст | `Move left → back to plain text` |
+| 1 | влево — `1. bread` | `Move left → a numbered item` |
+| 1 | влево — `##### bread` | `Move left → a heading` |
+| 2 | `After the last one` → `Start over`; `bread` вправо дважды — `- bread`, затем `# bread` | `Move right → after the bullet it starts over from #` |
+| 3 | `Cycle in both directions` → off; вправо дважды — строка стоит | `Move right → plain text stays as it is` |
+| 3 | влево — `1. bread` | `Move left still changes the marker` |
 
-Подсвечивается строка, которую меняет нажатие; у строки — плашка с командой (`hotkey: Move right` / `Move left`), до нажатия.
+Этап 1 — одна строка туда и обратно (его слово 2026-10-04: «нелогично показано»). Подсвечены отступ и Prefix, а не строка (его слово: «акцент на префикс и отступ»); у строки — плашка с командой.
 
 Шаги записи — `steps/prefix-cycle.steps` (технические, не согласуются).

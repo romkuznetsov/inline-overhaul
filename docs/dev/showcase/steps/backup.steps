@@ -1,6 +1,7 @@
 # backup — шаги записи (что показывается — backup.md). Только панель.
 # Этап 1 — заметка; этап 2 — Backup: сохранить, список копий, Autosave.
 # Копия пишется во временный vault записи. Start over не нажимается: он стирает настройки.
+title Backup | Keep your settings as a note in your vault
 open Home tasks.md
 caret - [ ] #todo #low || Water the plants
 say Backup: your settings, kept as a note in your vault

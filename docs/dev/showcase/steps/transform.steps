@@ -1,5 +1,6 @@
 # transform — шаги записи (что показывается — transform.md)
 # «Open note after creation» открывает новую вкладку; назад — щелчок по вкладке «Party plans».
+title Inline to note | Turn a line into its own note and link to it
 open Party plans.md
 caret - [ ] #todo || [Garden party] invite the neighbors
 say Default: Transform is off → the line stays

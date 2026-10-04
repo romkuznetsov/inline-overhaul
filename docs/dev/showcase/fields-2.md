@@ -17,6 +17,6 @@
 | 3 | глаз у `#doing`; `Status next` на `#todo` — сразу `#done`, `#doing` пропущен | `Status next → #doing is skipped` |
 | 4 | `Show` у `#todo` → `custom`, текст `🎯`; на строке вместо `#todo` — 🎯; `Priority next` — рядом встаёт `#low`, 🎯 остаётся | `Priority next → 🎯 stays in place of #todo` |
 
-Подсвечивается строка, которую правит команда; у строки — плашка с командой (`hotkey: Status next`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`), до нажатия.
 
 Шаги записи — `steps/fields-2.steps` (технические, не согласуются).

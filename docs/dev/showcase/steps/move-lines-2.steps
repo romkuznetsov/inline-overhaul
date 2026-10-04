@@ -1,5 +1,6 @@
 # move-lines-2 — шаги записи (что показывается — move-lines-2.md)
 # Заметка длиннее окна: видно, как экран идёт (или не идёт) за строкой. `snacks` стартует у нижнего края.
+title Move lines: what you see | Highlight the moved line, choose where it lands, follow it or stay put
 open Packing list.md
 caret 14. snacks
 say Default: the note follows the moved line

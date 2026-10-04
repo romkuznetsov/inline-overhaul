@@ -1,5 +1,6 @@
 # custom-blocks — шаги записи (что показывается — custom-blocks.md)
 # Этап 1 — умолчания; этап 2 начинается заходом в настройки: Add Block и Project в нём.
+title Custom Blocks | Put a Field's Value right at the cursor
 open Custom blocks.md
 caret - call the bank about the card
 say Default: a link goes after the text

@@ -3,6 +3,7 @@
 # виде. Скобки видны только на строке каретки — для них каретка ставится на ссылку.
 # `Preview on hover` и `Drag to move` не показываются: оба — для Value с Show = custom,
 # которого в стартовом наборе нет; перетаскивания у инструмента нет.
+title Link view | Color link names, addresses and brackets
 open Link view.md
 caret ## Reading list
 say Default: links take the theme's color

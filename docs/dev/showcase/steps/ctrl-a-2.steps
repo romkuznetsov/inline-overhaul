@@ -1,6 +1,7 @@
 # ctrl-a-2 — шаги записи (что показывается — ctrl-a-2.md)
 # Вторая часть Smart Ctrl+A: Custom (свои галочки шагов) и Last press clears highlighting.
 # Этап 1 — умолчание, коротко; Smart Ctrl+A включается вместе с Custom во втором этапе.
+title Smart Ctrl+A: your own steps | Choose where a press stops, and let the last press clear it
 open Trip plan.md
 caret - Day 1: train to the coast @ train
 mark off

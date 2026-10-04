@@ -2,6 +2,7 @@
 # Этап 1 — умолчания. Каждый следующий этап начинается заходом в настройки;
 # под панелью заметка возвращается к исходной. tagWheel закрывается Escape
 # до входа в настройки: открытым он пишет свою разметку в строку.
+title tagWheel look | Markers and a Scroller with the neighbor Values
 open tagWheel look.md
 caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
 say Default: tagWheel Left → the picker opens on the line

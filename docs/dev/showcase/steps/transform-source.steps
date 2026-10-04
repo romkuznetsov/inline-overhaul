@@ -1,5 +1,6 @@
 # transform-source — шаги записи (что показывается — transform-source.md)
 # Заметка-результат не открывается: весь показ — на исходной строке.
+title Inline to note: the source line | What happens to the line and its sub-items
 open Moving day.md
 caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
 say Transform is off by default

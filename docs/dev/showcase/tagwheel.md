@@ -28,6 +28,6 @@
 | 2 | `Active Field on opening` → `Chosen Field`, `Left Block active Field` → `Priority`, `Right Block active Field` → `Project`; tagWheel Left открывается на Priority, `↓` — `#high`, `Enter` | `tagWheel Left opens on Priority` |
 | 2 | tagWheel Right открывается на Project, `↑` — `[[Project A]]`, `Enter` | `tagWheel Right opens on Project` |
 
-Подсвечивается строка с кареткой; у строки — плашка: `hotkey: tagWheel Left` / `hotkey: tagWheel Right`, затем каждая клавиша.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Left` / `hotkey: tagWheel Right`, затем каждая клавиша.
 
 Шаги записи — `steps/tagwheel.steps`, `steps/tagwheel-2.steps` (технические, не согласуются).

@@ -19,6 +19,6 @@
 | 3 | `Smart Backspace` → on; Backspace перед `and envelopes` — слова уходят наверх: `Buy stamps and envelopes` | `Backspace at the start → the words go up` |
 | 4 | `Drop the line Prefix` → off; Delete в конце `Call the plumber` — приезжает маркер, отступ нет: `Call the plumber - about the kitchen sink` | `Delete → the bullet comes along, the indent does not` |
 
-Подсвечивается строка, которую правит нажатие; у строки — плашка клавиши (`key: Delete`, `key: Backspace`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка клавиши (`key: Delete`, `key: Backspace`), до нажатия.
 
 Шаги записи — `steps/smart-delete.steps` (технические, не согласуются).

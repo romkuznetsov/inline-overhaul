@@ -18,6 +18,6 @@
 | 4 | `Highlight where you land` → on, размер 40 px, 1200 мс; `Jump down` дважды: на месте посадки — тающий круг | `Jump down → a circle marks where it lands` |
 | 5 | `Use inside current line` → on; `Jump right` дважды внутри строки `Buy groceries`: круг и на шаге внутри строки | `Jump right → the circle inside the line too` |
 
-Подсвечивается строка каретки; у строки — плашка с командой (`hotkey: Jump down`, `hotkey: Jump right`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Jump down`, `hotkey: Jump right`), до нажатия.
 
 Шаги записи — `steps/cursor.steps` (технические, не согласуются).

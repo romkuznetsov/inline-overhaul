@@ -16,6 +16,6 @@
 | 2 | в таблице Values Status: набрать `review`, `Add Value`, стрелка уровня — `#review` под `#done`; `Child Field` → `After parent`. tagWheel Left на той же строке: после Status появляется `sub`, `→` `↑` — `#review`, `Enter` — `- #done #review \|\| call the bank` | `After #done → its child Field offers #review` |
 | 3 | `Child Field` → `Always`; tagWheel Left на `- pay the rent` без Status: `sub` есть и так, `→` `↑` — `#review`, `Enter` — `- #review \|\| pay the rent` | `Always → the child is offered without a parent` |
 
-Подсвечивается строка с кареткой; у строки — плашка: `hotkey: tagWheel Left`, затем каждая клавиша.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Left`, затем каждая клавиша.
 
 Шаги записи — `steps/child-fields.steps` (технические, не согласуются).

@@ -1,5 +1,6 @@
 # smart-enter — шаги записи (что показывается — smart-enter.md)
 # Этап 1 — умолчание: Smart Enter выключен, Enter — обычный Obsidian.
+title Smart Enter | A new line below without splitting the one you are on
 open Shopping list.md
 caret 1. Buy milk and bread @ and
 say Default: Enter splits the line

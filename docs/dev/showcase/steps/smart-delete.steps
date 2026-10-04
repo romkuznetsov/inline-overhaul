@@ -1,5 +1,6 @@
 # smart-delete — шаги записи (что показывается — smart-delete.md)
 # Этап 1 — умолчание: обе клавиши выключены, Delete — обычный Obsidian.
+title Smart Delete and Backspace | Join lines without dragging the indent and the bullet along
 open Errands.md
 caret - Call the plumber
 say Default: Delete pulls up the indent and the bullet too

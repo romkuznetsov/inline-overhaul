@@ -3,6 +3,7 @@
 # Заметка не меняется: показ — выделение (проверено пробой на стенде), expect держит текст.
 # `mark off`: фон подсветки сливается с выделением, остаётся плашка клавиши.
 # Custom и Last press clears highlighting — ctrl-a-2 (в 60 с не влезает).
+title Smart Ctrl+A | Each press selects a bigger piece: word, line, tree, section, note
 open Trip plan.md
 caret - Day 1: train to the coast @ train
 mark off

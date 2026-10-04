@@ -19,6 +19,6 @@
 | 3 | `Use Shift+Enter instead` → on; Enter в `Pick up the parcel` режет строку как обычно; Shift+Enter в `Buy milk and bread` — новая строка `2. ` под ней | `Enter splits as usual`, `Shift+Enter → a new line below` |
 | 4 | `Prefix on the new line` → `None`; Shift+Enter — новая строка без номера | `Shift+Enter → the new line starts empty` |
 
-Подсвечивается строка, где нажата клавиша; у строки — плашка (`key: Enter`, `key: Shift + Enter`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка (`key: Enter`, `key: Shift + Enter`), до нажатия.
 
 Шаги записи — `steps/smart-enter.steps` (технические, не согласуются).

@@ -18,6 +18,6 @@
 | 2 | `Smart paste` → on; та же вставка под список — счёт продолжается: `3. Eggs`, `4. Butter` | `Pasted under a list → the count carries on` |
 | 2 | Вставка под заголовок `For the cake` — счёт с единицы: `1. Eggs`, `2. Butter` | `Pasted on its own → counted from one` |
 
-Подсвечивается строка, где нажата клавиша; у строки — плашка (`key: Shift + ↓`, `key: Ctrl + C`, `key: Enter`, `key: Ctrl + V`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка (`key: Shift + ↓`, `key: Ctrl + C`, `key: Enter`, `key: Ctrl + V`), до нажатия.
 
 Шаги записи — `steps/smart-paste.steps` (технические, не согласуются).

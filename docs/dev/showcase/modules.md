@@ -16,6 +16,6 @@
 | 2 | `Visual` → off; теги и строка — в виде темы Obsidian | `The note goes back to the look of your theme` |
 | 3 | `Navigation` → off; Move up — строка стоит, сообщение `Navigation is switched off: turn it on in General → Modules` | `Move up → nothing moves, the plugin says it is off` |
 
-Подсвечивается строка, которую двигает команда; у строки — плашка `hotkey: Move up`, до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка `hotkey: Move up`, до нажатия.
 
 Шаги записи — `steps/modules.steps` (технические, не согласуются).

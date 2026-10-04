@@ -16,6 +16,6 @@
 | 2 | `Inline to note`, `Open note after creation`, `Link the notes you mention` → on; открывается новая заметка `Pick the next book`, в её строке — ссылка `Project B` | `The line becomes a note that mentions Project B` |
 | 2 | Щелчок по `Project B` — в заметке `Project B` появилась ссылка на `Pick the next book` | `Project B now links back to the new note` |
 
-Подсвечивается строка, на которой нажата команда; у строки — плашка `hotkey: Transform inline to note`, до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка `hotkey: Transform inline to note`, до нажатия.
 
 Шаги записи — `steps/auto-moc.steps` (технические, не согласуются).

@@ -2,6 +2,7 @@
 # Этап 1 — строка Binder, которая приходит с плагином, — Smart bracket.
 # Этап 2 — своя строка: Add command, в Inserts — ✅, имя команды заполняется само
 # (`Check mark button` → id `check-mark-button`), затем её клавиша в заметке.
+title Binder | Smart brackets and your own text on a key
 open Reading list.md
 caret - Lisbon travel guide @ bon
 say Smart bracket: [text], then [[text]], then back

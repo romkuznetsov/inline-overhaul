@@ -1,6 +1,7 @@
 # fields — шаги записи (что показывается — fields.md)
 # Один этап: стартовый набор, команды next/previous трёх типов Field на одной строке.
 # Дата Due — день записи: перезапись в другой день правит expect с датой.
+title Fields | Step a tag, a date or a link through its Values with one key
 open Task fields.md
 caret - pay the rent
 say Default: Status next → its Values in turn

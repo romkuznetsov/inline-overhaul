@@ -1,6 +1,7 @@
 # move-inline — шаги записи (что показывается — move-inline.md)
 # Этап 1 — умолчания (Auto, Continue past Separators on), заметка правится подряд.
 # Разделители стартового набора — `||`.
+title Move selected text left and right | Slide a word or a letter along the line with one key
 open Inline move.md
 select 1. buy milk bread and eggs @ milk
 say Default: a selected word moves word by word

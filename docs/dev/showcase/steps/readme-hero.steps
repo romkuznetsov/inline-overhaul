@@ -1,6 +1,7 @@
 # readme-hero — шаги записи (что показывается — readme-hero.md)
 # Один показ, без этапов: исходная строка → tagWheel слева и справа → готовая строка.
 # Дата Due — день записи: перезапись в другой день правит последний expect.
+title tagWheel | Fill a line with status, priority, date and project from the keyboard
 open Inbox.md
 caret - call the bank
 say A plain line → tagWheel fills it in

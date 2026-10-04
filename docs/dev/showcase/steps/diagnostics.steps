@@ -3,6 +3,7 @@
 # Undo last settings change. Этап 3 — Show option IDs in tips и открытая подсказка с id.
 # Отмена показана на Navigation, а не на Visual: после отмены Visual → off заметка
 # остаётся без оформления до следующей правки (находка, см. отчёт среза).
+title Diagnostics | Undo a settings change and see option ids
 open Home tasks.md
 caret - [ ] #todo #low || Water the plants
 say Default: Move up works

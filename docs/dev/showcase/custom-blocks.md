@@ -16,6 +16,6 @@
 | 2 | в панели `Add Block`, затем стрелка `↓` у Project — Project уезжает в `Custom block 1`; каретка перед `about`, `tagWheel Custom block 1`, `↑`, `Enter` — `[[Project A]]` встаёт на месте каретки | `tagWheel Custom block 1 → the link goes at the cursor` |
 | 2 | ещё раз `tagWheel Custom block 1` на ссылке, `↑`, `Enter` — на её месте `[[Project B]]` | `Again on the link → the next Value in its place` |
 
-Подсвечивается строка с кареткой; у строки — плашка: `hotkey: tagWheel Right`, `hotkey: tagWheel Custom block 1`, затем каждая клавиша.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Right`, `hotkey: tagWheel Custom block 1`, затем каждая клавиша.
 
 Шаги записи — `steps/custom-blocks.steps` (технические, не согласуются).

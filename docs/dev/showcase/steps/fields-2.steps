@@ -1,5 +1,6 @@
 # fields-2 — шаги записи (что показывается — fields-2.md)
 # Этап 1 — умолчания; каждый следующий начинается заходом в настройки: таблица Values Status.
+title Fields: Values | Add, hide and redraw the Values a Field steps through
 open Values.md
 caret - #todo || call the bank
 say Default: Status next walks its Values

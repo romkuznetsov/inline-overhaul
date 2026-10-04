@@ -2,6 +2,7 @@
 # Этап 1 — умолчание: Smart paste выключен, вставка — обычная Obsidian.
 # Копирование — на камеру, своими клавишами, один раз: буфер обмена переживает заход в настройки.
 # Вставка — в конец своего раздела: подсветка растягивается на неизменные строки ниже правки.
+title Smart paste | Pasted numbered lists keep the right count
 open Pantry.md
 caret 4. Eggs @ 4. Eggs
 say Default: the copied numbers come along

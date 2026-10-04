@@ -1,5 +1,6 @@
 # modules — шаги записи (что показывается — modules.md)
 # Этап 1 — умолчание: все четыре модуля включены, вид строки — от Visual, Move up — от Navigation.
+title Modules | Turn whole parts of the plugin on and off
 open Home tasks.md
 caret - [ ] #todo #low || Water the plants
 say Default: all four modules on

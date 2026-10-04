@@ -18,6 +18,6 @@
 | 3 | `Line above the text` → `Fixed text`; заметка `Bake sale` начинается строкой `Captured` вместо даты | `The note starts with the fixed text, not the date` |
 | 4 | `Note name` → `Ask`; окно имени, набирается `Lemon cake`, `Create` — открывается заметка `Lemon cake` | `Ask → you type the name yourself` |
 
-Подсвечивается строка, на которой нажата команда; у строки — плашка `hotkey: Transform inline to note`, до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка `hotkey: Transform inline to note`, до нажатия.
 
 Шаги записи — `steps/transform.steps` (технические, не согласуются).

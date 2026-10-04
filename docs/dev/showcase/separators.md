@@ -18,6 +18,6 @@
 | 2 | `First Separator` и `Second Separator` → `::` (группа Separators раскрывается щелчком по треугольнику); те же две команды — `- #todo :: call the bank :: [[Project A]]` | `Status next, Project next → :: on both sides` |
 | 3 | `Mark ticked line` → `#done`, `Dim ticked line` → on; галочка в `book a table` — строка получает `#done` и бледнеет | `Tick the box → #done is added, the line fades` |
 
-Подсвечивается строка, которую правит команда; у строки — плашка с командой (`hotkey: Status next`, `hotkey: Toggle checkbox status`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`, `hotkey: Toggle checkbox status`), до нажатия.
 
 Шаги записи — `steps/separators.steps` (технические, не согласуются).

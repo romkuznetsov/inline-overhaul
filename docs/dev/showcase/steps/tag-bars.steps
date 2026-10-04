@@ -1,6 +1,7 @@
 # tag-bars — шаги записи (что показывается — tag-bars.md)
 # Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
 # виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
+title Tag Bars | A colored bar down each tree shows its status
 open Tag bars.md
 caret ## Garden project
 say Default: no Bars, only the tags

@@ -17,7 +17,7 @@
 | 2 | `Add command` — окно; в `Inserts` вписывается ✅, открывается выбор эмодзи, имя команды заполняется само — `Check mark button`; `Add` — в таблице новая строка | `Add command → a row of your own` |
 | 2 | Каретка перед `Notes`; нажатие новой команды — `✅Notes on the garden` | `One key drops it in at the cursor` |
 
-Подсвечивается строка, которую правит команда; у строки — плашка с командой (`hotkey: Smart bracket`, `hotkey: Check mark button`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Smart bracket`, `hotkey: Check mark button`), до нажатия.
 
 В таблице Binder на этапе 2 видны клавиши `Ctrl + Alt + Shift + F1` и `F2` — их назначает запись, чтобы нажимать команды; у человека там пусто.
 

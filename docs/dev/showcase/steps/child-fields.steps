@@ -1,5 +1,6 @@
 # child-fields — шаги записи (что показывается — child-fields.md)
 # Этап 1 — умолчания; этап 2 заводит дочерний Value #review под #done и Child Field = After parent.
+title Child Fields | A Field that is offered after its parent Value
 open Child fields.md
 caret - #done || call the bank
 say Default: tagWheel has Status and Priority

@@ -18,6 +18,7 @@
  * сколько его читать, результат нажатия — RESULT_MS.
  *
  * Шаги, по одному в строке (`#` — комментарий):
+ *   title <заголовок> | <строка>  заставка в начале GIF: что он покажет (место в файле любое)
  *   open <файл>              открыть заметку (до первого кадра, если стоит первой)
  *   caret <строка>[ @ <кусок>]  каретка в конец строки с ровно этим текстом или перед куском
  *   select <строка> @ <кусок>   кусок строки выделен
@@ -47,7 +48,9 @@
  *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
- *   mark off | on            подсветка строки у нажатий (у клавиш выделения — off: сливается с выделением)
+ *   mark none | line | prefix  фон у нажатий: none (умолчание) — без фона, светится каретка;
+ *                            line — строка и то, что поехало с ней; prefix — отступ и Prefix строки
+ *   rec-caret off            родная каретка Obsidian вместо фиолетовой каретки записи (GIF про каретку)
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
  *
@@ -94,15 +97,33 @@ function notes() {
 
 const CSS = `
 .status-bar{display:none!important}
-#io-rec-sub{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:99999;max-width:86%;
- padding:10px 22px;border-radius:10px;background:rgba(20,20,24,.86);color:#fff;font:600 22px/1.3 system-ui,sans-serif;
- text-align:center;pointer-events:none;transition:opacity .2s}
+/* Субтитр — справа, в пустом месте заметки, мимо текста и каретки (его слово 2026-10-04);
+   место выбирает страница каждый кадр. В панели настроек пустого места нет — внизу по центру. */
+#io-rec-sub{position:fixed;z-index:99999;max-width:36vw;right:24px;top:-200px;
+ padding:10px 18px;border-radius:10px;background:rgba(20,20,24,.86);color:#fff;font:600 20px/1.3 system-ui,sans-serif;
+ text-align:left;pointer-events:none;transition:opacity .2s}
+#io-rec-sub.is-wide{right:auto;left:50%;top:auto!important;bottom:40px;transform:translateX(-50%);max-width:86%;text-align:center}
 /* Полоса этапов внизу (его слово 2026-10-04: «GIF зациклена, непонятно где начало и конец»):
-   этап начинается заходом в настройки; первый — поведение по умолчанию (его слово 2026-10-04). */
-#io-rec-bar{position:fixed;left:0;right:0;bottom:0;height:8px;z-index:99999;display:flex;gap:3px;pointer-events:none}
-#io-rec-bar>i{flex:1;background:rgba(20,20,24,.15)}
-#io-rec-bar>i.is-done{background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.45)}
-#io-rec-bar>i.is-now{background:hsl(var(--accent-h),var(--accent-s),var(--accent-l))}
+   этап начинается заходом в настройки; первый — поведение по умолчанию. На каждом этапе — подпись,
+   что в нём происходит (его слово 2026-10-04: «навигатор»). */
+#io-rec-bar{position:fixed;left:0;right:0;bottom:0;height:26px;z-index:99999;display:flex;gap:3px;pointer-events:none}
+#io-rec-bar>i{flex:1;min-width:0;padding:0 8px;background:#e9e6f0;color:#666;font:600 13px/26px system-ui,sans-serif;font-style:normal;
+ text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#io-rec-bar>i.is-done{background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.3);color:#333}
+#io-rec-bar>i.is-now{background:hsl(var(--accent-h),var(--accent-s),var(--accent-l));color:#fff}
+/* Заставка: что покажет GIF (его слово 2026-10-04: «в начале gif нужно понятное описание того, что будет»). */
+#io-rec-title{position:fixed;inset:0;z-index:100003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+ padding:0 10%;background:rgba(255,255,255,.94);text-align:center;pointer-events:none;transition:opacity .4s}
+#io-rec-title b{font:800 40px/1.2 system-ui,sans-serif;color:hsl(var(--accent-h),var(--accent-s),var(--accent-l))}
+#io-rec-title span{font:500 22px/1.4 system-ui,sans-serif;color:#333}
+/* Каретка записи: фиолетовая, толще, мигает чаще родной (его слово 2026-10-04); родная спрятана.
+   Во время нажатия светится — в прыжках смотреть на каретку, а не на строку (его слово 2026-10-04). */
+body.io-rec-caret .cm-content{caret-color:transparent!important}
+body.io-rec-caret .cm-cursor{display:none!important}
+#io-rec-caret{position:fixed;z-index:99997;width:4px;margin-left:-2px;border-radius:2px;pointer-events:none;background:#8b3dff;
+ animation:io-rec-blink .8s steps(1) infinite}
+#io-rec-caret.is-hot{animation:none;box-shadow:0 0 0 3px rgba(139,61,255,.25),0 0 16px 6px rgba(139,61,255,.55)}
+@keyframes io-rec-blink{50%{opacity:0}}
 #io-rec-ptr{position:fixed;z-index:100002;width:22px;height:22px;pointer-events:none;left:-40px;top:-40px;
  background:no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M2 2l7 18 2.5-7.5L19 10z' fill='%23111' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E")}
 .io-rec-ripple{position:fixed;z-index:100001;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;pointer-events:none;
@@ -113,8 +134,10 @@ const CSS = `
  background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.18);transition:opacity .6s}
 .io-rec-hk{position:fixed;z-index:99999;padding:5px 12px;border-radius:7px;white-space:nowrap;pointer-events:none;
  background:#fff;color:#222;border:2px solid #222;box-shadow:0 3px 0 #222;font:700 17px/1 system-ui,sans-serif;transition:opacity .4s}
-.io-rec-hk.is-press{animation:io-rec-press .25s ease-out}
-@keyframes io-rec-press{from{transform:translateY(3px);box-shadow:0 0 0 #222}to{transform:none;box-shadow:0 3px 0 #222}}
+/* Нажатие — вспышка цвета на плашке (его слово 2026-10-04: «чтобы было более явно»). */
+.io-rec-hk.is-press{animation:io-rec-press .7s ease-out}
+@keyframes io-rec-press{0%{transform:translateY(3px);box-shadow:0 0 0 #222;background:#8b3dff;color:#fff;border-color:#8b3dff}
+ 60%{background:#8b3dff;color:#fff;border-color:#8b3dff}100%{transform:none;box-shadow:0 3px 0 #222;background:#fff;color:#222}}
 /* Камера на панели плагина (его слово 2026-10-04): окно настроек во весь экран, без левого
    списка Obsidian, сама панель крупно. Видимый вид панели не меняется — меняется масштаб кадра. */
 .modal-container:has(.mod-settings) .modal-bg{opacity:1!important}
@@ -171,14 +194,53 @@ async function stage(win, browser, tab, stages, hotkeys) {
   await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await win.waitForTimeout(800);
   /* Слой поверх окна: субтитр, плашка клавиши, указатель, круг щелчка — снимок окна указателя не содержит. */
-  await win.evaluate(([css, stages]) => {
+  const labels = typeof stages === "number" ? Array(stages).fill("") : stages;
+  await win.evaluate(([css, labels]) => {
     const st = document.createElement("style");
     st.textContent = css;
     document.head.appendChild(st);
-    for (const id of ["io-rec-sub", "io-rec-ptr", "io-rec-bar"]) {
+    for (const id of ["io-rec-sub", "io-rec-ptr", "io-rec-bar", "io-rec-caret"]) {
       const d = document.createElement("div"); d.id = id; d.style.opacity = id === "io-rec-sub" ? "0" : "1"; document.body.appendChild(d);
     }
-    for (let i = 0; i < stages; i++) document.getElementById("io-rec-bar").appendChild(document.createElement("i"));
+    document.body.classList.add("io-rec-caret");
+    for (const t of labels) { const i = document.createElement("i"); i.textContent = t; document.getElementById("io-rec-bar").appendChild(i); }
+    /* Каждый кадр: каретка записи у головы выделения; субтитр — справа, в первом снизу месте,
+       где он не задевает текст строк, плашку и каретку; с места уходит, только когда задел. */
+    const sub = document.getElementById("io-rec-sub"), car = document.getElementById("io-rec-caret");
+    let lastHead = -1, frame = 0;
+    const tick = () => {
+      const ae = window.app.workspace.activeEditor, ed = ae && ae.editor;
+      const modal = !!document.querySelector(".modal-container");
+      const r = ed && !modal && document.body.classList.contains("io-rec-caret") ? ed.cm.coordsAtPos(ed.cm.state.selection.main.head) : null;
+      if (!r) car.style.display = "none";
+      else {
+        const head = ed.cm.state.selection.main.head;
+        Object.assign(car.style, { display: "", left: r.left + "px", top: r.top - 1 + "px", height: r.bottom - r.top + 2 + "px" });
+        /* Сдвинулась — мигание с начала: каретка видна сразу на новом месте. */
+        if (head !== lastHead) { lastHead = head; car.style.animation = "none"; void car.offsetWidth; car.style.animation = ""; }
+      }
+      const m = window.__ioRecMark;
+      car.classList.toggle("is-hot", !!(m && m.hot));
+      sub.classList.toggle("is-wide", !!document.querySelector(".modal.mod-settings"));
+      /* Место субтитра — раз в шесть кадров: замер строк каждый кадр тормозит запись. */
+      if (++frame % 6 === 0 && !sub.classList.contains("is-wide") && sub.style.opacity !== "0") {
+        const W = window.innerWidth, H = window.innerHeight, b = sub.getBoundingClientRect();
+        const rects = [...document.querySelectorAll(".cm-line, .inline-title")].map((l) => {
+          const rg = document.createRange(); rg.selectNodeContents(l); return rg.getBoundingClientRect();
+        }).filter((x) => x.width > 0);
+        for (const n of [car, m && m.k, m && m.bg && m.d]) if (n && n.style.opacity !== "0" && n.style.display !== "none") rects.push(n.getBoundingClientRect());
+        const x = W - 24 - b.width;
+        const hit = (y) => rects.some((q) => q.left < x + b.width + 10 && q.right > x - 10 && q.top < y + b.height + 10 && q.bottom > y - 10);
+        let y = sub.__y;
+        if (y === undefined || sub.__h !== b.height || hit(y)) {
+          y = H - 44 - b.height;
+          for (let c = y; c > 90; c -= 12) if (!hit(c)) { y = c; break; }
+          sub.__y = y; sub.__h = b.height; sub.style.top = y + "px";
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
     document.addEventListener("mousemove", (e) => { const p = document.getElementById("io-rec-ptr"); p.style.left = e.clientX + "px"; p.style.top = e.clientY + "px"; }, true);
     /* Затухающий круг на месте щелчка (его слово 2026-10-04). */
     document.addEventListener("mousedown", (e) => {
@@ -186,7 +248,7 @@ async function stage(win, browser, tab, stages, hotkeys) {
       d.style.left = e.clientX + "px"; d.style.top = e.clientY + "px";
       document.body.appendChild(d); setTimeout(() => d.remove(), 800);
     }, true);
-  }, [CSS, stages]);
+  }, [CSS, labels]);
   await setStage(win, 0);
   return cdp;
 }
@@ -204,19 +266,22 @@ const overlay = (win, id, text) => win.evaluate(([id, t]) => {
  * сверяет заметку каждый кадр и в том же кадре, где строка переехала, переносит подсветку
  * на новое место (`moved`). Запись в этом не участвует — её задержка до экрана не доходит.
  */
-const markStart = (win, bg) => win.evaluate(([movedSrc, bg]) => {
+const markStart = (win, mode) => win.evaluate(([movedSrc, mode]) => {
   const moved = (0, eval)("(" + movedSrc + ")");
   const ed = window.app.workspace.activeEditor.editor, cm = ed.cm;
   const snap = () => ({ lines: ed.getValue().split("\n"), at: ed.getCursor().line });
   const before = snap();
   let text = before.lines.join("\n"), span = [before.at, before.at];
   const d = document.createElement("div"); d.className = "io-rec-mark";
-  /* `mark off`: фон гасится — у клавиш выделения он сливается с самим выделением; плашка остаётся. */
+  /* Фон строки — только `mark line` (перенос строк): в остальных GIF он сбивал (его слово 2026-10-04);
+     без фона смотреть на каретку, она светится. `mark prefix` — фон на отступе и Prefix строки. */
+  const bg = mode !== "none";
   if (!bg) d.style.background = "none";
+  if (mode === "prefix") d.style.background = "hsla(var(--accent-h),var(--accent-s),var(--accent-l),.35)";
   /* Клавиша — у самой строки, а не в углу (его слово 2026-10-04): видно, что нажатие и правка одно. */
   const k = document.createElement("div"); k.className = "io-rec-hk"; k.style.opacity = "0";
   document.body.append(d, k);
-  const st = { live: true, d, k };
+  const st = { live: true, hot: true, bg, d, k };
   let caret = before.at;
   const place = () => {
     if (!st.live) return;
@@ -228,13 +293,20 @@ const markStart = (win, bg) => win.evaluate(([movedSrc, bg]) => {
     const end = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: ed.getLine(span[0]).length }));
     const bot = cm.coordsAtPos(ed.posToOffset({ line: span[1], ch: ed.getLine(span[1]).length }));
     const box = cm.contentDOM.getBoundingClientRect();
-    if (top && bot) Object.assign(d.style, { left: box.left - 12 + "px", width: box.width + 24 + "px", top: top.top - 3 + "px", height: bot.bottom - top.top + 6 + "px" });
+    if (mode === "prefix") {
+      /* Отступ и Prefix строки каретки; простой текст — узкая метка у начала строки. */
+      const l = ed.getLine(span[0]);
+      const p = l.match(/^\s*(?:(?:#{1,6}|[-*+](?: \[.\])?|\d+[.)]|>)\s)?/)[0].length;
+      const a = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: 0 }));
+      const z = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: p }));
+      if (a && z) Object.assign(d.style, { left: a.left - 6 + "px", width: Math.max(10, z.left - a.left + 6) + "px", top: a.top - 3 + "px", height: a.bottom - a.top + 6 + "px" });
+    } else if (top && bot) Object.assign(d.style, { left: box.left - 12 + "px", width: box.width + 24 + "px", top: top.top - 3 + "px", height: bot.bottom - top.top + 6 + "px" });
     if (end) Object.assign(k.style, { left: end.right + 28 + "px", top: (end.top + end.bottom) / 2 - 15 + "px" });
     requestAnimationFrame(place);
   };
   place();
   window.__ioRecMark = st;
-}, [moved.toString(), bg]);
+}, [moved.toString(), mode]);
 
 /** Плашка клавиши у строки — тем же вызовом, что и нажатие, без промежутка. */
 const markPress = (win, label) => win.evaluate((label) => {
@@ -246,6 +318,7 @@ const markPress = (win, label) => win.evaluate((label) => {
 const markEnd = (win) => win.evaluate(() => {
   const st = window.__ioRecMark;
   if (!st) return;
+  st.hot = false;
   st.d.style.opacity = "0"; st.k.style.opacity = "0";
   setTimeout(() => { st.live = false; st.d.remove(); st.k.remove(); }, 700);
 });
@@ -448,7 +521,7 @@ async function run(win, steps, cut, log) {
       /* Нажатие ждёт, пока субтитр прочитан; панель между ними — тоже время чтения. */
       await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
       /* Подряд идущие нажатия — одна подсветка: она идёт за строкой, плашка мигает на каждом. */
-      if (!run.marking) { await markStart(win, !run.noMark); await win.waitForTimeout(250); }
+      if (!run.marking) { await markStart(win, run.markMode || "none"); await win.waitForTimeout(250); }
       /* Плашка — раньше нажатия: глаз читает команду, потом видит её действие (его слово 2026-10-04). */
       await markPress(win, label);
       await win.waitForTimeout(450);
@@ -466,7 +539,12 @@ async function run(win, steps, cut, log) {
       await win.evaluate(() => window.app.setting.close());
       await win.waitForTimeout(450);
     } else if (op === "mark") {
-      run.noMark = arg === "off";
+      /* `mark line` — фон строки (перенос строк), `mark prefix` — фон отступа и Prefix, `mark none` — без фона. */
+      run.markMode = { on: "line", off: "none" }[arg] || arg;
+      if (!["line", "prefix", "none"].includes(run.markMode)) throw new Error("mark: line | prefix | none");
+    } else if (op === "rec-caret") {
+      /* `rec-caret off` — родная каретка вместо каретки записи: GIF про саму каретку (cursor). */
+      await win.evaluate((on) => document.body.classList.toggle("io-rec-caret", on), arg !== "off");
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
@@ -616,7 +694,10 @@ function encode(frames, cut, end, tmp, out) {
 async function main() {
   const id = process.argv[2];
   if (!id) { console.log("node tools/showcase_record.js <id>"); process.exit(2); }
-  const steps = readSteps(id);
+  const all = readSteps(id);
+  /* `title <заголовок> | <строка>` — заставка в начале GIF, шагом записи не является. */
+  const title = (all.find(([op]) => op === "title") || [, ""])[1].split(" | ");
+  const steps = all.filter(([op]) => op !== "title");
   const dry = !!process.env.IO_DRY;
   const { win, env, close, browser } = await launch("clean-showcase");
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "io-showcase-"));
@@ -626,7 +707,14 @@ async function main() {
   watchdog.unref();
   try {
     const first = steps.find(([op]) => op === "settings");
-    const cdp = await stage(win, browser, first && first[1], steps.filter(([op]) => op === "settings").length + 1, bindCommands(steps));
+    /* Подпись этапа — последний субтитр перед заходом в настройки (`Moving behavior → Whole tree`). */
+    const labels = [steps.some(([op]) => op === "settings") ? "Default" : title[0] || "Default"];
+    steps.forEach(([op], i) => {
+      if (op !== "settings") return;
+      const say = steps.slice(0, i).reverse().find(([o, a]) => o === "say" && a);
+      labels.push(say ? say[1] : "");
+    });
+    const cdp = await stage(win, browser, first && first[1], labels, bindCommands(steps));
     if (!dry) {
       cdp.on("Page.screencastFrame", (f) => {
         const file = path.join(tmp, String(frames.length).padStart(5, "0") + ".jpg");
@@ -637,14 +725,26 @@ async function main() {
     }
     try {
       /* `open` и первый `caret` — до первого кадра: иначе GIF начинается с каретки в первой строке. */
-      const pre = steps.findIndex(([op]) => op !== "open" && op !== "caret");
+      const pre = steps.findIndex(([op]) => !["open", "caret", "mark", "rec-caret"].includes(op));
       await run(win, steps.slice(0, pre), cut, log);
       /* Первый кадр — чистая заметка: ни окна, ни уведомления (его слово 2026-10-04). */
       await win.evaluate(() => document.querySelectorAll(".notice").forEach((n) => n.remove()));
       const extra = await win.evaluate(() => [...document.querySelectorAll(".modal-container, .notice")].map((n) => n.textContent.slice(0, 60)));
       if (extra.length) throw new Error("до записи на экране лишнее: " + extra.join(" | "));
       const size = await win.evaluate(() => [window.innerWidth, window.innerHeight]);
+      if (title[0]) {
+        await win.evaluate(([t, s]) => {
+          const d = document.createElement("div"); d.id = "io-rec-title";
+          const b = document.createElement("b"); b.textContent = t; d.append(b);
+          if (s) { const p = document.createElement("span"); p.textContent = s; d.append(p); }
+          document.body.append(d);
+        }, title);
+      }
       if (!dry) await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, maxWidth: size[0], maxHeight: size[1], everyNthFrame: 1 });
+      if (title[0]) {
+        await win.waitForTimeout(Math.max(2600, READ_MS + READ_PER_CHAR * title.join(" ").length));
+        await win.evaluate(() => { const d = document.getElementById("io-rec-title"); d.style.opacity = "0"; setTimeout(() => d.remove(), 500); });
+      }
       await win.waitForTimeout(600);
       await run(win, steps.slice(pre), cut, log);
     } catch (e) {

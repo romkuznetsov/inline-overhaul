@@ -20,6 +20,6 @@
 | 2 | `Where in the section` → `Start only`; с `## Monday` вниз трижды — `call the plumber`, `book a table`, `pay the rent` | `Jump down → only the first line of each section` |
 | 3 | `Jump target` → `Lines`; с `## Monday` вниз пять раз — по каждой строке, включая заголовок `## Tuesday` | `Jump down → line by line, headings included` |
 
-Подсвечивается строка каретки и идёт за ней; у строки — плашка с командой (`hotkey: Jump down` / `Jump up`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Jump down` / `Jump up`), до нажатия.
 
 Шаги записи — `steps/jump-note.steps` (технические, не согласуются).

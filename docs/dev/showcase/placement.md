@@ -17,6 +17,6 @@
 | 2 | `Strict: add a bullet` → on; `Status next` на `call the bank` — строка получает `- ` | `Status next → the line gets a bullet` |
 | 3 | `Keep typed tags in text` → off; `Status next` на `- pay the rent #high` — `#high` уходит в Left Block к `#todo` | `Status next → #high moves to its Block` |
 
-Подсвечивается строка, которую правит команда; у строки — плашка с командой (`hotkey: Status next`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`), до нажатия.
 
 Шаги записи — `steps/placement.steps` (технические, не согласуются).

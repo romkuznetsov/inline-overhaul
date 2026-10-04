@@ -1,6 +1,7 @@
 # custom-tags — шаги записи (что показывается — custom-tags.md)
 # Нажатий нет: этап — заход в настройки и правка таблицы Color custom tags, после выхода —
 # заметка в новом виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
+title Color custom tags | Give any tag its own color, or hide its word
 open Custom tags.md
 caret ## Saturday
 say Default: #errand and #home look like any tag

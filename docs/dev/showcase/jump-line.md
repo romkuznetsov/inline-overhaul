@@ -21,6 +21,6 @@
 | 3 | `What to do at the end` → `Stop`; после `Friday` вправо дважды — каретка стоит, плашка мигает | `Jump right at the end → the cursor stays put` |
 | 4 | `Continue past Separators` → on; от `call` влево дважды — каретка уходит за разделитель к тегу `#todo`, в начало строки, и там стоит (`Stop` с этапа 3) | `Jump left → the cursor walks into the tags` |
 
-Подсвечивается строка каретки; у строки — плашка с командой (`hotkey: Jump right` / `Jump left`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Jump right` / `Jump left`), до нажатия.
 
 Шаги записи — `steps/jump-line.steps` (технические, не согласуются).

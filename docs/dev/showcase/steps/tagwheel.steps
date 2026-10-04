@@ -1,5 +1,6 @@
 # tagwheel — шаги записи (что показывается — tagwheel.md)
 # Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+title tagWheel navigation | Walk between Blocks and keep the other one in view
 open tagWheel.md
 caret - call the bank
 say Default: → stays inside the Block

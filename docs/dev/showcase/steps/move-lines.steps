@@ -1,8 +1,11 @@
 # move-lines — шаги записи (что показывается — move-lines.md)
 # Этап 1 — умолчания, заметка правится подряд. Каждый следующий этап начинается
 # заходом в настройки; под панелью заметка возвращается к исходной.
+title Move lines up and down | One key moves a line, its whole tree or a whole section
 open Weekly plan.md
 caret 2. Pay the rent
+# Фон строки — только здесь: GIF про то, что поехало вместе со строкой.
+mark line
 say Default: Move up → only the line moves
 cmd move-line-up
 expect 2. Pay the rent /     1. check the rate /     2. transfer

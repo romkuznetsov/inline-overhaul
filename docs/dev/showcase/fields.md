@@ -18,6 +18,6 @@
 | `Project next` дважды — `[[Project A]]`, затем `[[Project B]]` | `Project next → a link to the note` |
 | `Status previous` — `#done` становится `#doing` | `Status previous → one step back` |
 
-Подсвечивается строка, которую правит команда; у строки — плашка с командой (`hotkey: Status next`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`), до нажатия.
 
 Шаги записи — `steps/fields.steps` (технические, не согласуются).

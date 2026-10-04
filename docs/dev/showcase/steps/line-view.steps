@@ -2,6 +2,7 @@
 # Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
 # виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
 # Порядок — от формы к прозрачности: поблёкшие Block прячут пузыри и полосу.
+title Line view | Tune how tags and Blocks look on the line
 open Line view.md
 caret ## This week
 say Default: tags, dates and links at full strength

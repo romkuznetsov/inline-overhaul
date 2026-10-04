@@ -18,6 +18,6 @@
 | 3 | `Scroller` → on; над строкой и под ней — рамки с соседними Values | `tagWheel Left → neighbor Values above and below` |
 | 3 | `↓` — Value сменилось, рамки прокрутились; `Escape` — строка прежняя | `↓ → the next Value, the Scroller rolls` |
 
-Подсвечивается строка, на которой открыт tagWheel; у строки — плашка с командой (`hotkey: tagWheel Left`) или клавишей (`key: Escape`, `key: ↓`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: tagWheel Left`) или клавишей (`key: Escape`, `key: ↓`), до нажатия.
 
 Шаги записи — `steps/tagwheel-look.steps` (технические, не согласуются).

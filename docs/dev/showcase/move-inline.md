@@ -19,6 +19,6 @@
 | 1 | в строке `#todo`, `call the plumber`, дата выделено `call`, влево — слово перескакивает разделитель к тегу | `Default: it can jump past the Separator` |
 | 2 | `Continue past Separators` → off; то же `call` влево дважды — слово стоит, плашка мигает | `Move left → it stays between the Separators` |
 
-Подсвечивается строка, в которой едет выделение; у строки — плашка с командой (`hotkey: Move right` / `Move left`), до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Move right` / `Move left`), до нажатия.
 
 Шаги записи — `steps/move-inline.steps` (технические, не согласуются).

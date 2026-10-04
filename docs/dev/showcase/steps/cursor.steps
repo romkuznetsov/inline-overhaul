@@ -1,6 +1,9 @@
 # cursor — шаги записи (что показывается — cursor.md)
 # Каретку двигает `Jump down` / `Jump right`: подсветка идёт за кареткой.
+title Text cursor | A cursor you can see, and a circle where it lands
 open Cursor.md
+# Родная каретка: GIF про саму каретку и её настройки.
+rec-caret off
 caret ## Monday
 say Default: Jump down → the thin cursor is easy to lose
 cmd jump-next

@@ -1,6 +1,7 @@
 # auto-moc — шаги записи (что показывается — auto-moc.md)
 # Project B — общая пустая заметка vault; ссылку в неё пишет плагин, щелчок по [[Project B]]
 # в новой заметке открывает её, назад — щелчок по вкладке «Book club».
+title Auto-MOC | A new note links back from the notes it mentions
 open Book club.md
 caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
 say Transform is off by default

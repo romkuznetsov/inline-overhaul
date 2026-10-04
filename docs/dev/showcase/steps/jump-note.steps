@@ -1,6 +1,7 @@
 # jump-note — шаги записи (что показывается — jump-note.md)
 # Команды меняют только место каретки: `expect` держит, что текст не тронут, место каретки
 # проверяется кадрами. Подсветка идёт за кареткой (шаг инструмента 2026-10-04).
+title Jump inside a note | Hop the cursor between sections and lines
 open Week notes.md
 caret ## Monday
 say Default: Jump down stops at the end of a section…

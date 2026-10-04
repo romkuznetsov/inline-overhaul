@@ -1,5 +1,6 @@
 # placement — шаги записи (что показывается — placement.md)
 # Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+title Placement modes | Add a bullet and tidy typed tags into their Block
 open Placement.md
 caret call the bank
 say Default: Status next → no bullet is added

@@ -18,6 +18,6 @@
 | 4 | `What happens with current line` → `Keep`; у `[Book the van] call two rental places` текст остаётся рядом со ссылкой | `Keep → the text stays next to the link` |
 | 5 | `Dim transformed line` → on; обработанная строка бледнеет | `The handled line fades` |
 
-Подсвечивается строка, на которой нажата команда; у строки — плашка `hotkey: Transform inline to note`, до нажатия.
+Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка `hotkey: Transform inline to note`, до нажатия.
 
 Шаги записи — `steps/transform-source.steps` (технические, не согласуются).

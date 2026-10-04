@@ -1,5 +1,6 @@
 # separators — шаги записи (что показывается — separators.md)
 # Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+title Separators and writing rules | What stands between your text and the tags
 open Separators.md
 caret - call the bank
 say Default: Status next → || before the text
