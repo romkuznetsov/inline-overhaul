@@ -2,14 +2,14 @@
 
 Одна строка — одна запись. Источник — группы `docs/SETTINGS.md` (его ответ
 2026-09-25: «список по FEATURES.md»). Порядок — сперва пилот, потом по разделам.
-Состояния: `—` не начато, `сценарий`, `одобрен`, `записан`, `принят`, `в Showcase`.
+Состояния: `—` не начато, `сценарий`, `записан`, `принят`, `в Showcase`. С 2026-10-04 сценарии не согласуются: пишу, записываю, приёмка общая (навык `showcase-gif`).
 «Только панель» — у фичи нет поведения в заметке, запись показывает панель.
 
 | № | id | Фича (группа SETTINGS.md) | Ключевые контролы | Состояние |
 |---|---|---|---|---|
 | 0 | `readme-hero` | Шапка README: строка за пять секунд через tagWheel (его слово 2026-09-29) | tagWheel Left, tagWheel Right | сценарий, не прогнан |
 | 1 | `move-lines-before` | «До»: встроенная Move line up Obsidian | — | сценарий |
-| 1 | `move-lines` | Navigation → Move lines (up/down) | Moving behavior, Moving headings, Cross heading boundaries, новая «перескакивать чужие деревья» | **ждёт новую настройку** |
+| 1 | `move-lines` | Navigation → Move lines (up/down) | Moving behavior, Jump over neighbor trees, Moving headings, Cross heading boundaries | **записан, образец принят 2026-10-04** |
 | 1 | `move-lines-2` | Navigation → Move lines (up/down), вторая часть | Move lines, Highlight after moving, Follow the moved line, Where the line lands | сценарий |
 | 2 | `move-inline` | Navigation → Move lines (left/right): выделенный текст | Move selected text, Movement step, Continue past Separators | — |
 | 3 | `prefix-cycle` | Navigation → Move lines (left/right): префикс и отступ | Cycle line Prefixes, Cycle in both directions, After the last one | — |

@@ -2768,4 +2768,6 @@ async function main() {
   process.exit(ok ? 0 : 1);
 }
 
-main().catch((e) => { console.error(e && e.message ? e.message : e); process.exit(1); });
+/* Запись Showcase (`tools/showcase_record.js`) берёт запуск отсюда же. */
+module.exports = { launch };
+if (require.main === module) main().catch((e) => { console.error(e && e.message ? e.message : e); process.exit(1); });

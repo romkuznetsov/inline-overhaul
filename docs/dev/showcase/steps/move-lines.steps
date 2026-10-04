@@ -1,0 +1,51 @@
+# move-lines — шаги записи (что показывается — move-lines.md)
+# Этап 1 — умолчания, заметка правится подряд. Каждый следующий этап начинается
+# заходом в настройки; под панелью заметка возвращается к исходной.
+open Weekly plan.md
+caret 2. Pay the rent
+say Default: Move up → only the line moves
+key Ctrl+Shift+ArrowUp
+expect 2. Pay the rent /     1. check the rate /     2. transfer
+caret ## Work
+say Default: a heading moves on its own
+key Ctrl+Shift+ArrowUp
+expect ## Work / 1. Buy groceries / 2. Write the report
+caret 2. Write the report
+say Default: a line can leave its section
+key Ctrl+Shift+ArrowUp
+expect ## Work / 1. Write the report / 2. Buy groceries
+key Ctrl+Shift+ArrowUp
+expect 3. Write the report / ## Work / 1. Buy groceries
+
+say Moving behavior → Whole tree
+settings Navigation
+set Moving behavior = Whole tree
+caret 2. Pay the rent
+say Move up → the line takes its sub-items along
+key Ctrl+Shift+ArrowUp
+expect 1. Call the bank /     1. ask about the card / 2. Pay the rent /     1. transfer /     2. receipt /     3. check the rate
+
+say Jump over neighbor trees → on
+settings Navigation
+set Jump over neighbor trees = on
+caret 2. Pay the rent
+say Move up → it jumps over the whole neighbor
+key Ctrl+Shift+ArrowUp
+expect ## Errands / 1. Pay the rent /     1. transfer /     2. receipt / 2. Call the bank
+
+say Moving headings → Whole section
+settings Navigation
+set Moving headings = Whole section
+caret ## Work
+say Move up → the whole section moves
+key Ctrl+Shift+ArrowUp
+expect ## Work / 1. Write the report / 2. Review the slides / ## Errands
+
+say Cross heading boundaries → off
+settings Navigation
+set Cross heading boundaries = off
+caret 2. Review the slides
+say Move up → it stops at its heading
+key Ctrl+Shift+ArrowUp
+key Ctrl+Shift+ArrowUp
+expect ## Work / 1. Review the slides / 2. Write the report
