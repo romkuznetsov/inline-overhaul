@@ -36,10 +36,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 13. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
 14. 🎨 **The `?` of the Fields list explains every icon of the list,** in two parts: `Blocks` — where a Field is written — and `Fields` — what it writes.
 15. 🎨 **The line preview puts its labels above the line and draws your custom blocks under it,** each with its Fields, at the end of an arrow from your text.
-16. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
-17. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
-18. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
-19. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
+16. 🎨 **Tips that compare choices list them one per row:** the choice on the left, what it does on the right, as in the `?` of the Fields list.
+17. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
+18. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
+19. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
+20. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
 
 ## 0.14.0
 
