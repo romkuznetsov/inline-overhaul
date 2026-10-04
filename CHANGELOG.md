@@ -24,6 +24,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 1. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
 2. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
 3. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
+4. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
 
 ## 0.15.0
 

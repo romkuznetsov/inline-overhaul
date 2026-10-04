@@ -239,6 +239,7 @@ const PREPARE = {
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-no-highlight"(vault) { PREPARE["shift-enter"](vault); },
+  "undo-visual-redraw"(vault) { PREPARE["shift-enter"](vault); },
   "move-heading"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-selection"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
@@ -787,6 +788,34 @@ const SCENARIOS = {
    * закрытия ставит её в конец. Каретка до панели — за словом `банк`; после
    * `Esc` и после `Enter` без выбора она обязана стоять там же.
    */
+  /* В-290: отмена `Visual → off` командой `Undo last settings change` возвращает оформление заметки сразу. */
+  async "undo-visual-redraw"(win) {
+    const line = "- [ ] #todo #high :: Buy groceries";
+    const marks = () => win.evaluate(() => document.querySelectorAll(
+      ".workspace-leaf.mod-active .cm-content [class*='inline-overhaul'], .workspace-leaf.mod-active .cm-content [class*='io-']").length);
+    await win.evaluate(async (line) => {
+      await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const ed = window.app.workspace.activeEditor.editor;
+      ed.setValue(line + "\n\n");
+      ed.setCursor({ line: 2, ch: 0 });
+      await new Promise((r) => setTimeout(r, 500));
+    }, line);
+    const before = await marks();
+    await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].setConfigPatch({ features: { visual: { enabled: false } } }, "toggle:visual"));
+    await win.waitForTimeout(600);
+    const off = await marks();
+    await runCommand(win, "undo-last-settings-change");
+    await win.waitForTimeout(600);
+    const undone = await marks();
+    const on = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().features.visual.enabled);
+    console.log("оформление: до " + before + " | Visual off " + off + " | после отмены " + undone + " | Visual в конфиге " + on);
+    if (!(before > 0 && off < before)) { console.log("КОНТРОЛЬ: выключение не сняло оформление — мерить нечего"); return false; }
+    const ok = on === true && undone === before;
+    console.log(ok ? "ok: отмена вернула оформление без правки заметки" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* В-287: полоса tagWheel при выключенной подсветке строки — что видно на экране, а не что в документе. */
   async "tagwheel-no-highlight"(win) {
     const line = "- [ ] #todo #high :: Buy groceries";

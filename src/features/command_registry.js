@@ -91,6 +91,8 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
       name: __commandIds.commandName("undo-last-settings-change"),
       run: () => {
         const ok = plugin.store.undo("command:undo");
+        /* Отмена идёт мимо `applyPatch`: оформление заметок пересобирается здесь (В-290). */
+        if (ok) plugin.refreshEditorsFor("command:undo");
         /* Удача тоже говорит вслух (BUGHUNT S20). */
         if (!ok) plugin.notice(__say(__noticeKey("plugin", "nothing-to-undo"), "Nothing to undo"));
         else plugin.notice(__say(__noticeKey("plugin", "undone"), "Last settings change undone"));
