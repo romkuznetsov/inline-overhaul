@@ -1,0 +1,21 @@
+# backup — шаги записи (что показывается — backup.md). Только панель.
+# Этап 1 — заметка; этап 2 — Backup: сохранить, список копий, Autosave.
+# Копия пишется во временный vault записи. Start over не нажимается: он стирает настройки.
+open Home tasks.md
+caret - [ ] #todo #low || Water the plants
+say Backup: your settings, kept as a note in your vault
+pause 1500
+settings Advanced
+click Save a backup
+say Pick the tabs to keep, then Save
+pause 2500
+click Save
+pause 1500
+say Restore a backup lists them, newest first
+click Restore a backup
+pause 2500
+click Cancel
+say Autosave → on: a fresh copy whenever your settings change
+set Autosave = on
+caret - [ ] #todo #low || Water the plants
+pause 1500

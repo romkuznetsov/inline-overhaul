@@ -1,0 +1,44 @@
+# link-view — шаги записи (что показывается — link-view.md)
+# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
+# виде. Скобки видны только на строке каретки — для них каретка ставится на ссылку.
+# `Preview on hover` и `Drag to move` не показываются: оба — для Value с Show = custom,
+# которого в стартовом наборе нет; перетаскивания у инструмента нет.
+open Link view.md
+caret ## Reading list
+say Default: links take the theme's color
+pause 3000
+
+say Link target color → red
+settings Visual
+set Link target color = #c0392b
+caret ## Reading list
+say The note name in a link Value turns red
+pause 3000
+
+say Link brackets color → green
+settings Visual
+set Link brackets color = #2f8a4c
+caret - [ ] #todo || Read the brief || [[Project A]]
+say On the cursor line: green [[ ]]
+pause 3200
+
+say Hyperlink target color → orange
+settings Visual
+set Hyperlink target color = #c77b26
+caret ## Reading list
+say The text of a Markdown link turns orange
+pause 3000
+
+say Hyperlink brackets color → green
+settings Visual
+set Hyperlink brackets color = #2f8a4c
+caret - [ ] #doing || Skim the [release notes](https://example.com/notes)
+say On the cursor line: green [ ] ( )
+pause 3200
+
+say Hyperlink address color → blue
+settings Visual
+set Hyperlink address color = #1c7ed6
+caret ## Reading list
+say Every web address turns blue
+pause 3200

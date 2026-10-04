@@ -1,0 +1,25 @@
+# modules — шаги записи (что показывается — modules.md)
+# Этап 1 — умолчание: все четыре модуля включены, вид строки — от Visual, Move up — от Navigation.
+open Home tasks.md
+caret - [ ] #todo #low || Water the plants
+say Default: all four modules on
+pause 1200
+say Move up works, tags wear the plugin's colors
+cmd move-line-up
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #todo #low || Water the plants / - [ ] #doing #med || Paint the door || [[Project A]]
+
+say Visual → off
+settings General
+set Visual = off
+say The note goes back to the look of your theme
+pause 3000
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #doing #med || Paint the door || [[Project A]]
+
+say Navigation → off
+settings General
+set Navigation = off
+caret - [ ] #todo #low || Water the plants
+say Move up → nothing moves, the plugin says it is off
+cmd move-line-up
+pause 1500
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #doing #med || Paint the door || [[Project A]] / - [ ] #todo #low || Water the plants

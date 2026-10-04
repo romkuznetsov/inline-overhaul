@@ -1,0 +1,23 @@
+# auto-moc — шаги записи (что показывается — auto-moc.md)
+# Project B — общая пустая заметка vault; ссылку в неё пишет плагин, щелчок по [[Project B]]
+# в новой заметке открывает её, назад — щелчок по вкладке «Book club».
+open Book club.md
+caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
+say Transform is off by default
+pause 2500
+
+say Inline to note, open the note, Link the notes you mention → on
+settings Transform
+set Inline to note = on
+set Open note after creation = on
+set Link the notes you mention = on
+caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
+say The line becomes a note that mentions Project B
+cmd transform-inline-to-note
+expect - [ ] #todo || ask everyone for ideas || [[Project B]]
+say Project B now links back to the new note
+click Project B
+expect - [[Pick the next book]]
+pause 1500
+# Третьего этапа нет: Project B пустая, а в пустую заметку ссылка пишется без заголовка
+# и в начало, и в конец одинаково — `Where to put the link` не видно (находка в отчёте).

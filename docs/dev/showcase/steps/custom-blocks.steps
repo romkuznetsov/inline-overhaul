@@ -1,0 +1,27 @@
+# custom-blocks — шаги записи (что показывается — custom-blocks.md)
+# Этап 1 — умолчания; этап 2 начинается заходом в настройки: Add Block и Project в нём.
+open Custom blocks.md
+caret - call the bank about the card
+say Default: a link goes after the text
+cmd open-tagwheel-right
+key ArrowRight
+key ArrowUp
+key Enter
+expect - call the bank about the card || [[Project A]]
+
+say Add Block → Project into Custom block 1
+settings Tags & PKM
+click Add Block
+click ↓
+close
+caret - call the bank about the card @ about
+say tagWheel Custom block 1 → the link goes at the cursor
+cmd open-tagwheel-custom-b1
+key ArrowUp
+key Enter
+expect - call the bank [[Project A]] about the card
+say Again on the link → the next Value in its place
+cmd open-tagwheel-custom-b1
+key ArrowUp
+key Enter
+expect - call the bank [[Project B]] about the card

@@ -1,0 +1,31 @@
+# smart-delete — шаги записи (что показывается — smart-delete.md)
+# Этап 1 — умолчание: обе клавиши выключены, Delete — обычный Obsidian.
+open Errands.md
+caret - Call the plumber
+say Default: Delete pulls up the indent and the bullet too
+key Delete
+expect ## To do / - Call the plumber    - about the kitchen sink / - Book a table
+
+say Smart Delete → on
+settings Keyboard
+set Smart Delete = on
+caret - Book a table
+say Delete at the end → only the words come up
+key Delete
+expect ## To do / - Book a table for Friday evening / - Buy stamps
+
+say Smart Backspace → on
+settings Keyboard
+set Smart Backspace = on
+caret - and envelopes @ and
+say Backspace at the start → the words go up
+key Backspace
+expect ## To do / - Book a table / - Buy stamps and envelopes
+
+say Drop the line Prefix → off
+settings Keyboard
+set Drop the line Prefix = off
+caret - Call the plumber
+say Delete → the bullet comes along, the indent does not
+key Delete
+expect ## To do / - Call the plumber - about the kitchen sink / - Book a table

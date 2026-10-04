@@ -1,0 +1,32 @@
+# tagwheel-look — шаги записи (что показывается — tagwheel-look.md)
+# Этап 1 — умолчания. Каждый следующий этап начинается заходом в настройки;
+# под панелью заметка возвращается к исходной. tagWheel закрывается Escape
+# до входа в настройки: открытым он пишет свою разметку в строку.
+open tagWheel look.md
+caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
+say Default: tagWheel Left → the picker opens on the line
+cmd open-tagwheel-left
+expect - [ ] #todo #low ==**[#todo]** #low== || Buy groceries || 📅2026-10-08
+say Escape → the line is back as it was
+key Escape
+expect - [ ] #todo #low || Buy groceries || 📅2026-10-08
+
+say Show tag markers → off
+settings Visual
+set Show tag markers = off
+caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
+say tagWheel Left → Values without the #
+cmd open-tagwheel-left
+key Escape
+expect - [ ] #todo #low || Buy groceries || 📅2026-10-08
+
+say Scroller → on
+settings Visual
+set Scroller = on
+caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
+say tagWheel Left → neighbor Values above and below
+cmd open-tagwheel-left
+say ↓ → the next Value, the Scroller rolls
+key ArrowDown
+key Escape
+expect - [ ] #todo #low || Buy groceries || 📅2026-10-08

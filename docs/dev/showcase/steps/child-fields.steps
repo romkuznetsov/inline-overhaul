@@ -1,0 +1,35 @@
+# child-fields — шаги записи (что показывается — child-fields.md)
+# Этап 1 — умолчания; этап 2 заводит дочерний Value #review под #done и Child Field = After parent.
+open Child fields.md
+caret - #done || call the bank
+say Default: tagWheel has Status and Priority
+cmd open-tagwheel-left
+key ArrowRight
+key ArrowRight
+key Escape
+expect - #done || call the bank / - pay the rent
+
+say Add #review under #done, Child Field → After parent
+settings Tags & PKM
+fill #tag / tag = review
+click Add Value
+click Make #review a child Value
+set Child Field = After parent
+caret - #done || call the bank
+say After #done → its child Field offers #review
+cmd open-tagwheel-left
+key ArrowRight
+key ArrowUp
+key Enter
+expect - #done #review || call the bank / - pay the rent
+
+say Child Field → Always
+settings Tags & PKM
+set Child Field = Always
+caret - pay the rent
+say Always → the child is offered without a parent
+cmd open-tagwheel-left
+key ArrowRight
+key ArrowUp
+key Enter
+expect - #done || call the bank / - #review || pay the rent

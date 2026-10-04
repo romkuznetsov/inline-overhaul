@@ -1,0 +1,12 @@
+# move-lines-before — шаги записи (что показывается — move-lines-before.md)
+# «До»: встроенный перенос строки Obsidian, без плагина в деле. Один этап, настроек нет.
+open Weekly plan.md
+caret 2. Pay the rent
+say Built-in Move line up: one line per press
+cmd editor:swap-line-up
+expect 1. Call the bank /     1. ask about the card / 2. Pay the rent /     1. check the rate /     2. transfer
+cmd editor:swap-line-up
+expect 1. Call the bank / 2. Pay the rent /     1. ask about the card /     2. check the rate
+say It walks through the neighbor, its sub-items stay behind
+cmd editor:swap-line-up
+expect 1. Pay the rent / 2. Call the bank /     1. ask about the card /     2. check the rate /     3. transfer /     4. receipt / 3. Buy groceries

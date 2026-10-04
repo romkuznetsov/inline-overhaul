@@ -1,0 +1,37 @@
+# ctrl-a-2 — шаги записи (что показывается — ctrl-a-2.md)
+# Вторая часть Smart Ctrl+A: Custom (свои галочки шагов) и Last press clears highlighting.
+# Этап 1 — умолчание, коротко; Smart Ctrl+A включается вместе с Custom во втором этапе.
+open Trip plan.md
+caret - Day 1: train to the coast @ train
+mark off
+say Default: Ctrl+A selects the whole note
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route
+
+say Selection steps → Custom: tick where a press stops
+settings Keyboard
+set Smart Ctrl+A = on
+set Selection steps = Custom
+click word
+click heading
+pause 800
+close
+caret - Clothes @ Clothes
+say Ctrl+A → word, line, section, note
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route
+
+say Last press clears highlighting → on
+settings Keyboard
+set Last press clears highlighting = on
+caret - Clothes @ Clothes
+say After the note, one more press lets go
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route

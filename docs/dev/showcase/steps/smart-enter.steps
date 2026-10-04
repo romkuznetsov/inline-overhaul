@@ -1,0 +1,36 @@
+# smart-enter — шаги записи (что показывается — smart-enter.md)
+# Этап 1 — умолчание: Smart Enter выключен, Enter — обычный Obsidian.
+open Shopping list.md
+caret 1. Buy milk and bread @ and
+say Default: Enter splits the line
+key Enter
+expect 1. Buy milk / 2. and bread / 3. Pick up the parcel
+
+say Smart Enter → on
+settings Keyboard
+set Smart Enter = on
+caret 1. Buy milk and bread @ and
+say Enter → a new line below, this one stays whole
+key Enter
+type Call the vet
+expect 1. Buy milk and bread / 2. Call the vet / 3. Pick up the parcel
+
+say Use Shift+Enter instead → on
+settings Keyboard
+set Use Shift+Enter instead = on
+caret 2. Pick up the parcel @ the
+say Enter splits as usual
+key Enter
+expect 1. Buy milk and bread / 2. Pick up / 3. the parcel
+caret 1. Buy milk and bread @ and
+say Shift+Enter → a new line below
+key Shift+Enter
+expect 1. Buy milk and bread / 2. / 3. Pick up / 4. the parcel
+
+say Prefix on the new line → None
+settings Keyboard
+set Prefix on the new line = None
+caret 1. Buy milk and bread @ and
+say Shift+Enter → the new line starts empty
+key Shift+Enter
+expect 1. Buy milk and bread /  / 2. Pick up the parcel

@@ -1,0 +1,29 @@
+# smart-paste — шаги записи (что показывается — smart-paste.md)
+# Этап 1 — умолчание: Smart paste выключен, вставка — обычная Obsidian.
+# Копирование — на камеру, своими клавишами, один раз: буфер обмена переживает заход в настройки.
+# Вставка — в конец своего раздела: подсветка растягивается на неизменные строки ниже правки.
+open Pantry.md
+caret 4. Eggs @ 4. Eggs
+say Default: the copied numbers come along
+select 4. Eggs @ 4. Eggs
+key Shift+ArrowDown
+key Shift+End
+key Ctrl+C
+caret 2. Bake bread
+key Enter
+key Ctrl+V
+expect 2. Bake bread / 3. 4. Eggs / 4. Butter / ## For the cake
+
+say Smart paste → on
+settings Keyboard
+set Smart paste = on
+caret 2. Bake bread
+say Pasted under a list → the count carries on
+key Enter
+key Ctrl+V
+expect 2. Bake bread / 3. Eggs / 4. Butter / ## For the cake
+caret ## For the cake
+say Pasted on its own → counted from one
+key Enter
+key Ctrl+V
+expect ## For the cake / 1. Eggs / 2. Butter

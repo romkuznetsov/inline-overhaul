@@ -1,0 +1,31 @@
+# diagnostics — шаги записи (что показывается — diagnostics.md)
+# Этап 1 — умолчание: Move up работает. Этап 2 — изменение, которое отменяет команда
+# Undo last settings change. Этап 3 — Show option IDs in tips и открытая подсказка с id.
+# Отмена показана на Navigation, а не на Visual: после отмены Visual → off заметка
+# остаётся без оформления до следующей правки (находка, см. отчёт среза).
+open Home tasks.md
+caret - [ ] #todo #low || Water the plants
+say Default: Move up works
+cmd move-line-up
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #todo #low || Water the plants / - [ ] #doing #med || Paint the door || [[Project A]]
+
+say Navigation → off, by mistake
+settings General
+set Navigation = off
+caret - [ ] #todo #low || Water the plants
+say Move up → only a message that Navigation is off
+cmd move-line-up
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #doing #med || Paint the door || [[Project A]] / - [ ] #todo #low || Water the plants
+say Undo last settings change → Move up works again
+cmd undo-last-settings-change
+cmd move-line-up
+expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #todo #low || Water the plants / - [ ] #doing #med || Paint the door || [[Project A]]
+
+say Show option IDs in tips → on: a tip ends with its id
+settings Advanced
+set Show option IDs in tips = on
+set Your settings = ?
+pause 3500
+close
+caret - [ ] #todo #low || Water the plants
+pause 600

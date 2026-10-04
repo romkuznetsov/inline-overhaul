@@ -1,0 +1,20 @@
+# readme-hero — шаги записи (что показывается — readme-hero.md)
+# Один показ, без этапов: исходная строка → tagWheel слева и справа → готовая строка.
+# Дата Due — день записи: перезапись в другой день правит последний expect.
+open Inbox.md
+caret - call the bank
+say A plain line → tagWheel fills it in
+cmd open-tagwheel-left
+key ArrowUp
+key ArrowRight
+key ArrowDown
+key Enter
+expect - #todo #high || call the bank
+cmd open-tagwheel-right
+key ArrowUp
+key ArrowRight
+key ArrowUp
+key Enter
+expect - #todo #high || call the bank || 📅2026-10-04 [[Project A]]
+say Done: status, priority, date and project
+pause 1500

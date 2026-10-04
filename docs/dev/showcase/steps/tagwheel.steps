@@ -1,0 +1,39 @@
+# tagwheel — шаги записи (что показывается — tagwheel.md)
+# Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+open tagWheel.md
+caret - call the bank
+say Default: → stays inside the Block
+cmd open-tagwheel-left
+key ArrowUp
+key ArrowRight
+key ArrowRight
+key Enter
+expect - #todo || call the bank / - #todo || pay the rent || [[Project A]]
+caret - #todo || pay the rent || [[Project A]]
+say Default: the other Block is hidden
+cmd open-tagwheel-left
+pause 800
+key Escape
+expect - #todo || call the bank / - #todo || pay the rent || [[Project A]]
+
+say tagWheel navigation behavior → Next Block
+settings Tags & PKM
+set tagWheel navigation behavior = Next Block
+caret - call the bank
+say → walks on into the right Block
+cmd open-tagwheel-left
+key ArrowRight
+key ArrowRight
+key ArrowUp
+key Enter
+expect - call the bank || 📅2026-10-04 / - #todo || pay the rent || [[Project A]]
+
+say Values in the other Block → Show
+settings Tags & PKM
+set Values in the other Block = Show
+caret - #todo || pay the rent || [[Project A]]
+say The other Block stays in view
+cmd open-tagwheel-left
+pause 800
+key Escape
+expect - call the bank / - #todo || pay the rent || [[Project A]]

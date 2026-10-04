@@ -1,0 +1,30 @@
+# move-inline — шаги записи (что показывается — move-inline.md)
+# Этап 1 — умолчания (Auto, Continue past Separators on), заметка правится подряд.
+# Разделители стартового набора — `||`.
+open Inline move.md
+select 1. buy milk bread and eggs @ milk
+say Default: a selected word moves word by word
+cmd move-right
+expect 1. buy bread milk and eggs
+cmd move-right
+expect 1. buy bread and milk eggs
+select 2. fix teh typo @ e
+say Default: a part of a word moves by letter
+cmd move-right
+expect 2. fix the typo
+select 3. #todo || call the plumber || 📅2026-10-06 @ call
+say Default: it can jump past the Separator
+cmd move-left
+expect 3. #todo call || the plumber || 📅2026-10-06
+
+# Этап 2. `caret` перед `select` — чтобы под панелью каретка встала на строку показа,
+# а не на заголовок (иначе после выхода мелькает `## Today`).
+say Continue past Separators → off
+settings Navigation
+set Continue past Separators = off
+caret 3. #todo || call the plumber || 📅2026-10-06
+select 3. #todo || call the plumber || 📅2026-10-06 @ call
+say Move left → it stays between the Separators
+cmd move-left
+cmd move-left
+expect 3. #todo || call the plumber || 📅2026-10-06

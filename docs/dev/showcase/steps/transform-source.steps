@@ -1,0 +1,38 @@
+# transform-source — шаги записи (что показывается — transform-source.md)
+# Заметка-результат не открывается: весь показ — на исходной строке.
+open Moving day.md
+caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
+say Transform is off by default
+pause 2500
+
+say Inline to note → on
+settings Transform
+set Inline to note = on
+caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
+say The line becomes a link, its sub-items stay
+cmd transform-inline-to-note
+expect - [ ] [[Pack the kitchen]] || #processed /     - buy boxes /     - find the tape
+
+say Sub-lines (tree) behavior → Move
+settings Transform
+set Sub-lines (tree) behavior = Move
+caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
+say Move → the sub-items go into the note too
+cmd transform-inline-to-note
+expect - [ ] [[Pack the kitchen]] || #processed / - [ ] #todo || [Book the van] call two rental places
+
+say What happens with current line → Keep
+settings Transform
+set What happens with current line = Keep
+caret - [ ] #todo || [Book the van] call two rental places
+say Keep → the text stays next to the link
+cmd transform-inline-to-note
+expect - [ ] [[Book the van]] call two rental places || #processed
+
+say Dim transformed line → on
+settings Transform
+set Dim transformed line = on
+caret - [ ] #todo || [Book the van] call two rental places
+say The handled line fades
+cmd transform-inline-to-note
+expect - [ ] [[Book the van]] call two rental places || #processed

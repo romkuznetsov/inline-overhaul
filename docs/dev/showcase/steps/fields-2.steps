@@ -1,0 +1,37 @@
+# fields-2 — шаги записи (что показывается — fields-2.md)
+# Этап 1 — умолчания; каждый следующий начинается заходом в настройки: таблица Values Status.
+open Values.md
+caret - #todo || call the bank
+say Default: Status next walks its Values
+cmd status-next
+cmd status-next
+expect - #done || call the bank / - #done || pay the rent
+
+say Add Value → #waiting
+settings Tags & PKM
+fill #tag / tag = waiting
+click Add Value
+close
+caret - #done || pay the rent
+say Status next → the new Value comes after #done
+cmd status-next
+expect - #todo || call the bank / - #waiting || pay the rent
+
+say Eye → #doing is hidden
+settings Tags & PKM
+click Hide #doing from next, previous and tagWheel
+close
+caret - #todo || call the bank
+say Status next → #doing is skipped
+cmd status-next
+expect - #done || call the bank / - #done || pay the rent
+
+say Show → custom: #todo is drawn as 🎯
+settings Tags & PKM
+pick Show, for #todo = custom
+fill Custom text for #todo = 🎯
+close
+caret - #todo || call the bank
+say Priority next → 🎯 stays in place of #todo
+cmd priority-next
+expect - #todo #low || call the bank / - #done || pay the rent

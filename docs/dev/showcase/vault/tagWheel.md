@@ -1,0 +1,2 @@
+- call the bank
+- #todo || pay the rent || [[Project A]]

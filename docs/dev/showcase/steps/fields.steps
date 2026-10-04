@@ -1,0 +1,27 @@
+# fields — шаги записи (что показывается — fields.md)
+# Один этап: стартовый набор, команды next/previous трёх типов Field на одной строке.
+# Дата Due — день записи: перезапись в другой день правит expect с датой.
+open Task fields.md
+caret - pay the rent
+say Default: Status next → its Values in turn
+cmd status-next
+expect - #todo || pay the rent
+cmd status-next
+cmd status-next
+expect - #done || pay the rent
+say Priority next → a second tag, same Block
+cmd priority-next
+expect - #done #low || pay the rent
+say Due next → today, then one day later
+cmd due-next
+expect - #done #low || pay the rent || 📅2026-10-04
+cmd due-next
+expect - #done #low || pay the rent || 📅2026-10-05
+say Project next → a link to the note
+cmd project-next
+expect - #done #low || pay the rent || 📅2026-10-05 [[Project A]]
+cmd project-next
+expect - #done #low || pay the rent || 📅2026-10-05 [[Project B]]
+say Status previous → one step back
+cmd status-previous
+expect - #doing #low || pay the rent || 📅2026-10-05 [[Project B]]

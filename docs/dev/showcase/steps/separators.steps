@@ -1,0 +1,34 @@
+# separators — шаги записи (что показывается — separators.md)
+# Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+open Separators.md
+caret - call the bank
+say Default: Status next → || before the text
+cmd status-next
+expect - #todo || call the bank / - [ ] book a table
+say Default: Project next → || after the text
+cmd project-next
+expect - #todo || call the bank || [[Project A]] / - [ ] book a table
+caret - [ ] book a table
+say Default: a ticked box gets no tag
+cmd editor:toggle-checklist-status
+expect - #todo || call the bank || [[Project A]] / - [x] book a table
+
+say First and Second Separator → ::
+settings Tags & PKM
+click ▸
+set First Separator = ::
+set Second Separator = ::
+caret - call the bank
+say Status next, Project next → :: on both sides
+cmd status-next
+cmd project-next
+expect - #todo :: call the bank :: [[Project A]] / - [ ] book a table
+
+say Mark ticked line → #done, Dim ticked line → on
+settings Tags & PKM
+set Mark ticked line = #done
+set Dim ticked line = on
+caret - [ ] book a table
+say Tick the box → #done is added, the line fades
+cmd editor:toggle-checklist-status
+expect - call the bank / - [x] #done :: book a table

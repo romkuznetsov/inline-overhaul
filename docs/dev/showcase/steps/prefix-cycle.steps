@@ -1,0 +1,38 @@
+# prefix-cycle — шаги записи (что показывается — prefix-cycle.md)
+# Список Prefix стартового набора: # … #####, 1., (пусто), -. Move right идёт вниз по нему, Move left — вверх.
+open Prefix cycle.md
+caret bread
+say Default: Move right turns plain text into a bullet…
+cmd move-right
+expect - milk / - bread / eggs
+say …and after the last marker it indents the line
+cmd move-right
+expect - milk / 	- bread / eggs
+caret eggs
+say Move left goes the other way: numbered, then a heading
+cmd move-left
+expect - milk / 	- bread / 1. eggs / butter
+cmd move-left
+expect - milk / 	- bread / ##### eggs / butter
+
+say After the last one → Start over
+settings Navigation
+set After the last one = Start over
+caret bread
+say Move right → after the bullet it starts over from #
+cmd move-right
+expect - milk / - bread / eggs
+cmd move-right
+expect - milk / # bread / eggs
+
+say Cycle in both directions → off
+settings Navigation
+set Cycle in both directions = off
+caret bread
+say Move right → plain text stays as it is
+cmd move-right
+cmd move-right
+expect - milk / bread / eggs
+say Move left still changes the marker
+cmd move-left
+expect - milk / 1. bread / eggs

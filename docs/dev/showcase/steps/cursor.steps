@@ -1,0 +1,46 @@
+# cursor — шаги записи (что показывается — cursor.md)
+# Каретку двигает `Jump down` / `Jump right`: подсветка идёт за кареткой.
+open Cursor.md
+caret ## Monday
+say Default: Jump down → the thin cursor is easy to lose
+cmd jump-next
+cmd jump-next
+expect ## Monday
+
+say Color the text cursor → red
+settings Visual
+set Color the text cursor = on
+set Cursor color = #e03131
+caret ## Monday
+say Jump down → the cursor is red
+cmd jump-next
+expect ## Monday
+
+say Shape the text cursor → 6 px
+settings Visual
+set Shape the text cursor = on
+set Cursor width = 6
+caret ## Monday
+say Jump down → a thick cursor
+cmd jump-next
+expect ## Monday
+
+say Highlight where you land → on
+settings Visual
+set Highlight where you land = on
+set Highlight size = 40
+set How long it lasts = 1200
+caret ## Monday
+say Jump down → a circle marks where it lands
+cmd jump-next
+cmd jump-next
+expect ## Monday
+
+say Use inside current line → on
+settings Visual
+set Use inside current line = on
+caret - [ ] #todo #low || Buy groceries || 📅2026-10-07 @ Buy groceries
+say Jump right → the circle inside the line too
+cmd move-cursor-right-in-line
+cmd move-cursor-right-in-line
+expect ## Monday

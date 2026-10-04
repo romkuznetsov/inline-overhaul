@@ -1,0 +1,38 @@
+# tag-bars — шаги записи (что показывается — tag-bars.md)
+# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
+# виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
+open Tag bars.md
+caret ## Garden project
+say Default: no Bars, only the tags
+pause 3000
+
+say Tag Bars → on, drawn by Status
+settings Visual
+set Tag Bars = on
+set Which Field draws Bars = Status
+say A Bar in the tag's color runs down each tree
+pause 3200
+
+say Bar thickness → 6 px
+settings Visual
+set Bar thickness = 6
+say The Bars are easier to see
+pause 2800
+
+say Show the Field’s tag → off
+settings Visual
+set Show the Field’s tag = off
+say The Bar speaks for the tag
+pause 3000
+
+say Hide the leftover marker → on
+settings Visual
+set Hide the leftover marker = on
+say The lonely || goes away
+pause 3000
+
+say Number of Bars → 3
+settings Visual
+set Number of Bars = 3
+say The third level gets its own Bar
+pause 3200

@@ -1,0 +1,29 @@
+# binder — шаги записи (что показывается — binder.md)
+# Этап 1 — строка Binder, которая приходит с плагином, — Smart bracket.
+# Этап 2 — своя строка: Add command, в Inserts — ✅, имя команды заполняется само
+# (`Check mark button` → id `check-mark-button`), затем её клавиша в заметке.
+open Reading list.md
+caret - Lisbon travel guide @ bon
+say Smart bracket: [text], then [[text]], then back
+cmd smart-bracket
+cmd smart-bracket
+cmd smart-bracket
+expect ## Reading / - Lisbon travel guide / - Notes on the garden
+select - Notes on the garden @ the garden
+say It works on a selection too
+cmd smart-bracket
+cmd smart-bracket
+expect - Notes on [[the garden]]
+
+say Add command → a row of your own
+settings Keyboard
+click Add command
+fill Type anything or choose below = ✅
+pause 1200
+click Add
+pause 1200
+close
+caret - Notes on the garden @ Notes
+say One key drops it in at the cursor
+cmd check-mark-button
+expect ## Reading / - Lisbon travel guide / - ✅Notes on the garden

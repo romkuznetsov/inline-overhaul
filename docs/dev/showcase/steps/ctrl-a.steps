@@ -1,0 +1,32 @@
+# ctrl-a — шаги записи (что показывается — ctrl-a.md)
+# Этап 1 — умолчание: Smart Ctrl+A выключен, клавиша — обычная Obsidian.
+# Заметка не меняется: показ — выделение (проверено пробой на стенде), expect держит текст.
+# `mark off`: фон подсветки сливается с выделением, остаётся плашка клавиши.
+# Custom и Last press clears highlighting — ctrl-a-2 (в 60 с не влезает).
+open Trip plan.md
+caret - Day 1: train to the coast @ train
+mark off
+say Default: Ctrl+A selects the whole note
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route
+
+say Smart Ctrl+A → on
+settings Keyboard
+set Smart Ctrl+A = on
+caret - Day 1: train to the coast @ train
+say Ctrl+A → the line first, then the whole note
+key Ctrl+A
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route
+
+say Selection steps → Word, line, tree, heading, note
+settings Keyboard
+set Selection steps = Word, line, tree, heading, note
+caret - Clothes @ Clothes
+say Ctrl+A → word, line, tree, section, note
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+key Ctrl+A
+expect ## Packing / - Clothes / ## Route

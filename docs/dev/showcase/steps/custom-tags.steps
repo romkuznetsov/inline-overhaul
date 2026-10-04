@@ -1,0 +1,35 @@
+# custom-tags — шаги записи (что показывается — custom-tags.md)
+# Нажатий нет: этап — заход в настройки и правка таблицы Color custom tags, после выхода —
+# заметка в новом виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
+open Custom tags.md
+caret ## Saturday
+say Default: #errand and #home look like any tag
+pause 3000
+
+say Color custom tags → add #errand in red
+settings Visual
+fill New tag to color = #errand
+click Add tag
+fill Fill color for #errand = #c0392b
+fill Text color for #errand = #ffffff
+close
+say Every #errand gets a red bubble
+pause 2800
+
+say Color custom tags → add #home in green
+settings Visual
+fill New tag to color = #home
+click Add tag
+fill Fill color for #home = #2f8a4c
+fill Text color for #home = #ffffff
+close
+say Every #home gets a green bubble
+pause 2800
+
+say Show for #errand → empty
+settings Visual
+pick Show, for #errand = empty
+close
+say #errand keeps its color, the word is hidden
+pause 3000
+expect ## Saturday

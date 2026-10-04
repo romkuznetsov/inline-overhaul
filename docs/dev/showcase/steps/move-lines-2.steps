@@ -1,0 +1,41 @@
+# move-lines-2 — шаги записи (что показывается — move-lines-2.md)
+# Заметка длиннее окна: видно, как экран идёт (или не идёт) за строкой. `snacks` стартует у нижнего края.
+open Packing list.md
+caret 14. snacks
+say Default: the note follows the moved line
+cmd move-line-down
+cmd move-line-down
+expect 14. stove / 15. fuel / 16. snacks / 17. lighter
+
+say Highlight after moving → on
+settings Navigation
+set Highlight after moving = on
+caret 14. snacks
+say Move down → the moved line stays highlighted
+cmd move-line-down
+cmd move-line-down
+expect 14. stove / 15. fuel / 16. snacks / 17. lighter
+# Подсветка инструмента гаснет, подсветка плагина остаётся — на это нужно время.
+pause 1200
+
+say Where the line lands → Top
+settings Navigation
+set Where the line lands = Top
+caret 14. snacks
+say Move down → the line is kept at the top
+cmd move-line-down
+cmd move-line-down
+expect 14. stove / 15. fuel / 16. snacks / 17. lighter
+
+say Follow the moved line → off
+settings Navigation
+set Follow the moved line = off
+caret 14. snacks
+say Move down → the note stays put
+cmd move-line-down
+cmd move-line-down
+cmd move-line-down
+cmd move-line-down
+cmd move-line-down
+cmd move-line-down
+expect 19. mug / 20. snacks / 21. tent

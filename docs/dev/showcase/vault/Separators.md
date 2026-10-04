@@ -1,0 +1,2 @@
+- call the bank
+- [ ] book a table

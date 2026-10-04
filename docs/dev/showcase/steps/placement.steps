@@ -1,0 +1,27 @@
+# placement — шаги записи (что показывается — placement.md)
+# Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
+open Placement.md
+caret call the bank
+say Default: Status next → no bullet is added
+cmd status-next
+expect #todo || call the bank / - pay the rent #high
+caret - pay the rent #high
+say Default: a typed tag stays in the text
+cmd status-next
+expect #todo || call the bank / - #todo || pay the rent #high
+
+say Strict: add a bullet → on
+settings Tags & PKM
+set Strict: add a bullet = on
+caret call the bank
+say Status next → the line gets a bullet
+cmd status-next
+expect - #todo || call the bank / - pay the rent #high
+
+say Keep typed tags in text → off
+settings Tags & PKM
+set Keep typed tags in text = off
+caret - pay the rent #high
+say Status next → #high moves to its Block
+cmd status-next
+expect call the bank / - #todo #high || pay the rent

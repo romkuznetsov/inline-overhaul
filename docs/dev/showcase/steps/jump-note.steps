@@ -1,0 +1,35 @@
+# jump-note — шаги записи (что показывается — jump-note.md)
+# Команды меняют только место каретки: `expect` держит, что текст не тронут, место каретки
+# проверяется кадрами. Подсветка идёт за кареткой (шаг инструмента 2026-10-04).
+open Week notes.md
+caret ## Monday
+say Default: Jump down stops at the end of a section…
+cmd jump-next
+say …then at the start of the next one
+cmd jump-next
+cmd jump-next
+say Jump up walks back the same way
+cmd jump-back
+expect ## Monday / 1. call the plumber / ## Tuesday / ## Wednesday
+
+say Where in the section → Start only
+settings Navigation
+set Where in the section = Start only
+caret ## Monday
+say Jump down → only the first line of each section
+cmd jump-next
+cmd jump-next
+cmd jump-next
+expect ## Monday / ## Tuesday / ## Wednesday
+
+say Jump target → Lines
+settings Navigation
+set Jump target = Lines
+caret ## Monday
+say Jump down → line by line, headings included
+cmd jump-next
+cmd jump-next
+cmd jump-next
+cmd jump-next
+cmd jump-next
+expect ## Monday / ## Tuesday / ## Wednesday

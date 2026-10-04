@@ -1,0 +1,35 @@
+# line-view — шаги записи (что показывается — line-view.md)
+# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
+# виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
+# Порядок — от формы к прозрачности: поблёкшие Block прячут пузыри и полосу.
+open Line view.md
+caret ## This week
+say Default: tags, dates and links at full strength
+pause 2800
+
+say Tag bubble corners → 100
+settings Visual
+set Tag bubble corners = 100
+say Tag bubbles turn square
+pause 2600
+
+say Color the Block with Stripe → on
+settings Visual
+set Color the Block with Stripe = on
+set Stripe opacity = 35
+say A Stripe runs behind each Block
+pause 2600
+
+say Block text size → 70%
+settings Visual
+set Left Block text size = 70
+set Right Block text size = 70
+say Both Blocks get smaller, your text stays
+pause 2600
+
+say Block opacity → 30%
+settings Visual
+set Opacity of the Left Block = 30
+set Opacity of the Right Block = 30
+say Both Blocks fade, your text stands out
+pause 3000
