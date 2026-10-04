@@ -33,13 +33,16 @@
  *   set <контрол>[ #N] = <значение>  указатель к контролу (#N — N-й с тем же именем), выбор (список, переключатель on/off,
  *                            кнопки-варианты, текстовое поле, ползунок числом, цвет #rrggbb);
  *                            после последнего `set` подряд
- *                            панель закрывается сама; строка ищется и в редакторе Fields
+ *                            панель закрывается сама, если следующий шаг не в панели (set, click, fill,
+ *                            pick, pause, close); строка ищется и в редакторе Fields
  *                            (`set Child Field = Always` — строка Behavior выбранного Field)
- *   click <текст>            указатель к узлу с этим текстом, щелчок; текста нет — узел с этой
+ *   click <текст>[ #N]       указатель к узлу с этим текстом (#N — N-й сверху, иначе последний), щелчок;
+ *                            текста нет — узел с этой
  *                            `aria-label` (значок: `click Make #review a child Value`,
  *                            `click Hide #doing from next, previous and tagWheel`)
  *   fill <подсказка> = <текст>  набор в поле, у которого нет имени строки (по placeholder;
  *                            подсказки нет — по `aria-label`, например `Custom text for #todo`)
+ *                            поле цвета (`Fill color for #errand = #e05050`) — значение без системного окна
  *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
  *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
@@ -256,6 +259,10 @@ const editorState = (win) => win.evaluate(() => {
 function moved(before, after) {
   let to = after.at;
   if (after.at === before.at) return [after.at, to];
+  /* Строка каретки не та, что была (Enter, вставка): ехать за ней нечему — одна строка.
+     Номер пункта не в счёт: после переноса его пересчитывает Obsidian. */
+  const bare = (l) => (l || "").replace(/^(\s*)\d+[.)]\s/, "$1");
+  if (bare(after.lines[after.at]) !== bare(before.lines[before.at])) return [after.at, to];
   for (let k = 1; after.at + k < after.lines.length && before.at + k < before.lines.length; k++) {
     const l = after.lines[after.at + k];
     if (l !== before.lines[before.at + k] || !l.trim()) break;
@@ -264,19 +271,22 @@ function moved(before, after) {
   return [after.at, to];
 }
 
-/** Видимый узел с этим текстом (последний), в центр экрана; его середина. */
-async function find(win, text) {
-  const box = await win.evaluate((t) => {
+/** Видимый узел с этим текстом (последний или `nth`-й сверху), в центр экрана; его середина. */
+async function find(win, text, nth = 0) {
+  const box = await win.evaluate(([t, nth]) => {
     const vis = (x) => { const r = x.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     /* Вкладка и кнопка раньше текста: «Navigation» — и вкладка, и строка модуля. */
-    const hit = (sel, leaf) => [...document.querySelectorAll(sel)]
-      .filter((x) => vis(x) && x.textContent.trim() === t && !(leaf && [...x.children].some((c) => c.textContent.trim() === t))).pop();
+    const hit = (sel, leaf) => {
+      const all = [...document.querySelectorAll(sel)]
+        .filter((x) => vis(x) && x.textContent.trim() === t && !(leaf && [...x.children].some((c) => c.textContent.trim() === t)));
+      return nth ? all[nth - 1] : all.pop();
+    };
     const n = hit("button, [role=tab], .vertical-tab-nav-item", false) || hit(".setting-item-name, div, span, a", true);
     if (!n) return null;
     n.scrollIntoView({ block: "center" });
     const r = n.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-  }, text);
+  }, [text, nth]);
   if (!box) throw new Error("нет «" + text + "» на экране");
   return box;
 }
@@ -473,7 +483,9 @@ async function run(win, steps, cut, log) {
       }
       /* Заметка возвращается к исходной под панелью: на экране отката не видно, после выхода из
          настроек — свежая заметка (его слово 2026-10-04: откат на камеру «сбивает с толку»). */
-      const nc = steps.slice(si + 1).find(([o]) => o === "caret" || o === "select");
+      /* Только в пределах этого этапа: каретка следующего этапа встанет под его панелью. */
+      const rest = steps.slice(si + 1), end = rest.findIndex(([o]) => o === "settings");
+      const nc = rest.slice(0, end < 0 ? rest.length : end).find(([o]) => o === "caret" || o === "select");
       await win.evaluate(async ([files, at]) => {
         const [line, part] = at.split(" @ ");
         const a = window.app;
@@ -501,8 +513,19 @@ async function run(win, steps, cut, log) {
       const b = await t.count() ? await t.boundingBox() : null;
       if (!b) throw new Error("нет поля с подсказкой «" + ph + "»");
       await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
-      await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-      await win.keyboard.type(text, { delay: 60 });
+      if (await t.evaluate((n) => n.type === "color")) {
+        /* Цвет в строке своего блока (`Fill color for #errand`): круг щелчка и значение событиями —
+           системное окно цвета в кадр не попадает. */
+        await win.evaluate(([x, y]) => document.dispatchEvent(new MouseEvent("mousedown", { clientX: x, clientY: y })), [b.x + b.width / 2, b.y + b.height / 2]);
+        await t.evaluate((n, v) => {
+          n.value = v;
+          n.dispatchEvent(new Event("input", { bubbles: true }));
+          n.dispatchEvent(new Event("change", { bubbles: true }));
+        }, text);
+      } else {
+        await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+        await win.keyboard.type(text, { delay: 60 });
+      }
       await win.waitForTimeout(400);
     } else if (op === "pick") {
       /* Список своего блока без имени строки: по aria-label, title или подписи рядом. */
@@ -537,16 +560,18 @@ async function run(win, steps, cut, log) {
       await win.waitForTimeout(1500);
       if (mod) await win.keyboard.up(mod === "Ctrl" ? "Control" : mod);
     } else if (op === "click") {
-      /* Текста нет — узел по `aria-label` (значок без подписи). */
-      const b = await find(win, arg).catch(() => findLabel(win, arg));
+      /* `click <текст> #N` — N-е совпадение сверху (без номера — последнее); текста нет — узел по `aria-label`. */
+      const m = arg.match(/^(.*) #(\d+)$/);
+      const b = await find(win, m ? m[1] : arg, m ? Number(m[2]) : 0).catch(() => findLabel(win, arg));
       await point(win, b);
       await win.mouse.click(b.x, b.y);
       await win.waitForTimeout(600);
     } else if (op === "set") {
       const [name, value] = arg.split(" = ");
       await setControl(win, name.trim(), value.trim());
-      /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04). */
-      if (next !== "set") {
+      /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04).
+         Следующий шаг тоже в панели (галочки, окно, подсказка) — панель остаётся, закроет `close`. */
+      if (!["set", "click", "fill", "pick", "pause", "close"].includes(next)) {
         await win.evaluate(() => window.app.setting.close());
         await win.waitForTimeout(450);
       }
