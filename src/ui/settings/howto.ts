@@ -131,7 +131,7 @@ function fieldsAndValues(): string {
     "Values to do it in. You make a Value a child with the arrows in the `Level` column of",
     "the `Values` table: it steps to the right and turns grey, so you cannot miss it. On",
     "the line the two show up either as separate bubbles or as one `#open/wip`, and which",
-    "one it is is `Tags & PKM → Writing rules → Child tag format`.",
+    "one it is is `Child tag format` in the Field's `Behavior` block.",
     "",
     "A child reaches tagWheel only when both of these are true: the Field has",
     "`Child Field` turned on in its `Behavior` block, and you have already picked the",

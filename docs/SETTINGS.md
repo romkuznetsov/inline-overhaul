@@ -247,6 +247,7 @@ The right column is everything about the Field picked on the left:
 | `Child Field` | `After parent`, `Always`, `On Alt` or `Hide` |
 | `Parent Value` | With `Always`: leave the line alone, or also write the parent Value |
 | `Parent is Navigator` | `On`: parent Values with children only narrow the child list and are never written; not available with `Hide` |
+| `Child tag format` | Tag Fields only. `Separate`: a child Value is its own tag, `#doing #review`; `Nested`: one tag with its parent, `#doing/review`. Each Field keeps its own choice |
 | `Prerequisite Field` | Makes this Field wait until another Field has a Value |
 | `Values` | The ordered list the `next` and `previous` commands walk |
 | `YAML property` | Which property of a transformed note this Field becomes |
@@ -295,7 +296,6 @@ and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
 
 | Control | Default | What it does |
 |---|---|---|
-| `Child tag format` | `separate` | Whether a Value under another one is written as two tags or one |
 | `When a line empties out` | `keep-bullet` | What is left behind when cycling removes the last Value |
 | `Cursor after an action` | `text_end` | Where the cursor waits once a tag or date has been set |
 | `Mark ticked line` | empty | A tag or emoji added when you tick a checkbox and taken off when you untick it. A mark that is a Value of one of your Fields goes where that Field stands. Empty — ticking changes nothing |

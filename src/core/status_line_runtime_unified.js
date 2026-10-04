@@ -33,6 +33,8 @@ function buildCombinedSelectionSet(options) {
     const subId = String(subField && subField.id || "").trim();
     const parentId = String(subField && subField.dependsOn || "").trim();
     if (!subId || !parentId) continue;
+    /* `Separate` у этого Field — пары нет (10.13.309). */
+    if (!__sharedUtils.isNestedChildField(rules, subField)) continue;
     const parentField = byId[parentId];
     if (!parentField) continue;
     const selectedParentId = String(state?.selected?.[parentId] || "").trim();

@@ -483,6 +483,11 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
     why: "ряд `Parent is Navigator` под `Child Field` — его заказ 2026-09-24 (PRD 10.13.269)",
   },
   {
+    shape: "pkm:behavior:order:sub-nested:*",
+    why: "ряд `Child tag format` над предусловием — его пункт цикла 135 (PRD 10.13.309): выбор "
+      + "`Separate`/`Nested` у каждого Field тегов вместо одного в `Writing rules`",
+  },
+  {
     shape: "pkm:behavior:order:use-as-moc:*",
     why: "ряд `Use as MOC` у Link — его замечание к тесту 3 цикла 98 (PRD 10.13.281)",
   },

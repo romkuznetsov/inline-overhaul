@@ -292,7 +292,8 @@ function realConfig(): Any {
   const draw = (childFormat: string): StubNode[] => {
     const host = makeNode("div");
     const close = tagPreview(host as unknown as El, makeCtx(cfg, {
-      "pkm.behavior.childTagFormat": childFormat,
+      /* Выбор у Field (10.13.309). */
+      "pkm.fields.order.subNested": { state_sub: childFormat === "combined" },
     }));
     const out = all(host, "io-bubble");
     close();

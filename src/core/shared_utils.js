@@ -915,6 +915,23 @@ function splitCombinedTagToken(tag) {
 }
 
 /**
+ * Пишется ли зависимый Field одним тегом с родителем (`#parent/child`).
+ * Выбор — у дочернего Field (`nestedWithParent`, 10.13.309); общий
+ * `behavior.subtagFormat` остался для правил без него.
+ */
+function isNestedChildField(rules, field) {
+  if (!field || !String(field.dependsOn || "").trim()) return false;
+  if (field.nestedWithParent === true) return true;
+  const behavior = rules && rules.behavior;
+  return String(behavior && behavior.subtagFormat || "").toLowerCase().trim() === "combined";
+}
+
+/** Есть ли среди Fields хоть один, который пишется одним тегом с родителем. */
+function hasNestedChildField(rules, fields) {
+  return (Array.isArray(fields) ? fields : []).some((f) => isNestedChildField(rules, f));
+}
+
+/**
  * Начало строки в том виде, в каком его повторяют на новой (`Smart Enter`,
  * 10.13.88); всё — у `lineStartOf` (У-32), сверка в `smart_enter_tests.js`.
  * Каллаут приписан к цитате, задача — к знаку списка: на новой строке цитата
@@ -1394,6 +1411,8 @@ module.exports = {
   preserveLineStartShape,
   isWordChar,
   splitCombinedTagToken,
+  isNestedChildField,
+  hasNestedChildField,
   normalizeFormatMask,
   buildFormatValueRegexSource,
   hasFormatTokens,

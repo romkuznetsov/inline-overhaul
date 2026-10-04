@@ -412,6 +412,8 @@ function makeDefaultPkmOrder() {
     subAddsParent: {},
     subOnAlt: {},
     subNavigator: {},
+    /* `Child tag format` = `Nested` (10.13.309): ключ — дочерний Field. */
+    subNested: {},
     /* `YAML of navigator values` (PRD 10.13.272): ключ — дочерний Field. */
     yamlNavigator: {},
     /* Link как MOC (тест 3 цикла 98): `false` — нет. */
@@ -457,7 +459,14 @@ function subPermissions(order, parentKey, subKey) {
     showOnAlt: subShowsOnAlt(order, subKey),
     parentIsNavigator: subParentIsNavigator(order, subKey),
     yamlNavigator: subYamlNavigator(order, subKey),
+    nestedWithParent: subNested(order, subKey),
   };
+}
+
+/** Дочерний тег пишется одним тегом с родителем — `#parent/child` (10.13.309). */
+function subNested(order, subKey) {
+  const bag = isObj(order) && isObj(order.subNested) ? order.subNested : {};
+  return bag[subKey] === true;
 }
 
 /**
@@ -568,7 +577,7 @@ function normalizePkmOrder(rawOrder) {
    * Карты дочернего Field (2026-09-19). Ключ — дочерний, поэтому из
    * `orderKeys`, а не `orderFields`: дочерних ключей в `left`/`right` нет нарочно.
    */
-  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc"]) {
+  for (const mapKey of ["subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "subNested", "yamlNavigator", "useAsMoc"]) {
     if (!isObj(rawOrder[mapKey])) continue;
     for (const k of orderKeys) {
       if (typeof rawOrder[mapKey][k] !== "boolean") continue;

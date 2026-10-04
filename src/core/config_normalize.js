@@ -731,6 +731,26 @@ function normalizeTagVisualMapsV2(cfg) {
 }
 
 /**
+ * `Child tag format` стал выбором каждого Field тегов (10.13.309, его пункт
+ * цикла 135): общий `Nested` переезжает в карту `subNested` один раз (У-17),
+ * общий ключ уходит — иначе он выглядел бы настройкой (У-234).
+ */
+function moveChildTagFormatToFields(cfg) {
+  const behavior = readCfgPath(cfg, "pkm.behavior");
+  if (!isObj(behavior) || !("childTagFormat" in behavior)) return;
+  const order = readCfgPath(cfg, "pkm.fields.order");
+  if (behavior.childTagFormat === "combined" && isObj(order) && isObj(order.types)) {
+    if (!isObj(order.subNested)) order.subNested = {};
+    for (const key of Object.keys(order.types)) {
+      if (order.types[key] !== "tag") continue;
+      const subKey = key + "_sub";
+      if (typeof order.subNested[subKey] !== "boolean") order.subNested[subKey] = true;
+    }
+  }
+  delete behavior.childTagFormat;
+}
+
+/**
  * Ступень 3: клампы, перечисления и структура на путях версии 2, на каждом
  * патче. Испорченное значение заменяется умолчанием движка
  * (`getEngineDefaultsV2`), не схемы (В-7).
@@ -775,6 +795,7 @@ function normalizeConfigV2(cfg) {
 
   /* --- Fields: Order, определения, элементы ---------------------------- */
   map("pkm.fields");
+  moveChildTagFormatToFields(cfg);
   ensureBehaviorModesFromOrder(cfg);
   map("pkm.fields.taxonomy");
   map("pkm.fields.checkboxByValue");
@@ -788,7 +809,6 @@ function normalizeConfigV2(cfg) {
   oneOf("pkm.prefixPriority.parentOrChild", ["subtag-over-tag", "tag-over-subtag"]);
 
   /* --- как Field встаёт в строку --------------------------------------- */
-  oneOf("pkm.behavior.childTagFormat", ["separate", "combined"]);
   writeCfgPath(cfg, "pkm.behavior.cycleEndBehavior",
     normalizeCycleEndBehaviorLegacy(readCfgPath(cfg, "pkm.behavior.cycleEndBehavior")));
   oneOf("pkm.behavior.cursorPolicy", ["text_end", "current_position", "line_end"]);

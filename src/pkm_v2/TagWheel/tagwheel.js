@@ -901,10 +901,8 @@ async function runTagWheel(input, quickAddSettings) {
     }
     var pref = typeof field.prefix === 'string' ? field.prefix : '#'
     var base = buildOutputTokenForFieldValue(field, hit, rules) || composeToken(pref, String(hit.token))
-    var subFmt = rules && rules.behavior && typeof rules.behavior.subtagFormat === 'string'
-      ? String(rules.behavior.subtagFormat).toLowerCase().trim()
-      : 'separate'
-    if (subFmt === 'combined') {
+    var leftForNested = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : []
+    if (__sharedUtils.hasNestedChildField(rules, leftForNested)) {
       var statusRt = statusLineRuntime
       if (!statusRt && globalThis && globalThis.__inlineStatusLineRuntimeUnified) {
         statusRt = globalThis.__inlineStatusLineRuntimeUnified
@@ -1020,16 +1018,13 @@ async function runTagWheel(input, quickAddSettings) {
     var leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : []
     var out = []
     var byId = makeFieldById(leftFields)
-    var subFmtNow = rules && rules.behavior && typeof rules.behavior.subtagFormat === 'string'
-      ? String(rules.behavior.subtagFormat).toLowerCase().trim()
-      : 'separate'
     var i
     for (i = 0; i < leftFields.length; i++) {
       var field = leftFields[i]
       if (!field || !field.id) continue
       var orderKey = resolveOrderKeyForTagField(field)
       if (!orderKey) continue
-      if (subFmtNow === 'combined' && field.dependsOn) continue
+      if (__sharedUtils.isNestedChildField(rules, field)) continue
       var panelKey = resolvePanelKeyForField(field, byId)
       var token = selectedTagTokenForField(field, session, rules, byId)
       if (!token) continue
@@ -1216,9 +1211,6 @@ async function runTagWheel(input, quickAddSettings) {
       }
       return ''
     }
-    var subFmtNow = rules && rules.behavior && typeof rules.behavior.subtagFormat === 'string'
-      ? String(rules.behavior.subtagFormat).toLowerCase().trim()
-      : 'separate'
     var relocationFields = []
     var i
     for (i = 0; i < leftFields.length; i++) {
@@ -1226,7 +1218,7 @@ async function runTagWheel(input, quickAddSettings) {
       if (!field) continue
       var orderKey = resolveOrderKeyForTagField(field)
       if (!orderKey) continue
-      if (subFmtNow === 'combined' && field.dependsOn) continue
+      if (__sharedUtils.isNestedChildField(rules, field)) continue
       var panelKey = resolvePanelKeyForField(field, byId)
       var panelNow = rulesHelpers.resolvePanelForField(orderCfg, panelKey, { defaultPanel: 'right' })
       var mode = rulesHelpers.resolveFieldFreeRoamMode(orderCfg, panelKey)
@@ -1526,9 +1518,8 @@ async function runTagWheel(input, quickAddSettings) {
 
   /** Вставка `Enter`: выбранное всех Field блока в порядке блока. */
   function customTokens(state_) {
-    var combined = String(state_.rules.behavior && state_.rules.behavior.subtagFormat || '') === 'combined'
     return customBlockFields(state_.rules)
-      .filter(function (f) { return !(combined && f.dependsOn) })
+      .filter(function (f) { return !__sharedUtils.isNestedChildField(state_.rules, f) })
       .map(function (f) { return customTokenFor(state_.core, state_.rules, state_.session, f) })
       .filter(Boolean)
   }

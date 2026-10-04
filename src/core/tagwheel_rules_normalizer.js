@@ -67,6 +67,8 @@ function normalizeField(field, modeName, idx, options) {
     showOnAlt: field.showOnAlt === true,
     /* Родительские Values — навигатор (PRD 10.13.269). Тот же перечень. */
     parentIsNavigator: field.parentIsNavigator === true,
+    /* `#parent/child` одним тегом (10.13.309). Тот же перечень. */
+    nestedWithParent: field.nestedWithParent === true,
     kind: typeof field.kind === "string" ? field.kind : "",
     marker: typeof field.marker === "string" ? field.marker : "",
     placeholder: typeof field.placeholder === "string" && field.placeholder ? field.placeholder : field.id,

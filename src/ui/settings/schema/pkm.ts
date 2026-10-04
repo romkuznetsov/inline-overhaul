@@ -42,16 +42,9 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
 },
 {
   id: "writing-rules", tab: "pkm", order: 300, heading: "Writing rules",
-  intro: "The small habits: how nested tags are written, what is left when a line empties, and where the cursor waits afterwards",
-  tip: "Set these once and forget them. Which Fields you have is set under <code>Fields</code>. Here you choose how things land on the line: <code>#parent #child</code> or <code>#parent/child</code>, what is left when you step past the last Value, and where the cursor ends up",
+  intro: "The small habits: what is left when a line empties, and where the cursor waits afterwards",
+  tip: "Set these once and forget them. Which Fields you have is set under <code>Fields</code>, and each Field there chooses <code>#parent #child</code> or <code>#parent/child</code> for itself. Here you choose what is left when you step past the last Value, and where the cursor ends up",
   items: [
-    { kind:"dropdown", id:"child-tag-format", path:"pkm.behavior.childTagFormat", default:"separate",
-      name:"Child tag format", desc:"When a Value sits under another one, whether they are written as two tags or one",
-      searchTerms:["Subtag format"],
-      options:[ {value:"separate",label:"Separate (#doing #review)"},
-                {value:"combined",label:"Nested (#doing/review)"} ],
-      tip:"Say <code>doing</code> has <code>review</code> under it, and you add <code>review</code> to <code>- #doing :: fix bug</code>:\n- <b>Separate</b> — <code>- #doing #review :: fix bug</code>. A search for <code>#doing</code> finds the line\n- <b>Nested</b> — <code>- #doing/review :: fix bug</code>. The pair stays together in Obsidian’s tag list, and a search for <code>#doing</code> still finds the line\nPreviews on the Visual tab follow your choice",
-      seeAlso:{ id:"tag-preview", label:"See it in the tag appearance preview" } },
     { kind:"dropdown", id:"cycle-end-behavior", path:"pkm.behavior.cycleEndBehavior", default:"keep-bullet",
       name:"When a line empties out", desc:"What is left behind when cycling removes the last Value",
       searchTerms:["Line Prefix after end of cycle"],

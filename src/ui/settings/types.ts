@@ -335,6 +335,8 @@ export interface OrderState {
   subOnAlt: Record<string, boolean>;
   /** Родительские Values — навигатор: сужают детей и не пишутся (PRD 10.13.269). */
   subNavigator: Record<string, boolean>;
+  /** Дочерний тег одним тегом с родителем, `#parent/child` (10.13.309). Нет ключа — два тега. */
+  subNested?: Record<string, boolean>;
   /** Навигатор ребёнка — в свойство родителя (PRD 10.13.272). */
   yamlNavigator: Record<string, boolean>;
   /** Link как MOC (тест 3 цикла 98): `false` — `Link the notes you mention` не пишет. Нет ключа — да. */

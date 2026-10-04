@@ -52,6 +52,7 @@ const FIELD_PROP_NAMES = {
   addsParentValue: "CHILD_PARENT_NAME",
   showOnAlt: "CHILD_NAME",
   parentIsNavigator: "CHILD_NAV_NAME",
+  nestedWithParent: "CHILD_FORMAT_NAME",
   yamlKey: "YAML_NAME",
   yamlCardinality: "YAML_KIND_NAME",
   yamlValueRule: "YAML_FORM_NAME",
@@ -100,6 +101,7 @@ const FIELD_PROP_WORDS = {
   addsParentValue: { true: "CHILD_PARENT_ADD", false: "CHILD_PARENT_KEEP" },
   showOnAlt: { true: "CHILD_ALT", false: "CHILD_AFTER_PARENT" },
   parentIsNavigator: { true: "CHILD_NAV_ON", false: "CHILD_NAV_OFF" },
+  nestedWithParent: { true: "CHILD_FORMAT_NESTED", false: "CHILD_FORMAT_SEPARATE" },
 };
 
 /** Значение словами панели, если у этой настройки они свои. */

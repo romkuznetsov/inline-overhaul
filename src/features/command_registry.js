@@ -59,13 +59,6 @@ function getJumpLineShape(cfg, rt) {
   return base;
 }
 
-/**
- * Имена макросов — контракт (`pkm_option_keys.js`), а ключ в конфиге v2 другой:
- * `childTagFormat` вместо `subtagFormat` (PRD 8.1). Переводится здесь.
- */
-function getChildTagFormat(cfg) {
-  return getBehaviorValue(cfg, "childTagFormat", "separate");
-}
 
 /** Идентификаторы и имена команд — один модуль (PRD 7.2, Б-11). */
 const __commandIds = require("./command_ids.js");
@@ -394,7 +387,6 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
           ...customBase(cfgInner, inBlock),
           ...spec[0].settings,
           [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-          [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
         }));
       }
       continue;
@@ -402,12 +394,10 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
     pushDef(strict, "increase", key, incSpec.v2Command, (cfgInner) => ({
       ...incSpec.settings,
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      ...(incSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }),
     }));
     pushDef(strict, "decrease", key, decSpec.v2Command, (cfgInner) => ({
       ...decSpec.settings,
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      ...(decSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }),
     }));
   }
 
@@ -422,7 +412,6 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       /* Command Field — только колесу, правила строки его не видят (4.5). */
       [O.COMMAND_FIELDS]: __commandFieldWheel.wheelInput(cfgInner),
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
   });
   defs.push({
@@ -435,7 +424,6 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       "Start mode override": "right",
       [O.COMMAND_FIELDS]: __commandFieldWheel.wheelInput(cfgInner),
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
   });
   /*
@@ -453,7 +441,6 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
       makeSettings: (cfgInner) => ({
         ...customBase(cfgInner, (o) => (o.custom || []).find((b) => b.id === blockId) || null),
         [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-        [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
       }),
     });
   }

@@ -2110,7 +2110,8 @@ async function run() {
    * форма записи `common.X(...)` была признаком **копии**, а не
    * делегирования, — и запрет на неё стоит выше, сплошным обходом.
    */
-  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.resolveSubtagFormat\(null, rules\)/.test(tagwheelCoreSrc), "tagwheel_core delegates subtag-format resolution to shared runtime common");
+  /* Формат дочернего тега — у Field, правило одно в `shared_utils` (10.13.309). */
+  assertTrue(/__sharedUtils\.isNestedChildField\(rules, field\)/.test(tagwheelCoreSrc), "tagwheel_core asks the shared rule whether a child Field is nested");
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates search-limit resolver to shared runtime common");
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.detectDateUnit\(format, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-unit detection to shared runtime common");
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getDateProgressForStep\(state, fieldId, format\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-progress resolver to shared runtime common");

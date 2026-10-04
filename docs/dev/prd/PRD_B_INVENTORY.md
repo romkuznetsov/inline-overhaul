@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 4 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 10 | 1 |
@@ -58,7 +58,7 @@ python tests/prototype/update_prd.py
 | 50 | `pkm-intro` | Before you start | — | — | `general.help.showCallouts` |
 | 100 | `fields` | Fields | A Field is one thing a line can have: a tag, a link to a note, or an emoji item such as a date. Add the Fields you want, the Values each one offers, and where on the line they go | да | — |
 | 200 | `line-format` | Separators | Two markers split your line. Your own text goes between them, and the Fields sit before and after. To choose which side a Field goes on, drag it across the line under <code>Fields</code> | да | — |
-| 300 | `writing-rules` | Writing rules | The small habits: how nested tags are written, what is left when a line empties, and where the cursor waits afterwards | да | — |
+| 300 | `writing-rules` | Writing rules | The small habits: what is left when a line empties, and where the cursor waits afterwards | да | — |
 | 350 | `tagwheel-behavior` | tagWheel behavior | How tagWheel behaves: which Field it opens on, what happens to the other Values while it is open, and where the arrow keys take you. Its look is set on the Visual tab | да | — |
 | 400 | `placement-modes` | Placement modes | Each Field in the Left or Right Block has a <code>Prefix behavior</code> mode, either <code>Strict</code> or <code>Insert only</code>. Here you fine-tune how these modes work | да | — |
 | 500 | `prefix-priority` | Prefix priority | Some Values change the start of the line, like a checkbox from Status or an exclamation mark from Priority. When two of them want it at once, these rules pick the winner | да | — |
@@ -524,16 +524,10 @@ _Tip:_ Pick these once and leave them. With <code>::</code> on both sides a line
 
 #### Writing rules — `writing-rules` (вкладка `pkm`)
 
-_Intro:_ The small habits: how nested tags are written, what is left when a line empties, and where the cursor waits afterwards
+_Intro:_ The small habits: what is left when a line empties, and where the cursor waits afterwards
 
-_Tip:_ Set these once and forget them. Which Fields you have is set under <code>Fields</code>. Here you choose how things land on the line: <code>#parent #child</code> or <code>#parent/child</code>, what is left when you step past the last Value, and where the cursor ends up
+_Tip:_ Set these once and forget them. Which Fields you have is set under <code>Fields</code>, and each Field there chooses <code>#parent #child</code> or <code>#parent/child</code> for itself. Here you choose what is left when you step past the last Value, and where the cursor ends up
 
-- **Child tag format** — `child-tag-format`, `dropdown`, path `pkm.behavior.childTagFormat`, default `separate`
-  - desc: When a Value sits under another one, whether they are written as two tags or one
-  - tip: Say <code>doing</code> has <code>review</code> under it, and you add <code>review</code> to <code>- #doing :: fix bug</code>: ⏎ - <b>Separate</b> — <code>- #doing #review :: fix bug</code>. A search for <code>#doing</code> finds the line ⏎ - <b>Nested</b> — <code>- #doing/review :: fix bug</code>. The pair stays together in Obsidian’s tag list, and a search for <code>#doing</code> still finds the line ⏎ Previews on the Visual tab follow your choice
-  - варианты: `separate` Separate (#doing #review) · `combined` Nested (#doing/review)
-  - см. также: `tag-preview` — See it in the tag appearance preview
-  - старые названия для поиска: «Subtag format»
 - **When a line empties out** — `cycle-end-behavior`, `dropdown`, path `pkm.behavior.cycleEndBehavior`, default `keep-bullet`
   - desc: What is left behind when cycling removes the last Value
   - tip: When stepping takes off the last tag and nothing else is left on the line: ⏎ - <b>Keep bullet</b> — <code>- #done ::</code> → <code>- </code>, an empty list item ready for typing ⏎ - <b>Clear line</b> — <code>- #done ::</code> → a blank line ⏎ Your own text always stays: <code>- #done :: call Anna</code> → <code>- call Anna</code>
@@ -1296,7 +1290,6 @@ _Tip:_ Each row is one tag. You set the bubble color, the text color, and whethe
 | `navigation.navigateInline.enabled` | toggle | `true` |
 | `navigation.navigateInline.onBoundary` | dropdown | `wrap` |
 | `navigation.navigateInline.stepMode` | dropdown | `word` |
-| `pkm.behavior.childTagFormat` | dropdown | `separate` |
 | `pkm.behavior.cursorPolicy` | dropdown | `text_end` |
 | `pkm.behavior.cycleEndBehavior` | dropdown | `keep-bullet` |
 | `pkm.behavior.doneMarker.panel` | dropdown | `right` |

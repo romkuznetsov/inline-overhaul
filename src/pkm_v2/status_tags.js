@@ -331,11 +331,12 @@ function reorderLineMixedByOrder(line, rules, orderCfg) {
 }
 
 function applyCombinedSubtagsFromState(line, rules, orderCfg, state, fields) {
-  if (String(rules?.behavior?.subtagFormat || "").toLowerCase() !== "combined") return line;
   const runtime = getStatusLineRuntimeUnified();
   const allFields = Array.isArray(fields)
     ? fields.filter((f) => f && typeof f === "object")
     : Object.values(fields || {}).filter((f) => f && typeof f === "object");
+  /* Выбор `Nested` — у каждого Field (10.13.309). */
+  if (!__sharedUtils.hasNestedChildField(rules, allFields)) return line;
   const pairs = runtime.buildCombinedSelectionSet({
     fields: allFields,
     state,

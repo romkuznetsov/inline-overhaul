@@ -441,6 +441,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return !!(orderState.subNavigator && orderState.subNavigator[key] === true);
   };
 
+  /** `Child tag format` = `Nested` (10.13.309); ключ — дочерний Field. */
+  const getSubNested = (subKey: string): boolean => {
+    const key = String(subKey || "").trim();
+    return !!key && !!(orderState.subNested && orderState.subNested[key] === true);
+  };
+
   /** Навигатор ребёнка — в свойство родителя (`YAML of navigator values`, PRD 10.13.272). */
   const getYamlNavigator = (subKey: string): boolean => {
     const key = String(subKey || "").trim();
@@ -466,7 +472,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   /** Карты Order по ключу Field: одно перечисление на удаление и надгробия (У-4). */
   const ORDER_MAPS = [
     "lead", "labels", "strictNames", "types", "active", "freeRoam", "enabled",
-    "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "yamlNavigator", "useAsMoc", "propertiesByField",
+    "subWithoutParent", "subAddsParent", "subOnAlt", "subNavigator", "subNested", "yamlNavigator", "useAsMoc", "propertiesByField",
   ] as const;
 
   /** Запись Order с надгробиями: исчезнувший ключ уходит `null`, иначе слияние его воскресит. */
@@ -801,6 +807,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       subAddsParent: { ...(liveOrder.subAddsParent || {}) },
       subOnAlt: { ...(liveOrder.subOnAlt || {}) },
       subNavigator: { ...(liveOrder.subNavigator || {}) },
+      subNested: { ...(liveOrder.subNested || {}) },
       yamlNavigator: { ...(liveOrder.yamlNavigator || {}) },
       useAsMoc: { ...(liveOrder.useAsMoc || {}) },
       propertiesByField: { ...(liveOrder.propertiesByField || {}) },
@@ -1066,6 +1073,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.subNavigator = { ...(orderState.subNavigator || {}), [subKey]: !!on };
     setOrderPatch({ subNavigator: { [subKey]: !!on } },
       "pkm:behavior:order:sub-navigator:" + subKey);
+    return { ok: true };
+  };
+
+  const setSubNested = (subKey: string, on: boolean): WriteResult => {
+    orderState.subNested = { ...(orderState.subNested || {}), [subKey]: !!on };
+    setOrderPatch({ subNested: { [subKey]: !!on } }, "pkm:behavior:order:sub-nested:" + subKey);
     return { ok: true };
   };
 
@@ -2322,6 +2335,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     getSubMode,
     getSubAddsParent,
     getSubNavigator,
+    getSubNested,
     getYamlNavigator,
     inferSubKey,
     ensureAllKeys,
@@ -2362,6 +2376,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setSubMode,
     setSubAddsParent,
     setSubNavigator,
+    setSubNested,
     setYamlNavigator,
     setFreeRoam,
     setActive,

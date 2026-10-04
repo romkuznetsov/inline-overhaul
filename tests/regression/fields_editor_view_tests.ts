@@ -79,6 +79,8 @@ function normalizePkmOrder(raw: Any): Any {
     subOnAlt: map(o.subOnAlt),
     /* Четвёртая — `Parent is Navigator` (PRD 10.13.269), по той же причине. */
     subNavigator: map(o.subNavigator),
+    /* `Child tag format` (PRD 10.13.309), по той же причине. */
+    subNested: map(o.subNested),
     /* Пятая — `YAML of navigator values` (PRD 10.13.272), по той же причине. */
     yamlNavigator: map(o.yamlNavigator),
     /* Шестая — `Use as MOC` у Link (тест 3 цикла 98), по той же причине. */
@@ -1852,6 +1854,27 @@ function heightBtn(host: StubNode): StubNode {
     "после перерисовки показывает записанное");
   assert.ok(!rowNamed("Parent Value"), "при навигаторе ряда про родителя нет");
   ok("`Parent is Navigator`: недоступен при `Hide`, пишет свой ключ и прячет `Parent Value`");
+
+  /* `Child tag format` (PRD 10.13.309, его пункт цикла 135): у Field тегов, над предусловием. */
+  {
+    const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
+    const at = names.indexOf("Child tag format");
+    assert.ok(at !== -1, "ряда `Child tag format` в редакторе Field нет");
+    assert.ok(at < names.indexOf("Prerequisite Field"), "ряд стоит не над предусловием: " + names.join(" | "));
+    const fmt = all(rowNamed("Child tag format") as StubNode, "io-select")[0] as StubNode;
+    assert.equal(fmt.value, "separate", "умолчание — раздельно");
+    v.writes.length = 0;
+    fmt.value = "nested";
+    fmt.dispatch("change");
+    assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:sub-nested:status_sub"],
+      "своя запись, и она одна");
+    assert.equal((v.writes[0] as Write).patch["pkm"]["fields"]["order"]["subNested"]["status_sub"], true,
+      "ключ уехал в настройки");
+    v.draw();
+    assert.equal((all(rowNamed("Child tag format") as StubNode, "io-select")[0] as StubNode).value, "nested",
+      "после перерисовки показывает записанное");
+    ok("`Child tag format`: над предусловием, пишет `subNested` дочернего Field");
+  }
 
   /* `YAML of navigator values` (PRD 10.13.272): ряд есть только при навигаторе. */
   const yamlNav = all(rowNamed("YAML of navigator values") as StubNode, "io-select")[0] as StubNode;

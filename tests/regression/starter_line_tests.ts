@@ -114,6 +114,27 @@ async function main(): Promise<void> {
   assert.equal(again.line, "- #todo || x", "S13: написанное Nested не узнаётся вторым нажатием");
   passed++;
   console.log("  ok S13 Nested: Value с решёткой не удваивает её");
+  /* 10.13.309, его пункт цикла 135: `Child tag format` у каждого Field. Общий
+     ключ переехал в `subNested` дочернего Field и ушёл из файла (У-17, У-234). */
+  assert.equal(nestedCfg.pkm.behavior.childTagFormat, undefined, "общий ключ остался в файле");
+  assert.equal(nestedCfg.pkm.fields.order.subNested.Status_sub, true, "общий Nested не переехал в Field");
+  const perField = JSON.parse(JSON.stringify(nested));
+  delete perField.pkm.behavior.childTagFormat;
+  for (const [on, want] of [[true, "- #todo/kitchen || x"], [false, "- #todo #kitchen || x"]] as const) {
+    perField.pkm.fields.order.subNested = { Status_sub: on };
+    const c = normalize.migrateConfig(perField);
+    const cmd = await bench.runCommandById(c, "status-sub-next", "- #todo || x", 12);
+    assert.equal(cmd.line, want, "10.13.309 команда, Status_sub nested=" + on);
+    /* Полоса стенда остаётся в строке; живая строка до неё — то, что пишет колесо
+       (сверено с прежней сборкой при общем `Nested`: строки равны). */
+    const tw = await bench.runTagWheel(c, "left", "- #todo || x", 12, ["ArrowRight", "ArrowDown", "Enter"]);
+    assert.ok(tw.opened, "панель не открылась");
+    assert.equal(String(tw.line).split(" ==")[0], on ? "- #todo/kitchen" : "- #todo",
+      "10.13.309 tagWheel, Status_sub nested=" + on + ": " + tw.line);
+    assert.ok(String(tw.line).includes("#kitchen"), "контроль: дочернее Value выбрано");
+    passed += 2;
+  }
+  console.log("  ok 10.13.309 Child tag format у Field: команда и tagWheel");
   /* K2 (`В-242`): склейка строк с полями сливает поля в блоки, одинаковое поле —
      побеждает первая строка; без полей во второй — склейка обычная (null). */
   const sd = require("../../src/features/smart_delete_engine.js");

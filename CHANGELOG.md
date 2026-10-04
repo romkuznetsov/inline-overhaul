@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
+
 ## 0.15.0
 
 _2026-10-04 · [all changes since 0.14.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.14.0...0.15.0)_

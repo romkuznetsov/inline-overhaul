@@ -1204,16 +1204,13 @@ function applyMinimalSelectionNormalization(options) {
   const byId = makeFieldById(leftFields);
   const leftTokens = [];
   const rightTokens = [];
-  const subFmtNow = stateRules && stateRules.behavior && typeof stateRules.behavior.subtagFormat === "string"
-    ? String(stateRules.behavior.subtagFormat).toLowerCase().trim()
-    : "separate";
   let i;
   for (i = 0; i < leftFields.length; i++) {
     const field = leftFields[i];
     if (!field || !field.id) continue;
     const orderKey = resolveOrderKeyForField(field);
     if (!orderKey) continue;
-    if (subFmtNow === "combined" && field.dependsOn) continue;
+    if (__sharedUtils.isNestedChildField(stateRules, field)) continue;
     const panelKey = resolvePanelKeyForField(field, byId);
     const mode = resolveFieldFreeRoamMode(orderCfg, panelKey);
     if (mode !== "minimal") continue;

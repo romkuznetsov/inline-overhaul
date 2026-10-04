@@ -247,10 +247,6 @@ function getKeepUnknownTags(rules) {
   return il.keepUnknownTags !== false
 }
 
-/* Правило — в общем модуле, без своей копии (У-32, Д-4). */
-function getSubtagFormat(rules) {
-  return ensureStatusRuntimeCommonFns().resolveSubtagFormat(null, rules)
-}
 
 /* Пара «родитель и ребёнок» объявлена один раз — в общем модуле (У-150). */
 function splitCombinedTagToken(tag) {
@@ -2063,6 +2059,7 @@ function buildTags(mode, state, rules, parsedLine) {
   var projectFilters = resolveProjectFilterKeys(isObj(rules && rules.projects) ? rules.projects : {}, rules)
   var categoryFieldId = String(projectFilters[0] || canonical.category || '')
   var subcategoryFieldId = String(projectFilters[1] || canonical.category_sub || '')
+  var nestedBySubKey = {}
   var i
   for (i = 0; i < mode.fields.length; i++) {
     var field = mode.fields[i]
@@ -2093,6 +2090,9 @@ function buildTags(mode, state, rules, parsedLine) {
     if (resolveSourceKind(field) === 'wikilinks') selected.otherManaged.push(outToken)
     if (key) selected.byOrderKey[key] = outToken
     else selected.otherManaged.push(outToken)
+    /* `Nested` — у каждого дочернего Field (10.13.309). */
+    var nestedHere = __sharedUtils.isNestedChildField(rules, field)
+    if (key && nestedHere) nestedBySubKey[key] = true
 
     var dependsOnId = String(field.dependsOn || '').trim()
     if (dependsOnId && outToken) {
@@ -2113,6 +2113,7 @@ function buildTags(mode, state, rules, parsedLine) {
       if (parentKey) {
         var subKey = parentKey + '_sub'
         if (!subTokenByParentOrderKey[subKey]) subTokenByParentOrderKey[subKey] = outToken
+        if (nestedHere) nestedBySubKey[subKey] = true
       }
     }
   }
@@ -2120,7 +2121,6 @@ function buildTags(mode, state, rules, parsedLine) {
   var tail = getUnmanagedTailTokens(parsedLine, mode, rules, state)
   var techOrder = getTechOrder(rules)
   var keepUnknown = getKeepUnknownTags(rules)
-  var subtagFormat = getSubtagFormat(rules)
   var hasOtherSlot = techOrder.indexOf('otherTags') !== -1
 
   function pushUniq(v) {
@@ -2138,7 +2138,7 @@ function buildTags(mode, state, rules, parsedLine) {
     } else {
       var parentTok = selected.byOrderKey[slot]
       var subTok = selected.byOrderKey[slot + '_sub'] || subTokenByParentOrderKey[slot + '_sub']
-      if (subtagFormat === 'combined' && parentTok && subTok) {
+      if (nestedBySubKey[slot + '_sub'] && parentTok && subTok) {
         pushUniq(parentTok + '/' + String(subTok).replace(/^#/, ''))
       } else {
         pushUniq(parentTok)
@@ -2153,7 +2153,7 @@ function buildTags(mode, state, rules, parsedLine) {
     for (i = 0; i < tail.length; i++) pushUniq(tail[i])
   }
 
-  if (subtagFormat === 'combined') {
+  if (__sharedUtils.hasNestedChildField(rules, mode.fields)) {
     var statusLineRuntime = getStatusLineRuntimeUnified()
     if (statusLineRuntime
       && typeof statusLineRuntime.buildCombinedSelectionSet === 'function'

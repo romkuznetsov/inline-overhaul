@@ -127,6 +127,12 @@ const CHILD_NAV_OPTIONS = [
   { value: "on", name: "CHILD_NAV_ON" },
 ] as const;
 
+/** `#parent #child` или `#parent/child` — у каждого Field тегов (10.13.309). */
+const CHILD_FORMAT_OPTIONS = [
+  { value: "separate", name: "CHILD_FORMAT_SEPARATE" },
+  { value: "nested", name: "CHILD_FORMAT_NESTED" },
+] as const;
+
 /** `Use as MOC` у Link (тест 3 цикла 98). */
 const MOC_OPTIONS = [
   { value: "yes", name: "MOC_YES" },
@@ -988,6 +994,31 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
         if (!o.enabled) return;
         if ((parentPick.value === "add") === adds) return;
         o.model.setSubAddsParent(row.subKey, parentPick.value === "add");
+        o.redraw();
+      }) as never);
+    }
+
+    /* Формат дочернего тега — над предусловием (его пункт цикла 135); `#a/b` пишут только теги. */
+    if (row.kind === "tag") {
+      const nested = o.model.getSubNested(row.subKey);
+      const fmtRow = itemRow(behaviorSec, {
+        name: say("CHILD_FORMAT_NAME"),
+        desc: say("CHILD_FORMAT_DESC"),
+        tip: say("CHILD_FORMAT_TIP"),
+        tipId: "io-field-child-format-tip",
+        showTips: o.showTips, showIds: o.showIds,
+      });
+      closers.push(fmtRow.closeTip);
+      const fmtPick = selectInput(fmtRow.control, "io-select", {
+        options: labelled(say, CHILD_FORMAT_OPTIONS),
+        value: nested ? "nested" : "separate",
+        label: say("CHILD_FORMAT_OF", row.strictName),
+      });
+      fmtPick.disabled = !o.enabled;
+      fmtPick.addEventListener("change", (() => {
+        if (!o.enabled) return;
+        if ((fmtPick.value === "nested") === nested) return;
+        o.model.setSubNested(row.subKey, fmtPick.value === "nested");
         o.redraw();
       }) as never);
     }

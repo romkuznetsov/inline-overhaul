@@ -18,7 +18,6 @@ const KEYS = __pkmOptionKeys.KEYS;
 function runtimeSettingsFromConfig(cfg) {
   return {
     [KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
-    [KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
     [KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
     [KEYS.ORDER_CONFIG]: __pkmOrderConfig.serializePkmOrderForMacro(cfg),
     [KEYS.DATE_RUNTIME_CONFIG]: __pkmOrderConfig.serializeDateRuntimeConfigForMacro(cfg),

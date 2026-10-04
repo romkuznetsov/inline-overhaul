@@ -185,7 +185,6 @@ const TAG_PATHS = [
   "visual.tags.bubbleHeightPct",
   "visual.tags.emptyBubblePct",
   "visual.tags.cornersPct",
-  "pkm.behavior.childTagFormat",
   "pkm.lineFormat.separator1",
   "pkm.lineFormat.separator2",
   /* Ветка `pkm.fields` целиком: `previewFields` читает её (1.4.1.1.3), листья не перечислить. */
@@ -222,12 +221,13 @@ export function bubble(parent: El, v: PreviewValue, override?: string): El {
   return b;
 }
 
-/** Value с подзначением: одним пузырём `#parent/child` или двумя — по `Child tag format`. */
+/** Value с подзначением: одним пузырём `#parent/child` или двумя — по `Child tag format` этого Field (10.13.309). */
 function drawTagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
   const { parent: p, child } = valuePair(f);
   if (!p) return;
   if (!child) { bubble(parent, p); return; }
-  if (ctx.get("pkm.behavior.childTagFormat") === "combined") {
+  const nested = ctx.get("pkm.fields.order.subNested") as Record<string, unknown> | undefined;
+  if (nested && nested[f.id + "_sub"] === true) {
     bubble(parent, child, "#" + p.token + "/" + child.token);
   } else {
     bubble(parent, p);

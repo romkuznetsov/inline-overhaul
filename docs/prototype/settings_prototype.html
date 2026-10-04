@@ -2601,16 +2601,9 @@ const SCHEMA = [
 },
 {
   id: "writing-rules", tab: "pkm", order: 300, heading: "Writing rules",
-  intro: "The small habits: how nested tags are written, what is left when a line empties, and where the cursor waits afterwards",
-  tip: "Set these once and forget them. Which Fields you have is set under <code>Fields</code>. Here you choose how things land on the line: <code>#parent #child</code> or <code>#parent/child</code>, what is left when you step past the last Value, and where the cursor ends up",
+  intro: "The small habits: what is left when a line empties, and where the cursor waits afterwards",
+  tip: "Set these once and forget them. Which Fields you have is set under <code>Fields</code>, and each Field there chooses <code>#parent #child</code> or <code>#parent/child</code> for itself. Here you choose what is left when you step past the last Value, and where the cursor ends up",
   items: [
-    { kind:"dropdown", id:"child-tag-format", path:"pkm.behavior.childTagFormat", default:"separate",
-      name:"Child tag format", desc:"When a Value sits under another one, whether they are written as two tags or one",
-      searchTerms:["Subtag format"],
-      options:[ {value:"separate",label:"Separate (#doing #review)"},
-                {value:"combined",label:"Nested (#doing/review)"} ],
-      tip:"Say <code>doing</code> has <code>review</code> under it, and you add <code>review</code> to <code>- #doing :: fix bug</code>:\n- <b>Separate</b> — <code>- #doing #review :: fix bug</code>. A search for <code>#doing</code> finds the line\n- <b>Nested</b> — <code>- #doing/review :: fix bug</code>. The pair stays together in Obsidian’s tag list, and a search for <code>#doing</code> still finds the line\nPreviews on the Visual tab follow your choice",
-      seeAlso:{ id:"tag-preview", label:"See it in the tag appearance preview" } },
     { kind:"dropdown", id:"cycle-end-behavior", path:"pkm.behavior.cycleEndBehavior", default:"keep-bullet",
       name:"When a line empties out", desc:"What is left behind when cycling removes the last Value",
       searchTerms:["Line Prefix after end of cycle"],
@@ -5097,7 +5090,7 @@ function renderTagField(parent, f) {
   const [p, c] = pickPair(f);
   if (!p) { el("span", "io-bubble io-bubble--empty", parent, " "); return; }
   if (!c) { bubble(parent, p); return; }
-  if (val("pkm.behavior.childTagFormat") === "combined") bubble(parent, c, "#" + p.token + "/" + c.token);
+  if (f.childNested) bubble(parent, c, "#" + p.token + "/" + c.token);
   else { bubble(parent, p); bubble(parent, c); }
 }
 function renderFieldToken(parent, f) {
@@ -5344,7 +5337,6 @@ function renderTagPreview(host) {
   };
   draw();
   previewRefreshers.push(draw);
-  bind("pkm.behavior.childTagFormat", draw);
 }
 
 /* --- level bars ---------------------------------------------------- */
@@ -7049,10 +7041,24 @@ function placementRows(host, f) {
       tip:"Use it when the parent Values are only groups, not Values of their own\n- <b>On</b> — in tagWheel a parent only narrows the child list, and only the child is written: <code>- call Anna</code> → <code>- #work/report :: call Anna</code>. The parent command skips parents that have children: <code>- call Anna</code> → <code>- #home :: call Anna</code>\n- <b>Off</b> — the parent is an ordinary Value: the parent command writes <code>#work</code>\nA child on the line counts as its parent for Fields and Smart Rules that wait for it. Not available with <b>Hide</b>",
       options:[{ value:"off", label:"Off" }, { value:"on", label:"On" }] },
       f.childNav ? "on" : "off", v => { f.childNav = v === "on"; });
+    /* Формат дочернего тега — у каждого Field (10.13.309, его пункт цикла 135:
+       «настройку… раздельно или слитно… над io-field-prereq»). Прежде одна
+       на все Fields в `Writing rules`. */
+    row({ name:"Child tag format", key:"child-format",
+      desc:"Whether a child Value is written as its own tag or joined to its parent",
+      tip:CHILD_FORMAT_TIP,
+      options:[
+        { value:"separate", label:"Separate (#doing #review)" },
+        { value:"nested",   label:"Nested (#doing/review)" }
+      ] },
+      f.childNested ? "nested" : "separate", v => { f.childNested = v === "nested"; });
   }
 
   prerequisiteRows(host, f, row);
 }
+
+/* Подсказка `Child tag format` редактора Field; копия — `CHILD_FORMAT_TIP` в `texts_blocks.ts`. */
+const CHILD_FORMAT_TIP = "Say <code>doing</code> has <code>review</code> under it, and you add <code>review</code> to <code>- #doing :: fix bug</code>:\n- <b>Separate</b> — <code>- #doing #review :: fix bug</code>. A search for <code>#doing</code> finds the line\n- <b>Nested</b> — <code>- #doing/review :: fix bug</code>. The pair stays together in Obsidian’s tag list, and a search for <code>#doing</code> still finds the line\nEach Field keeps its own choice. Previews on the Visual tab follow it";
 
 /*
  * Предусловие Field (10.13.4). Field ждёт другой Field: пока у того в
