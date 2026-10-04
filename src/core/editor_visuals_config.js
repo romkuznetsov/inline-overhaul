@@ -52,6 +52,8 @@ function getTagwheelHeaderColorsFromConfig(cfg) {
     showPrefix: wheel.showMarkers !== false,
     /* Имена всех Field полужирным, не только активного (2026-10-01). */
     boldFieldNames: wheel.boldFieldNames === true,
+    /* `Highlight the tagWheel line` = off гасит только фон: метка `==…==` стоит всегда (В-287). */
+    highlight: wheel.highlightLine !== false,
   };
 }
 
@@ -1530,7 +1532,7 @@ function tagwheelPanelPaints(colors) {
   if (!colors) return false;
   return Boolean(colors.fillColor) || Boolean(colors.defaultTextColor)
     || Boolean(colors.activeTextColor) || Boolean(colors.chosenValueColor)
-    || colors.boldFieldNames === true || colors.showPrefix === false;
+    || colors.boldFieldNames === true || colors.showPrefix === false || colors.highlight === false;
 }
 
 /**
@@ -1580,7 +1582,7 @@ function tagwheelPanelSpans(text, colors, placeholders) {
     kind: "line",
     start: seg.start,
     end: seg.end,
-    style: fillColor ? "--io-twfill: " + fillColor + ";" : "",
+    style: colors.highlight === false ? "--io-twfill: transparent;" : fillColor ? "--io-twfill: " + fillColor + ";" : "",
   });
   /* Цвет неактивных — на весь отрезок: резать на ячейки — второй разбор панели (У-4). */
   if (textColor) {

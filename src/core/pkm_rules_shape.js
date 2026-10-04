@@ -93,15 +93,14 @@ function buildRulesShapeFromConfig(cfg, blockId) {
   };
 
   /*
-   * Блок `ui`: подсветка строки при открытом TagWheel (10.13.6) —
-   * `rules.ui.activePanel.useHighlight` читает `renderControlLine`.
+   * Блок `ui`. Подсветку строки (10.13.6) гасит слой редактора, а не правила:
+   * метка `==…==` у полосы стоит всегда (В-287).
    * `activePanel.showMarkers` — обёртки `{TW} … {/TW}`, не `visual.tagWheel.showMarkers`:
    * имена совпали случайно, ключ остаётся невыставленным.
    */
   const ui = cloneJson(slice(behaviorCfg, "ui"));
   const activePanel = isObj(ui.activePanel) ? cloneJson(ui.activePanel) : {};
   activePanel.enabled = true;
-  activePanel.useHighlight = wheel.highlightLine === true;
   /*
    * Значения противоположного Block при открытой панели (10.13.87): читает
    * `renderControlLine`, умолчание `hide`.

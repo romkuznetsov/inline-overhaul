@@ -923,6 +923,13 @@ const filled = (el: Any): boolean =>
     "заливка объявлена ровно на панели: " + LINE.slice(lineSpan.start, lineSpan.end));
   assert.ok(String(lineSpan.style).includes("--io-twfill: #f0e17f"),
     "цвет заливки обязан приехать на строке: " + String(lineSpan.style));
+  /* В-287: `Highlight the tagWheel line` = off — та же разметка панели, фон прозрачный. */
+  const unlit = spans({ fillColor: "#f0e17f", showMarkers: true, highlightLine: false });
+  const unlitLine = unlit.find((x: Any) => x.kind === "line");
+  assert.ok(unlitLine, "без подсветки панель всё равно узнаёт себя");
+  assert.equal(String(unlitLine.style), "--io-twfill: transparent;", "без подсветки фон прозрачный: " + unlitLine.style);
+  assert.ok(spans({ showMarkers: true, highlightLine: false }).some((x: Any) => x.kind === "line"),
+    "без цветов и без подсветки строка панели всё равно помечена: иначе фон рисует Obsidian");
 
   /*
    * И ни один отрезок не рисует фон сам: вернуть `background-color` в `mark`

@@ -2179,8 +2179,8 @@ function runPanelHighlightSuite(core, baseRules) {
 
   var offUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: {} } }).ui
   var onUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: { highlightLine: true } } }).ui
-  assertEq(offUi.activePanel.useHighlight, false, 'выключенная настройка не включает подсветку')
-  assertEq(onUi.activePanel.useHighlight, true, 'включённая настройка доезжает до документа правил')
+  /* В-287: тумблер в правила не едет — фон гасит слой редактора, метка `==` у полосы всегда. */
+  assertEq(offUi.activePanel.useHighlight, undefined, 'тумблер подсветки не доезжает до правил')
   assertEq(onUi.activePanel.enabled, true, 'блок панели включён, иначе движок не смотрит на него вовсе')
 
   var markersUi = builder.buildRulesShapeFromConfig({
@@ -2220,8 +2220,8 @@ function runPanelHighlightSuite(core, baseRules) {
     'обёрнута полоса, а не пустота: ' + painted)
 
   rules.ui = offUi
-  assertEq(core.renderControlLine(rules, state, parsed), plain,
-    'выключенная настройка возвращает ту же строку, что и отсутствие ветки')
+  assertEq(core.renderControlLine(rules, state, parsed), painted,
+    'В-287: при выключенной подсветке полоса та же, с меткой `==`: иначе слои редактора читают её тегами Block')
 }
 
 /**

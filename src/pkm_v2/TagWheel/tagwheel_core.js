@@ -2461,12 +2461,12 @@ function renderPanelStrip(rules, state, labels) {
   var panelCfg = rules.ui && rules.ui.activePanel ? rules.ui.activePanel : null
   var keepOpposite = false
   if (panelCfg && panelCfg.enabled !== false) {
-    var useHighlight = panelCfg.useHighlight === true
     var showMarkers = panelCfg.showMarkers === true
     var pfx = typeof panelCfg.prefix === 'string' ? panelCfg.prefix : '{TW}'
     var sfx = typeof panelCfg.suffix === 'string' ? panelCfg.suffix : '{/TW}'
     if (showMarkers) head = pfx + ' ' + head + ' ' + sfx
-    if (useHighlight) head = '==' + head + '=='
+    /* `==…==` — метка полосы для слоёв редактора; без неё полоса читалась тегами Block (В-287). Фон гасит слой. */
+    head = '==' + head + '=='
     keepOpposite = panelCfg.keepOppositeBlock === true
   }
   return { head: head, shownTokens: shownTokens, keepOpposite: keepOpposite }

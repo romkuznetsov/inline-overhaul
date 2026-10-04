@@ -904,7 +904,8 @@ async function run() {
   /* 10.13.6: подсветка строки приходит настройкой, а ветка `ui` больше не
      отдаётся пустой. `showMarkers` внутри `activePanel` — обёртки `{TW}`, а не
      тумблер списка, и записи ему здесь быть не должно (Н4). */
-  assertTrue(/activePanel\.useHighlight = wheel\.highlightLine === true;/.test(rulesShapeSrc), "rules shape maps visual.tagWheel.highlightLine into the rules for engines");
+  /* В-287: подсветку гасит слой редактора, в правила она не едет — метка `==` у полосы стоит всегда. */
+  assertTrue(!/useHighlight/.test(rulesShapeSrc), "rules shape no longer carries the highlight flag: the editor layer owns it");
   /*
    * 1.3.1: правило имени Field объявлено в двух файлах, и они обязаны
    * совпадать буквой в букву. Разошлись — переименование молча откатывается,

@@ -238,6 +238,7 @@ const PREPARE = {
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
+  "tagwheel-no-highlight"(vault) { PREPARE["shift-enter"](vault); },
   "move-heading"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-selection"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
@@ -786,6 +787,43 @@ const SCENARIOS = {
    * закрытия ставит её в конец. Каретка до панели — за словом `банк`; после
    * `Esc` и после `Enter` без выбора она обязана стоять там же.
    */
+  /* В-287: полоса tagWheel при выключенной подсветке строки — что видно на экране, а не что в документе. */
+  async "tagwheel-no-highlight"(win) {
+    const line = "- [ ] #todo #high :: Buy groceries";
+    const run = async (hl) => {
+      await win.evaluate(async ({ line, hl }) => {
+        const p = window.app.plugins.plugins["inline-overhaul"];
+        p.setConfigPatch({ visual: { tagWheel: { highlightLine: hl } } }, "bench:tagwheel-no-highlight");
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 600));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(line);
+        ed.setCursor({ line: 0, ch: line.length });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { line, hl });
+      if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+      await win.waitForTimeout(800);
+      const got = await win.evaluate(() => {
+        const ed = window.app.workspace.activeEditor.editor;
+        const cm = document.querySelector(".workspace-leaf.mod-active .cm-content .cm-line");
+        return { doc: ed.getLine(0), screen: cm ? cm.innerText : "", open: Boolean(window.__tagWheelState && window.__tagWheelState.active) };
+      });
+      if (process.env.IO_SHOT) {
+        const n = await win.$(".workspace-leaf.mod-active .cm-content .cm-line");
+        if (n) await n.screenshot({ path: process.env.IO_SHOT.replace(/\.png$/, "-" + (hl ? "on" : "off") + ".png") });
+      }
+      await win.keyboard.press("Escape");
+      await win.waitForTimeout(300);
+      return got;
+    };
+    for (const hl of [true, false]) {
+      const r = await run(hl);
+      console.log("подсветка " + (hl ? "on " : "off") + " | open " + r.open + " | документ " + JSON.stringify(r.doc) + " | экран " + JSON.stringify(r.screen));
+    }
+    return true;
+  },
+
   async "tagwheel-caret"(win) {
     const line = "- позвонить в банк, завтра в налоговую";
     const at = line.indexOf(",");
