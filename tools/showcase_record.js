@@ -448,8 +448,9 @@ async function run(win, steps, cut, log) {
       }
       /* Заметка возвращается к исходной под панелью: на экране отката не видно, после выхода из
          настроек — свежая заметка (его слово 2026-10-04: откат на камеру «сбивает с толку»). */
-      const nc = steps.slice(si + 1).find(([o]) => o === "caret");
-      await win.evaluate(async ([files, line]) => {
+      const nc = steps.slice(si + 1).find(([o]) => o === "caret" || o === "select");
+      await win.evaluate(async ([files, at]) => {
+        const [line, part] = at.split(" @ ");
         const a = window.app;
         /* Открытую заметку — через редактор: несохранённая правка редактора перебивает запись в файл. */
         const ed = a.workspace.activeEditor;
@@ -461,7 +462,8 @@ async function run(win, steps, cut, log) {
         /* Каретка — туда, где её ждёт следующий показ: иначе мелькает первая строка. */
         const e = a.workspace.activeEditor && a.workspace.activeEditor.editor;
         const k = e && line ? e.getValue().split("\n").lastIndexOf(line) : -1;
-        if (k >= 0) e.setCursor({ line: k, ch: line.length });
+        const ch = part === undefined ? line.length : line.indexOf(part);
+        if (k >= 0 && ch >= 0) e.setCursor({ line: k, ch });
       }, [notes(), nc ? nc[1] : ""]);
     } else if (op === "fill") {
       /* Поле своего блока без имени строки — по подсказке внутри поля. */
