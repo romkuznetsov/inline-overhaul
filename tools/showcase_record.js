@@ -33,9 +33,13 @@
  *   set <контрол>[ #N] = <значение>  указатель к контролу (#N — N-й с тем же именем), выбор (список, переключатель on/off,
  *                            кнопки-варианты, текстовое поле, ползунок числом, цвет #rrggbb);
  *                            после последнего `set` подряд
- *                            панель закрывается сама
- *   click <текст>            указатель к узлу с этим текстом, щелчок
- *   fill <подсказка> = <текст>  набор в поле, у которого нет имени строки (по placeholder)
+ *                            панель закрывается сама; строка ищется и в редакторе Fields
+ *                            (`set Child Field = Always` — строка Behavior выбранного Field)
+ *   click <текст>            указатель к узлу с этим текстом, щелчок; текста нет — узел с этой
+ *                            `aria-label` (значок: `click Make #review a child Value`,
+ *                            `click Hide #doing from next, previous and tagWheel`)
+ *   fill <подсказка> = <текст>  набор в поле, у которого нет имени строки (по placeholder;
+ *                            подсказки нет — по `aria-label`, например `Custom text for #todo`)
  *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
  *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
@@ -277,6 +281,20 @@ async function find(win, text) {
   return box;
 }
 
+/** Видимый узел с этой подписью `aria-label` (кнопка-значок без текста: глаз, стрелка уровня). */
+async function findLabel(win, label) {
+  const box = await win.evaluate((t) => {
+    const n = [...document.querySelectorAll("[aria-label]")]
+      .filter((x) => x.getAttribute("aria-label") === t && x.getBoundingClientRect().width > 0).pop();
+    if (!n) return null;
+    n.scrollIntoView({ block: "center" });
+    const r = n.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, label);
+  if (!box) throw new Error("нет «" + label + "» на экране ни текстом, ни подписью");
+  return box;
+}
+
 async function point(win, box) {
   await win.mouse.move(box.x, box.y, { steps: 14 });
   await win.waitForTimeout(200);
@@ -296,7 +314,13 @@ async function setControl(win, name, value) {
       const n = r.querySelector(".setting-item-name");
       const c = r.querySelector(".setting-item-control");
       return n && n.textContent.trim() === name && c && c.querySelector(ctl);
-    })[nth - 1];
+    })[nth - 1]
+      /* Строка редактора Fields (`Child Field`, `Active`…) — свой узел `.io-item`, не `.setting-item`. */
+      || [...document.querySelectorAll(".io-item")].filter((r) => {
+        const n = r.querySelector(".io-item__name");
+        const c = r.querySelector(".io-item__control");
+        return n && n.textContent.trim() === name && c && c.querySelector(ctl) && r.getBoundingClientRect().height > 0;
+      })[nth - 1];
     if (!row) return null;
     row.scrollIntoView({ block: "center" });
     row.setAttribute("data-io-rec", "1");
@@ -355,7 +379,8 @@ async function setControl(win, name, value) {
     await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
     await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   }
-  await win.evaluate(() => document.querySelector("[data-io-rec]").removeAttribute("data-io-rec"));
+  /* Строку редактора Fields выбор перерисовывает: метки может уже не быть. */
+  await win.evaluate(() => document.querySelectorAll("[data-io-rec]").forEach((n) => n.removeAttribute("data-io-rec")));
   await win.waitForTimeout(500);
 }
 
@@ -468,8 +493,12 @@ async function run(win, steps, cut, log) {
     } else if (op === "fill") {
       /* Поле своего блока без имени строки — по подсказке внутри поля. */
       const [ph, text] = arg.split(" = ");
-      const t = win.locator("input[placeholder=\"" + ph + "\"]:visible, textarea[placeholder=\"" + ph + "\"]:visible").first();
-      const b = await t.boundingBox();
+      let t = win.locator("input[placeholder=\"" + ph + "\"]:visible, textarea[placeholder=\"" + ph + "\"]:visible").first();
+      /* Подсказки нет — поле по `aria-label` (ячейка таблицы Values: «Value #todo of Status»). */
+      if (!await t.count()) t = win.locator("input[aria-label=\"" + ph + "\"]:visible, textarea[aria-label=\"" + ph + "\"]:visible").first();
+      /* Поле ниже экрана (`#tag / tag` под таблицей Values) — сперва в кадр: иначе щелчок мимо и набор в никуда. */
+      if (await t.count()) await t.scrollIntoViewIfNeeded();
+      const b = await t.count() ? await t.boundingBox() : null;
       if (!b) throw new Error("нет поля с подсказкой «" + ph + "»");
       await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
       await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
@@ -496,7 +525,8 @@ async function run(win, steps, cut, log) {
       await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
       await win.evaluate(([x, y]) => document.dispatchEvent(new MouseEvent("mousedown", { clientX: x, clientY: y })), [b.x + b.width / 2, b.y + b.height / 2]);
       await sel.selectOption({ label: value });
-      await sel.evaluate((n) => n.removeAttribute("data-io-pick"));
+      /* Выбор перерисовывает свой блок (ячейка Show таблицы Values): метку снимать с документа, а не со старого узла. */
+      await win.evaluate(() => document.querySelectorAll("[data-io-pick]").forEach((n) => n.removeAttribute("data-io-pick")));
       await win.waitForTimeout(500);
     } else if (op === "hover") {
       /* `hover <текст>` — указатель на узел; `+ Ctrl` — с зажатым Ctrl (превью ссылки), 1,5 с. */
@@ -507,7 +537,8 @@ async function run(win, steps, cut, log) {
       await win.waitForTimeout(1500);
       if (mod) await win.keyboard.up(mod === "Ctrl" ? "Control" : mod);
     } else if (op === "click") {
-      const b = await find(win, arg);
+      /* Текста нет — узел по `aria-label` (значок без подписи). */
+      const b = await find(win, arg).catch(() => findLabel(win, arg));
       await point(win, b);
       await win.mouse.click(b.x, b.y);
       await win.waitForTimeout(600);
