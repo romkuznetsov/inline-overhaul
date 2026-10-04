@@ -829,12 +829,13 @@ else ok("схема загружена: групп " + SCHEMA.length);
     const CEILING_MS = 150;
     const slow: string[] = [];
     const times: string[] = [];
-    /* Минимум из трёх открытий, а не одно: `npm run check` гоняет гейт рядом с
-       линтером и набором, и вытесненный посреди замера процесс давал 240 мс
-       вместо 5 (ревизия 2026-10-03, Э-3). Дорогая отрисовка дорога во всех трёх. */
+    /* Минимум из пяти открытий, разведённых уступкой циклу: `npm run check` гоняет гейт рядом с
+       линтером и набором, и три открытия подряд попадали в одну паузу процесса — 155–240 мс
+       вместо 4 (Э-3, цикл 129, правило 212). Дорогая отрисовка дорога во всех пяти. */
     for (const tab of TABS as Array<{ id: string; label?: string }>) {
       let spent = Infinity;
-      for (let round = 0; round < 3; round++) {
+      for (let round = 0; round < 5; round++) {
+        await new Promise(r => setTimeout(r, 15));
         const started = performance.now();
         openTab(pane, tab.id);
         spent = Math.min(spent, performance.now() - started);
