@@ -121,7 +121,7 @@ async function stage(win, browser, tab, stages, hotkeys) {
     const a = window.app;
     for (const f of a.vault.getMarkdownFiles()) await a.vault.delete(f);
     for (const [n, t] of Object.entries(files)) await a.vault.create(n, t);
-    for (const [id, keys] of Object.entries(hotkeys)) a.hotkeyManager.setHotkeys("inline-overhaul:" + id, keys);
+    for (const [id, keys] of Object.entries(hotkeys)) a.hotkeyManager.setHotkeys(id.includes(":") ? id : "inline-overhaul:" + id, keys);
     a.hotkeyManager.bake();
     for (const m of document.querySelectorAll(".modal-container")) m.remove();
     /* Окно — как при первом запуске Obsidian, без лишнего: боковые панели, лента, строка состояния (его слово 2026-10-04). */
@@ -323,7 +323,8 @@ async function setControl(win, name, value) {
 
 /** Плашка называет команду, а не клавиши (его слово 2026-10-04: «hotkey: move line up»): имя — из палитры Obsidian. */
 const cmdLabel = (win, id) => win.evaluate((id) => {
-  const c = window.app.commands.commands["inline-overhaul:" + id];
+  /* Id с двоеточием — чужая команда (встроенная Obsidian для «До»-GIF), без — команда плагина. */
+  const c = window.app.commands.commands[id.includes(":") ? id : "inline-overhaul:" + id];
   return c ? "hotkey: " + c.name.split(": ").pop() : null;
 }, id);
 const keyName = (k) => "key: " + k.replace(/ArrowUp/, "↑").replace(/ArrowDown/, "↓").replace(/ArrowLeft/, "←").replace(/ArrowRight/, "→").split("+").join(" + ");
@@ -367,7 +368,7 @@ async function run(win, steps, cut, log) {
          `key <клавиша>` — когда фича сама и есть клавиша (Enter, Ctrl+A), плашка называет клавишу. */
       const combo = op === "cmd" ? cmdCombo[arg] : arg;
       const label = op === "cmd" ? await cmdLabel(win, arg) : keyName(arg);
-      if (!label) throw new Error("нет команды inline-overhaul:" + arg);
+      if (!label) throw new Error("нет команды " + arg);
       /* Нажатие ждёт, пока субтитр прочитан; панель между ними — тоже время чтения. */
       await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
       /* Подряд идущие нажатия — одна подсветка: она идёт за строкой, плашка мигает на каждом. */
