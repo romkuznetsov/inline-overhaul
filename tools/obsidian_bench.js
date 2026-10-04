@@ -33,7 +33,8 @@ const ROOT = path.resolve(__dirname, "..");
 const SRC_VAULT = path.resolve(ROOT, "..", "test-vault");
 const EXE = path.join(process.env.LOCALAPPDATA || "", "Programs", "Obsidian", "Obsidian.exe");
 const PROFILE_SRC = path.join(process.env.APPDATA || "", "obsidian");
-const PORT = 9333;
+/* `IO_PORT` — свой порт для параллельных записей Showcase и срезов. */
+const PORT = Number(process.env.IO_PORT) || 9333;
 
 function prepare(name) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "io-obsidian-bench-"));

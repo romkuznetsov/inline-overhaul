@@ -19,19 +19,27 @@
  *
  * Шаги, по одному в строке (`#` — комментарий):
  *   open <файл>              открыть заметку (до первого кадра, если стоит первой)
- *   caret <текст строки>     каретку в конец последней строки с этим текстом
+ *   caret <строка>[ @ <кусок>]  каретка в конец строки с ровно этим текстом или перед куском
+ *   select <строка> @ <кусок>   кусок строки выделен
  *   say <фраза>              субтитр внизу; `say` без фразы — убрать
- *   key <Ctrl+Shift+ArrowUp> плашка клавиши, нажатие, подсветка того, что сдвинулось
+ *   cmd <id команды>         нажатие команды плагина (`move-line-up`): клавишу назначает
+ *                            инструмент, плашка у строки — имя команды из палитры
+ *   key <Ctrl+A | Enter …>   нажатие клавиши, когда фича сама и есть клавиша; плашка — клавиша
+ *   type <текст>             набор текста с человеческой скоростью
  *   settings [вкладка]       Ctrl+, — панель открывается на inlineOverhaul и вкладке
  *                            первого `settings` (выбраны за кадром); другая вкладка — щелчком.
  *                            Начинает новый этап полосы; под панелью заметки возвращаются к исходным.
  *                            Отдельного шага сброса нет: откат на камеру он запретил (2026-10-04)
- *   set <контрол> = <значение>  указатель к контролу, выбор; после последнего `set`
- *                            подряд панель закрывается сама
+ *   set <контрол> = <значение>  указатель к контролу, выбор (список, переключатель on/off,
+ *                            кнопки-варианты, текстовое поле); после последнего `set` подряд
+ *                            панель закрывается сама
  *   click <текст>            указатель к узлу с этим текстом, щелчок
+ *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
+ *
+ * Параллельные записи — каждая со своим `IO_PORT` (порт отладки Obsidian).
  */
 
 const fs = require("fs");
@@ -45,11 +53,19 @@ const SHOW = path.join(ROOT, "docs", "dev", "showcase");
 const OUT_W = 960, FPS = 15;
 /* Темп: результат нажатия на экране, чтение субтитра — основа и на знак. */
 const RESULT_MS = 1700, READ_MS = 400, READ_PER_CHAR = 45;
-/* Клавиши демо-хранилища: субтитр называет команду, плашка — клавишу. */
-const HOTKEYS = {
-  "move-line-up": [{ modifiers: ["Mod", "Shift"], key: "ArrowUp" }],
-  "move-line-down": [{ modifiers: ["Mod", "Shift"], key: "ArrowDown" }],
-};
+/* Клавиши команд `cmd` назначает инструмент: на экране их нет, плашка называет команду.
+   F1…F12 с Ctrl+Alt+Shift: Shift не меняет имя клавиши, сочетание свободно у Obsidian. */
+const cmdCombo = {};
+function bindCommands(steps) {
+  const ids = [...new Set(steps.filter(([op]) => op === "cmd").map(([, a]) => a))];
+  if (ids.length > 12) throw new Error("больше 12 команд в одной записи");
+  const hotkeys = {};
+  ids.forEach((id, i) => {
+    cmdCombo[id] = "Ctrl+Alt+Shift+F" + (i + 1);
+    hotkeys[id] = [{ modifiers: ["Mod", "Alt", "Shift"], key: "F" + (i + 1) }];
+  });
+  return hotkeys;
+}
 
 function readSteps(id) {
   return fs.readFileSync(path.join(SHOW, "steps", id + ".steps"), "utf8").split(/\r?\n/)
@@ -94,7 +110,7 @@ const CSS = `
 .mod-settings .vertical-tab-content-container{zoom:1.35}`;
 
 /** Демо-хранилище: английский интерфейс, окно без лишнего, свои заметки и клавиши, панель выбрана за кадром. */
-async function stage(win, browser, tab, stages) {
+async function stage(win, browser, tab, stages, hotkeys) {
   await win.evaluate(() => { window.localStorage.setItem("language", "en"); });
   await win.reload();
   for (let i = 0; i < 40; i++) {
@@ -122,7 +138,7 @@ async function stage(win, browser, tab, stages) {
     const bw = window.require("@electron/remote").getCurrentWindow();
     bw.setFocusable(false);
     bw.blur();
-  }, { files: notes(), hotkeys: HOTKEYS });
+  }, { files: notes(), hotkeys });
   /* За кадром — на inlineOverhaul и нужную вкладку: на камеру Ctrl+, открывается сразу там,
      без страницы General Obsidian (версия, аккаунт). */
   await win.evaluate(async (tab) => {
@@ -263,7 +279,8 @@ async function setControl(win, name, value) {
     if (!row) return null;
     row.scrollIntoView({ block: "center" });
     row.setAttribute("data-io-rec", "1");
-    return row.querySelector("select") ? "select" : row.querySelector(".checkbox-container") ? "toggle" : "buttons";
+    return row.querySelector("select") ? "select" : row.querySelector(".checkbox-container") ? "toggle"
+      : row.querySelector("input[type=text], input[type=number], input:not([type]), textarea") ? "text" : "buttons";
   }, [name]);
   if (!kind) throw new Error("нет контрола «" + name + "»");
   await win.waitForTimeout(250);
@@ -284,6 +301,15 @@ async function setControl(win, name, value) {
     const b = await t.boundingBox();
     await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
     if (on !== (value === "on")) await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  } else if (kind === "text") {
+    const t = row.locator("input[type=text], input[type=number], input:not([type]), textarea").first();
+    const b = await t.boundingBox();
+    await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await win.keyboard.press("Control+A");
+    await win.keyboard.type(value, { delay: 60 });
+    /* Поле пишет значение по change: уход фокуса, как у человека. */
+    await t.evaluate((n) => n.blur());
   } else {
     const btn = row.getByText(value, { exact: true }).last();
     const b = await btn.boundingBox();
@@ -296,13 +322,11 @@ async function setControl(win, name, value) {
 }
 
 /** Плашка называет команду, а не клавиши (его слово 2026-10-04: «hotkey: move line up»): имя — из палитры Obsidian. */
-const keyLabel = (win, k) => {
-  const [, mods, key] = k.match(/^((?:\w+\+)*)(\w+)$/);
-  const want = mods.split("+").filter(Boolean).map((m) => (m === "Ctrl" ? "Mod" : m)).sort().join("+");
-  const id = Object.keys(HOTKEYS).find((c) => HOTKEYS[c].some((h) => h.key === key && [...h.modifiers].sort().join("+") === want));
-  if (!id) throw new Error("клавиша " + k + " не назначена ни одной команде в HOTKEYS");
-  return win.evaluate((id) => "hotkey: " + window.app.commands.commands["inline-overhaul:" + id].name.split(": ").pop(), id);
-};
+const cmdLabel = (win, id) => win.evaluate((id) => {
+  const c = window.app.commands.commands["inline-overhaul:" + id];
+  return c ? "hotkey: " + c.name.split(": ").pop() : null;
+}, id);
+const keyName = (k) => "key: " + k.replace(/ArrowUp/, "↑").replace(/ArrowDown/, "↓").replace(/ArrowLeft/, "←").replace(/ArrowRight/, "→").split("+").join(" + ");
 const isTab = (win, t) => win.evaluate((t) => [...document.querySelectorAll(".modal.mod-settings button, .modal.mod-settings [role=tab]")]
   .some((x) => x.textContent.trim() === t && (/is-active|mod-active|is-selected/.test(x.className) || x.getAttribute("aria-selected") === "true")), t);
 
@@ -319,30 +343,51 @@ async function run(win, steps, cut, log) {
         a.workspace.activeEditor.editor.setCursor({ line: 0, ch: 0 });
       }, arg);
       await win.waitForTimeout(600);
-    } else if (op === "caret") {
-      const n = await win.evaluate((t) => {
+    } else if (op === "caret" || op === "select") {
+      /* `caret <строка> @ <кусок>` — каретка перед куском; `select <строка> @ <кусок>` — кусок выделен. */
+      const [line, part] = arg.split(" @ ");
+      const n = await win.evaluate(([t, part, sel]) => {
         const ed = window.app.workspace.activeEditor.editor;
         const n = ed.getValue().split("\n").lastIndexOf(t);
-        if (n >= 0) { ed.focus(); ed.setCursor({ line: n, ch: t.length }); }
-        return n;
-      }, arg);
-      if (n < 0) throw new Error("нет строки «" + arg + "»");
+        if (n < 0) return "нет строки «" + t + "»";
+        const ch = part === undefined ? t.length : t.indexOf(part);
+        if (ch < 0) return "в строке «" + t + "» нет «" + part + "»";
+        ed.focus();
+        if (sel) ed.setSelection({ line: n, ch }, { line: n, ch: ch + part.length });
+        else ed.setCursor({ line: n, ch });
+        return "";
+      }, [line, part, op === "select"]);
+      if (n) throw new Error(n);
       await win.waitForTimeout(300);
     } else if (op === "say") {
       await overlay(win, "io-rec-sub", arg);
       readUntil = Date.now() + (arg ? READ_MS + READ_PER_CHAR * arg.length : 0);
-    } else if (op === "key") {
+    } else if (op === "cmd" || op === "key") {
+      /* `cmd <id команды>` — клавишу назначает инструмент, плашка называет команду;
+         `key <клавиша>` — когда фича сама и есть клавиша (Enter, Ctrl+A), плашка называет клавишу. */
+      const combo = op === "cmd" ? cmdCombo[arg] : arg;
+      const label = op === "cmd" ? await cmdLabel(win, arg) : keyName(arg);
+      if (!label) throw new Error("нет команды inline-overhaul:" + arg);
       /* Нажатие ждёт, пока субтитр прочитан; панель между ними — тоже время чтения. */
       await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
       /* Подряд идущие нажатия — одна подсветка: она идёт за строкой, плашка мигает на каждом. */
       if (!run.marking) { await markStart(win); await win.waitForTimeout(250); }
       /* Плашка — раньше нажатия: глаз читает команду, потом видит её действие (его слово 2026-10-04). */
-      await markPress(win, await keyLabel(win, arg));
+      await markPress(win, label);
       await win.waitForTimeout(450);
-      await win.keyboard.press(arg.replace(/^Ctrl\+/, "Control+"));
-      run.marking = next === "key";
+      await win.keyboard.press(combo.replace(/^Ctrl\+/, "Control+"));
+      run.marking = next === "cmd" || next === "key";
       await win.waitForTimeout(run.marking ? 900 : RESULT_MS);
       if (!run.marking) await markEnd(win);
+    } else if (op === "type") {
+      /* Набор с человеческой скоростью. */
+      await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
+      await win.keyboard.type(arg, { delay: 70 });
+      await win.waitForTimeout(600);
+    } else if (op === "close") {
+      /* Только для показов в самой панели: после `set` панель закрывается сама. */
+      await win.evaluate(() => window.app.setting.close());
+      await win.waitForTimeout(450);
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
@@ -437,7 +482,7 @@ async function main() {
   watchdog.unref();
   try {
     const first = steps.find(([op]) => op === "settings");
-    const cdp = await stage(win, browser, first && first[1], steps.filter(([op]) => op === "settings").length + 1);
+    const cdp = await stage(win, browser, first && first[1], steps.filter(([op]) => op === "settings").length + 1, bindCommands(steps));
     if (!dry) {
       cdp.on("Page.screencastFrame", (f) => {
         const file = path.join(tmp, String(frames.length).padStart(5, "0") + ".jpg");
