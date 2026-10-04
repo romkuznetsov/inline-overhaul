@@ -414,33 +414,38 @@
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
-  padding-bottom: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.io-tab {
+/* С тегом и контейнером: `button:not(.clickable-icon)` платформы перебивал фон и цвет одного класса — все вкладки были серыми кнопками (У-317, цикл 134). */
+.io-tabs > button.io-tab {
   appearance: none;
+  height: auto;
+  margin-bottom: -1px;
   border: 0;
-  border-radius: var(--radius-s);
-  background: transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
+  background-color: transparent;
   box-shadow: none;
   color: var(--text-muted);
   font-family: inherit;
   font-size: var(--font-ui-small);
-  padding: 5px 11px;
+  padding: 6px 12px 7px;
   cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
 }
-.io-tab:hover {
-  background: var(--background-modifier-hover);
+.io-tabs > button.io-tab:hover {
+  background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
-/* Активная вкладка отличается фоном и цветом, а не прозрачностью (M2). */
-.io-tab--active,
-.io-tab--active:hover {
-  background: var(--background-modifier-active-hover, var(--background-secondary-alt));
-  color: var(--text-normal);
-  font-weight: 500;
+/* Активная — цветом акцента темы, заливкой и чертой снизу, а не одной жирностью (его пункт «Новое», цикл 134). */
+.io-tabs > button.io-tab--active,
+.io-tabs > button.io-tab--active:hover {
+  background-color: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  border-bottom-color: var(--interactive-accent);
+  color: var(--text-accent);
+  font-weight: 600;
 }
-.io-tab:focus-visible {
+.io-tabs > button.io-tab:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }

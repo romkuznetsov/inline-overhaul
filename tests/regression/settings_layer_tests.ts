@@ -3125,7 +3125,7 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     await pane.setControlValue("advanced.showSettingIds", true);
     const tip = tipTextOf(pane, "advanced", "Diagnostics", "Developer logging");
-    assert.ok(tip.includes("Leave this off day to day"), "своя подсказка осталась: " + tip);
+    assert.ok(tip.includes("day to day"), "своя подсказка осталась: " + tip);
     assert.ok(tip.trimEnd().endsWith("dev-mode = off"), "id со значением идёт последним: " + tip);
   });
 

@@ -102,7 +102,7 @@ const ctxWith = (tips: boolean): never => ({
   /* Слова берутся из каталога, а не из блока: имя строки останется верным и
      тогда, когда за ним будет написано что угодно (У-56). */
   const tipWords = BLOCK_TEXTS["left-right-order"] as Readonly<Record<string, string>>;
-  assert.ok(String(bodies[0]?.textContent || "").includes("top down"),
+  assert.ok(String(bodies[0]?.textContent || "").includes(String(tipWords.MOVE_LEFT_TIP).slice(0, 30)),
     "слева открылась именно её подсказка");
   assert.ok(String(bodies[1]?.textContent || "").includes("Cycle in both directions"),
     "справа — своя, и она называет тумблер, который решает последнюю строку");

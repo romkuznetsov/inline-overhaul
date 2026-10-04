@@ -1982,7 +1982,7 @@ function heightBtn(host: StubNode): StubNode {
     String(b.getAttribute("aria-label") || "") === "More about Value") as StubNode;
   mark.click();
   const tip = String(all(one(v.host, "io-vals__tipslot"), "io-tip")[0]?.textContent || "");
-  assert.ok(tip.includes("[[link]]") && tip.includes("link"),
+  assert.ok(tip.includes("[[") && tip.includes("links to") && !tip.includes("#todo"),
     "подсказка Value у ссылки говорит про wikilink, а не про тег");
   assert.ok(!tip.includes("#"), "решётки в подсказке ссылки нет: у ссылки её и не бывает");
 
@@ -2322,7 +2322,7 @@ function heightBtn(host: StubNode): StubNode {
   mark.click();
   const tip = all(v.host, "io-tip").map(t => String(t.textContent || ""))
     .find(t => t.includes("YYYY")) || "";
-  for (const example of ["2026-08-27", "27.08", "1435", "001"]) {
+  for (const example of ["2026-10-04", "04.10", "1435", "001"]) {
     assert.ok(tip.includes(example), "в подсказке формата есть пример " + example);
   }
   assert.ok(tip.includes("never steps"),
