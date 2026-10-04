@@ -605,7 +605,8 @@ async function main() {
     clearTimeout(watchdog);
     await close();
     await new Promise((r) => setTimeout(r, 1500));
-    fs.rmSync(env.work, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    /* Уборка: папку держит выходящий Obsidian (EPERM) — готовый GIF от этого не хуже, код выхода не портим. */
+    try { fs.rmSync(env.work, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }); } catch (e) { console.error("временный vault не убран: " + env.work); }
     if (ok) fs.rmSync(tmp, { recursive: true, force: true }); else console.error("кадры оставлены: " + tmp);
   }
   process.exit(ok ? 0 : 1);
