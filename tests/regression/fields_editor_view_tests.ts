@@ -2096,6 +2096,7 @@ function heightBtn(host: StubNode): StubNode {
   assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F4A1}idea", "\u{1F921}"], "правка в строке пишет свой Value");
   ok("В-247, тест 4 цикла 104: Values списка — строками, с Add Value и выбиралкой Binder");
 
+
   /* Тест 1 цикла 105: имя над строками, рамка таблицы Values, ⠿ переставляет. */
   const stack = one(v.host, "io-item--stack");
   assert.ok(one(stack, "io-elist").classList.contains("io-vals"), "строки Values не в рамке таблицы Values");
@@ -2105,6 +2106,23 @@ function heightBtn(host: StubNode): StubNode {
   rowsNow()[0]!.dispatch("drop", ev);
   assert.deepEqual(v.model.elementEditor(dueKey).list, ["\u{1F921}", "\u{1F4A1}idea"], "⠿ не переставил Value");
   ok("тест 1 цикла 105: Values списка — имя над строками, рамка и ⠿");
+  /* В-278 «у всех Fields»: глаз у Value списка — пишет `listHidden`, идёт за переименованием, уходит с ✕. */
+  {
+    const eye = one(rowsNow()[0]!, "io-elist__eye");
+    assert.equal(eye.getAttribute("aria-pressed"), "true", "умолчание — Value видно");
+    eye.click();
+    v.draw();
+    assert.deepEqual(v.model.elementEditor(dueKey).listHidden, ["\u{1F921}"], "глаз не записал спрятанное");
+    assert.ok(rowsNow()[0]!.classList.contains("io-elist__row--hidden"), "спрятанная строка не приглушена");
+    const renamed = one(rowsNow()[0]!, "io-text");
+    renamed.value = "\u{1F921}x";
+    renamed.dispatch("change");
+    assert.deepEqual(v.model.elementEditor(dueKey).listHidden, ["\u{1F921}x"], "переименованное не осталось спрятанным");
+    v.draw();
+    one(rowsNow()[0]!, "io-icon--danger").click();
+    assert.deepEqual(v.model.elementEditor(dueKey).listHidden, [], "снятое ✕ осталось среди спрятанных");
+    ok("В-278: глаз у Value списка Element — запись, переименование, снятие");
+  }
 }
 {
   /* Его заказ 2026-09-29: имя дочернего Field под `Name in tagWheel`, видно

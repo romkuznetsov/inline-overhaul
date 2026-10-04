@@ -323,6 +323,23 @@ async function main(): Promise<void> {
   assert.equal(zones(`- купить ${VALS[2]} молоко`), `${VALS[2]}:element:middle`, "Value списка во фразе оформлено как Block");
   passed += 5;
   console.log("  ok В-247 Element-список: команда, панель, Transform и оформление");
+  /* Глаз у Value списка (В-278 «у всех Fields»): спрятанное пропускается шагом, стоящее читается. */
+  {
+    const raw = JSON.parse(JSON.stringify(hd));
+    raw.pkm.fields.elements.byField.Mood.listHidden = [VALS[1]];
+    const eh = normalize.migrateConfig(raw);
+    const moodDef = eh.pkm.fields.tags.fields.find((f: Any) => f.id === "Mood");
+    assert.deepEqual(moodDef.values.filter((v: Any) => v.hidden).map((v: Any) => v.token), [VALS[1]], "спрятанное не дошло до Field");
+    const put0 = `- #todo ${VALS[0]} ${sep} купить`;
+    assert.equal((await bench.runCommandById(eh, "mood-next", put0, put0.length)).line, `- #todo ${VALS[2]} ${sep} купить`, "команда не пропустила спрятанное");
+    const put1 = `- #todo ${VALS[1]} ${sep} купить`;
+    assert.equal((await bench.runCommandById(eh, "mood-next", put1, put1.length)).line, `- #todo ${VALS[2]} ${sep} купить`, "стоящее спрятанное не прочитано: шаг от него к соседу");
+    const ehWalk: string[] = await bench.fieldWalk(eh, "left", put0, put0.length, 12);
+    const ehPanel = await bench.runTagWheel(eh, "left", put0, put0.length, Array(ehWalk.indexOf("Mood")).fill("ArrowRight").concat(["ArrowUp"]));
+    assert.equal(ehPanel.line, `- #todo ${VALS[2]} ${sep} купить`, "tagWheel не пропустил спрятанное");
+    passed += 4;
+    console.log("  ok В-278 глаз у Value списка Element: команда и tagWheel");
+  }
   /*
    * Тег в правом Block, набранный посреди фразы, панель не стирает (`В-235`,
    * `relocateOffEntriesToRightPanel`). У его конфига и стартового набора тегов

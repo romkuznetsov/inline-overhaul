@@ -277,13 +277,17 @@ export interface ElementEditor {
   customRaw: string[];
   /** Values режима `list` (`В-247`): каждое со своим знаком. */
   list: string[];
+  /** Спрятанные глазом Values списка (В-278): не в `next`/`previous` и tagWheel. */
+  listHidden: string[];
   setEmoji: (v: string) => void;
   setFormat: (v: string) => void;
   setMode: (v: string) => void;
   setIncrementBy: (v: number) => void;
   setCommand: (v: string) => void;
   setCustomRaw: (text: string) => void;
-  setList: (text: string) => WriteResult;
+  /** `hidden` — спрятанные после правки; не передан — прежние, кроме ушедших из списка. */
+  setList: (text: string, hidden?: readonly string[]) => WriteResult;
+  setListHidden: (hidden: readonly string[]) => void;
 }
 
 export interface OrderSnapshot {
@@ -1646,6 +1650,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       command: ["now", "randomN", "randomE"].includes(String(inc.command || "")) ? String(inc.command) : "now",
       customRaw: Array.isArray(inc.customRaw) ? inc.customRaw.map((x: Loose) => String(x || "")) : [],
       list: Array.isArray(cur.list) ? cur.list.map((x: Loose) => String(x || "")) : [],
+      listHidden: Array.isArray(cur.listHidden) ? cur.listHidden.map((x: Loose) => String(x || "")) : [],
       setEmoji: v => write({ ...cur, emoji: v }, "pkm:behavior:order:deep:emoji:" + k),
       setFormat: v => write({ ...cur, format: v }, "pkm:behavior:order:deep:format:" + k),
       setMode: v => write(
@@ -1671,13 +1676,18 @@ export function createFieldsModel(deps: FieldsModelDeps) {
        * Без пустых; повторы снимает `ensureBehaviorModesFromOrder`. Value списка —
        * одно слово (BUGHUNT 2026-09-30, A5): движки делят по пробелам. Проверяется только новое.
        */
-      setList: text => {
+      setList: (text, hidden) => {
         const list = normalizeCustomRaw(text);
         const was = Array.isArray(cur.list) ? cur.list.map((x: Loose) => String(x || "").trim()) : [];
         if (list.some(v => !was.includes(v) && /\s/.test(v))) return { ok: false, error: SAY.ERR_LIST_VALUE_SPACE };
-        write({ ...cur, increment: { ...inc, mode: "list" }, list }, "pkm:behavior:order:deep:list:" + k);
+        /* Спрятанное идёт за Value одной записью: ушедшее из списка уходит и отсюда. */
+        const keep = (hidden || (Array.isArray(cur.listHidden) ? cur.listHidden : [])).map((x: Loose) => String(x || "").trim());
+        const listHidden = keep.filter((t: string) => list.includes(t));
+        write({ ...cur, increment: { ...inc, mode: "list" }, list, listHidden }, "pkm:behavior:order:deep:list:" + k);
         return { ok: true };
       },
+      setListHidden: hidden => write({ ...cur, listHidden: hidden.map(t => String(t || "").trim()).filter(Boolean) },
+        "pkm:behavior:order:deep:hide:" + k),
     };
   };
 

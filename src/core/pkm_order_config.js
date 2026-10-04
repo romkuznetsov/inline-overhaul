@@ -209,7 +209,10 @@ function ensureBehaviorModesFromOrder(cfg) {
         dropFrom(rightFieldsLive);
         rightByIdLive.delete(key);
         dropFrom(leftFieldsLive);
-        leftFieldsLive.push({ id: key, prefix: "", placeholder, values: list.map((token) => ({ token, active: true })) });
+        /* Глаз у Value списка (В-278 «у всех Fields»): `listHidden` рядом со списком. */
+        const hiddenList = new Set(Array.isArray(elemCfg.listHidden) ? elemCfg.listHidden.map((t) => String(t || "").trim()) : []);
+        leftFieldsLive.push({ id: key, prefix: "", placeholder, values: list.map((token) => (hiddenList.has(token)
+          ? { token, active: true, hidden: true } : { token, active: true })) });
         leftByIdLive.add(key);
         continue;
       }

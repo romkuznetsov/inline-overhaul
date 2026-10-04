@@ -1840,8 +1840,9 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     rich(el(own, "div", "io-item__desc"), say("ELEMENT_LIST_DESC"));
     /* Строка на Value и `Add Value` внизу; выбиралка Binder у каждого поля (тест 4 цикла 104), знак встаёт у каретки. */
     const values = ed.list.slice();
+    const hidden = ed.listHidden.slice();
     const save = (): void => {
-      const res = ed.setList(values.join("\n"));
+      const res = ed.setList(values.join("\n"), hidden);
       if (!res.ok && res.error) o.notice(res.error);
       o.redraw();
     };
@@ -1858,17 +1859,33 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     const box = el(own, "div", "io-vals io-elist");
     const held: DragHold = { taken: null };
     values.forEach((token, i) => {
-      const item = el(box, "div", "io-elist__row");
+      const off = hidden.includes(token);
+      const item = el(box, "div", "io-elist__row" + (off ? " io-elist__row--hidden" : ""));
       attachRowDrag({
         row: item, index: i, label: say("VALUE_DRAG", token), enabled: o.enabled, held,
         /* Встаёт на место той строки, на которую бросили: как у таблицы тега. */
         onMove: (from, to) => { values.splice(to, 0, ...values.splice(from, 1)); save(); },
       });
+      /* Глаз (В-278 «у всех Fields»): как у таблицы тега, перед полем Value. */
+      const eye = btn(item, "io-icon io-eye io-elist__eye" + (off ? " io-eye--off" : ""), {
+        label: say(off ? "VALUE_SHOW" : "VALUE_HIDE", token),
+      });
+      eye.setAttribute("aria-pressed", String(!off));
+      eye.disabled = !o.enabled;
+      eye.addEventListener("click", (() => {
+        if (!o.enabled) return;
+        ed.setListHidden(off ? hidden.filter(t => t !== token) : hidden.concat(token));
+        o.redraw();
+      }) as never);
       const input = textInput(item, "io-text io-text--mono", { value: token, label: say("ELEMENT_LIST_FOR", row.strictName) });
       input.disabled = !o.enabled;
       const put = (): void => {
         if (!o.enabled) return;
-        values[i] = String(input.value || "").trim();
+        const next = String(input.value || "").trim();
+        /* Переименованное остаётся спрятанным. */
+        const at = hidden.indexOf(token);
+        if (at !== -1) hidden[at] = next;
+        values[i] = next;
         save();
       };
       input.addEventListener("change", put as never);

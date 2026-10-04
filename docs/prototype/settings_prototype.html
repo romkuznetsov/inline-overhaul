@@ -822,6 +822,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-elist__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; }
 .io-elist__row + .io-elist__row { border-top: 1px solid var(--background-modifier-border); }
 .io-elist__row > .io-text { flex: 1 1 0; min-width: 0; }
+/* Глаз у Value списка (В-278): как у таблицы тега; спрятанное приглушено. */
+.io-elist__eye { flex: 0 0 auto; width: 18px; height: 20px; padding: 0; font-size: 11px; }
+.io-elist__row--hidden > .io-text { opacity: 0.45; }
 .io-colin {
   width: 22px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s); background: var(--background-modifier-form-field); cursor: pointer;
@@ -6723,8 +6726,14 @@ function elementRows(host, f) {
     const values = f.values || (f.values = []);
     const box = el("div", "io-vals io-elist", item);
     values.forEach((v, i) => {
-      const line = el("div", "io-elist__row", box);
+      const line = el("div", "io-elist__row" + (v.hidden ? " io-elist__row--hidden" : ""), box);
       dragHandle(el("div", "io-grip", line, "\u283F"), line, (from, to) => moveIn(values, from, to), i);
+      /* Глаз (В-278 «у всех Fields»): как у таблицы тега, перед полем Value. */
+      const eye = iconBtn(line, "", (v.hidden ? "Show " : "Hide ") + v.token + (v.hidden ? " in next, previous and tagWheel" : " from next, previous and tagWheel"));
+      eye.classList.add("io-eye", "io-elist__eye");
+      if (v.hidden) eye.classList.add("io-eye--off");
+      eye.setAttribute("aria-pressed", String(!v.hidden));
+      eye.addEventListener("click", () => { v.hidden = !v.hidden; renderContent(); });
       const input = textEl(line, v.token, "", r.name + " for " + f.name, "io-text io-text--mono");
       input.addEventListener("change", () => { v.token = input.value.trim(); if (!v.token) values.splice(i, 1); renderContent(); });
       const del = iconBtn(line, "\u2715", "Remove " + v.token);
