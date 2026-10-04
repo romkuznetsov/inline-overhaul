@@ -7,6 +7,7 @@
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, type El, type ElInput } from "./dom.ts";
+import { paintTip, type DocLike } from "../describe.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
@@ -85,7 +86,8 @@ function askConditionModal(
       box.empty();
       box.addClass("io-dlg");
       el(box, "h4", "io-dlg__title", conditionDialogTitle(o.kind, o.say));
-      el(box, "p", "io-item__desc", o.say(CONDITION_DIALOG_NOTE));
+      /* Текст с `<code>` — разметкой подсказки, а не строкой (В-288). */
+      paintTip(el(box, "div", "io-item__desc") as unknown as DocLike, o.say(CONDITION_DIALOG_NOTE));
       renderConditionPicker(box, {
         kind: o.kind,
         /* Подстановка едет и в список: без неё половина окна английская. */
