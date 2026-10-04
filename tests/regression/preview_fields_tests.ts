@@ -570,6 +570,30 @@ function realConfig(): Any {
 }
 
 {
+  /* Подписи над строкой, custom block под ней (его пункт «Новое» 2026-10-04). */
+  const base = realConfig();
+  base.pkm.fields.order.right = [];
+  base.pkm.fields.order.custom = [{ id: "b1", name: "Inbox", keys: ["client"] }, { id: "b2", name: "Later", keys: [] }];
+  const cfg = internals.migrateConfig(base);
+  const host = makeNode("div");
+  const close = linePreview(host as unknown as El, makeCtx(cfg));
+  const grid = all(host, "io-struct")[0] as StubNode;
+  const at = (cls: string): number => grid.children.findIndex(c => all(c, cls).length > 0 || String(c.className).split(" ").includes(cls));
+  assert.ok(at("io-struct__sepname") < at("io-line__text") && at("io-struct__bracket--top") < at("io-line__text"),
+    "подписи Separator и скобки Blocks стоят над строкой");
+  const custom = all(host, "io-struct__custom");
+  assert.equal(custom.length, 1, "под строкой — место custom block");
+  assert.ok(at("io-struct__custom") > at("io-line__text"), "и оно ниже строки");
+  const branches = all(custom[0] as StubNode, "io-struct__branch");
+  assert.deepEqual(branches.map(b => texts(b, "io-struct__name")[0]), ["Inbox", "Later"], "столько custom block, сколько заведено, по порядку");
+  assert.deepEqual((all(branches[0] as StubNode, "io-struct__cell")[0] as StubNode).children.map(n => n.textContent), ["Client"],
+    "в custom block — чипы его Fields");
+  assert.equal(texts(branches[1] as StubNode, "io-line__hint")[0], "empty", "пустой custom block подписан");
+  close();
+  ok("разбор строки: подписи над строкой, custom block стрелкой под текстом");
+}
+
+{
   /* Правый Block пуст — одно слово вместо чипов, а не пустая ячейка. */
   const base = realConfig();
   base.pkm.fields.order.right = [];

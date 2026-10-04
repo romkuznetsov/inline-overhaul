@@ -3841,6 +3841,32 @@ body.theme-dark {
 .io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
 .io-legend__mark--danger { color: var(--text-error); }
 .io-legend__mark .io-danger__icon { display: inline-block; }
+/* Скобка над Block — подписи над строкой (его пункт «Новое» 2026-10-04): обнимает сверху. */
+.io-struct__bracket--top {
+  border-top: 1px solid var(--background-modifier-border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+/*
+ * Custom block под строкой: ячейка нулевой ширины в колонке текста, по её
+ * центру — ствол стрелки. Ширины колонке не добавляет, строка выше не
+ * разъезжается; ветки уходят вправо и листаются вместе со строкой.
+ */
+.io-struct__custom { grid-column: 4; width: 0; justify-self: center; align-self: start; }
+.io-struct__tree { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: max-content; margin-top: 8px; }
+.io-struct__branch { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-left: 18px; }
+.io-struct__branch > .io-struct__block { align-self: stretch; }
+/* Ствол и колено к своей ветке; у последней ствол кончается коленом. */
+.io-struct__branch::before {
+  content: ""; position: absolute; left: 0; top: -8px; width: 10px; height: 18px;
+  border-left: 1px solid var(--text-faint); border-bottom: 1px solid var(--text-faint);
+}
+.io-struct__branch:not(:last-child) { box-shadow: inset 1px 0 0 var(--text-faint); }
+/* Наконечник стрелки у чипов ветки. */
+.io-struct__branch::after {
+  content: ""; position: absolute; left: 10px; top: 7px;
+  border-left: 5px solid var(--text-faint); border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
+}
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);

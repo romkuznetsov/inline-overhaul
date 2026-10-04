@@ -146,6 +146,41 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
   }
 }
 
+/** Чип Field в custom block: имя и вид, Values не нужны. */
+export interface PreviewChip {
+  name: string;
+  short?: string;
+  kind: string;
+}
+
+/**
+ * Custom block с их Fields, как в списке Fields — с Command Field: предпросмотр
+ * строки рисует их под текстом (его пункт «Новое» 2026-10-04). Нет платформы — пусто.
+ */
+export function previewCustomBlocks(ctx: SettingsCtx): ReadonlyArray<{ name: string; fields: readonly PreviewChip[] }> {
+  const p = ctx.platform;
+  if (!p) return [];
+  try {
+    const model = createFieldsModel({
+      plugin: p.plugin as never,
+      normalizePkmOrder: p.normalizePkmOrder as never,
+      pkmOrderFields: p.pkmOrderFields,
+      cfg: p.getConfig() as never,
+      deepState,
+    });
+    const rows = model.listFields().filter(r => !r.parent);
+    return model.listBlocks().map(b => ({
+      name: b.name,
+      fields: rows.filter(r => r.side === `custom:${b.id}`)
+        .map(r => ({ name: r.strictName || r.key, short: r.label, kind: r.kind })),
+    }));
+  } catch (e) {
+    /* Украшение: предпросмотр рисуется без custom block; сообщение разработчику (З8). */
+    console.error("inline-overhaul: custom block для предпросмотра не прочитались", e);
+    return [];
+  }
+}
+
 /** Fields для предпросмотра (П11): настоящие, иначе пример (ПЗ2). */
 export function previewFields(ctx: SettingsCtx): PreviewFields {
   const real = realFields(ctx);
@@ -238,11 +273,6 @@ export function typeColor(kind: string): string {
 /** Текст поверх цвета вида: на янтаре тега — тёмный бренда (`В-198`), иначе белый темы. */
 export function typeInk(kind: string): string {
   return typeColor(kind) === "var(--io-type-tag)" ? "var(--io-type-tag-ink)" : "var(--text-on-accent)";
-}
-
-/** Цвет чипа Field: цвет его вида, тот же, что в таблице Fields. */
-export function fieldColor(f: PreviewField): string {
-  return typeColor(f.kind);
 }
 
 /** Field по id: предпросмотрам нужны конкретные, а не первый попавшийся. */

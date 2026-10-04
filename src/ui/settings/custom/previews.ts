@@ -14,8 +14,10 @@ import {
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, rich, cssVar, tipBelow, type El } from "./dom.ts";
 import {
-  fieldColor,
+  typeColor,
   typeInk,
+  previewCustomBlocks,
+  type PreviewChip,
   fieldsOn,
   previewFields,
   resolveSlots,
@@ -234,9 +236,9 @@ function drawTagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
 }
 
 /** Чип Field: короткое имя, если оно есть, и цвет своего вида. */
-function fieldChip(parent: El, f: PreviewField): El {
+function fieldChip(parent: El, f: PreviewChip): El {
   const chip = el(parent, "span", "io-bubble", f.short || f.name);
-  cssVar(chip, "--io-bubble-bg", fieldColor(f));
+  cssVar(chip, "--io-bubble-bg", typeColor(f.kind));
   cssVar(chip, "--io-bubble-fg", typeInk(f.kind));
   return chip;
 }
@@ -653,7 +655,32 @@ export const linePreview: CustomRender = (host, ctx) => {
       if (fill) fill(c);
       return c;
     };
-    /* Ряд первый — сама строка. */
+    /* Подписи — над строкой, под ней custom block (его пункт «Новое» 2026-10-04). */
+    /* Ряд первый — подписи Separator, каждая по центру своей колонки. */
+    const sepName = (text: string): void => {
+      el(el(holder, "div", "io-struct__sepname"), "span", undefined, text);
+    };
+    el(holder, "div");
+    el(holder, "div");
+    sepName(frame(ctx, "PREVIEW_SEPARATOR_1"));
+    el(holder, "div");
+    sepName(frame(ctx, "PREVIEW_SEPARATOR_2"));
+    el(holder, "div");
+
+    /* Ряд второй — имена Blocks над скобками и засечки над Separator. */
+    const block = (text: string): void => {
+      const w = el(holder, "div", "io-struct__block");
+      el(w, "div", "io-struct__name", text);
+      el(w, "div", "io-struct__bracket io-struct__bracket--top");
+    };
+    el(holder, "div");
+    block(frame(ctx, "PREVIEW_LEFT_BLOCK"));
+    el(holder, "div", "io-struct__tick");
+    el(holder, "div");
+    el(holder, "div", "io-struct__tick");
+    block(frame(ctx, "PREVIEW_RIGHT_BLOCK"));
+
+    /* Ряд третий — сама строка. */
     cell("io-struct__prefix", c => { el(c, "span", "io-line__prefix", "- "); });
     cell("io-struct__side io-line__side--left", c => {
       for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
@@ -671,29 +698,20 @@ export const linePreview: CustomRender = (host, ctx) => {
       else el(c, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
     });
 
-    /* Ряд второй — скобки под Blocks и засечки под Separator. */
-    const block = (text: string): void => {
-      const w = el(holder, "div", "io-struct__block");
-      el(w, "div", "io-struct__bracket");
-      el(w, "div", "io-struct__name", text);
-    };
-    el(holder, "div");
-    block(frame(ctx, "PREVIEW_LEFT_BLOCK"));
-    el(holder, "div", "io-struct__tick");
-    el(holder, "div");
-    el(holder, "div", "io-struct__tick");
-    block(frame(ctx, "PREVIEW_RIGHT_BLOCK"));
-
-    /* Ряд третий — подписи Separator, каждая по центру своей колонки. */
-    const sepName = (text: string): void => {
-      el(el(holder, "div", "io-struct__sepname"), "span", undefined, text);
-    };
-    el(holder, "div");
-    el(holder, "div");
-    sepName(frame(ctx, "PREVIEW_SEPARATOR_1"));
-    el(holder, "div");
-    sepName(frame(ctx, "PREVIEW_SEPARATOR_2"));
-    el(holder, "div");
+    /* Ряд четвёртый — стрелка от середины текста к custom block, каждый как Left/Right: чипы, скобка, имя. */
+    const blocks = previewCustomBlocks(ctx);
+    if (blocks.length) {
+      const tree = el(el(holder, "div", "io-struct__custom"), "div", "io-struct__tree");
+      for (const b of blocks) {
+        const branch = el(tree, "div", "io-struct__branch");
+        const chips = el(branch, "div", "io-struct__cell");
+        if (b.fields.length) for (const f of b.fields) fieldChip(chips, f);
+        else el(chips, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
+        const w = el(branch, "div", "io-struct__block");
+        el(w, "div", "io-struct__bracket");
+        el(w, "div", "io-struct__name", b.name);
+      }
+    }
 
     /* Пример помечается: иначе человек решит, что видит свои Fields (ПЗ2). */
     if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));

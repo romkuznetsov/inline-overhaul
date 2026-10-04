@@ -1952,6 +1952,32 @@ body.theme-dark {
 .io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
 .io-legend__mark--danger { color: var(--text-error); }
 .io-legend__mark .io-danger__icon { display: inline-block; }
+/* Скобка над Block — подписи над строкой (его пункт «Новое» 2026-10-04): обнимает сверху. */
+.io-struct__bracket--top {
+  border-top: 1px solid var(--background-modifier-border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+/*
+ * Custom block под строкой: ячейка нулевой ширины в колонке текста, по её
+ * центру — ствол стрелки. Ширины колонке не добавляет, строка выше не
+ * разъезжается; ветки уходят вправо и листаются вместе со строкой.
+ */
+.io-struct__custom { grid-column: 4; width: 0; justify-self: center; align-self: start; }
+.io-struct__tree { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: max-content; margin-top: 8px; }
+.io-struct__branch { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding-left: 18px; }
+.io-struct__branch > .io-struct__block { align-self: stretch; }
+/* Ствол и колено к своей ветке; у последней ствол кончается коленом. */
+.io-struct__branch::before {
+  content: ""; position: absolute; left: 0; top: -8px; width: 10px; height: 18px;
+  border-left: 1px solid var(--text-faint); border-bottom: 1px solid var(--text-faint);
+}
+.io-struct__branch:not(:last-child) { box-shadow: inset 1px 0 0 var(--text-faint); }
+/* Наконечник стрелки у чипов ветки. */
+.io-struct__branch::after {
+  content: ""; position: absolute; left: 10px; top: 7px;
+  border-left: 5px solid var(--text-faint); border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
+}
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -5104,7 +5130,8 @@ const PREVIEW_TEXTS = {
     cap: "Live preview",
     tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they are written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
-    "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
+    "the Left Block, chips to the right to the Right Block. Chips at the end of the arrow under your text are your " +
+    "custom blocks: they are written where the cursor is, by their own tagWheel command. Everything you do below shows up here at once — add a " +
     "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +
     "see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
@@ -5200,6 +5227,29 @@ function renderLinePreview(host) {
       if (fill) fill(c);
       return c;
     };
+    /* Подписи — над строкой, под ней custom block (его пункт «Новое» 2026-10-04). */
+    /* row one: the separator captions, centred on their own column */
+    el("div", null, holder);
+    el("div", null, holder);
+    el("span", null, el("div", "io-struct__sepname", holder), "Separator 1");
+    el("div", null, holder);
+    el("span", null, el("div", "io-struct__sepname", holder), "Separator 2");
+    el("div", null, holder);
+
+    /* row two: block names over brackets that open downward, a tick over each separator */
+    el("div", null, holder);
+    const block = text => {
+      const w = el("div", "io-struct__block", holder);
+      el("div", "io-struct__name", w, text);
+      el("div", "io-struct__bracket io-struct__bracket--top", w);
+    };
+    block("Left Block");
+    el("div", "io-struct__tick", holder);
+    el("div", null, holder);
+    el("div", "io-struct__tick", holder);
+    block("Right Block");
+
+    /* row three: the line itself */
     cell("io-struct__prefix", c => el("span", "io-line__prefix", c, "- "));
     cell("io-struct__side io-line__side--left", c => fieldsOn("Left").forEach(f => fieldChip(c, f)));
     cell("io-struct__sep", c => el("span", "io-line__sep", c, String(val("pkm.lineFormat.separator1") || "||")));
@@ -5211,31 +5261,26 @@ function renderLinePreview(host) {
       else el("span", "io-line__hint", c, "empty");
     });
 
-    /* row two: brackets under the two blocks, a tick under each separator */
-    el("div", null, holder);
-    const block = text => {
-      const w = el("div", "io-struct__block", holder);
-      el("div", "io-struct__bracket", w);
-      el("div", "io-struct__name", w, text);
-    };
-    block("Left Block");
-    el("div", "io-struct__tick", holder);
-    el("div", null, holder);
-    el("div", "io-struct__tick", holder);
-    block("Right Block");
-
-    /* row three: the separator captions, centred on their own column */
-    el("div", null, holder);
-    el("div", null, holder);
-    el("span", null, el("div", "io-struct__sepname", holder), "Separator 1");
-    el("div", null, holder);
-    el("span", null, el("div", "io-struct__sepname", holder), "Separator 2");
-    el("div", null, holder);
+    /* row four: an arrow from the middle of the text to each custom block, drawn like Left/Right */
+    const blocks = customBlocks();
+    if (blocks.length) {
+      const tree = el("div", "io-struct__tree", el("div", "io-struct__custom", holder));
+      blocks.forEach(b => {
+        const branch = el("div", "io-struct__branch", tree);
+        const chips = el("div", "io-struct__cell", branch);
+        const mine = FIELDS.filter(f => f.position === customSide(b) && !f.parent);
+        if (mine.length) mine.forEach(f => fieldChip(chips, f));
+        else el("span", "io-line__hint", chips, "empty");
+        const w = el("div", "io-struct__block", branch);
+        el("div", "io-struct__bracket", w);
+        el("div", "io-struct__name", w, b.name);
+      });
+    }
   };
 
   draw();
   previewRefreshers.push(draw);
-  ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
+  ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2", CUSTOM_PATH].forEach(p => bind(p, draw));
 }
 
 /*

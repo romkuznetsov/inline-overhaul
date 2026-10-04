@@ -88,7 +88,8 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
     cap: "Live preview",
     tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they are written, " +
     "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
-    "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
+    "the Left Block, chips to the right to the Right Block. Chips at the end of the arrow under your text are your " +
+    "custom blocks: they are written where the cursor is, by their own tagWheel command. Everything you do below shows up here at once — add a " +
     "Field, rename one, give it a short name for tagWheel, drag it across the line, change a Separator — so you can " +
     "see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
