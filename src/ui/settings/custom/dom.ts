@@ -205,7 +205,8 @@ export function selectInput(parent: El, cls: string, o: {
   value: string;
   label: string;
 }): ElInput {
-  const node = parent.createEl("select", { cls, attr: { "aria-label": o.label } }) as ElInput;
+  /* `dropdown` — класс списка Obsidian: стрелку справа рисует платформа, в её же тёмной теме (цикл 129). */
+  const node = parent.createEl("select", { cls: cls + " dropdown", attr: { "aria-label": o.label } }) as ElInput;
   for (const opt of o.options) node.createEl("option", { text: opt.label, value: opt.value });
   node.value = o.value;
   return node;

@@ -516,6 +516,48 @@ async function clickIn(pg, text) {
 }
 
 const SCENARIOS = {
+  /* Разметка панели: вкладка IO_TAB, первые узлы по селектору IO_SEL — outerHTML (У-70: скриншот не показывает устройство). */
+  async "dom-probe"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    if (process.env.IO_TAB) await clickIn(host, process.env.IO_TAB);
+    const props = (process.env.IO_CSS || "").split(",").filter(Boolean);
+    const out = await host.evaluate(([sel, ps]) => [...document.querySelectorAll(sel)].slice(0, 3).map((n) => ps.length
+      ? n.className + " :: " + ps.map((k) => k + "=" + getComputedStyle(n).getPropertyValue(k)).join(" ; ") : n.outerHTML), [process.env.IO_SEL || ".setting-item", props]);
+    console.log(out.join("\n-----\n"));
+    if (process.env.IO_JS) console.log(await host.evaluate(process.env.IO_JS));
+    if (process.env.IO_SHOT) { const n = await host.$(process.env.IO_SEL); if (n) await n.screenshot({ path: process.env.IO_SHOT }); }
+    return out.length > 0;
+  },
+  /* Обход вида панели: каждая вкладка снимками по высоте экрана в IO_SHOTS (разбор дизайна, цикл 129). Вердикт — глазами, не числом. */
+  async "panel-tour"(win, browser) {
+    const dir = process.env.IO_SHOTS;
+    if (!dir) { console.log("нужен IO_SHOTS"); return false; }
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    let n = 0;
+    for (const tab of ["General", "Keyboard", "Navigation", "Tags & PKM", "Transform", "Visual", "Advanced"]) {
+      await clickIn(host, tab);
+      await host.waitForTimeout(500);
+      const pane = await host.$(".vertical-tab-content");
+      const h = await host.evaluate(() => { const c = document.querySelector(".vertical-tab-content"); c.scrollTop = 0; return [c.scrollHeight, c.clientHeight]; });
+      for (let top = 0, k = 0; top < h[0] && k < 8; top += h[1] - 40, k++) {
+        await host.evaluate((t) => { document.querySelector(".vertical-tab-content").scrollTop = t; }, top);
+        await host.waitForTimeout(200);
+        await pane.screenshot({ path: path.join(dir, "tour-" + (++n < 10 ? "0" : "") + n + "-" + tab.replace(/[^A-Za-z]/g, "") + "-" + k + ".png") });
+      }
+    }
+    console.log("ok: снимков " + n);
+    return true;
+  },
   /*
    * Цикл 121, два его пункта панели: `Separators` приходит свёрнутой, а подпись
    * id в «?» несёт значение (`autosave = off`) и освежает его после щелчка.

@@ -1612,7 +1612,8 @@ body.theme-dark {
   font-family: inherit;
   font-size: var(--font-ui-small);
   color: var(--text-normal);
-  background: var(--background-modifier-form-field);
+  /* Цвет, а не `background`: у `select` стрелку рисует фоном платформа, и сокращение её стирало. */
+  background-color: var(--background-modifier-form-field);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s);
   padding: 5px 8px;
@@ -2943,8 +2944,6 @@ body.theme-dark {
 .io-binder .io-binder__fold--open { color: var(--text-normal); }
 .io-binder .io-binder__cat { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Кнопки-значки таблицы — плоские, как в таблицах Fields: правило Obsidian на `button` рисовало им серую коробку. */
-.io-binder .io-icon { appearance: none; box-shadow: none; border: 0; background: transparent; color: var(--text-faint); }
-.io-binder .io-icon:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .io-binder__preset { padding: 2px 12px 8px 30px; background: var(--background-primary); }
 .io-binder__preset > .io-cats__set, .io-binder__new > .io-cats__set { max-width: 440px; }
 .io-binder__new { display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
@@ -4036,3 +4035,36 @@ body.theme-dark {
 .io-tw-keptsel {
   background-color: var(--text-selection);
 }
+
+/* ---- Цикл 129: общий проход вида панели (его слово 2026-10-04: «хороший UI/UX — интуитивный, красивый, эргономичный») ----
+   Только стили: поведение и тексты не меняются. Обход снимками — `node tools/obsidian_bench.js panel-tour`. */
+
+/* Кнопки-значки — плоские везде, где панель их рисует: правило Obsidian на `button` давало серую коробку одним и не давало соседям. */
+:is(.vertical-tab-content, .modal) button.io-icon { appearance: none; box-shadow: none; border: 0; background: transparent; color: var(--text-faint); }
+:is(.vertical-tab-content, .modal) button.io-icon:hover:not(:disabled) { color: var(--text-normal); background: var(--background-modifier-hover); }
+:is(.vertical-tab-content, .modal) button.io-icon:disabled { opacity: 0.3; cursor: default; }
+:is(.vertical-tab-content, .modal) button.io-icon--danger, :is(.vertical-tab-content, .modal) button.io-icon--danger:hover { color: var(--text-error); }
+
+/* «?» строки — в конце её описания, как у строк своих блоков рядом с именем, а не отдельной строкой ниже. */
+[class*="io-group-"] .setting-item-description > .io-tip { display: inline; margin: 0 0 0 4px; }
+[class*="io-group-"] .setting-item-description > .io-tip > .io-tip__mark { display: inline-flex; vertical-align: -3px; width: 15px; height: 15px; font-size: 10px; }
+[class*="io-group-"] .setting-item-description > .io-tip[open] > .io-tip__body { display: block; margin-top: 6px; }
+
+/* Стрелка сворачивания группы — знаком без рамки, как у Obsidian; свёрнутую отличает сам знак. */
+:is(.vertical-tab-content, .modal) [class*="io-group-"] button.io-fold, :is(.vertical-tab-content, .modal) button.io-fold { border-color: transparent; background: transparent; box-shadow: none; font-size: 13px; }
+:is(.vertical-tab-content, .modal) button.io-fold:hover { background: var(--background-modifier-hover); }
+
+/* Крестик «стереть» — красным знаком без рамки. */
+:is(.vertical-tab-content, .modal) button.io-clear { border-color: transparent; background: transparent; box-shadow: none; }
+:is(.vertical-tab-content, .modal) button.io-clear:hover { background: var(--background-modifier-hover); }
+
+/* Свой выпадающий список выглядит списком: стрелку рисует платформа, место под неё — справа. */
+select.io-select { background-color: var(--background-modifier-form-field); padding-right: 30px; }
+/* В узкой ячейке таблицы стрелка ближе к краю: место — тексту выбора. */
+.io-vals__row select.io-select { padding-right: 18px; padding-left: 6px; background-position: right 3px center; }
+
+/* Значение у ползунка — ровной колонкой: сброс рядом не прыгает от длины числа. */
+[class*="io-group-"] .setting-item-control > .slider-value { min-width: 4.5em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Число в одну-две цифры — узким полем справа налево, а не полем под абзац. */
+[class*="io-group-"] .setting-item-control > input[type="number"] { width: 72px; text-align: right; }
