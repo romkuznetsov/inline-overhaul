@@ -30,10 +30,14 @@
  *                            первого `settings` (выбраны за кадром); другая вкладка — щелчком.
  *                            Начинает новый этап полосы; под панелью заметки возвращаются к исходным.
  *                            Отдельного шага сброса нет: откат на камеру он запретил (2026-10-04)
- *   set <контрол> = <значение>  указатель к контролу, выбор (список, переключатель on/off,
- *                            кнопки-варианты, текстовое поле); после последнего `set` подряд
+ *   set <контрол>[ #N] = <значение>  указатель к контролу (#N — N-й с тем же именем), выбор (список, переключатель on/off,
+ *                            кнопки-варианты, текстовое поле, ползунок числом, цвет #rrggbb);
+ *                            после последнего `set` подряд
  *                            панель закрывается сама
  *   click <текст>            указатель к узлу с этим текстом, щелчок
+ *   fill <подсказка> = <текст>  набор в поле, у которого нет имени строки (по placeholder)
+ *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
+ *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
@@ -73,10 +77,11 @@ function readSteps(id) {
     .map((l) => { const i = l.indexOf(" "); return i < 0 ? [l, ""] : [l.slice(0, i), l.slice(i + 1).trim()]; });
 }
 
+/** Заметки демо, с подпапками (шаблоны Transform): путь в vault — через `/`. */
 function notes() {
   const dir = path.join(SHOW, "vault");
-  return Object.fromEntries(fs.readdirSync(dir).filter((n) => n.endsWith(".md"))
-    .map((n) => [n, fs.readFileSync(path.join(dir, n), "utf8").replace(/\r\n/g, "\n")]));
+  return Object.fromEntries(fs.readdirSync(dir, { recursive: true }).filter((n) => n.endsWith(".md"))
+    .map((n) => [n.split(path.sep).join("/"), fs.readFileSync(path.join(dir, n), "utf8").replace(/\r\n/g, "\n")]));
 }
 
 const CSS = `
@@ -120,7 +125,11 @@ async function stage(win, browser, tab, stages, hotkeys) {
   await win.evaluate(async ({ files, hotkeys }) => {
     const a = window.app;
     for (const f of a.vault.getMarkdownFiles()) await a.vault.delete(f);
-    for (const [n, t] of Object.entries(files)) await a.vault.create(n, t);
+    for (const [n, t] of Object.entries(files)) {
+      const dir = n.split("/").slice(0, -1).join("/");
+      if (dir && !a.vault.getAbstractFileByPath(dir)) await a.vault.createFolder(dir);
+      await a.vault.create(n, t);
+    }
     for (const [id, keys] of Object.entries(hotkeys)) a.hotkeyManager.setHotkeys(id.includes(":") ? id : "inline-overhaul:" + id, keys);
     a.hotkeyManager.bake();
     for (const m of document.querySelectorAll(".modal-container")) m.remove();
@@ -198,10 +207,13 @@ const markStart = (win) => win.evaluate((movedSrc) => {
   const k = document.createElement("div"); k.className = "io-rec-hk"; k.style.opacity = "0";
   document.body.append(d, k);
   const st = { live: true, d, k };
+  let caret = before.at;
   const place = () => {
     if (!st.live) return;
-    const now = ed.getValue();
-    if (now !== text) { text = now; span = moved(before, snap()); }
+    const now = ed.getValue(), at = ed.getCursor().line;
+    if (now !== text) { text = now; caret = at; span = moved(before, snap()); }
+    /* Текст не менялся, а каретка ушла (прыжки): подсветка идёт за кареткой. */
+    else if (at !== caret) { caret = at; span = [at, at]; }
     const top = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: 0 }));
     const end = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: ed.getLine(span[0]).length }));
     const bot = cm.coordsAtPos(ed.posToOffset({ line: span[1], ch: ed.getLine(span[1]).length }));
@@ -272,16 +284,26 @@ async function point(win, box) {
 
 /** Контрол строки панели по её имени: выпадающий список, переключатель или кнопки-варианты. */
 async function setControl(win, name, value) {
-  const kind = await win.evaluate(([name]) => {
-    const row = [...document.querySelectorAll(".setting-item")].find((r) => {
-      const n = r.querySelector(".setting-item-name"); return n && n.textContent.trim() === name;
-    });
+  /* `<имя> #2` — второй контрол с тем же именем на вкладке. */
+  const m = name.match(/^(.*) #(\d+)$/);
+  const nth = m ? Number(m[2]) : 1;
+  if (m) name = m[1];
+  const kind = await win.evaluate(([name, nth]) => {
+    /* Заголовок группы бывает тёзкой контрола (`Tag Bars`, `Inline to note`): берётся строка,
+       у которой есть контрол, а не заголовок. */
+    const ctl = "select, .checkbox-container, input, textarea, button:not(.clickable-icon)";
+    const row = [...document.querySelectorAll(".setting-item:not(.setting-item-heading)")].filter((r) => {
+      const n = r.querySelector(".setting-item-name");
+      const c = r.querySelector(".setting-item-control");
+      return n && n.textContent.trim() === name && c && c.querySelector(ctl);
+    })[nth - 1];
     if (!row) return null;
     row.scrollIntoView({ block: "center" });
     row.setAttribute("data-io-rec", "1");
     return row.querySelector("select") ? "select" : row.querySelector(".checkbox-container") ? "toggle"
-      : row.querySelector("input[type=text], input[type=number], input:not([type]), textarea") ? "text" : "buttons";
-  }, [name]);
+      : row.querySelector("input[type=range]") ? "range" : row.querySelector("input[type=color]") ? "color"
+        : row.querySelector("input[type=text], input[type=number], input:not([type]), textarea") ? "text" : "buttons";
+  }, [name, nth]);
   if (!kind) throw new Error("нет контрола «" + name + "»");
   await win.waitForTimeout(250);
   const row = win.locator("[data-io-rec='1']");
@@ -301,6 +323,22 @@ async function setControl(win, name, value) {
     const b = await t.boundingBox();
     await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
     if (on !== (value === "on")) await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  } else if (kind === "range" || kind === "color") {
+    /* Ползунок: указатель ведёт ручку к новому месту; цвет: щелчок по образцу и значение
+       (системное окно цвета в кадр не попадает). Значение ставится событиями input и change. */
+    const t = row.locator("input[type=" + kind + "]").first();
+    const b = await t.boundingBox();
+    const at = kind === "range"
+      ? await t.evaluate((n, v) => (Number(v) - Number(n.min || 0)) / ((Number(n.max || 100) - Number(n.min || 0)) || 1), value)
+      : 0.5;
+    await point(win, { x: b.x + (kind === "range" ? 0 : b.width / 2), y: b.y + b.height / 2 });
+    await win.evaluate(([x, y]) => document.dispatchEvent(new MouseEvent("mousedown", { clientX: x, clientY: y })), [b.x, b.y + b.height / 2]);
+    if (kind === "range") await win.mouse.move(b.x + b.width * Math.min(1, Math.max(0, at)), b.y + b.height / 2, { steps: 12 });
+    await t.evaluate((n, v) => {
+      n.value = v;
+      n.dispatchEvent(new Event("input", { bubbles: true }));
+      n.dispatchEvent(new Event("change", { bubbles: true }));
+    }, value);
   } else if (kind === "text") {
     const t = row.locator("input[type=text], input[type=number], input:not([type]), textarea").first();
     const b = await t.boundingBox();
@@ -417,13 +455,55 @@ async function run(win, steps, cut, log) {
         const ed = a.workspace.activeEditor;
         for (const [n, t] of Object.entries(files)) {
           if (ed && ed.file && ed.file.path === n) ed.editor.setValue(t);
-          else await a.vault.modify(a.vault.getAbstractFileByPath(n), t);
+          /* Заметку, положенную в папку демо после старта записи (параллельные сессии), — пропустить. */
+          else if (a.vault.getAbstractFileByPath(n)) await a.vault.modify(a.vault.getAbstractFileByPath(n), t);
         }
         /* Каретка — туда, где её ждёт следующий показ: иначе мелькает первая строка. */
         const e = a.workspace.activeEditor && a.workspace.activeEditor.editor;
         const k = e && line ? e.getValue().split("\n").lastIndexOf(line) : -1;
         if (k >= 0) e.setCursor({ line: k, ch: line.length });
       }, [notes(), nc ? nc[1] : ""]);
+    } else if (op === "fill") {
+      /* Поле своего блока без имени строки — по подсказке внутри поля. */
+      const [ph, text] = arg.split(" = ");
+      const t = win.locator("input[placeholder=\"" + ph + "\"]:visible, textarea[placeholder=\"" + ph + "\"]:visible").first();
+      const b = await t.boundingBox();
+      if (!b) throw new Error("нет поля с подсказкой «" + ph + "»");
+      await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+      await win.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+      await win.keyboard.type(text, { delay: 60 });
+      await win.waitForTimeout(400);
+    } else if (op === "pick") {
+      /* Список своего блока без имени строки: по aria-label, title или подписи рядом. */
+      const [label, value] = arg.split(" = ");
+      const ok = await win.evaluate((label) => {
+        const own = (s) => [s.getAttribute("aria-label"), s.title, s.previousElementSibling && s.previousElementSibling.textContent,
+          s.parentElement && [...s.parentElement.childNodes].filter((c) => c !== s).map((c) => c.textContent).join(" ")];
+        const s = [...document.querySelectorAll("select:not(.is-measuring)")]
+          .find((x) => x.getBoundingClientRect().width > 0 && own(x).some((t) => t && t.trim().startsWith(label)));
+        if (!s) return false;
+        s.scrollIntoView({ block: "center" });
+        s.setAttribute("data-io-pick", "1");
+        return true;
+      }, label);
+      if (!ok) throw new Error("нет списка с подписью «" + label + "»");
+      const sel = win.locator("[data-io-pick='1']");
+      const labels = await sel.evaluate((n) => [...n.options].map((o) => o.textContent.trim()));
+      if (!labels.includes(value)) throw new Error("у «" + label + "» нет «" + value + "»; есть: " + labels.join(" | "));
+      const b = await sel.boundingBox();
+      await point(win, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+      await win.evaluate(([x, y]) => document.dispatchEvent(new MouseEvent("mousedown", { clientX: x, clientY: y })), [b.x + b.width / 2, b.y + b.height / 2]);
+      await sel.selectOption({ label: value });
+      await sel.evaluate((n) => n.removeAttribute("data-io-pick"));
+      await win.waitForTimeout(500);
+    } else if (op === "hover") {
+      /* `hover <текст>` — указатель на узел; `+ Ctrl` — с зажатым Ctrl (превью ссылки), 1,5 с. */
+      const [t, mod] = arg.split(" + ");
+      const b = await find(win, t);
+      if (mod) await win.keyboard.down(mod === "Ctrl" ? "Control" : mod);
+      await point(win, b);
+      await win.waitForTimeout(1500);
+      if (mod) await win.keyboard.up(mod === "Ctrl" ? "Control" : mod);
     } else if (op === "click") {
       const b = await find(win, arg);
       await point(win, b);
