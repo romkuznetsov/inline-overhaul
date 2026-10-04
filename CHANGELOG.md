@@ -19,7 +19,17 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.15.0
+
+_2026-10-04 · [all changes since 0.14.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.14.0...0.15.0)_
+
+> [!NOTE]
+> ✨ **3** new things · 🎨 **16** changes you can see · 🐛 **4** bug fixes
+>
+> **New in this release**
+> - **A new Field type, `Action`, turns edits of the line into hotkeys**
+> - **An eye in front of every Value hides it from `next`, `previous` and tagWheel**
+> - **A Binder row can run an `Action` category with one preset of its own**
 
 1. ✨ **A new Field type, `Action`, turns edits of the line into hotkeys.** Its categories — `Insert callout`, `Cleanup`, `Insert codeblock` and `Tree ↔ section` — come with ready-made presets you can rename, hide, clone and reorder, each category gets its own `next` and `previous` commands, and tagWheel offers its presets in every Block, custom blocks too — `Enter` applies every one you pick.
 2. ✨ **An eye in front of every Value hides it from `next`, `previous` and tagWheel.** The Value stays in the Field, and a line that already has it keeps working: the next step goes on to its neighbor.
