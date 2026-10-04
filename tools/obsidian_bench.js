@@ -132,6 +132,14 @@ async function launch(name) {
   const close = async () => {
     if (browser) await browser.close().catch(() => { /* уборка: соединения может уже не быть */ });
     proc.kill();
+    /* Obsidian перезапускает себя отдельным процессом вне дерева `proc`, и его рендеры живут дальше:
+       следующий запуск на том же порту цепляется к недобитым (запись Showcase 2026-10-04).
+       Гасятся все Obsidian.exe, у которых в командной строке профиль этого запуска, — чужие не задеваются. */
+    if (process.platform === "win32") {
+      const prof = path.basename(env.work);
+      const ps = "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'Obsidian.exe' -and $_.CommandLine -like '*" + prof + "*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+      try { require("child_process").execFileSync("powershell", ["-NoProfile", "-Command", ps], { stdio: "ignore" }); } catch (_e) { /* уборка: процессов уже нет */ }
+    }
   };
   if (!browser) { await close(); throw new Error("порт отладки Obsidian не поднялся"); }
   let win = null;
