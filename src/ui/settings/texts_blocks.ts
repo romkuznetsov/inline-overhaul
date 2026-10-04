@@ -741,6 +741,7 @@ export const BLOCK_TEXTS = {
     HOTKEY_OPEN: "Open Obsidian’s Hotkeys settings at this command",
     /* Кнопка в заголовке любого уровня (2026-09-20, п. 12.3). Подпись говорит, чем
        отобрано: поиск Obsidian набор команд не выражает, строку видно в поле поиска. */
+    PART_USER_DESC: "<code>next</code> moves a Field on to its next Value or preset, <code>previous</code> moves it back",
     TO_HOTKEYS: "to hotkeys",
     TO_HOTKEYS_LABEL: "Open Obsidian’s Hotkeys screen for {0}, filtered by {1}",
   },

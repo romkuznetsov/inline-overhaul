@@ -276,7 +276,8 @@ async function main(): Promise<void> {
      * подсказки, — читать их человек будет уже на своём языке.
      */
     /* Знак плагина — первым, над вводным коллаутом (`В-198`, 2026-09-23). */
-    assert.deepEqual(ids, ["brand-intro", "general-intro", "language", "help", "modules"]);
+    /* Группы `language` нет с цикла 129: язык — первой строкой Help (его ответы интервью). */
+    assert.deepEqual(ids, ["brand-intro", "general-intro", "help", "modules"]);
   });
 
   /* `Transform` перед `Visual` — его слово 2026-09-23 (тест 4 заметки). */
@@ -286,7 +287,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 38,
+    /* 38 → 37 в цикле 129: группа `Language` снята его словом, язык — первой строкой `Help`. */
+    assert.equal(SCHEMA.length, 37,
       "Группа `tagWheel behavior` на `Tags & PKM` заведена 2026-09-24 его пунктом к custom block (PRD 10.13.260): три строки и две подчинённые уехали туда из `tagWheel` → `Panel`, ни одна не пропала. "
       + "групп в схеме: 21 с настройками, 7 вводных коллаутов, знак плагина (с 2026-09-23, `В-198`: первым на `General`, без заголовка), группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
@@ -425,8 +427,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 38,
-      "38 групп прототипа разложены без остатка: `tagWheel behavior` заведена 2026-09-24 (PRD 10.13.260) — её строки не новые, они ушли из группы `tagWheel`; знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside a note (up/down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
+    assert.equal(SCHEMA.length + AWAITED.length, 37,
+      "37 групп прототипа разложены без остатка: группа `Language` снята 2026-10-04 (цикл 129) его словом — её строка стала первой в `Help`; `tagWheel behavior` заведена 2026-09-24 (PRD 10.13.260) — её строки не новые, они ушли из группы `tagWheel`; знак плагина `brand-intro` заведён 2026-09-23 (`В-198`); группа `tagWheel opening` снята 2026-09-21 его словом «tagwheel-opening сделать субхедером в хедере tagwheel (как scroller)» — три её строки уехали в группу `tagWheel` под субхедер того же имени; три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Jump inside a note (up/down)`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Auto-MOC in your links` — 2026-09-17 по его заказу Н4 (10.13.184); группа `Options IDs` снята 2026-09-22 его пунктом 5 «show-setting-ids перенеси в diagnostics, а сам хедер setting-ids удали» — её единственная строка уехала в группу `Diagnostics` первой, путь в конфиге и умолчание не тронуты");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -553,7 +555,7 @@ async function main(): Promise<void> {
     const list = allDefs(pane);
     assert.equal(pane.activeTab(), "general", "на старте открыта первая вкладка с группами");
     /* Две группы без заголовка: знак плагина (`В-198`) и вводный коллаут. */
-    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, undefined, "Language", "Help", "Modules"]);
+    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, undefined, "Help", "Modules"]);
     for (const d of list) assert.equal(d.type, "group", "страниц-переходов больше нет");
   });
 
@@ -2228,8 +2230,10 @@ async function main(): Promise<void> {
 
     const markInk = winner(["io-help"], "color");
     assert.ok(markInk, "у знака «?» никто не задаёт цвет");
+    /* Предмет — сам знак (последнее звено селектора); подсветка названия открытой подсказки шапки (цикл 129) — другое правило. */
     const pressed = rules.filter(r => r.selector.includes("aria-expanded")
-      && /io-vals__head|io-tablehead|io-cmd__head|io-fields__colhead/.test(r.selector));
+      && /io-vals__head|io-tablehead|io-cmd__head|io-fields__colhead/.test(r.selector)
+      && /io-help/.test(String(r.selector.split(/[\s>+~]+/).pop())));
     assert.deepEqual(pressed.map(r => r.selector + " { " + r.prop + " }"), [],
       "у нажатого «?» на шапке снова своё правило — оно повторяет общее (У-32)");
   });

@@ -15,7 +15,6 @@ export const RU_SEED: Readonly<Record<string, string>> = {
   "tab.visual.label": "Вид",
   "tab.transform.label": "Превращение",
   "tab.advanced.label": "Дополнительно",
-  "language.heading": "Язык",
-  "language.ui-language.name": "Язык",
-  "language.ui-language.desc": "На каком языке говорят панель и сообщения плагина",
+  "help.ui-language.name": "Язык",
+  "help.ui-language.desc": "Панели и сообщений плагина",
 };

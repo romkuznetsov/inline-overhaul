@@ -21,21 +21,14 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
-  id: "language", tab: "general", order: 50, heading: "Language",
-  intro: "Choose the language of this panel, its tips and the plugin messages. You can also edit the wording yourself",
-  tip: "Each language is a small text file in the plugin folder. Change a line there, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Anything you leave untranslated stays in English, so a half-done translation still works",
+  id: "help", tab: "general", order: 100, heading: "Help",
+  intro: "The language of the panel, where to start, and how much help you want along the way",
+  tip: "<code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay",
   items: [
     { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
       options:[], optionsFrom:"languages",
-      name:"Language", desc:"What language this panel and the plugin messages speak",
-      tip:"The list shows English plus every language file in the plugin folder. The switch works at once, no reload needed. Lines that are not translated yet show in English, never blank" }
-  ]
-},
-{
-  id: "help", tab: "general", order: 100, heading: "Help",
-  intro: "Where to start, and how much help you want along the way",
-  tip: "<code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay",
-  items: [
+      name:"Language", desc:"Of this panel and the plugin messages",
+      tip:"The list shows English plus every language file in the plugin folder, and the switch works at once. Each language is a small text file there: change a line, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Lines you leave untranslated stay in English, never blank" },
     { kind:"toggle", id:"show-callouts", path:"general.help.showCallouts", default:true,
       name:"Show callouts", desc:"Keep the boxes that say what a tab or a block of settings is for",
       searchTerms:["Show intro boxes"],

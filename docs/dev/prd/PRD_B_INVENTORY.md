@@ -12,7 +12,7 @@ python tests/prototype/update_prd.py
 
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
-| 1 | General | — | 5 | 9 | 2 |
+| 1 | General | — | 4 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
@@ -29,8 +29,7 @@ python tests/prototype/update_prd.py
 |-------|----|-----------|-------|-----|----------------------|
 | 5 | `brand-intro` | inlineOverhaul | — | — | — |
 | 10 | `general-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 50 | `language` | Language | Choose the language of this panel, its tips and the plugin messages. You can also edit the wording yourself | да | — |
-| 100 | `help` | Help | Where to start, and how much help you want along the way | да | — |
+| 100 | `help` | Help | The language of the panel, where to start, and how much help you want along the way | да | — |
 | 200 | `modules` | Modules | The plugin has four separate parts. Turn off the ones you don’t want, and they stop adding commands and stop touching your notes | да | — |
 
 **Keyboard** (`keyboard`)
@@ -163,23 +162,16 @@ _Tip:_ Showing ids is harmless. Use an id to name a setting in a bug report, bec
 
 - **`general-callout`** — свой блок, рендерер `renderTabCallout`
 
-#### Language — `language` (вкладка `general`)
-
-_Intro:_ Choose the language of this panel, its tips and the plugin messages. You can also edit the wording yourself
-
-_Tip:_ Each language is a small text file in the plugin folder. Change a line there, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Anything you leave untranslated stays in English, so a half-done translation still works
-
-- **Language** — `ui-language`, `dropdown`, path `general.language`, default `en`
-  - desc: What language this panel and the plugin messages speak
-  - tip: The list shows English plus every language file in the plugin folder. The switch works at once, no reload needed. Lines that are not translated yet show in English, never blank
-  - варианты: 
-
 #### Help — `help` (вкладка `general`)
 
-_Intro:_ Where to start, and how much help you want along the way
+_Intro:_ The language of the panel, where to start, and how much help you want along the way
 
 _Tip:_ <code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay
 
+- **Language** — `ui-language`, `dropdown`, path `general.language`, default `en`
+  - desc: Of this panel and the plugin messages
+  - tip: The list shows English plus every language file in the plugin folder, and the switch works at once. Each language is a small text file there: change a line, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Lines you leave untranslated stay in English, never blank
+  - варианты: 
 - **Show callouts** — `show-callouts`, `toggle`, path `general.help.showCallouts`, default `true`
   - desc: Keep the boxes that say what a tab or a block of settings is for
   - tip: Callouts are the boxes with a colored edge at the top of each tab and under each block of settings. <code>Show tips</code> is a separate switch for the <code>?</code> marks. Know your way around? Turn both off; the one-line descriptions stay

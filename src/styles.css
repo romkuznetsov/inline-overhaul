@@ -3354,6 +3354,8 @@ body.theme-dark {
   text-align: left;
   max-width: none;
 }
+/* Описание команд Field — одной строкой под подписью части (цикл 129). */
+.io-cmd__partdesc { padding: 2px 12px 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 
 /* ======================================================================
  * Окна плагина вне панели настроек (правило каталога Р7).
@@ -4077,3 +4079,18 @@ select.io-select { background-color: var(--background-modifier-form-field); padd
 /* Пустое описание строки Binder — без рамки, пока на него не навели или не встали: девять пустых коробок забирали взгляд у самих команд. */
 .io-binder__desc .io-text:placeholder-shown:not(:hover):not(:focus) { border-color: transparent; background-color: transparent; }
 
+/*
+ * Шапка таблицы — одной строкой (его ответ интервью цикла 129: «в строку с названием, но не сокращай название… остальное прячь в подсказки»).
+ * Кружок «?» справа от `Fill`, `Text`, `Side` расширил бы таблицу Values за бюджет 665 px, поэтому подсказку открывает само название:
+ * кнопка «?» лежит поверх ячейки прозрачной, название подчёркнуто пунктиром, открытая — цветом акцента.
+ */
+.io-vals__head > div:has(> .io-help), .io-tablehead > div:has(> .io-help), .io-cmd__head > div:has(> .io-help) { position: relative; flex-direction: row; align-items: center; }
+.io-vals__head > div > .io-help.io-help, .io-tablehead > div > .io-help.io-help, .io-cmd__head > div > .io-help.io-help {
+  position: absolute; inset: 0; width: auto; height: auto; min-width: 0; min-height: 0; margin: 0;
+  border: 0; border-radius: var(--radius-s); background: transparent; color: transparent; cursor: help;
+}
+.io-vals__head > div > .io-help.io-help:focus-visible, .io-tablehead > div > .io-help.io-help:focus-visible, .io-cmd__head > div > .io-help.io-help:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.io-vals__head > div:has(> .io-help) > span, .io-tablehead > div:has(> .io-help) > span, .io-cmd__head > div:has(> .io-help) > span {
+  white-space: nowrap; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--text-faint);
+}
+.io-vals__head > div:has(> .io-help[aria-expanded="true"]) > span, .io-tablehead > div:has(> .io-help[aria-expanded="true"]) > span, .io-cmd__head > div:has(> .io-help[aria-expanded="true"]) > span { color: var(--text-accent); text-decoration-color: currentColor; }

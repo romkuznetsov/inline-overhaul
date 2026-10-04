@@ -9,7 +9,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, btn, tipBelow, type El } from "./dom.ts";
+import { el, btn, rich, tipBelow, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { COMMAND_TEXTS } from "../schema/custom_texts.ts";
 import { commandKey } from "../texts_custom.ts";
@@ -259,6 +259,8 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
           }));
           /* Кнопка последней: `margin-left: auto` уводит вправо и всё после неё, а «?» принадлежит подписи. */
           jump(sub, "part", text, ordered.filter(r => r.band === band).map(r => r.cmd));
+          /* Описание команд Field — один раз под подписью части, а не у каждой из пар (его ответ интервью цикла 129). */
+          if (user) rich(el(inner, "div", "io-cmd__partdesc"), words("PART_USER_DESC"));
         }
         /* Свой подзаголовок на каждый Field (2026-08-31): иначе границ Fields не видно. */
         if (area.parts) {
@@ -277,7 +279,7 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
         const line = el(inner, "div", "io-cmd__row");
         /* Имя без области (пункт 6, 2026-09-22); полное — у кнопки хоткея и в запросе `Hotkeys` (У-240). */
         el(line, "div", "io-cmd__name", cmd.short);
-        el(line, "div", "io-cmd__does", row.does);
+        el(line, "div", "io-cmd__does", area.parts && band === "user" ? "" : row.does);
         const cell = el(line, "div");
 
         const current = hotkeyOf(plugin, cmd.id);

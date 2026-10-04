@@ -329,12 +329,23 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const d = draw(makeConfig());
   const known = new Set<string>();
   for (const area of COMMAND_TEXTS) for (const row of area.list) known.add(row.does);
-  const invented = d.rows.map(r => r.does).filter(t => !known.has(t));
+  /* Команды Field описаны один раз под подписью части, у самих пар описания нет (его ответ интервью цикла 129). */
+  const userParts = new Set(COMMAND_TEXTS.map(a => (a as Any).parts && (a as Any).parts.user).filter(Boolean));
+  const invented = d.rows.filter(r => !userParts.has(r.under)).map(r => r.does).filter(t => !known.has(t));
+  const fieldRows = d.rows.filter(r => userParts.has(r.under));
+  assert.ok(fieldRows.length > 0 && fieldRows.every(r => r.does === ""), "у команд Field осталось описание: " + fieldRows.map(r => r.does).join(" | "));
+  const descs: string[] = [];
+  const find = (n: StubNode): void => {
+    if (String((n as Any).className || "").includes("io-cmd__partdesc")) descs.push(String(n.textContent || ""));
+    n.children.forEach(find);
+  };
+  find(d.host);
+  assert.equal(descs.length, 1, "описание команд Field не один раз: " + descs.length);
   assert.deepEqual(invented, [],
     "описание придумано в коде, а не взято из прототипа (Р8):\n  " + invented.join("\n  "));
-  const empty = d.rows.filter(r => !r.does).map(r => r.name);
+  const empty = d.rows.filter(r => !userParts.has(r.under) && !r.does).map(r => r.name);
   assert.deepEqual(empty, [], "команда без описания: " + empty.join(", "));
-  ok("описания взяты из прототипа, и ни одна строка не осталась без него");
+  ok("описания взяты из прототипа; у команд Field — одно описание под подписью части");
 }
 
 /* ---- семьи развёрнуты по данным ---------------------------------------- */

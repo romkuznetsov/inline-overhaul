@@ -937,7 +937,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 
 | путь | настройка | группа |
 |------|-----------|--------|
-| `general.language` | Language (`ui-language`) | Language |
+| `general.language` | Language (`ui-language`) | Help |
 | `general.help.showCallouts` | Show callouts (`show-callouts`) | Help |
 | `general.help.showTips` | Show tips (`show-tips`) | Help |
 | `editor.smartDelete.enabled` | Smart Delete (`smart-delete-enabled`) | Global hotkeys |

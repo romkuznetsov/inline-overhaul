@@ -67,7 +67,7 @@ Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **
 
 ### The words the panel uses
 
-**General → Language** decides what language the panel speaks. Every visible line has a key of its own, and the words behind those keys live in plain text files inside the plugin folder, one file per language:
+**General → Help → Language** decides what language the panel speaks. Every visible line has a key of its own, and the words behind those keys live in plain text files inside the plugin folder, one file per language:
 
 ```
 <your vault>/.obsidian/plugins/inline-overhaul/texts/default.js

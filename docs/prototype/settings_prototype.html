@@ -933,6 +933,24 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-cmd__row + .io-cmd__row { border-top: 1px solid var(--background-modifier-border); }
 .io-cmd__does { font-size: var(--font-ui-smaller); color: var(--text-muted); text-align: right; max-width: 44ch; }
+/* Описание команд Field — одной строкой под подписью части (цикл 129). */
+.io-cmd__partdesc { padding: 2px 12px 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+/*
+ * Шапка таблицы — одной строкой (его ответ интервью цикла 129: «в строку с названием, но не сокращай название… остальное прячь в подсказки»).
+ * Кружок «?» справа от `Fill`, `Text`, `Side` расширил бы таблицу Values за бюджет 665 px, поэтому подсказку открывает само название:
+ * кнопка «?» лежит поверх ячейки прозрачной, название подчёркнуто пунктиром, открытая — цветом акцента.
+ */
+.io-vals__head > div:has(> .io-help), .io-tablehead > div:has(> .io-help), .io-cmd__head > div:has(> .io-help) { position: relative; flex-direction: row; align-items: center; }
+.io-vals__head > div > .io-help.io-help, .io-tablehead > div > .io-help.io-help, .io-cmd__head > div > .io-help.io-help {
+  position: absolute; inset: 0; width: auto; height: auto; min-width: 0; min-height: 0; margin: 0;
+  border: 0; border-radius: var(--radius-s); background: transparent; color: transparent; cursor: help;
+}
+.io-vals__head > div > .io-help.io-help:focus-visible, .io-tablehead > div > .io-help.io-help:focus-visible, .io-cmd__head > div > .io-help.io-help:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.io-vals__head > div:has(> .io-help) > span, .io-tablehead > div:has(> .io-help) > span, .io-cmd__head > div:has(> .io-help) > span {
+  white-space: nowrap; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--text-faint);
+}
+.io-vals__head > div:has(> .io-help[aria-expanded="true"]) > span, .io-tablehead > div:has(> .io-help[aria-expanded="true"]) > span, .io-cmd__head > div:has(> .io-help[aria-expanded="true"]) > span { color: var(--text-accent); text-decoration-color: currentColor; }
+
 
 /* smart rules */
 .io-rules { display: flex; flex-direction: column; gap: 12px; }
@@ -2050,17 +2068,6 @@ const SCHEMA = [
 
 /* ============================================================ GENERAL */
 {
-  id: "language", tab: "general", order: 50, heading: "Language",
-  intro: "Choose the language of this panel, its tips and the plugin messages. You can also edit the wording yourself",
-  tip: "Each language is a small text file in the plugin folder. Change a line there, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Anything you leave untranslated stays in English, so a half-done translation still works",
-  items: [
-    { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
-      options:[], optionsFrom:"languages",
-      name:"Language", desc:"What language this panel and the plugin messages speak",
-      tip:"The list shows English plus every language file in the plugin folder. The switch works at once, no reload needed. Lines that are not translated yet show in English, never blank" }
-  ]
-},
-{
   id: "modules", tab: "general", order: 200, heading: "Modules",
   intro: "The plugin has four separate parts. Turn off the ones you don’t want, and they stop adding commands and stop touching your notes",
   tip: "When a part is off, its commands leave the palette, its hotkeys stop working and its settings are hidden here. Nothing is lost: turn it back on and everything is as it was. Only want the tags? Turn the other three off to keep the palette short",
@@ -2081,9 +2088,15 @@ const SCHEMA = [
 },
 {
   id: "help", tab: "general", order: 100, heading: "Help",
-  intro: "Where to start, and how much help you want along the way",
+  intro: "The language of the panel, where to start, and how much help you want along the way",
   tip: "<code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay",
   items: [
+    /* Язык — первой строкой Help, без своей группы: группа `Language` с одной строкой `Language` повторяла имя
+       (его ответы интервью цикла 129: «группу language надо убрать» и «первой строкой в Help»). */
+    { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
+      options:[], optionsFrom:"languages",
+      name:"Language", desc:"Of this panel and the plugin messages",
+      tip:"The list shows English plus every language file in the plugin folder, and the switch works at once. Each language is a small text file there: change a line, reload the plugin, and the panel shows your words. To add a language, copy the English file under a new name and translate it. Lines you leave untranslated stay in English, never blank" },
     /* Порядок — его слово 2026-10-03: «сначала callout и tips, потом guide и changelog». */
     /* Заказчик 2026-09-04: «добавь в help опцию Show callouts над show-tips
        (при off — все коллауты должны быть скрыты, это относится и к главным
@@ -7608,12 +7621,12 @@ function renderCommandReference(host) {
     const blockRow = group.list.find(c => c.name === "tagWheel <block>");
     if (blockRow) customBlocks().forEach(b => drawRow("tagWheel " + b.name, blockRow.does, false));
     part(group.parts.user, PARTTIP.user, group.parts.user);
+    /* Описание команд Field — один раз под подписью части (его ответ интервью цикла 129). */
+    rich(el("div", "io-cmd__partdesc", inner), "<code>next</code> moves a Field on to its next Value or preset, <code>previous</code> moves it back");
     if (!fromData.length) return;
     /* Пара на Field, и пары одного Field стоят рядом: сперва сам Field,
        затем его дочерний (1.2.3.4.3). В панели строки настоящие, здесь —
        собраны из примерных Fields. */
-    const next = fromData.find(c => / next$/.test(c.name)) || fromData[0];
-    const prev = fromData.find(c => / previous$/.test(c.name)) || fromData[0];
     /* Свой подзаголовок на каждый Field: `task (tag)` (замечание заказчика
        2026-08-31). Команды дочернего Field стоят под тем же подзаголовком:
        это тот же Field, только его дочерние значения. */
@@ -7626,8 +7639,8 @@ function renderCommandReference(host) {
         el("span", null, fieldRow, heading);
         toHotkeysButton(fieldRow, "field", heading);
         (f.categories || []).forEach(c => {
-          drawRow(f.strict + " · " + cfCategoryName(c) + " next", "Apply the first visible preset, or step to the next one inside its result", false);
-          drawRow(f.strict + " · " + cfCategoryName(c) + " previous", "Apply the last visible preset, or step back inside its result", false);
+          drawRow(f.strict + " · " + cfCategoryName(c) + " next", "", false);
+          drawRow(f.strict + " · " + cfCategoryName(c) + " previous", "", false);
         });
         return;
       }
@@ -7637,8 +7650,8 @@ function renderCommandReference(host) {
       const hasSub = (f.values || []).some(v => v.depth === 1);
       const names = [f.strict].concat(hasSub ? [f.strict + "_sub"] : []);
       names.forEach(base => {
-        drawRow(base + " next", next.does, false);
-        drawRow(base + " previous", prev.does, false);
+        drawRow(base + " next", "", false);
+        drawRow(base + " previous", "", false);
       });
     });
   });
