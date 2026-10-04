@@ -332,7 +332,7 @@ async function main() {
         ? ", и сказала: " + JSON.stringify(custom.opened.said) : ", и промолчала"));
     } else {
       const drawn = String(custom.opened.lineDrawn || "");
-      if (!/1231\s*\*\*\[Mood\]\*\*/.test(drawn.replace(/==/g, ""))) {
+      if (!/1231\s*\*\*\[-Mood\]\*\*/.test(drawn.replace(/==/g, ""))) {
         bad("полоса custom block не встала у каретки после `1231`: «" + drawn + "»");
       }
       if (drawn.indexOf(HIDDEN_VALUE) >= 0) {
