@@ -93,7 +93,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Name collision mode", "If the name is taken"],
       options:[ {value:"new_note",label:"New note"}, {value:"add_to_note",label:"Add to existing"},
                 {value:"overwrite",label:"Overwrite"} ],
-      tip:"<b>New note</b> adds a number to the name and never touches your old note, so it is the safe choice. <b>Add to existing</b> suits a running log. <b>Overwrite</b> deletes the old contents for good, and the plugin cannot bring them back" }
+      tip:"- <b>New note</b> — adds a number to the name and never touches your old note, so it is the safe choice\n- <b>Add to existing</b> — suits a running log\n- <b>Overwrite</b> — deletes the old contents for good, and the plugin cannot bring them back" }
   ]
 },
 {
@@ -140,7 +140,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       name:"Date format", desc:"Today\u2019s date, written the way you set out here",
       searchTerms:["Datetime header format"],
       visible: eq("transform.inline2note.placement.headerMode","datetime"),
-      tip:"<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day and <code>HH mm ss</code> the time. Anything else stays as you typed it, so <code>YYYY-MM-DD</code> gives <b>2026-08-21</b>" }
+      tip:"- <code>YYYY</code> — the year\n- <code>MM</code>, <code>DD</code> — the month, the day\n- <code>HH mm ss</code> — the time\nAnything else stays as you typed it, so <code>YYYY-MM-DD</code> gives <b>2026-08-21</b>" }
   ]
 },
 {
@@ -152,7 +152,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
     { kind:"custom", id:"source-preview", render: sourcePreview },
     { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
       name:"Sub-lines (tree) behavior", desc:"Leave them where they are, or take them into the note too",
-      tip:"Say the line has three sub-points. <b>Move</b> takes all four lines into the note and removes them from here. <b>Keep</b> copies all four into the note and leaves the sub-points where they are",
+      tip:"Say the line has three sub-points:\n- <b>Move</b> — takes all four lines into the note and removes them from here\n- <b>Keep</b> — copies all four into the note and leaves the sub-points where they are",
       searchTerms:["Sublines behavior"],
       options:[ {value:"stay",label:"Keep"}, {value:"remove",label:"Move"} ],
       visible: on("transform.inline2note.enabled") },
@@ -162,7 +162,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"remove",label:"Remove"}, {value:"leave",label:"Keep"},
                 {value:"leave_named",label:"Keep without name"},
                 {value:"words",label:"Keep first words"} ],
-      tip:"<b>Remove</b>: the line gets short and the link still points to your text. <b>Keep</b>: every word stays, which is good when you add to a note rather than move. <b>Keep without name</b>: the link replaces the words that became the name. <b>Keep first words</b>: the same, trimmed to <code>Words to keep</code>",
+      tip:"- <b>Remove</b> — the line gets short and the link still points to your text\n- <b>Keep</b> — every word stays, which is good when you add to a note rather than move\n- <b>Keep without name</b> — the link replaces the words that became the name\n- <b>Keep first words</b> — the same, trimmed to <code>Words to keep</code>",
       visible: on("transform.inline2note.enabled") },
     { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
       name:"Words to keep", desc:"How much of the line stays behind",
@@ -177,7 +177,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"source-keep-sub", path:"transform.inline2note.sourceProcessing.keepSubFields", default:false,
       name:"Keep sub-fields",
       desc:"A Field you keep keeps its child Values on the line too",
-      tip:"Child Fields have no row of their own in the list above. They follow their parent. Off: the kept Field stays on the line and its child Values go into the note. On: they stay on the line too, and a copy still goes into the note",
+      tip:"Child Fields have no row of their own in the list above. They follow their parent:\n- <b>Off</b> — the kept Field stays on the line and its child Values go into the note\n- <b>On</b> — they stay on the line too, and a copy still goes into the note",
       visible: on("transform.inline2note.enabled") },
     { kind:"toggle", id:"source-link", path:"transform.inline2note.sourceProcessing.replaceWithLink", default:true,
       name:"Insert wikilink in current line", desc:"Put a link to the new note on the line you pressed on",
@@ -237,14 +237,14 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"backlink-empty-line", path:"transform.inline2note.backlink.emptyLine", default:true,
       name:"Add empty line before wikilink",
       desc:"Keep a blank line between the links written into a note",
-      tip:"<b>On</b>: each link gets an empty line above it and stands apart. <b>Off</b>: links go one under another as a tight list. This applies wherever the link goes, under a heading too",
+      tip:"- <b>On</b> — each link gets an empty line above it and stands apart\n- <b>Off</b> — links go one under another as a tight list\nThis applies wherever the link goes, under a heading too",
       visible: on("transform.inline2note.backlink.enabled") },
     { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
       name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
       searchTerms:["Where the backlink goes"],
       options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"},
                 {value:"custom-header",label:"Under heading"} ],
-      tip:"<b>End</b> keeps links in the order you filed them, which is best for a growing list. <b>Under heading</b> puts each link at the end of the section you name below",
+      tip:"- <b>End</b> — keeps links in the order you filed them, which is best for a growing list\n- <b>Under heading</b> — puts each link at the end of the section you name below",
       visible: on("transform.inline2note.backlink.enabled") },
     { kind:"text", id:"backlink-target-header", clearable:true,
       path:"transform.inline2note.backlink.placement.targetHeader", default:"", mono:true,

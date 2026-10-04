@@ -3841,6 +3841,11 @@ body.theme-dark {
 .io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
 .io-legend__mark--danger { color: var(--text-error); }
 .io-legend__mark .io-danger__icon { display: inline-block; }
+/* Легенда в любой подсказке: `- метка — смысл` (paintTip / richTip), вид как у легенды списка Fields. */
+.io-tip__para:not(:first-child), .io-tiplegend:not(:first-child) { margin-top: 6px; }
+.io-tiplegend { display: grid; grid-template-columns: fit-content(45%) 1fr; gap: 5px 12px; align-items: baseline; }
+.io-tiplegend__mark { color: var(--text-normal); font-weight: 500; }
+.io-tiplegend__mark .io-code { white-space: normal; }
 /* Скобка над Block — подписи над строкой (его пункт «Новое» 2026-10-04): обнимает сверху. */
 .io-struct__bracket--top {
   border-top: 1px solid var(--background-modifier-border);

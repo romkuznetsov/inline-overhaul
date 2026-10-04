@@ -1952,6 +1952,11 @@ body.theme-dark {
 .io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
 .io-legend__mark--danger { color: var(--text-error); }
 .io-legend__mark .io-danger__icon { display: inline-block; }
+/* Легенда в любой подсказке: `- метка — смысл` (paintTip / richTip), вид как у легенды списка Fields. */
+.io-tip__para:not(:first-child), .io-tiplegend:not(:first-child) { margin-top: 6px; }
+.io-tiplegend { display: grid; grid-template-columns: fit-content(45%) 1fr; gap: 5px 12px; align-items: baseline; }
+.io-tiplegend__mark { color: var(--text-normal); font-weight: 500; }
+.io-tiplegend__mark .io-code { white-space: normal; }
 /* Скобка над Block — подписи над строкой (его пункт «Новое» 2026-10-04): обнимает сверху. */
 .io-struct__bracket--top {
   border-top: 1px solid var(--background-modifier-border);
@@ -2128,7 +2133,7 @@ const SCHEMA = [
 {
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "The language of the panel, where to start, and how much help you want along the way",
-  tip: "<code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay",
+  tip: "- <code>Read</code> — opens a guide note in your vault; it is yours to change, and the plugin never overwrites it\n- <code>Show tips</code>, <code>Show callouts</code> — hide the help boxes once you know your way around; the one-line descriptions stay",
   items: [
     /* Язык — первой строкой Help, без своей группы: группа `Language` с одной строкой `Language` повторяла имя
        (его ответы интервью цикла 129: «группу language надо убрать» и «первой строкой в Help»). */
@@ -2199,7 +2204,7 @@ const SCHEMA = [
         { value:"word-line-tree-header-note", label:"Word, line, tree, heading, note" },
         { value:"custom", label:"Custom" }
       ],
-      tip:"<b>Word</b>: the word at the cursor. <b>Tree</b>: the line plus everything indented under it. <b>Heading</b>: everything under the nearest heading. <b>Custom</b>: tick your own steps below. Pick as few steps as you need, because each extra step is one more press" },
+      tip:"- <b>Word</b> — the word at the cursor\n- <b>Tree</b> — the line plus everything indented under it\n- <b>Heading</b> — everything under the nearest heading\n- <b>Custom</b> — tick your own steps below\nPick as few steps as you need, because each extra step is one more press" },
     /* Заказчик 2026-09-08 (З-3): «при активации Custom под опцией
        select-all-steps открывался бы список с чекбоксами word, line, tree,
        heading, note (визуально это должно выглядеть аналогично табличке
@@ -2213,7 +2218,7 @@ const SCHEMA = [
     { kind:"toggle", id:"select-all-timer", path:"editor.selectAll.useDelay", default:false,
       name:"Count presses by timer", desc:"Decide the next step by how quickly you press, rather than by what is selected",
       searchTerms:["Use multi-press delay"], visible: on("editor.selectAll.enabled"),
-      tip:"<b>Off</b>: pause as long as you like and the next press still selects more. <b>On</b>: if you pause longer than the time below, you start over from the line. Not sure? Leave it off" },
+      tip:"- <b>Off</b> — pause as long as you like and the next press still selects more\n- <b>On</b> — if you pause longer than the time below, you start over from the line\nNot sure? Leave it off" },
     { kind:"slider", id:"select-all-delay", path:"editor.selectAll.delayMs", default:700,
       min:250, max:2000, step:50, unit:"ms",
       name:"Time between presses", desc:"How long you can pause and still be in the middle of a sequence",
@@ -2251,7 +2256,7 @@ const SCHEMA = [
     { kind:"toggle", id:"smart-delete-prefix", path:"editor.smartDelete.dropPrefix", default:true,
       name:"Drop the line Prefix", desc:"Take the bullet, checkbox, number or quote mark off the arriving line, not only its indent",
       searchTerms:["Drop the bullet"], visible: either("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
-      tip:"<b>On</b>: <code>- [ ] read the docs</code> comes up as <code>read the docs</code>. <b>Off</b>: only the indent goes, so leave it off if both lines should stay list items. Works for both keys above" },
+      tip:"- <b>On</b> — <code>- [ ] read the docs</code> comes up as <code>read the docs</code>\n- <b>Off</b> — only the indent goes, so leave it off if both lines should stay list items\nWorks for both keys above" },
     { kind:"toggle", id:"smart-delete-space", path:"editor.smartDelete.joinWithSpace", default:true,
       name:"Join with a space", desc:"Put one space between your text and the text that arrives, so the two do not run together",
       searchTerms:["Add a space"], visible: either("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
@@ -2282,7 +2287,7 @@ const SCHEMA = [
       visible: on("editor.smartEnter.enabled"),
       options:[ {value:"line",label:"Whole line"},
                 {value:"text",label:"Text only"} ],
-      tip:"<b>Whole line</b>: wherever the cursor is, <code>Enter</code> adds a line below. <b>Text only</b>: only in your text between the Separators; among the tags <code>Enter</code> works as usual. Not sure — keep <b>Whole line</b>" },
+      tip:"- <b>Whole line</b> — wherever the cursor is, <code>Enter</code> adds a line below\n- <b>Text only</b> — only in your text between the Separators; among the tags <code>Enter</code> works as usual\nNot sure? Keep <b>Whole line</b>" },
     /* Три положения, а не два: решение заказчика 2026-09-13. Он сам назвал
        исключение недодуманным — «нет, но кроме как если префикс нумерация,
        тогда да» — и выбрал его третьим положением, а не правилом внутри
@@ -2295,7 +2300,7 @@ const SCHEMA = [
       options:[ {value:"same",label:"Same as above"},
                 {value:"none",label:"None"},
                 {value:"number-only",label:"Numbered lines only"} ],
-      tip:"<b>Same as above</b>: works like Obsidian, so a bullet stays a bullet, a number goes up by one and a checkbox comes empty. <b>None</b>: the new line starts bare. <b>Numbered lines only</b>: bare too, but numbered lists keep counting. All three keep the indent" },
+      tip:"- <b>Same as above</b> — works like Obsidian, so a bullet stays a bullet, a number goes up by one and a checkbox comes empty\n- <b>None</b> — the new line starts bare\n- <b>Numbered lines only</b> — bare too, but numbered lists keep counting\nAll three keep the indent" },
     /* Smart Enter на Shift+Enter — его заказ 2026-10-03: «Use Shift+Enter
        instead = ON — enter должен вести себя как обычно, а контрол
        smart-enter-shift должен пропадать». */
@@ -2303,7 +2308,7 @@ const SCHEMA = [
       name:"Use Shift+Enter instead", desc:"Make <code>Shift+Enter</code> the Smart Enter key and leave <code>Enter</code> as usual",
       searchTerms:["Shift+Enter","Smart Enter key"],
       visible: on("editor.smartEnter.enabled"),
-      tip:"<b>On</b>: <code>Enter</code> splits the line as usual and <code>Shift+Enter</code> adds a line below. <b>Off</b>: it's the other way round" },
+      tip:"- <b>On</b> — <code>Enter</code> splits the line as usual and <code>Shift+Enter</code> adds a line below\n- <b>Off</b> — it's the other way round" },
     /* Shift+Enter — обычный Enter: его слово 2026-09-30, сперва «при on
        shift+enter работал как обычный enter», следом — «не так радикально…
        сделай контрол». Выключен — Shift+Enter остаётся платформенным. */
@@ -2311,7 +2316,7 @@ const SCHEMA = [
       name:"Shift+Enter as usual Enter", desc:"Let <code>Shift+Enter</code> split the line the way <code>Enter</code> does without <code>Smart Enter</code>",
       searchTerms:["Shift+Enter","Plain Enter"],
       visible: both(on("editor.smartEnter.enabled"), not("editor.smartEnter.useShift")),
-      tip:"<b>On</b>: <code>Shift+Enter</code> works like Obsidian's normal <code>Enter</code>. It splits the line at the cursor and continues the list. <b>Off</b>: <code>Shift+Enter</code> works as it always did" },
+      tip:"- <b>On</b> — <code>Shift+Enter</code> works like Obsidian's normal <code>Enter</code>: it splits the line at the cursor and continues the list\n- <b>Off</b> — <code>Shift+Enter</code> works as it always did" },
     /* Smart paste (`З-31`, `З-32`). Имя его, и оно поменялось 2026-09-21:
        «сразу хочу изменить название на Smart paste». Свой раздел, как у трёх
        соседних, и умолчание выключено по той же причине: клавиша принадлежит
@@ -2382,7 +2387,7 @@ const SCHEMA = [
       name:"Moving behavior", desc:"Whether the tree under the line travels with it",
       searchTerms:["No-selection mode"], visible: on("navigation.moveLine.enabled"),
       options:[ {value:"line-only",label:"Line only"}, {value:"with-children",label:"Whole tree"} ],
-      tip:"<b>Line only</b> moves just that line, and the lines indented under it stay where they are. <b>Whole tree</b> moves the line together with everything indented under it" },
+      tip:"- <b>Line only</b> — moves just that line; the lines indented under it stay where they are\n- <b>Whole tree</b> — moves the line together with everything indented under it" },
     /* Дерево перескакивает соседнее дерево целиком — его заказ 2026-09-25
        (PRD 10.13.275); только при `Whole tree` — его ответ. */
     { kind:"toggle", id:"move-lines-jump-trees", path:"navigation.moveLine.jumpNeighborTrees", default:false,
@@ -2393,7 +2398,7 @@ const SCHEMA = [
       name:"Moving headings", desc:"If you are moving a heading, this decides whether the whole section moves or just the heading line",
       searchTerms:["Header mode"], visible: on("navigation.moveLine.enabled"),
       options:[ {value:"move-as-line",label:"Heading only"}, {value:"move-with-section",label:"Whole section"} ],
-      tip:"<b>Heading with its section</b>: one press swaps two whole sections, content and all. <b>Heading only</b>: just the heading line moves and the text under it stays. Pick it when you only want to reorder headings" },
+      tip:"- <b>Heading with its section</b> — one press swaps two whole sections, content and all\n- <b>Heading only</b> — just the heading line moves and the text under it stays. Pick it when you only want to reorder headings" },
     { kind:"toggle", id:"move-lines-cross", path:"navigation.moveLine.crossSectionAllowed", default:true,
       name:"Cross heading boundaries", desc:"Let a line travel past a heading into the part of the note below it",
       searchTerms:["Cross-section allowed"], visible: on("navigation.moveLine.enabled"),
@@ -2470,10 +2475,10 @@ const SCHEMA = [
     { kind:"toggle", id:"right-cycles", path:"navigation.moveSelection.rightCycles", default:true,
       name:"Cycle in both directions", desc:"On: <code>Move right</code> changes the marker too, but only on a line with no indent",
       visible: on("navigation.moveSelection.prefixCyclerEnabled"),
-      tip:"On: at the left edge both keys change the marker. Indented lines are not affected — there <code>Move right</code> still indents. <b>The cost</b>: at the left edge <code>Move right</code> no longer indents until the list runs out, and with <b>Start over</b> in <code>After the last one</code> it never does, so indent with <code>Tab</code>. Off: <code>Move left</code> changes the marker, <code>Move right</code> only indents" },
+      tip:"- <b>On</b> — at the left edge both keys change the marker. Indented lines are not affected: there <code>Move right</code> still indents\n- <b>Off</b> — <code>Move left</code> changes the marker, <code>Move right</code> only indents\n<b>The cost</b>: at the left edge <code>Move right</code> no longer indents until the list runs out, and with <b>Start over</b> in <code>After the last one</code> it never does, so indent with <code>Tab</code>" },
     { kind:"dropdown", id:"prefix-cycle-end", path:"navigation.moveSelection.onCycleEnd", default:"indent",
       name:"After the last one", desc:"What happens when you reach the bottom of the list below",
-      tip:"<b>Start over</b> goes back to the top of the list, so you can keep pressing. <b>Indent</b> stops changing the marker and starts indenting the line instead",
+      tip:"- <b>Start over</b> — goes back to the top of the list, so you can keep pressing\n- <b>Indent</b> — stops changing the marker and starts indenting the line instead",
       searchTerms:["On cycle end"], visible: on("navigation.moveSelection.prefixCyclerEnabled"),
       options:[ {value:"indent",label:"Indent"}, {value:"wrap",label:"Start over"} ] },
 
@@ -2506,7 +2511,7 @@ const SCHEMA = [
       name:"Jump target", desc:"Hop between headings, or crawl from one written line to the next",
       searchTerms:["Jump mode"], visible: on("navigation.jumpToHeader.enabled"),
       options:[ {value:"edge",label:"Headings"}, {value:"line",label:"Lines"} ],
-      tip:"<b>Headings</b>: find your way around a long note. <b>Lines</b>: step from one written line to the next, skipping empty lines, rules and table rows — an alternative to the arrow keys" },
+      tip:"- <b>Headings</b> — find your way around a long note\n- <b>Lines</b> — step from one written line to the next, skipping empty lines, rules and table rows: an alternative to the arrow keys" },
     { kind:"dropdown", id:"heading-jumps-edge", path:"navigation.jumpToHeader.edgeMode", default:"start-end",
       name:"Where in the section", desc:"Land at the start of the part you jump to, or at its end",
       tip:"<b>Start and end</b>: one press takes you to the start, the next to the end, so you reach both without changing the setting",
@@ -2520,7 +2525,7 @@ const SCHEMA = [
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
                 {value:"section-start",label:"Text start"},
                 {value:"section-end",label:"Text end"} ],
-      tip:"<b>Text end</b>: after your last word, before the tags and dates, so you can keep typing. <b>Text start</b>: right after the tags at the start. This also sets where <code>Jump right</code> lands when you step in from the tags",
+      tip:"- <b>Text end</b> — after your last word, before the tags and dates, so you can keep typing\n- <b>Text start</b> — right after the tags at the start\nThis also sets where <code>Jump right</code> lands when you step in from the tags",
       seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } },
     /* \u041c\u0435\u0441\u0442\u043e \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0430: \u0437\u0430\u043a\u0430\u0437 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-09-06, \u00ab\u0442\u0430\u043a\u0430\u044f \u0436\u0435
        \u043e\u043f\u0446\u0438\u044f, \u043a\u0430\u043a \u0443 \u043f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u043e\u043a\u0438\u00bb (PRD 10.13.37). \u0422\u0443\u043c\u0431\u043b\u0435\u0440 \u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u0438 \u043a\u043b\u044e\u0447
@@ -2553,7 +2558,7 @@ const SCHEMA = [
       searchTerms:["Enable Navigate Inline"] },
     { kind:"dropdown", id:"in-line-step", path:"navigation.navigateInline.stepMode", default:"word",
       name:"Step size", desc:"How big a hop the cursor makes each time",
-      tip:"<b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Start or end</b> skips the middle entirely and lands at one end of your text",
+      tip:"- <b>Word</b> — the everyday choice\n- <b>Sentence</b> — suits long paragraphs\n- <b>Start or end</b> — skips the middle entirely and lands at one end of your text",
       searchTerms:["Step mode"], visible: on("navigation.navigateInline.enabled"),
       options:[ {value:"word",label:"Word"}, {value:"sentence",label:"Sentence"},
                 {value:"begin-end",label:"Start or end"} ] },
@@ -2603,13 +2608,13 @@ const SCHEMA = [
       searchTerms:["Subtag format"],
       options:[ {value:"separate",label:"Separate (#doing #review)"},
                 {value:"combined",label:"Nested (#doing/review)"} ],
-      tip:"Say <code>doing</code> has <code>review</code> under it. <b>Separate</b> gives <code>#doing #review</code>, so a search for <code>#doing</code> finds the line. <b>Nested</b> gives <code>#doing/review</code>, which keeps the pair together in Obsidian’s tag list, but searching for the parent needs a slash. Previews on the Visual tab follow your choice",
+      tip:"Say <code>doing</code> has <code>review</code> under it:\n- <b>Separate</b> — gives <code>#doing #review</code>, so a search for <code>#doing</code> finds the line\n- <b>Nested</b> — gives <code>#doing/review</code>, which keeps the pair together in Obsidian’s tag list, but searching for the parent needs a slash\nPreviews on the Visual tab follow your choice",
       seeAlso:{ id:"tag-preview", label:"See it in the tag appearance preview" } },
     { kind:"dropdown", id:"cycle-end-behavior", path:"pkm.behavior.cycleEndBehavior", default:"keep-bullet",
       name:"When a line empties out", desc:"What is left behind when cycling removes the last Value",
       searchTerms:["Line Prefix after end of cycle"],
       options:[ {value:"keep-bullet",label:"Keep bullet"}, {value:"clear-prefix",label:"Clear line"} ],
-      tip:"When the tag comes off and nothing is left but <code>- </code>: <code>Keep bullet</code> leaves an empty list item ready for typing, and <code>Clear line</code> leaves a blank line" },
+      tip:"When the tag comes off and nothing is left but <code>- </code>:\n- <code>Keep bullet</code> — leaves an empty list item ready for typing\n- <code>Clear line</code> — leaves a blank line" },
     { kind:"dropdown", id:"cursor-policy", path:"pkm.behavior.cursorPolicy", default:"text_end",
       name:"Cursor after an action", desc:"Where the cursor waits once a tag or date has been set",
       searchTerms:["Cursor behavior"],
@@ -2689,7 +2694,7 @@ const SCHEMA = [
       options:[ {value:"first",label:"First Field"},
                 {value:"middle",label:"Middle Field"},
                 {value:"custom",label:"Chosen Field"} ],
-      tip:"<code>First Field</code> opens on the first Field in your order. <code>Middle Field</code> opens near the middle, so neither end is far away, which helps if you have many Fields. <code>Chosen Field</code> lets you pick one Field for each Block in the two settings below" },
+      tip:"- <code>First Field</code> — opens on the first Field in your order\n- <code>Middle Field</code> — opens near the middle, so neither end is far away, which helps if you have many Fields\n- <code>Chosen Field</code> — lets you pick one Field for each Block in the two settings below" },
     { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
       name:"Left Block active Field", desc:"The Field tagWheel lands on when it opens on the left",
       searchTerms:["Lead Field left"],
@@ -2712,7 +2717,7 @@ const SCHEMA = [
       searchTerms:["Opposite Block","Other Block","Hide values"],
       options:[ {value:"hide",label:"Hide"},
                 {value:"keep",label:"Show"} ],
-      tip:"<code>Hide</code> (the usual way): the other Block disappears from the line while you choose. <code>Show</code>: it stays visible, so you can see what the line already has on the other side. With <code>Show</code>, the line is really changed while the picker is open, so a save at that moment writes it to the file. Closing the picker puts the line back" },
+      tip:"- <code>Hide</code> — the usual way: the other Block disappears from the line while you choose\n- <code>Show</code> — it stays visible, so you can see what the line already has on the other side. The line is really changed while the picker is open, so a save at that moment writes it to the file\nClosing the picker puts the line back" },
     /*
      * Поведение стрелок у края Block жило под субхедером `Scroller`, хотя к
      * коробке соседних значений отношения не имеет: пока субхедеры были
@@ -2734,7 +2739,7 @@ const SCHEMA = [
       searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
       options:[ {value:"stay",label:"Stay in Block"},
                 {value:"next-block",label:"Next Block"} ],
-      tip:"<code>Stay in Block</code>: after the last Field, the arrows go back to the first Field of the same Block. <code>Next Block</code>: the arrows carry on into the other Block, so both Blocks work as one loop. <code>Tab</code> switches Blocks either way. In a custom block the arrows always stay in that block" },
+      tip:"- <code>Stay in Block</code> — after the last Field, the arrows go back to the first Field of the same Block\n- <code>Next Block</code> — the arrows carry on into the other Block, so both Blocks work as one loop\n<code>Tab</code> switches Blocks either way. In a custom block the arrows always stay in that block" },
     /*
      * `Tab` между custom block — его пункт 2026-09-24 (PRD 10.13.260): «нужно
      * добавить отдельный контрол `Switch custom blocks on Tab`».
@@ -2747,7 +2752,7 @@ const SCHEMA = [
       searchTerms:["Custom block","Tab","Next custom block"],
       visible:{ deps:["pkm.fields.order.custom"],
                 test: c => Boolean(Object(c.get("pkm.fields.order.custom")).length) },
-      tip:"Off: <code>Tab</code> does nothing in a custom block’s tagWheel. On: it moves to the next custom block in the order of your Fields list, and from the last one back to the first. Whatever you picked in the block you leave is lost, because only <code>Enter</code> saves it" }
+      tip:"- <b>Off</b> — <code>Tab</code> does nothing in a custom block’s tagWheel\n- <b>On</b> — it moves to the next custom block in the order of your Fields list, and from the last one back to the first\nWhatever you picked in the block you leave is lost, because only <code>Enter</code> saves it" }
   ]
 },
 {
@@ -2758,16 +2763,16 @@ const SCHEMA = [
     { kind:"toggle", id:"placement-bullet-strict", path:"pkm.placement.bulletInStrict", default:false,
       name:"Strict: add a bullet", desc:"Start the line with a bullet when the Field has nothing of its own to put there",
       searchTerms:["OFF mode Prefix"],
-      tip:"Headings are never changed. On: a plain line becomes a list item. Off: it stays as it is",
+      tip:"- <b>On</b> — a plain line becomes a list item\n- <b>Off</b> — it stays as it is\nHeadings are never changed",
       seeAlso:{ id:"field-editor", label:"Each Field’s Prefix behavior is set under Fields" } },
     { kind:"toggle", id:"placement-field-prefix", path:"pkm.placement.fieldPrefixInsertOnly", default:true,
       name:"Insert only: use Field Prefix", desc:"Allow a Value to change the start of the line after all, if it has its own",
       searchTerms:["Minimal mode Prefix"],
-      tip:"Some Values come with their own line start, like <code>- [x]</code> for done. On: choosing that Value ticks the checkbox for you. Off: the line keeps its start and only the tag changes" },
+      tip:"Some Values come with their own line start, like <code>- [x]</code> for done:\n- <b>On</b> — choosing that Value ticks the checkbox for you\n- <b>Off</b> — the line keeps its start and only the tag changes" },
     { kind:"toggle", id:"placement-typed-tags", path:"pkm.placement.typedTagsStayText", default:true,
       name:"Keep typed tags in text", desc:"A tag or link you type between words or at the end stays your word",
       searchTerms:["Value in text", "tag in the middle"],
-      tip:"This works in both modes. On: <code>- buy #todo milk</code> stays as you wrote it, and the Field command adds its own Value in the Block. Off: a Field’s Value anywhere in your text moves out of the sentence into its Block. Tags at the very start of a line always count as Values" }
+      tip:"- <b>On</b> — <code>- buy #todo milk</code> stays as you wrote it, and the Field command adds its own Value in the Block\n- <b>Off</b> — a Field’s Value anywhere in your text moves out of the sentence into its Block\nThis works in both modes. Tags at the very start of a line always count as Values" }
   ]
 },
 {
@@ -2779,10 +2784,10 @@ const SCHEMA = [
       name:"Decide by", desc:"Settle it by the order of your Fields, or by a list of openings you rank yourself",
       searchTerms:["Main checkbox priority","Prefix Resolver"],
       options:[ {value:"by-section",label:"Field order"}, {value:"by-checkbox-list",label:"Prefix order"} ],
-      tip:"<b>Field order</b> is the simple choice: the Field that comes first in your list wins. <b>Prefix order</b> is for when the line start itself matters, say an urgent mark should always beat a tick, whichever Field asked for it. Not sure? Keep <b>Field order</b>" },
+      tip:"- <b>Field order</b> — the simple choice: the Field that comes first in your list wins\n- <b>Prefix order</b> — for when the line start itself matters, say an urgent mark should always beat a tick, whichever Field asked for it\nNot sure? Keep <b>Field order</b>" },
     { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"manual",
       name:"Field order source", desc:"Use the order your Fields are already in, or arrange a separate one",
-      tip:"<code>Field order</code> uses the order your Fields are already in, so you only keep one list. <code>Manual</code> gives this its own list, separate from the Blocks. Not sure? Keep <code>Field order</code>",
+      tip:"- <code>Field order</code> — uses the order your Fields are already in, so you only keep one list\n- <code>Manual</code> — gives this its own list, separate from the Blocks\nNot sure? Keep <code>Field order</code>",
       searchTerms:["Field order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
       options:[ {value:"auto",label:"Field order"}, {value:"manual",label:"Manual"} ] },
@@ -2794,7 +2799,7 @@ const SCHEMA = [
       visible: eq("pkm.prefixPriority.decideBy","by-checkbox-list") },
     { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"subtag-over-tag",
       name:"Parent or child wins", desc:"When a tag and its child Value both carry a Prefix",
-      tip:"<code>Parent tag</code>: the broader Value wins. <code>Child tag</code>: the more specific one wins, so a child marked as done beats a parent that is only open",
+      tip:"- <code>Parent tag</code> — the broader Value wins\n- <code>Child tag</code> — the more specific one wins, so a child marked as done beats a parent that is only open",
       searchTerms:["Tag/Subtag priority"],
       options:[ {value:"tag-over-subtag",label:"Parent tag"}, {value:"subtag-over-tag",label:"Child tag"} ] }
   ]
@@ -2807,7 +2812,7 @@ const SCHEMA = [
 {
   id: "tag-appearance", tab: "visual", order: 100, heading: "Inline appearance",
   intro: "Makes tagged lines easier to read: tags become small colored bubbles, and links and dates stay ordinary text. Your file stays exactly the same",
-  tip: "The <b>opacity</b> rows fade the tags, dates and links on each side so your own text stands out. <b>Line view</b> sets how big they are and adds a colored Stripe behind them. <b>Tag view</b> shapes the tag bubble. You set the colors of single Values on each Field, on the <code>Tags & PKM</code> tab",
+  tip: "- <b>Opacity</b> — the rows fade the tags, dates and links on each side so your own text stands out\n- <b>Line view</b> — sets how big they are and adds a colored Stripe behind them\n- <b>Tag view</b> — shapes the tag bubble\nYou set the colors of single Values on each Field, on the <code>Tags & PKM</code> tab",
   items: [
     { kind:"custom", id:"tag-preview", render: renderTagPreview },
 
@@ -2872,7 +2877,7 @@ const SCHEMA = [
        отрисовки (У-217). */
     { kind:"dropdown", id:"tags-block-fill-direction", path:"visual.tags.blockFill.direction", default:"both",
       name:"Stripe direction", desc:"Which of the two Blocks gets a Stripe",
-      tip:"<code>Both</code> is the usual choice. Pick <code>Left</code> or <code>Right</code> when you read one side and the other side is just bookkeeping. Empty Blocks and your own text never get a Stripe",
+      tip:"- <code>Both</code> — the usual choice\n- <code>Left</code>, <code>Right</code> — when you read one side and the other side is just bookkeeping\nEmpty Blocks and your own text never get a Stripe",
       options:[ {value:"left",label:"Left"}, {value:"right",label:"Right"}, {value:"both",label:"Both"} ],
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"color", id:"tags-block-fill-color", path:"visual.tags.blockFill.color", default:"",
@@ -2917,7 +2922,7 @@ const SCHEMA = [
       min:0, max:100, step:5, unit:"%",
       name:"Stripe width", desc:"How far the Stripe reaches past the Block on both of its sides",
       searchTerms:["Band width"],
-      tip:"At <code>0</code> the Stripe covers only the Values. At <code>50</code> it reaches the Separator next to your text. At <code>100</code> it covers the Separator too. On the Left Block it never covers the bullet or the checkbox",
+      tip:"- <code>0</code> — the Stripe covers only the Values\n- <code>50</code> — it reaches the Separator next to your text\n- <code>100</code> — it covers the Separator too\nOn the Left Block it never covers the bullet or the checkbox",
       visible: on("visual.tags.blockFill.enabled") },
 
     { kind:"custom", id:"tag-view-sub", render: renderSubheader("Tag view",
@@ -3148,7 +3153,7 @@ const SCHEMA = [
       options:[ {value:"default",label:"Default"},
                 {value:"custom",label:"Custom"},
                 {value:"both",label:"Custom + default"} ],
-      tip:"<code>Default</code> shows the Value as it is written in your line. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>), such as an emoji or a short word. <code>Custom + default</code> shows both, with the custom text first. If a Value has no custom text, all three show the written Value" },
+      tip:"- <code>Default</code> — shows the Value as it is written in your line\n- <code>Custom</code> — shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>), such as an emoji or a short word\n- <code>Custom + default</code> — shows both, with the custom text first\nIf a Value has no custom text, all three show the written Value" },
     { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:true,
       name:"Highlight the tagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
       searchTerms:["Highlight the line"],
@@ -3166,7 +3171,7 @@ const SCHEMA = [
     { kind:"toggle", id:"panel-bold-names", path:"visual.tagWheel.boldFieldNames", default:false,
       name:"Bold Field names", desc:"Print every Field that shows its own name in bold, while the line is marked",
       searchTerms:["Bold names","Empty Fields in bold"],
-      tip:"Off: only the Field you are on is bold. On: every Field that still shows its name is bold, so the Fields without a Value stand out. Fields that have a Value stay regular. Needs <code>Highlight the tagWheel line</code> on" },
+      tip:"- <b>Off</b> — only the Field you are on is bold\n- <b>On</b> — every Field that still shows its name is bold, so the Fields without a Value stand out. Fields that have a Value stay regular\nNeeds <code>Highlight the tagWheel line</code> on" },
     /* Цвет активного Field: третий из трёх, о которых просил заказчик (D6,
        PRD 10.13.15). Он на строке, а не в коробке скроллера: коробка показывает
        соседние значения, а тот Field, в котором человек стоит, нарисован в самой
@@ -3206,7 +3211,7 @@ const SCHEMA = [
       searchTerms:["tagWheel Scroller"] },
     { kind:"dropdown", id:"scroller-direction", path:"visual.tagWheel.scroller.direction", default:"full",
       name:"Scroller opening direction", desc:"Which way the Values unroll from the Field you are on",
-      tip:"<code>Up</code> keeps your line at the bottom of the box, and your note stays visible below it. <code>Down</code> does the opposite. <code>Both</code> puts the current Value in the middle and is easiest to read when a Field has many Values",
+      tip:"- <code>Up</code> — keeps your line at the bottom of the box, and your note stays visible below it\n- <code>Down</code> — the opposite\n- <code>Both</code> — puts the current Value in the middle; easiest to read when a Field has many Values",
       searchTerms:["Scroller direction","Opens"], visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"up",label:"Up"}, {value:"down",label:"Down"},
                 {value:"full",label:"Both"} ] },
@@ -3224,7 +3229,7 @@ const SCHEMA = [
        трогаются — `value` остаётся `value`, иначе поехал бы конфиг. */
     { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
       name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
-      tip:"<code>Default</code> shows the Value as it is written in your line. <code>Custom</code> shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>), such as an emoji or a short word. <code>Custom + default</code> shows both, with the custom text first. If a Value has no custom text, all three show the written Value",
+      tip:"- <code>Default</code> — shows the Value as it is written in your line\n- <code>Custom</code> — shows the custom text set for the Value under Fields (<code>Show</code> = <code>custom</code>), such as an emoji or a short word\n- <code>Custom + default</code> — shows both, with the custom text first\nIf a Value has no custom text, all three show the written Value",
       searchTerms:["Scroller names","Custom text in the scroller","Printed name","As written","Custom text when set"],
       visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"value",label:"Default"},
@@ -3438,7 +3443,7 @@ const SCHEMA = [
       searchTerms:["Name collision mode", "If the name is taken"],
       options:[ {value:"new_note",label:"New note"}, {value:"add_to_note",label:"Add to existing"},
                 {value:"overwrite",label:"Overwrite"} ],
-      tip:"<b>New note</b> adds a number to the name and never touches your old note, so it is the safe choice. <b>Add to existing</b> suits a running log. <b>Overwrite</b> deletes the old contents for good, and the plugin cannot bring them back" }
+      tip:"- <b>New note</b> — adds a number to the name and never touches your old note, so it is the safe choice\n- <b>Add to existing</b> — suits a running log\n- <b>Overwrite</b> — deletes the old contents for good, and the plugin cannot bring them back" }
   ]
 },
 {
@@ -3489,7 +3494,7 @@ const SCHEMA = [
       name:"Date format", desc:"Today\u2019s date, written the way you set out here",
       searchTerms:["Datetime header format"],
       visible: eq("transform.inline2note.placement.headerMode","datetime"),
-      tip:"<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day and <code>HH mm ss</code> the time. Anything else stays as you typed it, so <code>YYYY-MM-DD</code> gives <b>2026-08-21</b>" }
+      tip:"- <code>YYYY</code> — the year\n- <code>MM</code>, <code>DD</code> — the month, the day\n- <code>HH mm ss</code> — the time\nAnything else stays as you typed it, so <code>YYYY-MM-DD</code> gives <b>2026-08-21</b>" }
   ]
 },
 {
@@ -3505,7 +3510,7 @@ const SCHEMA = [
        родительской (замечание заказчика B18, 2026-09-02). */
     { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
       name:"Sub-lines (tree) behavior", desc:"Leave them where they are, or take them into the note too",
-      tip:"Say the line has three sub-points. <b>Move</b> takes all four lines into the note and removes them from here. <b>Keep</b> copies all four into the note and leaves the sub-points where they are",
+      tip:"Say the line has three sub-points:\n- <b>Move</b> — takes all four lines into the note and removes them from here\n- <b>Keep</b> — copies all four into the note and leaves the sub-points where they are",
       searchTerms:["Sublines behavior"],
       options:[ {value:"stay",label:"Keep"}, {value:"remove",label:"Move"} ],
       visible: on("transform.inline2note.enabled") },
@@ -3518,7 +3523,7 @@ const SCHEMA = [
       options:[ {value:"remove",label:"Remove"}, {value:"leave",label:"Keep"},
                 {value:"leave_named",label:"Keep without name"},
                 {value:"words",label:"Keep first words"} ],
-      tip:"<b>Remove</b>: the line gets short and the link still points to your text. <b>Keep</b>: every word stays, which is good when you add to a note rather than move. <b>Keep without name</b>: the link replaces the words that became the name. <b>Keep first words</b>: the same, trimmed to <code>Words to keep</code>",
+      tip:"- <b>Remove</b> — the line gets short and the link still points to your text\n- <b>Keep</b> — every word stays, which is good when you add to a note rather than move\n- <b>Keep without name</b> — the link replaces the words that became the name\n- <b>Keep first words</b> — the same, trimmed to <code>Words to keep</code>",
       visible: on("transform.inline2note.enabled") },
     { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
       name:"Words to keep", desc:"How much of the line stays behind",
@@ -3538,7 +3543,7 @@ const SCHEMA = [
     { kind:"toggle", id:"source-keep-sub", path:"transform.inline2note.sourceProcessing.keepSubFields", default:false,
       name:"Keep sub-fields",
       desc:"A Field you keep keeps its child Values on the line too",
-      tip:"Child Fields have no row of their own in the list above. They follow their parent. Off: the kept Field stays on the line and its child Values go into the note. On: they stay on the line too, and a copy still goes into the note",
+      tip:"Child Fields have no row of their own in the list above. They follow their parent:\n- <b>Off</b> — the kept Field stays on the line and its child Values go into the note\n- <b>On</b> — they stay on the line too, and a copy still goes into the note",
       visible: on("transform.inline2note.enabled") },
     { kind:"toggle", id:"source-link", path:"transform.inline2note.sourceProcessing.replaceWithLink", default:true,
       name:"Insert wikilink in current line", desc:"Put a link to the new note on the line you pressed on",
@@ -3624,14 +3629,14 @@ const SCHEMA = [
     { kind:"toggle", id:"backlink-empty-line", path:"transform.inline2note.backlink.emptyLine", default:true,
       name:"Add empty line before wikilink",
       desc:"Keep a blank line between the links written into a note",
-      tip:"<b>On</b>: each link gets an empty line above it and stands apart. <b>Off</b>: links go one under another as a tight list. This applies wherever the link goes, under a heading too",
+      tip:"- <b>On</b> — each link gets an empty line above it and stands apart\n- <b>Off</b> — links go one under another as a tight list\nThis applies wherever the link goes, under a heading too",
       visible: on("transform.inline2note.backlink.enabled") },
     { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
       name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
       searchTerms:["Where the backlink goes"],
       options:[ {value:"beginning",label:"Beginning"}, {value:"end",label:"End"},
                 {value:"custom-header",label:"Under heading"} ],
-      tip:"<b>End</b> keeps links in the order you filed them, which is best for a growing list. <b>Under heading</b> puts each link at the end of the section you name below",
+      tip:"- <b>End</b> — keeps links in the order you filed them, which is best for a growing list\n- <b>Under heading</b> — puts each link at the end of the section you name below",
       visible: on("transform.inline2note.backlink.enabled") },
     { kind:"text", id:"backlink-target-header", clearable:true,
       path:"transform.inline2note.backlink.placement.targetHeader", default:"", mono:true,
@@ -4183,6 +4188,21 @@ function rich(node, html) {
   }
   return node;
 }
+/* Подсказка: строки `- метка — смысл` подряд — легенда, прочие — абзацы (его 💬 к тесту 1 цикла 132). Вторая отрисовка — `paintTip` панели. */
+function richTip(node, text) {
+  text = String(text);
+  if (!text.includes("\n")) return rich(node, text);
+  let grid = null;
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("- ")) { grid = null; if (line.trim()) rich(el("div", "io-tip__para", node), line); continue; }
+    if (!grid) grid = el("div", "io-tiplegend", node);
+    const body = line.slice(2);
+    const cut = body.indexOf(" — ");
+    rich(el("span", "io-tiplegend__mark", grid), cut > 0 ? body.slice(0, cut) : "•");
+    rich(el("span", "io-tiplegend__text", grid), cut > 0 ? body.slice(cut + 3) : body);
+  }
+  return node;
+}
 function cssVar(n, k, v) { n.style.setProperty(k, v); return n; }
 function selectEl(parent, options, value, label, cls) {
   const s = el("select", cls || "io-select", parent);
@@ -4484,7 +4504,7 @@ function attachTip(anchorRow, text, label, fallbackHost, insertAfter) {
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
     /* Функция вместо текста — своё тело подсказки (легенда списка Fields, цикл 132). */
-    tipEl = typeof text === "function" ? text(el("div", "io-tip")) : rich(el("div", "io-tip"), text);
+    tipEl = typeof text === "function" ? text(el("div", "io-tip")) : richTip(el("div", "io-tip"), text);
     const anchor = insertAfter || anchorRow;
     /*
      * **Подсказка строки настройки принадлежит самой строке.** Колонка
@@ -4574,7 +4594,7 @@ function helpButton(nameRow, info, item, row) {
     const shown = help.getAttribute("aria-expanded") === "true";
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
-    tipEl = rich(el("div", "io-tip"), tipText);
+    tipEl = richTip(el("div", "io-tip"), tipText);
     const host = row || info;
     host.appendChild(tipEl);
   });
@@ -5124,7 +5144,7 @@ function structuralLine(parent, chipFor, opts) {
 const PREVIEW_TEXTS = {
   "source-preview": {
     cap: "Live preview",
-    tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Source line</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
+    tip: "The line you pressed on, before and after:\n- <b>Before</b> — a made-up line carrying every Field you have set up, with two sub-lines under it\n- <b>After</b> — what stays on the page once the note is written\nEverything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Source line</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "line-preview": {
     cap: "Live preview",
@@ -5168,7 +5188,7 @@ const PREVIEW_TEXTS = {
   },
   "link-preview": {
     cap: "Live preview",
-    tip: "Three links and five colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second row is a Markdown link: its text, its brackets and its address each take a row of their own above. The third is an address written on its own: it is an address, so <code>Hyperlink address color</code> paints it, the same row as the address in the second. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    tip: "Three links and five colors:\n- <b>First row</b> — a wikilink, a Value of a link Field left on <code>Show</code> = <code>default</code>: it takes <code>Link target color</code> and <code>Link brackets color</code>\n- <b>Second row</b> — a Markdown link: its text, its brackets and its address each take a row of their own above\n- <b>Third row</b> — an address written on its own: <code>Hyperlink address color</code> paints it, the same row as the address in the second\nThe panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     wikilink: "[[the note name]]",
     label: "a link",
     address: "https://example.com",
@@ -6206,7 +6226,7 @@ function renderFieldEditor(host) {
   const bh = el("div", "io-sub io-item__namerow", detail);
   foldableSub(bh, "behavior", "Behavior", subPaints);
   el("span", null, bh, "Behavior");
-  attachTipItem(bh, detail, { name:"Behavior", tip:"Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line" });
+  attachTipItem(bh, detail, { name:"Behavior", tip:"Three things about how this Field acts, and none about what it writes:\n- <b>Active</b> — turns its commands on and off without deleting the Field\n- <b>Prefix behavior</b> — decides whether a Value may change the marker at the start of the line, a checkbox for instance\n- <b>Child Field</b> — ties this Field to another one, so it comes into play only once that one is on the line" });
   placementRows(detail, f);
   /* В строку Command Field не пишет — и в свойство заметки тоже (постановка, раздел 3). */
   if (f.type !== "command") propertyRow(detail, f);
@@ -6479,7 +6499,7 @@ function commandCategoriesTable(host, f) {
   foldableSub(vh, "categories", "Categories", subPaints);
   el("span", null, vh, "Categories");
   attachTipItem(vh, host, { name:"Categories",
-    tip:"A category is a kind of edit, such as <b>Insert callout</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands. Outside its result <code>next</code> applies the first visible preset and <code>previous</code> the last; inside it they step through the presets, and one step past the end takes the result off again. Nothing here is written into the line as a Value" });
+    tip:"A category is a kind of edit, such as <b>Insert callout</b>; its presets are the ready-made versions of it, such as a <b>Note</b> or a <b>Tip</b> callout. Every category gets its own <code>next</code> and <code>previous</code> commands:\n- <b>Outside its result</b> — <code>next</code> applies the first visible preset and <code>previous</code> the last\n- <b>Inside it</b> — they step through the presets, and one step past the end takes the result off again\nNothing here is written into the line as a Value" });
   subComment(vh, host, "categories/header");
   cfTable(host, f, renderContent);
 }
@@ -6765,24 +6785,12 @@ function elementRows(host, f) {
 
   if (!listMode) row({ name:"Value format", key:"format", ph:"YYYY-MM-DD / HHmm / 1",
     desc:"The shape of the Value: a date, a time or a number",
-    tip:"Spell out the shape you want to see in the line. A date or a time is built from " +
-        "<code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), " +
-        "<code>HH</code> (hour), <code>mm</code> (minute), <code>ss</code> (second), with any " +
-        "separators between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, " +
-        "<code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. " +
-        "Digits alone make a counter, and the number of digits is the width it keeps: " +
-        "<code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while " +
-        "<code>001</code> counts <code>001</code>, <code>002</code>. Anything else is taken as " +
-        "plain text and never steps" },
+    tip:"Spell out the shape you want to see in the line\n- <code>YYYY</code>, <code>YY</code> — the year, or its last two digits\n- <code>MM</code>, <code>DD</code> — the month, the day\n- <code>HH</code>, <code>mm</code>, <code>ss</code> — the hour, the minute, the second\n- <code>1</code>, <code>001</code> — digits alone make a counter, and the number of digits is the width it keeps: <code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while <code>001</code> counts <code>001</code>, <code>002</code>\nAny separators go between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, <code>YY-MM-DD</code> writes <code>26-08-27</code>, <code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. Anything else is taken as plain text and never steps" },
     f.format, v => { f.format = v; });
 
   row({ name:"Steps by", key:"step",
     desc:"What should happen with the Value when you use <code>next</code> or <code>previous</code> command",
-    tip:"<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. " +
-        "<b>Command</b> throws the old Value away and writes a fresh one — the time of the press, " +
-        "or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, " +
-        "and can end the cycle by removing the Value from the line. <b>List of Values</b> walks the Values " +
-        "you write, each with its own emoji, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, the way a tag walks its Values",
+    tip:"- <b>Fixed step</b> — adds the same amount on every press: a day to a date, one to a counter\n- <b>Command</b> — throws the old Value away and writes a fresh one: the time of the press, or a random string for an id\n- <b>Custom step</b> — walks a list of steps you write yourself, and can end the cycle by removing the Value from the line\n- <b>List of Values</b> — walks the Values you write, each with its own emoji, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, the way a tag walks its Values",
     options:[
       { value:"increment", label:"Fixed step" },
       { value:"command",   label:"Command" },
@@ -6796,7 +6804,7 @@ function elementRows(host, f) {
   if (f.step === "increment") {
     row({ name:"Amount", key:"amount", ph:"1",
       desc:"How much one press adds to the Value",
-      tip:"<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one" },
+      tip:"<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>:\n- <code>YYYY-MM-DD</code> — a day\n- <code>HHmm</code> — a minute\n- <b>Counter</b> — just one" },
       f.amount || "1", v => { f.amount = v; });
   } else if (f.step === "command") {
     row({ name:"Command", key:"command",
@@ -6818,7 +6826,7 @@ function elementRows(host, f) {
   } else {
     row({ name:"Steps", key:"steps", ph:"1 (3)",
       desc:"One step per line, in the order the presses walk them",
-      tip:"A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value" },
+      tip:"A line is a number, and a number in brackets after it says how many presses stay on that step:\n- <code>1 (3)</code> — moves by one for three presses\n- <code>END</code> — ends the cycle and removes the Value" },
       f.steps || "", v => { f.steps = v; });
   }
 }
@@ -6918,7 +6926,7 @@ function propertyRow(host, f) {
   row({
     name:"How to show Value in YAML", key:"yaml-rule",
     desc:"How the Value is written into the property",
-    tip:"<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration — no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link — which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values",
+    tip:"- <b>Raw</b> — copies the Value exactly as it appears in your line, hash and all\n- <b>Clean</b> — strips the decoration: no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link. That is what you want if you plan to search or sort by the property\nThe rule belongs to the Field and applies to every one of its Values",
   }, ctl => {
     const s = selectEl(ctl, [
       { value:"raw",   label:"Raw" },
@@ -6994,8 +7002,7 @@ function placementRows(host, f) {
    */
   row({ name:"Active", key:"active",
     desc:"Whether this Field is offered, and where",
-    tip:"<b>No</b> switches the Field off everywhere: tagWheel does not show it and its commands do nothing. " +
-        "<b>Commands only</b> keeps the commands working and takes the Field out of tagWheel",
+    tip:"- <b>No</b> — switches the Field off everywhere: tagWheel does not show it and its commands do nothing\n- <b>Commands only</b> — keeps the commands working and takes the Field out of tagWheel",
     options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" },
              { value:"hotkey_only", label:"Commands only" }] },
     f.active || "yes", v => { f.active = v; });
@@ -7006,9 +7013,7 @@ function placementRows(host, f) {
      контрол без выбора не показывается (З8, PRD 10.13.260). */
   if (!isCustomSide(f.position)) row({ name:"Prefix behavior", key:"behavior", options:BEHAVIORS,
     desc:"How this Field affects the line Prefix",
-    tip:"<b>Strict</b> writes the Value in its own Block and changes the line Prefix. " +
-        "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. " +
-        "A Field that goes where the cursor is belongs in a custom block: <code>Add Block</code> under the Fields list" },
+    tip:"- <b>Strict</b> — writes the Value in its own Block and changes the line Prefix\n- <b>Insert only</b> — writes the Value in its own Block and does not change the line Prefix\nA Field that goes where the cursor is belongs in a custom block: <code>Add Block</code> under the Fields list" },
     f.behavior, v => { f.behavior = v; });
 
   /*
@@ -7026,7 +7031,7 @@ function placementRows(host, f) {
        Здесь до 2026-09-23 стояли два прежних — `Yes` и `No`. */
     row({ name:"Child Field", key:"child",
       desc:"When the child Field is offered: after a parent Value, always, on an Alt press, or never",
-      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. <b>After parent</b> offers it once the parent has a Value \u2014 that is how it has always worked \u2014 and a press of <code>Alt</code> on the parent opens it before that. <b>Always</b> offers it on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn. <b>On Alt</b> keeps it out of tagWheel until you press <code>Alt</code> on the parent: it appears next to the parent, so you can step onto it and pick a Value \u2014 even before the parent has one, and then the Value stands without a parent. Press <code>Alt</code> again and it hides, and the Value you picked stays on the line. <code>Alt</code> together with another key is a hotkey and does not open it. Its commands work as with <b>After parent</b>. <b>Hide</b> keeps it out of tagWheel and out of its commands even when its Values are set up",
+      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below\n- <b>After parent</b> — offered once the parent has a Value, as it has always worked; a press of <code>Alt</code> on the parent opens it before that\n- <b>Always</b> — offered on any line: tagWheel shows it with no parent picked, and its commands step through every child Value in turn\n- <b>On Alt</b> — out of tagWheel until you press <code>Alt</code> on the parent: it appears next to the parent, so you can step onto it and pick a Value, even before the parent has one, and then the Value stands without a parent. Press <code>Alt</code> again and it hides, and the Value you picked stays on the line. Its commands work as with <b>After parent</b>\n- <b>Hide</b> — out of tagWheel and out of its commands even when its Values are set up\n<code>Alt</code> together with another key is a hotkey and does not open it",
       options:[
         { value:"after-parent", label:"After parent" },
         { value:"always",       label:"Always" },
@@ -8258,7 +8263,7 @@ function renderAddFieldDialog() {
   const SHOWS = { date: "YYYY-MM-DD", time: "HH:mm", datetime: "YYYY-MM-DD HH:mm" };
   /* У списка знак стоит в каждом Value, и строки знака и формата нет (`В-247`). */
   const writesRow = () => seg(row("Writes", "What the Element writes into the line",
-    "<b>Date and time</b> writes a date, a time or both, and either steps it from today or writes the moment you press. <b>Counter</b> counts up and down. <b>Random</b> writes fresh numbers or letters on every press, which is what an id needs. <b>List</b> steps through Values you write yourself, each with its own emoji, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, or an emoji alone", true),
+    "- <b>Date and time</b> — writes a date, a time or both, and either steps it from today or writes the moment you press\n- <b>Counter</b> — counts up and down\n- <b>Random</b> — writes fresh numbers or letters on every press, which is what an id needs\n- <b>List</b> — steps through Values you write yourself, each with its own emoji, such as <code>🙂‍↕️yes</code> and <code>🙂‍↔️no</code>, or an emoji alone", true),
     [{ value: "datetime", label: "Date and time" }, { value: "counter", label: "Counter" }, { value: "random", label: "Random" }, { value: "list", label: "List" }],
     d.value, "Writes", v => {
       if (v === d.value) return;
@@ -8354,7 +8359,7 @@ function renderAddFieldDialog() {
           [{ value: "date", label: "Date" }, { value: "time", label: "Time" }, { value: "datetime", label: "Date and time" }],
           d.shows, "Shows", v => { d.shows = v; d.format = SHOWS[v]; d.press = v === "date" ? "step" : "now"; draw(); });
         seg(row("On next", "What the <code>next</code> command does to the Value",
-          "<b>Steps</b> starts from today and moves by the amount below on every press, and <code>previous</code> moves back. <b>The moment</b> writes the date and time of the press, whatever stood there before", true),
+          "- <b>Steps</b> — starts from today and moves by the amount below on every press, and <code>previous</code> moves back\n- <b>The moment</b> — writes the date and time of the press, whatever stood there before", true),
           [{ value: "step", label: "Steps" }, { value: "now", label: "The moment" }], d.press, "On next", v => { d.press = v; d.tick = 0; draw(); });
       }
       if (d.value === "random") {
@@ -8368,7 +8373,7 @@ function renderAddFieldDialog() {
       if (d.value === "counter" || (d.value === "datetime" && d.press === "step")) {
         const unit = d.value === "counter" ? "" : unitOf(String(d.format || "YYYY-MM-DD"));
         const s = el("input", "io-text io-num", row("Amount", unit ? "How many " + unit + "s one press adds" : "How much one press adds",
-          "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one"));
+          "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>:\n- <code>YYYY-MM-DD</code> — a day\n- <code>HHmm</code> — a minute\n- <b>Counter</b> — just one"));
         s.type = "number"; s.min = "1"; s.value = String(step()); s.setAttribute("aria-label", "Amount");
         s.addEventListener("input", () => { d.step = Number(s.value) || 1; refresh(); });
       }

@@ -44,6 +44,28 @@ export function paintRich(host: DocLike, text: string): void {
   }
 }
 
+/**
+ * Подсказка: строки `- метка — смысл` подряд — легенда в две колонки, прочие
+ * строки — абзацы (его 💬 к тесту 1 цикла 132: «по аналогии сделал другие tips»).
+ * Без перевода строки — прежняя мини-разметка. Вторая отрисовка — `richTip` прототипа.
+ */
+export function paintTip(host: DocLike, text: string): void {
+  if (!text.includes("\n")) { paintRich(host, text); return; }
+  let grid: DocLike | null = null;
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("- ")) {
+      grid = null;
+      if (line.trim()) paintRich(host.createEl("div", { cls: "io-tip__para" }), line);
+      continue;
+    }
+    if (!grid) grid = host.createEl("div", { cls: "io-tiplegend" });
+    const body = line.slice(2);
+    const cut = body.indexOf(" — ");
+    paintRich(grid.createEl("span", { cls: "io-tiplegend__mark" }), cut > 0 ? body.slice(0, cut) : "•");
+    paintRich(grid.createEl("span", { cls: "io-tiplegend__text" }), cut > 0 ? body.slice(cut + 3) : body);
+  }
+}
+
 const paint = paintRich;
 
 export interface DescribeOptions {
@@ -117,7 +139,7 @@ export class Describer {
        */
       box.createEl("summary", { text: "?", cls: "io-tip__mark" });
       const body = box.createEl("div", { cls: "io-tip__body" });
-      if (o.showTips && it.tip) paint(body, it.tip);
+      if (o.showTips && it.tip) paintTip(body, it.tip);
       /* Id — последней строкой; ради него подсказка появляется и у настройки без своей. */
       if (showId) {
         /* Путь — в атрибуте: описание клонируется, и значение при раскрытии

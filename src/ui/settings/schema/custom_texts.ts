@@ -82,7 +82,7 @@ export interface PreviewText {
 export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   "source-preview": {
     cap: "Live preview",
-    tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Source line</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
+    tip: "The line you pressed on, before and after:\n- <b>Before</b> — a made-up line carrying every Field you have set up, with two sub-lines under it\n- <b>After</b> — what stays on the page once the note is written\nEverything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Source line</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "line-preview": {
     cap: "Live preview",
@@ -126,7 +126,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   },
   "link-preview": {
     cap: "Live preview",
-    tip: "Three links and five colors. The first row is a wikilink — a Value of a link Field left on <code>Show</code> = <code>default</code> — and it takes <code>Link target color</code> and <code>Link brackets color</code>. The second row is a Markdown link: its text, its brackets and its address each take a row of their own above. The third is an address written on its own: it is an address, so <code>Hyperlink address color</code> paints it, the same row as the address in the second. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    tip: "Three links and five colors:\n- <b>First row</b> — a wikilink, a Value of a link Field left on <code>Show</code> = <code>default</code>: it takes <code>Link target color</code> and <code>Link brackets color</code>\n- <b>Second row</b> — a Markdown link: its text, its brackets and its address each take a row of their own above\n- <b>Third row</b> — an address written on its own: <code>Hyperlink address color</code> paints it, the same row as the address in the second\nThe panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     wikilink: "[[the note name]]",
     label: "a link",
     address: "https://example.com",

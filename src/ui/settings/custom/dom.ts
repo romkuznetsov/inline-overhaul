@@ -5,7 +5,7 @@
  * литералов (З6).
  */
 
-import { richParts } from "../describe.ts";
+import { paintTip, richParts, type DocLike } from "../describe.ts";
 
 export interface ElOpts {
   text?: string;
@@ -320,7 +320,7 @@ export function tipBelow(o: {
       o.host.insertBefore(open, o.head.nextSibling || null);
     }
     if (o.paint) o.paint(open);
-    else rich(open, o.text);
+    else paintTip(open as unknown as DocLike, o.text);
     /* Id последней строкой, как у строки настройки; `-tip` снимается. */
     if (o.showIds) {
       const name = o.id.replace(/-tip$/, "");

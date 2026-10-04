@@ -24,7 +24,7 @@ import { dialogKey, fill } from "./texts_dialogs.ts";
 /** Путь `Name brackets`: у него свой отказ на записи (C17, `В-264`). */
 const NAME_BRACKETS_PATH = "transform.inline2note.noteName.delimiters";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey } from "./texts_custom.ts";
-import { Describer, idLine, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
+import { Describer, idLine, paintRich, paintTip, type DocLike, type FragmentHost } from "./describe.ts";
 import type { ConfirmRequest } from "./actions.ts";
 import {
   BASE_LANG,
@@ -1088,7 +1088,7 @@ export class SettingsPane {
           heading.insertAdjacentElement("afterend", made);
         }
         if (hint && typeof made.createDiv === "function") {
-          paintRich(made.createDiv({ cls: "io-tip__body" }) as unknown as DocLike, hint);
+          paintTip(made.createDiv({ cls: "io-tip__body" }) as unknown as DocLike, hint);
         }
         /* Подпись id — в момент открытия: `extraButtons` второй раз не вызываются (У-69). */
         const wantId = Boolean(this.storedValue("advanced.showSettingIds")) && Boolean(group.id);

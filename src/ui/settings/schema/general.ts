@@ -23,7 +23,7 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
 {
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "The language of the panel, where to start, and how much help you want along the way",
-  tip: "<code>Read</code> opens a guide note in your vault; it is yours to change, and the plugin never overwrites it. <code>Show tips</code> and <code>Show callouts</code> hide the help boxes once you know your way around; the one-line descriptions stay",
+  tip: "- <code>Read</code> — opens a guide note in your vault; it is yours to change, and the plugin never overwrites it\n- <code>Show tips</code>, <code>Show callouts</code> — hide the help boxes once you know your way around; the one-line descriptions stay",
   items: [
     { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
       options:[], optionsFrom:"languages",

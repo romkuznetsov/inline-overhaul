@@ -57,13 +57,16 @@ TABS.forEach(t => {
     });
 });
 
+/* Строки легенды подсказки (`paintTip`) — в одну строку: перевод строки рвал бы список PRD. */
+function oneLine(s) { return String(s).split("\n").join(" ⏎ "); }
+
 /* ---- 2. every setting, with its copy ---- */
 L.push("\n### Полная опись настроек\n");
 SCHEMA.slice().sort((a, b) => (a.tab + String(a.order).padStart(4, "0"))
   .localeCompare(b.tab + String(b.order).padStart(4, "0"))).forEach(g => {
   L.push("\n#### " + g.heading + " — `" + g.id + "` (вкладка `" + g.tab + "`)\n");
   if (g.intro) L.push("_Intro:_ " + g.intro + "\n");
-  if (g.tip) L.push("_Tip:_ " + g.tip + "\n");
+  if (g.tip) L.push("_Tip:_ " + oneLine(g.tip) + "\n");
   g.items.forEach(it => {
     if (it.kind === "custom") {
       L.push("- **`" + it.id + "`** — свой блок, рендерер `" + (it.render && it.render.name || "?") + "`");
@@ -74,7 +77,7 @@ SCHEMA.slice().sort((a, b) => (a.tab + String(a.order).padStart(4, "0"))
     if (it.path) bits.push("path `" + it.path + "`, default " + def(it.default));
     L.push(bits.join(", "));
     if (it.desc) L.push("  - desc: " + it.desc);
-    if (it.tip) L.push("  - tip: " + it.tip);
+    if (it.tip) L.push("  - tip: " + oneLine(it.tip));
     if (it.options) L.push("  - варианты: " + it.options.map(o => "`" + o.value + "` " + o.label).join(" · "));
     if (it.min !== undefined) L.push("  - диапазон: " + it.min + "–" + it.max + ", шаг " + (it.step || 1) +
       (it.unit ? ", ед. " + it.unit : ""));

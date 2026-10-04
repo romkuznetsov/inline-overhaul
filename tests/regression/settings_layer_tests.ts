@@ -23,7 +23,7 @@ import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
 import { THEME_COLOR_VARS, setThemeReader, themeVarFor } from "../../src/ui/settings/custom/theme_colors.ts";
 import { isSubheaderShut, paintSubheaders, resetSubheaders, subheader, subheaderId }
   from "../../src/ui/settings/custom/subheader.ts";
-import { richParts } from "../../src/ui/settings/describe.ts";
+import { paintTip, richParts } from "../../src/ui/settings/describe.ts";
 import { findScrollHost } from "../../src/ui/settings/custom/dom.ts";
 import { tabStripRow } from "../../src/ui/settings/custom/tab_strip.ts";
 import { SHARED_TEXTS, SINGLE_KEYS } from "../../src/ui/settings/texts_custom.ts";
@@ -1436,6 +1436,23 @@ async function main(): Promise<void> {
       { tag: "code", text: "Ctrl/Cmd + A" },
       { tag: "text", text: " twice" },
     ]);
+  });
+
+  await test("подсказка: строки `- метка — смысл` — легенда, прочие — абзацы (цикл 132)", () => {
+    const host = makeNode("div");
+    paintTip(host as never, "Say <code>a</code>:\n- <b>On</b> — writes <code>x</code>\n- <b>Off</b> — not\nNot sure? Keep it");
+    const kids = (host as StubNode).children.map(c => String(c.className));
+    assert.deepEqual(kids, ["io-tip__para", "io-tiplegend", "io-tip__para"], "абзац, легенда, абзац");
+    const grid = (host as StubNode).children[1] as StubNode;
+    assert.deepEqual(grid.children.map(c => String(c.textContent)), ["On", "writes x", "Off", "not"], "метка и смысл по ячейке");
+    const flat = makeNode("div");
+    paintTip(flat as never, "one <b>line</b>");
+    assert.equal((flat as StubNode).children.some(c => String(c.className).startsWith("io-tip")), false,
+      "без перевода строки — прежняя разметка");
+    /* Подсказки панели, написанные легендой, дошли до схемы (а не остались в прототипе). */
+    const legendTips = SCHEMA.flatMap((g: Any) => [g.tip, ...(g.items || []).map((i: Any) => i.tip)])
+      .filter((t: unknown) => typeof t === "string" && t.includes("\n- "));
+    assert.ok(legendTips.length >= 30, "подсказок-легенд в схеме: " + legendTips.length);
   });
 
   await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
