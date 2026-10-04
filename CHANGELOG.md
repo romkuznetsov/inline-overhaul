@@ -25,7 +25,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 2. ✨ **An eye in front of every Value hides it from `next`, `previous` and tagWheel.** The Value stays in the Field, and a line that already has it keeps working: the next step goes on to its neighbor.
 3. ✨ **A Binder row can run an `Action` category with one preset of its own.** Its hotkey is a switch: one press applies the preset, the next press on its result takes it off.
 4. 🎨 **`Show callouts` and `Show tips` come first in `Help`,** above `Guide` and `Changelog`.
-5. 🎨 **The list of Fields marks the type with a small colored tile that shows what the type writes** — `#`, `[[`, `📅` or `/` — so a long Field name reads in full; the type is named on hover and above the Field settings.
+5. 🎨 **The list of Fields marks the type with a small colored tile that shows what the type writes** — `#`, `[[`, `☺` or `/` — so a long Field name reads in full; the type is named on hover and above the Field settings.
 6. 🎨 **Drop-down lists in the settings open over the panel** instead of pushing it down, and `Escape` closes the list, not the settings.
 7. 🎨 **In a preset of `Insert codeblock` the text comes first, the wrap is a switch — `No (Plain)`, `Heading`, `Callout` — and each of its settings has its own label.** Preset names line up with their settings, and the eye is a line icon, not an emoji.
 8. 🎨 **A Binder row of an `Action` category looks like any other row;** a triangle at its name shows its preset settings.
@@ -34,10 +34,12 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 11. 🎨 **The command list explains the commands of your Fields once,** under `Commands from your Fields`, instead of next to each of them.
 12. 🎨 **`Language` is the first line of `General → Help`;** its own one-line group is gone.
 13. 🎨 **Each release here lists new things first, then visible changes, then bug fixes.**
-14. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
-15. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
-16. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
-17. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
+14. 🎨 **The `?` of the Fields list explains every icon of the list,** in two parts: `Blocks` — where a Field is written — and `Fields` — what it writes.
+15. 🎨 **The line preview puts its labels above the line and draws your custom blocks under it,** each with its Fields, at the end of an arrow from your text.
+16. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
+17. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
+18. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
+19. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
 
 ## 0.14.0
 
