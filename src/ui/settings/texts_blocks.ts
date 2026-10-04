@@ -12,6 +12,10 @@
 
 /** Строки, которые рисует один блок. Порядок — порядок чтения на экране. */
 export const BLOCK_TEXTS = {
+  /* ---- знак наверху General: строка README, она же описание манифеста без точки (цикл 134) */
+  "brand-mark": {
+    TAGLINE: "Turn a raw thought into a structured line without leaving it",
+  },
   /* ---- редактор Fields: сам блок, его окна, проверки имён -------------- */
   "field-editor": {
     /* Левая колонка: список Fields. */

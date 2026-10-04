@@ -108,4 +108,15 @@ for (const key of ["id", "name", "version", "minAppVersion", "description", "aut
   );
 }
 
+/* 6. Одна строка в трёх местах (бренд-бук, readme.md; его ответ цикла 134):
+      шапка README, описание манифеста и строка под знаком панели — без точки (Р10). */
+{
+  const desc = String(manifest.description);
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  assert.ok(readme.includes("**" + desc + "**"), "строка под знаком README разошлась с описанием манифеста");
+  const blocks = fs.readFileSync(path.join(root, "src", "ui", "settings", "texts_blocks.ts"), "utf8");
+  assert.ok(blocks.includes("TAGLINE: " + JSON.stringify(desc.replace(/\.$/, "")) + ","),
+    "строка под знаком панели разошлась с описанием манифеста");
+}
+
 console.log("Manifest publish tests: OK (полей " + Object.keys(manifest).length + ", пустых нет, fundingUrl не заведён)");

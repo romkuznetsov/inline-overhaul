@@ -37,10 +37,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 14. 🎨 **The `?` of the Fields list explains every icon of the list,** in two parts: `Blocks` — where a Field is written — and `Fields` — what it writes.
 15. 🎨 **The line preview puts its labels above the line and draws your custom blocks under it,** each with its Fields, at the end of an arrow from your text.
 16. 🎨 **Tips that compare choices list them one per row:** the choice on the left, what it does on the right, as in the `?` of the Fields list.
-17. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
-18. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
-19. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
-20. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
+17. 🎨 **Every tip shows what each choice does, with a before → after example on a sample line,** in plain words — such as `- call Anna` → `- [[call Anna-01]]` for `New note` when the name is taken.
+18. 🎨 **The settings tabs are easy to tell apart:** the open tab is filled and underlined in your theme’s accent color, the others are plain text.
+19. 🎨 **The plugin description is one short line everywhere** — in Community plugins, under the mark at the top of the settings and in the README: Turn a raw thought into a structured line without leaving it.
+20. 🐛 **A hotkey on a Field command survives renaming the Field.** The command keeps its address, only its name in the palette changes; a hotkey lost to an earlier rename comes back on the next start.
+21. 🐛 **`Inline to note` leaves no lonely Separator on numbered, quoted and heading lines.** `1. #todo :: Buy milk` now keeps `1. Buy milk …`, not `1. :: Buy milk …`.
+22. 🐛 **A checkbox that came with a Value leaves with it.** Stepping from `#todo` with its `[ ]` to a Value without a checkbox gives `- #idea`, not `- [ ] #idea`, by the hotkey and in tagWheel alike; a checkbox you put there yourself stays.
+23. 🐛 **tagWheel shows the preset of the callout you are in even when its fold differs, as in `[!warning]+`,** and `Enter` with an unchanged choice leaves the callout as it is.
 
 ## 0.14.0
 
