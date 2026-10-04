@@ -1966,6 +1966,41 @@ function revealScrollerOnDemand(wrap: El): () => void {
   return () => { if (timer) clearTimeout(timer); timer = null; };
 }
 
+/** Подсказка списка: Blocks и Fields, у каждого значка строки — его смысл (его 💬 к тесту 1 цикла 131). */
+function paintListLegend(open: El, say: Say): void {
+  const box = el(open, "div", "io-legend");
+  const part = (head: string): ((mark: (cell: El) => void, text: string) => void) => {
+    const p = el(box, "div", "io-legend__part");
+    rich(el(p, "div", "io-legend__head"), head);
+    return (mark, text) => {
+      mark(el(p, "span", "io-legend__mark"));
+      rich(el(p, "span", "io-legend__text"), text);
+    };
+  };
+  const word = (w: string) => (cell: El): void => { el(cell, "b", undefined, w); };
+  const glyph = (g: string) => (cell: El): void => { el(cell, "span", undefined, g); };
+  const tile = (kind: FieldKind) => (cell: El): void => {
+    const t = el(cell, "span", "io-typedot io-typedot--" + kind, TYPE_GLYPH[kind]);
+    cssVar(t, "--io-chip-bg", typeColor(kind));
+    cssVar(t, "--io-chip-ink", typeInk(kind));
+  };
+
+  const blocks = part(say("LIST_TIP_BLOCKS"));
+  blocks(word(say("SIDE_LEFT")), say("LEGEND_LEFT"));
+  blocks(word(say("SIDE_RIGHT")), say("LEGEND_RIGHT"));
+  blocks(word(say("LEGEND_CUSTOM_NAME")), say("LEGEND_CUSTOM"));
+  blocks(glyph("✎"), say("LEGEND_RENAME"));
+  blocks(cell => { el(cell, "span", "io-danger__icon"); cell.classList.add("io-legend__mark--danger"); }, say("LEGEND_DELETE"));
+
+  const fields = part(say("LIST_TIP_FIELDS"));
+  fields(glyph("⠿"), say("LEGEND_GRIP"));
+  fields(glyph("↑ ↓"), say("LEGEND_ARROWS"));
+  fields(tile("tag"), say("LEGEND_TAG"));
+  fields(tile("wikilink"), say("LEGEND_LINK"));
+  fields(tile("element"), say("LEGEND_EMOJI"));
+  fields(tile("command"), say("LEGEND_ACTION"));
+}
+
 /** Редактор целиком. */
 export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   const say = words(o);
@@ -1989,10 +2024,11 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   closers.push(tipBelow({
     head: listHead,
     host: el(wrap, "div", "io-tiphost io-fields__tiprow"),
-    text: say("LIST_TIP"),
+    text: say("LIST_TIP_FIELDS"),
     label: say("LIST_ARIA"),
     id: "io-fields-list-tip",
     showTips: o.showTips, showIds: o.showIds,
+    paint: open => paintListLegend(open, say),
   }));
   /* «?» у шапки правой колонки (1.4.1.2.1). */
   closers.push(tipBelow({

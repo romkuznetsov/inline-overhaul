@@ -1945,6 +1945,13 @@ body.theme-dark {
 }
 /* Смайлик — заливка как у соседей, знак шрифтом интерфейса и крупнее: моноширинный рисует его мелко (его 💬 к тесту 1 цикла 130). */
 .io-typedot--element { font-family: var(--font-interface); font-size: 14px; font-weight: 400; }
+/* Легенда подсказки списка Fields: два блока рядом, в узкой панели — столбиком (его 💬 к тесту 1 цикла 131). */
+.io-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; }
+.io-legend__part { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-content: start; align-items: center; }
+.io-legend__head { grid-column: 1 / -1; color: var(--text-normal); }
+.io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
+.io-legend__mark--danger { color: var(--text-error); }
+.io-legend__mark .io-danger__icon { display: inline-block; }
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -4450,7 +4457,8 @@ function attachTip(anchorRow, text, label, fallbackHost, insertAfter) {
     const shown = help.getAttribute("aria-expanded") === "true";
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
-    tipEl = rich(el("div", "io-tip"), text);
+    /* Функция вместо текста — своё тело подсказки (легенда списка Fields, цикл 132). */
+    tipEl = typeof text === "function" ? text(el("div", "io-tip")) : rich(el("div", "io-tip"), text);
     const anchor = insertAfter || anchorRow;
     /*
      * **Подсказка строки настройки принадлежит самой строке.** Колонка
@@ -4471,6 +4479,33 @@ function attachTip(anchorRow, text, label, fallbackHost, insertAfter) {
       fallbackHost.appendChild(tipEl);
     }
   });
+}
+
+/* Подсказка списка Fields: Blocks и Fields, у каждого значка строки — его смысл (его 💬 к тесту 1 цикла 131). */
+function fieldsListLegend(tip) {
+  const box = el("div", "io-legend", tip);
+  const part = head => {
+    const p = el("div", "io-legend__part", box);
+    rich(el("div", "io-legend__head", p), head);
+    return (mark, text) => { mark(el("span", "io-legend__mark", p)); rich(el("span", "io-legend__text", p), text); };
+  };
+  const word = w => cell => el("b", null, cell, w);
+  const glyph = g => cell => el("span", null, cell, g);
+  const tile = kind => cell => { const t = el("span", "io-typedot io-typedot--" + kind, cell, TYPE_GLYPH[kind]); cssVar(t, "--io-chip-bg", TYPE_COLOR[kind]); cssVar(t, "--io-chip-ink", typeInk(kind)); };
+  const blocks = part("<b>Blocks</b> — where on the line a Field is written");
+  blocks(word("Left Block"), "before your text");
+  blocks(word("Right Block"), "after your text");
+  blocks(word("Custom block"), "<b>Add Block</b> makes one: its Fields are written where the cursor is, by its own tagWheel command");
+  blocks(glyph("✎"), "Rename a custom block; its tagWheel command follows the new name");
+  blocks(cell => { el("span", "io-danger__icon", cell); cell.classList.add("io-legend__mark--danger"); }, "Delete a custom block together with its Fields");
+  const fields = part("<b>Fields</b> — what is written: one row is one Field");
+  fields(glyph("⠿"), "Drag to reorder, or into another Block");
+  fields(glyph("↑ ↓"), "Move one place; at the edge of a Block, into the next Block. Works from the keyboard");
+  fields(tile("tag"), "<b>Tag</b> writes a tag, such as <code>#todo</code>");
+  fields(tile("link"), "<b>Link</b> writes a link to a note, such as <code>[[John]]</code>");
+  fields(tile("element"), "<b>Emoji</b> writes an emoji, such as <code>💡</code>");
+  fields(tile("command"), "<b>Action</b> edits the line, such as wrapping it in a callout; it writes no Value");
+  return tip;
 }
 
 /* the same thing, taking an item so existing call sites read unchanged */
@@ -6030,8 +6065,7 @@ function renderFieldEditor(host) {
      списке её имя прыгать не должно; тип Field стоит чипом рядом с именем. */
   el("span", null, detailHead, "Values");
 
-  attachTip(listHead, "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
-    "the Fields list", null, detailHead);
+  attachTip(listHead, fieldsListLegend, "the Fields list", null, detailHead);
   /* «?» у шапки правой колонки: у левой он был, у правой нет, и заказчик
      заметил именно эту разницу (замечание 1.4.1.2.1). */
   attachTip(detailHead, "Everything about the Field picked on the left. Its name in tagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",

@@ -20,7 +20,21 @@ export const BLOCK_TEXTS = {
      * бы столбиком (У-105). Знака «?» у `Left Block`/`Right Block` нет —
      * объявленное исключение из «tip у всех элементов» (2026-09-08).
      */
-    LIST_TIP: "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
+    /* Подсказка списка — двумя блоками с легендой значков (его 💬 к тесту 1 цикла 131). */
+    LIST_TIP_BLOCKS: "<b>Blocks</b> — where on the line a Field is written",
+    LEGEND_LEFT: "before your text",
+    LEGEND_RIGHT: "after your text",
+    LEGEND_CUSTOM: "<b>Add Block</b> makes one: its Fields are written where the cursor is, by its own tagWheel command",
+    LEGEND_CUSTOM_NAME: "Custom block",
+    LEGEND_RENAME: "Rename a custom block; its tagWheel command follows the new name",
+    LEGEND_DELETE: "Delete a custom block together with its Fields",
+    LIST_TIP_FIELDS: "<b>Fields</b> — what is written: one row is one Field",
+    LEGEND_GRIP: "Drag to reorder, or into another Block",
+    LEGEND_ARROWS: "Move one place; at the edge of a Block, into the next Block. Works from the keyboard",
+    LEGEND_TAG: "<b>Tag</b> writes a tag, such as <code>#todo</code>",
+    LEGEND_LINK: "<b>Link</b> writes a link to a note, such as <code>[[John]]</code>",
+    LEGEND_EMOJI: "<b>Emoji</b> writes an emoji, such as <code>💡</code>",
+    LEGEND_ACTION: "<b>Action</b> edits the line, such as wrapping it in a callout; it writes no Value",
     EMPTY_SIDE: "nothing on this side",
     SIDE_LEFT: "Left Block",
     SIDE_RIGHT: "Right Block",

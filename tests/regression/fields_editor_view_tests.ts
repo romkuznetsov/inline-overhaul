@@ -778,6 +778,27 @@ function dragToSide(from: StubNode, side: StubNode): void {
   ok("выключенный модуль показывает список и ничего не меняет");
 }
 
+/* ---- подсказка списка: два блока и легенда значков (его 💬 к тесту 1 цикла 131) ---- */
+{
+  const v = makeView();
+  const head = all(v.host, "io-fields__colhead")[0] as StubNode;
+  assert.equal(all(v.host, "io-legend").length, 0, "до нажатия «?» легенды нет");
+  one(head, "io-help").click();
+  const legend = one(v.host, "io-legend");
+  const parts = all(legend, "io-legend__part").map(p => String(one(p, "io-legend__head").textContent));
+  assert.deepEqual(parts.map(t => t.split(" ")[0]), ["Blocks", "Fields"], "два смысловых блока: Blocks, затем Fields");
+  const marks = all(legend, "io-legend__mark").map(m => String(m.textContent));
+  for (const g of ["⠿", "↑ ↓", "✎", "Left Block", "Right Block"]) assert.ok(marks.includes(g), "в легенде нет строки для " + g);
+  assert.equal(all(legend, "io-danger__icon").length, 1, "корзина custom block — своей строкой");
+  const kinds = all(legend, "io-typedot").map(t => String(t.className).split("io-typedot--")[1]);
+  assert.deepEqual(kinds, ["tag", "wikilink", "element", "command"], "плитка каждого типа — своей строкой");
+  /* Плитки списка — те же знаки, что в легенде: разойтись им не на чем. */
+  for (const t of all(one(v.host, "io-fields__list"), "io-typedot")) {
+    assert.ok(all(legend, "io-typedot").some(l => l.textContent === t.textContent), "знак списка " + t.textContent + " в легенде не объяснён");
+  }
+  ok("подсказка списка Fields: Blocks и Fields, у каждого значка строка легенды");
+}
+
 /* ---- Ф6: правая колонка — выбранный Field ------------------------------ */
 {
   const v = makeView();

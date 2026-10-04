@@ -289,6 +289,8 @@ export function tipBelow(o: {
    * настройки — под всей строкой.
    */
   afterHead?: boolean;
+  /** Своё тело вместо мини-разметки `text` (легенда списка Fields, цикл 132). */
+  paint?: (open: El) => void;
 }): () => void {
   if (!o.text || !o.showTips) return () => {};
 
@@ -317,7 +319,8 @@ export function tipBelow(o: {
       && o.head.parentElement === o.host) {
       o.host.insertBefore(open, o.head.nextSibling || null);
     }
-    rich(open, o.text);
+    if (o.paint) o.paint(open);
+    else rich(open, o.text);
     /* Id последней строкой, как у строки настройки; `-tip` снимается. */
     if (o.showIds) {
       const name = o.id.replace(/-tip$/, "");

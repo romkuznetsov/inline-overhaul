@@ -3834,6 +3834,13 @@ body.theme-dark {
 }
 /* Смайлик — заливка как у соседей, знак шрифтом интерфейса и крупнее: моноширинный рисует его мелко (его 💬 к тесту 1 цикла 130). */
 .io-typedot--element { font-family: var(--font-interface); font-size: 14px; font-weight: 400; }
+/* Легенда подсказки списка Fields: два блока рядом, в узкой панели — столбиком (его 💬 к тесту 1 цикла 131). */
+.io-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; }
+.io-legend__part { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-content: start; align-items: center; }
+.io-legend__head { grid-column: 1 / -1; color: var(--text-normal); }
+.io-legend__mark { display: inline-flex; align-items: center; justify-content: center; justify-self: center; min-width: 20px; color: var(--text-muted); white-space: nowrap; }
+.io-legend__mark--danger { color: var(--text-error); }
+.io-legend__mark .io-danger__icon { display: inline-block; }
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);
