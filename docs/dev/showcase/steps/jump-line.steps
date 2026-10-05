@@ -3,6 +3,7 @@
 # проверяется кадрами. `#2` — второй `Continue past Separators` на вкладке (первый — у Move text). Разделители стартового набора — `||`.
 # Его слово 2026-10-05: этап «Default Obsidian» — поведение без плагина (Ctrl+→ идёт через теги), акцент — на каретку.
 title Jump inside a line | Hop the cursor by word or by sentence, past the tags
+preset navigation.navigateInline.enabled = false
 open Jump in line.md
 caret 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 @ Friday
 mark caret
@@ -13,9 +14,13 @@ key Ctrl+ArrowRight
 key Ctrl+ArrowRight
 expect 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06
 
-stage Jump by word
-say Plugin: Jump right hops word by word
+# Его слово 2026-10-05: этап плагина начинается с того, что контрол включают на камеру.
+stage Move cursor inside a line
+say Move cursor inside a line → on
+settings Navigation
+set Move cursor inside a line = on
 caret 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 @ call
+say Jump right hops word by word
 cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line

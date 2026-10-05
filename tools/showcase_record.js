@@ -117,8 +117,8 @@ const CSS = `
 #io-rec-sub.is-wide{right:auto!important;left:50%!important;top:auto!important;bottom:16px;transform:translateX(-50%);max-width:86%;text-align:center}
 /* Полоса этапов — не на странице, а под кадром, при сборке GIF (\`renderBars\`, \`encode\`): своя заливка, текст под неё не залезает (его слово 2026-10-05). */
 #io-rec-barsrc{position:fixed;left:0;top:0;width:960px;z-index:100010;background:#fff}
-#io-rec-barsrc>div{display:flex;gap:2px;height:34px}
-#io-rec-barsrc i{min-width:0;padding:0 6px;background:#ecebf0;color:#555;font:600 14px/34px system-ui,sans-serif;font-style:normal;
+#io-rec-barsrc>div{display:flex;height:34px}
+#io-rec-barsrc i{flex:none;box-sizing:border-box;min-width:0;border-left:2px solid #fff;padding:0 6px;background:#ecebf0;color:#555;font:600 14px/34px system-ui,sans-serif;font-style:normal;
  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #io-rec-barsrc i.is-done{background:#ddd0f7;color:#333}
 #io-rec-barsrc i.is-now{background:#8b3dff;color:#fff}
@@ -842,7 +842,7 @@ async function renderBars(win, labels, widths, tmp) {
       if (!d) { d = document.createElement("div"); d.id = "io-rec-barsrc"; document.body.append(d); }
       d.innerHTML = "<div></div><b></b>";
       labels.forEach((t, i) => {
-        const x = document.createElement("i"); x.textContent = t; x.style.flex = widths[i] + " 1 0";
+        const x = document.createElement("i"); x.textContent = t; x.style.width = widths[i] / widths.reduce((s, w) => s + w, 0) * 100 + "%";
         if (i < now) x.className = "is-done"; else if (i === now) x.className = "is-now";
         d.firstChild.append(x);
       });
@@ -971,7 +971,9 @@ async function main() {
       const sec = end - frames[0].t - cut.reduce((s, [a, b]) => s + b - a, 0);
       /* Этап начинается не раньше конца заставки; ширина на полосе — доля его времени. */
       const starts = run.stages.map((x) => Math.max(x.t, run.titleEnd) - frames[0].t);
-      const widths = starts.map((a, i) => Math.max(0.01, (i + 1 < starts.length ? starts[i + 1] : sec) - a));
+      /* Блоки делят всю длину GIF, как и полоска просмотра: первый включает заставку. Иначе граница блока
+         стояла раньше, чем до неё доходила полоска (его замечание 2026-10-05: «этап 2 начался на трети его полоски»). */
+      const widths = starts.map((a, i) => Math.max(0.01, (i + 1 < starts.length ? starts[i + 1] : sec) - (i ? a : 0)));
       const files = await renderBars(win, run.stages.map((x) => x.label), widths, tmp);
       encode(frames, cut, end, tmp, out, { files, starts, total: sec });
       console.log("ok: " + path.relative(ROOT, out) + " — " + sec.toFixed(1) + " с, " + (fs.statSync(out).size / 1048576).toFixed(2) + " МБ, кадров " + frames.length);
