@@ -3,9 +3,16 @@
 # Этап 1 — одна строка туда и обратно (его слово 2026-10-04: «нелогично показано» — прежде прыгали две строки).
 # Подсвечен отступ и Prefix, а не строка (его слово 2026-10-04: «акцент на префикс и отступ»).
 title Change the line marker | Move left and right cycle bullet, number and heading, then indent
+# Каркас 2026-10-05: главный переключатель выключен до ролика и включается на камеру.
+preset navigation.moveSelection.prefixCyclerEnabled = false
 open Prefix cycle.md
 caret bread
 mark prefix
+stage Cycle line Prefixes
+say Cycle line Prefixes → on
+settings Navigation
+set Cycle line Prefixes = on
+caret bread
 say Move right → plain text becomes a bullet
 cmd move-right
 expect - milk / - bread / eggs
@@ -25,6 +32,7 @@ say Move left → a heading
 cmd move-left
 expect - milk / ##### bread / eggs
 
+stage Start over
 say After the last one → Start over
 settings Navigation
 set After the last one = Start over
@@ -35,6 +43,7 @@ expect - milk / - bread / eggs
 cmd move-right
 expect - milk / # bread / eggs
 
+stage Only Move left cycles
 say Cycle in both directions → off
 settings Navigation
 set Cycle in both directions = off

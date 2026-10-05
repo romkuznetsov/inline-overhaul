@@ -1,33 +1,33 @@
 # move-lines — шаги записи (что показывается — move-lines.md)
-# Этап 1 — умолчания, заметка правится подряд. Каждый следующий этап начинается
-# заходом в настройки; под панелью заметка возвращается к исходной.
+# Его ответ 2026-10-05: «до» (бывший move-lines-before) — первый этап, Default Obsidian.
+# Дальше — включение Move lines на камеру и по контролу на этап; под панелью заметка исходная.
 title Move lines up and down | One key moves a line, its whole tree or a whole section
+preset navigation.moveLine.enabled = false
 open Weekly plan.md
 caret 2. Pay the rent
 # Фон строки — только здесь: GIF про то, что поехало вместе со строкой.
 mark line
-say Default: Move up → only the line moves
-cmd move-line-up
-expect 2. Pay the rent /     1. check the rate /     2. transfer
-caret ## Work
-say Default: a heading moves on its own
-cmd move-line-up
-expect ## Work / 1. Buy groceries / 2. Write the report
-caret 2. Write the report
-say Default: a line can leave its section
-cmd move-line-up
-expect ## Work / 1. Write the report / 2. Buy groceries
-cmd move-line-up
-expect 3. Write the report / ## Work / 1. Buy groceries
+stage Default Obsidian
+say Obsidian: Move line up moves just this one line
+cmd editor:swap-line-up
+cmd editor:swap-line-up
+say Its own sub-items stayed behind: the list is broken
+cmd editor:swap-line-up
+expect 1. Pay the rent / 2. Call the bank /     1. ask about the card /     2. check the rate /     3. transfer /     4. receipt / 3. Buy groceries
 
-say Moving behavior → Whole tree
+# Move lines по умолчанию двигает одну строку — то же, что Obsidian выше: включение и первый
+# контрол — один этап, иначе GIF длиннее 60 с без новой мысли.
+stage Whole tree
+say Move lines → on, Moving behavior → Whole tree
 settings Navigation
+set Move lines = on
 set Moving behavior = Whole tree
 caret 2. Pay the rent
 say Move up → the line takes its sub-items along
 cmd move-line-up
 expect 1. Call the bank /     1. ask about the card / 2. Pay the rent /     1. transfer /     2. receipt /     3. check the rate
 
+stage Jump over trees
 say Jump over neighbor trees → on
 settings Navigation
 set Jump over neighbor trees = on
@@ -36,6 +36,7 @@ say Move up → it jumps over the whole neighbor
 cmd move-line-up
 expect ## Errands / 1. Pay the rent /     1. transfer /     2. receipt / 2. Call the bank
 
+stage Whole section
 say Moving headings → Whole section
 settings Navigation
 set Moving headings = Whole section
@@ -44,6 +45,7 @@ say Move up → the whole section moves
 cmd move-line-up
 expect ## Work / 1. Write the report / 2. Review the slides / ## Errands
 
+stage Stop at headings
 say Cross heading boundaries → off
 settings Navigation
 set Cross heading boundaries = off

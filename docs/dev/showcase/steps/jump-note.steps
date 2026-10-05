@@ -2,10 +2,27 @@
 # Команды меняют только место каретки: `expect` держит, что текст не тронут, место каретки
 # проверяется кадрами. Подсветка идёт за кареткой (шаг инструмента 2026-10-04).
 title Jump inside a note | Hop the cursor between sections and lines
+# Каркас 2026-10-05: Default Obsidian — стрелка вниз идёт по каждой строке; затем включение на камеру.
+preset navigation.jumpToHeader.enabled = false
+# Заметка влезает в окно: центровка прыжка только сдвигала её и резала верх.
+preset navigation.jumpToHeader.centerCursor = false
 open Week notes.md
 caret ## Monday
 mark caret
-say Default: Jump down stops at the end of a section…
+stage Default Obsidian
+say Obsidian: ↓ walks through every line
+key ArrowDown
+key ArrowDown
+key ArrowDown
+key ArrowDown
+expect ## Monday / 1. call the plumber / ## Tuesday / ## Wednesday
+
+stage Jump between headings
+say Jump between headings → on
+settings Navigation
+set Jump between headings = on
+caret ## Monday
+say Jump down stops at the end of a section…
 cmd jump-next
 say …then at the start of the next one
 cmd jump-next
@@ -14,6 +31,7 @@ say Jump up walks back the same way
 cmd jump-back
 expect ## Monday / 1. call the plumber / ## Tuesday / ## Wednesday
 
+stage Start only
 say Where in the section → Start only
 settings Navigation
 set Where in the section = Start only
@@ -24,6 +42,7 @@ cmd jump-next
 cmd jump-next
 expect ## Monday / ## Tuesday / ## Wednesday
 
+stage Jump target: Lines
 say Jump target → Lines
 settings Navigation
 set Jump target = Lines

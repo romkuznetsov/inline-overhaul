@@ -3,11 +3,13 @@
 title Move lines: what you see | Highlight the moved line, choose where it lands, follow it or stay put
 open Packing list.md
 caret 14. snacks
+stage The note follows
 say Default: the note follows the moved line
 cmd move-line-down
 cmd move-line-down
 expect 14. stove / 15. fuel / 16. snacks / 17. lighter
 
+stage Highlight after moving
 say Highlight after moving → on
 settings Navigation
 set Highlight after moving = on
@@ -19,6 +21,7 @@ expect 14. stove / 15. fuel / 16. snacks / 17. lighter
 # Подсветка инструмента гаснет, подсветка плагина остаётся — на это нужно время.
 pause 1200
 
+stage Lands at the top
 say Where the line lands → Top
 settings Navigation
 set Where the line lands = Top
@@ -28,6 +31,7 @@ cmd move-line-down
 cmd move-line-down
 expect 14. stove / 15. fuel / 16. snacks / 17. lighter
 
+stage The note stays put
 say Follow the moved line → off
 settings Navigation
 set Follow the moved line = off

@@ -1,29 +1,21 @@
 # move-lines — Move lines (up/down), основные контролы
 
-**Состояние: записан 2026-10-04, вторая версия по его замечаниям; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; «до» (`move-lines-before`) влит первым этапом.**
 
-Группа `Navigation → Move lines (up/down)` в `docs/SETTINGS.md`. Четыре ключевых
-контрола: `Moving behavior`, `Jump over neighbor trees`, `Moving headings`,
-`Cross heading boundaries`. Остальные четыре — `move-lines-2`. «До» (встроенный
-перенос Obsidian) — `move-lines-before`.
+Группа `Navigation → Move lines (up/down)` в `docs/SETTINGS.md`. Контролы: `Move lines`, `Moving behavior`, `Jump over neighbor trees`, `Moving headings`, `Cross heading boundaries`. Остальные — `move-lines-2`.
 
-Заметка — `vault/Weekly plan.md`. Клавиши: `Move up` = `Ctrl+Shift+↑`. Старт —
-стартовый набор, светлая тема, английский интерфейс.
+Заметка — `vault/Weekly plan.md`. `Move lines` выключен до ролика и включается на камеру.
 
 ## Что на экране
 
-Пять этапов — полоса внизу GIF. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки и сменой контрола, после выхода — исходная заметка. Внутри этапа заметка правится подряд, отката на экране нет.
-
 | Этап | Что показывается | Субтитр |
 |---|---|---|
-| 1 | `Pay the rent` вверх — едет одна строка, подпункты остаются | `Default: Move up → only the line moves` |
-| 1 | `## Work` вверх — едет одна строка заголовка, `Buy groceries` оказывается в разделе Work | `Default: a heading moves on its own` |
-| 1 | `Write the report` вверх дважды — поднимается внутри раздела, затем уходит в Errands | `Default: a line can leave its section` |
-| 2 | `Moving behavior` → `Whole tree`; `Pay the rent` едет с подпунктами, но заходит в подпункты соседа | `Move up → the line takes its sub-items along` |
-| 3 | `Jump over neighbor trees` → on; дерево перескакивает соседнее целиком | `Move up → it jumps over the whole neighbor` |
-| 4 | `Moving headings` → `Whole section`; раздел Work встаёт над Errands | `Move up → the whole section moves` |
-| 5 | `Cross heading boundaries` → off; `Review the slides` снизу поднимается до заголовка и дальше не идёт | `Move up → it stops at its heading` |
+| Default Obsidian | встроенная `Move line up` трижды: `Pay the rent` уходит одна, подпункты остаются, список ломается | `Obsidian: Move line up moves just this one line`, `Its own sub-items stayed behind: the list is broken` |
+| Whole tree | `Move lines` → on и `Moving behavior` → `Whole tree`; `Pay the rent` едет с подпунктами, но заходит в подпункты соседа | `Move lines → on, Moving behavior → Whole tree`, `Move up → the line takes its sub-items along` |
+| Jump over trees | `Jump over neighbor trees` → on; дерево перескакивает соседнее целиком | `Move up → it jumps over the whole neighbor` |
+| Whole section | `Moving headings` → `Whole section`; раздел Work встаёт над Errands | `Move up → the whole section moves` |
+| Stop at headings | `Cross heading boundaries` → off; `Review the slides` поднимается до заголовка и дальше не идёт | `Move up → it stops at its heading` |
 
-Подсвечивается строка, которая едет; у строки — плашка с командой (`hotkey: Move up`), до нажатия. Список нумерованный: номера после переноса пересчитывает сам Obsidian.
+Подсвечивается строка, которая едет (`mark line`); плашка — имя команды. `Move lines` по умолчанию двигает одну строку, как Obsidian, — поэтому его включение и `Whole tree` — один этап. 55 с.
 
 Шаги записи — `steps/move-lines.steps` (технические, не согласуются).
