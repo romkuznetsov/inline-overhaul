@@ -1,0 +1,30 @@
+# smart-rules — шаги записи (что показывается — smart-rules.md)
+# Отложенный 2026-10-04 (подсказка окна условия показывала HTML) — с цикла 136 подсказка за «?», запись идёт.
+# Inline to note, открытие заметки, папка шаблонов и шаблон по умолчанию выставлены заранее: GIF про правило.
+title Smart Rules | A rule picks the template by what the line carries
+preset transform.inline2note.enabled = true
+preset transform.inline2note.openTarget = true
+preset transform.inline2note.templatesFolder = "Templates"
+preset transform.inline2note.defaultTemplate = "Templates/Errand.md"
+# Карточка правила высокая: без запаса окна она в кадре наполовину.
+room 420
+open Smart rules.md
+caret - [ ] #todo || [Buy stamps] at the post office
+stage Default template
+say Every line becomes a note from the default template
+cmd transform-inline-to-note
+expect ### 🧺 Errand
+click Smart rules
+stage A rule for Project A
+say Add rule: a line with [[Project A]] → Project task template
+settings Transform
+click Add rule
+click Add link to Rule 1
+click Project A
+pick Template for Rule 1 = Project task.md
+pause 1500
+close
+caret - [ ] #todo || [Draft the plan] one page || [[Project A]]
+say A line with [[Project A]] → the Project task template
+cmd transform-inline-to-note
+expect ### 📁 Project task

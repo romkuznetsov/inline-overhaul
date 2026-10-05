@@ -3,9 +3,7 @@
 title Inline to note: the source line | What happens to the line and its sub-items
 open Moving day.md
 caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
-say Transform is off by default
-pause 2500
-
+stage Inline to note
 say Inline to note → on
 settings Transform
 set Inline to note = on
@@ -14,6 +12,7 @@ say The line becomes a link, its sub-items stay
 cmd transform-inline-to-note
 expect - [ ] [[Pack the kitchen]] || #processed /     - buy boxes /     - find the tape
 
+stage Sub-lines: Move
 say Sub-lines (tree) behavior → Move
 settings Transform
 set Sub-lines (tree) behavior = Move
@@ -22,6 +21,7 @@ say Move → the sub-items go into the note too
 cmd transform-inline-to-note
 expect - [ ] [[Pack the kitchen]] || #processed / - [ ] #todo || [Book the van] call two rental places
 
+stage Keep the text
 say What happens with current line → Keep
 settings Transform
 set What happens with current line = Keep
@@ -30,6 +30,7 @@ say Keep → the text stays next to the link
 cmd transform-inline-to-note
 expect - [ ] [[Book the van]] call two rental places || #processed
 
+stage Dim transformed line
 say Dim transformed line → on
 settings Transform
 set Dim transformed line = on
