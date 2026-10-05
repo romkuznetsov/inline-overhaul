@@ -10,10 +10,12 @@ open Task fields.md
 line-width 480
 caret - call the bank
 stage Status Field and its Values
-say One Field: Status, with Values todo, doing, done
 settings Tags & PKM
-hover Values
-pause 1500
+# Его слово 2026-10-05: сперва рамка на Field, потом на Values — с субтитром, что это.
+spot Status
+say This is a Field — it contains Values
+spot Values
+say These are its Values — what you can pick
 close
 caret - call the bank
 stage Pick a Value in tagWheel

@@ -48,6 +48,8 @@
  *                            поле цвета (`Fill color for #errand = #e05050`) — значение без системного окна
  *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
  *   hover <текст>[ #N][ + Ctrl]  указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
+ *   spot <текст>[ #N]        рамка вокруг узла панели, о котором субтитр (строка списка Fields; заголовок
+ *                            раздела — вместе с разделом); ждёт, пока прочитан прежний субтитр
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
  *   mark none | line | prefix | caret  акцент нажатия: none (умолчание) — ничего; line — строка и то, что
@@ -142,6 +144,8 @@ body.io-rec-caret .cm-cursor{display:none!important}
  background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.45);border:2px solid hsl(var(--accent-h),var(--accent-s),var(--accent-l));
  animation:io-rec-ripple .7s ease-out forwards}
 @keyframes io-rec-ripple{from{transform:scale(.3);opacity:1}to{transform:scale(1.4);opacity:0}}
+#io-rec-spot{position:fixed;z-index:100000;pointer-events:none;border:3px solid #8b3dff;border-radius:10px;
+ background:rgba(139,61,255,.07);box-shadow:0 0 0 4px rgba(139,61,255,.15);transition:opacity .3s}
 .io-rec-mark{position:fixed;z-index:99998;pointer-events:none;border-radius:6px;
  background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.18);transition:opacity .6s}
 .io-rec-hk{position:fixed;z-index:99999;padding:5px 12px;border-radius:7px;white-space:nowrap;pointer-events:none;
@@ -214,6 +218,9 @@ async function stage(win, browser, tab, hotkeys) {
       const d = document.createElement("div"); d.id = id; d.style.opacity = id === "io-rec-sub" ? "0" : "1"; document.body.appendChild(d);
     }
     document.body.classList.add("io-rec-caret");
+    /* Рамка `spot`: строка списка Fields или заголовок раздела с этим именем — раньше любого текста (тёзки в предпросмотре). */
+    window.__ioRecSpotNode = (t) => [...document.querySelectorAll(".io-fields__list .io-fields__item, .io-item__namerow")]
+      .find((x) => x.getBoundingClientRect().width > 0 && x.textContent.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "") === t);
     /* Узел в кадре — прокрутки нет: панель не ездит на камеру (его слово 2026-10-05). */
     window.__ioRecInView = (n) => { const r = n.getBoundingClientRect(); return r.top >= 50 && r.bottom <= window.innerHeight - 70; };
     /* Каждый кадр: каретка записи у головы выделения; субтитр — справа, в первом снизу месте,
@@ -370,7 +377,10 @@ const markEnd = (win) => win.evaluate(() => {
 });
 
 /** Панель закрыта — указатель уходит с экрана: в заметке он отвлекает (его слово 2026-10-05). */
-const closeSettings = (win) => win.evaluate(() => { window.app.setting.close(); document.getElementById("io-rec-ptr").style.opacity = "0"; });
+const closeSettings = (win) => win.evaluate(() => {
+  window.app.setting.close(); document.getElementById("io-rec-ptr").style.opacity = "0";
+  const s = document.getElementById("io-rec-spot"); if (s) s.remove();
+});
 
 const editorState = (win) => win.evaluate(() => {
   const ed = window.app.workspace.activeEditor.editor;
@@ -463,7 +473,17 @@ const markRow = (win, name, nth) => win.evaluate(([name, nth]) => {
 async function aimAt(win, [op, arg]) {
   const m = arg.match(/^(.*?)(?: #(\d+))?(?: = .*)?$/);
   if (op === "set") await markRow(win, m[1].trim(), m[2] ? Number(m[2]) : 1);
-  else if (op === "click") await find(win, m[1], m[2] ? Number(m[2]) : 0).catch(() => findLabel(win, arg));
+  /* Первая рамка — у верха панели: следующие разделы (`Values` под Field) остаются в кадре без прокрутки. */
+  else if (op === "spot" && await win.evaluate((t) => {
+    const n = window.__ioRecSpotNode(t);
+    if (!n) return false;
+    for (let s = n.parentElement; s; s = s.parentElement) if (s.scrollHeight > s.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(s).overflowY)) {
+      for (let k = 0; k < 3; k++) s.scrollTop += n.getBoundingClientRect().top - 110;
+      break;
+    }
+    return true;
+  }, arg)) { /* своя строка найдена */ }
+  else if (op === "click" || op === "spot") await find(win, m[1], m[2] ? Number(m[2]) : 0).catch(() => findLabel(win, arg));
   else if (op === "hover") { const h = arg.split(" + ")[0].match(/^(.*?)(?: #(\d+))?$/); await find(win, h[1], h[2] ? Number(h[2]) : 0); }
   else if (op === "fill" || op === "pick") {
     const t = arg.split(" = ")[0];
@@ -630,7 +650,8 @@ async function run(win, steps, cut, log) {
       await win.keyboard.type(arg, { delay: 70 });
       await win.waitForTimeout(600);
     } else if (op === "close") {
-      /* Только для показов в самой панели: после `set` панель закрывается сама. */
+      /* Только для показов в самой панели: после `set` панель закрывается сама. Субтитр дочитывается. */
+      await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
       await closeSettings(win);
       await win.waitForTimeout(450);
     } else if (op === "mark") {
@@ -691,7 +712,7 @@ async function run(win, steps, cut, log) {
         const ch = part === undefined ? line.length : line.indexOf(part);
         if (k >= 0 && ch >= 0) e.setCursor({ line: k, ch });
       }, [notes(), nc ? nc[1] : ""]);
-      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover"].includes(o));
+      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover", "spot"].includes(o));
       if (aim) await aimAt(win, aim).catch(() => { /* не нашёлся — упадёт сам шаг, с понятной ошибкой */ });
       await win.waitForTimeout(150);
       await win.evaluate(() => document.body.classList.remove("io-rec-hidemodal"));
@@ -754,6 +775,31 @@ async function run(win, steps, cut, log) {
       await point(win, b);
       await win.waitForTimeout(1500);
       if (mod) await win.keyboard.up(mod === "Ctrl" ? "Control" : mod);
+    } else if (op === "spot") {
+      /* `spot <текст>[ #N]` — рамка вокруг того, о чём субтитр (его слово 2026-10-05 к fields: «я не понял, на что смотреть»).
+         Строка списка Fields — целиком; заголовок раздела (`Values`) — вместе с разделом до следующего заголовка. */
+      await win.waitForTimeout(Math.max(0, readUntil - Date.now()));
+      const m = arg.match(/^(.*) #(\d+)$/);
+      const own = await win.evaluate((t) => { const n = window.__ioRecSpotNode(t); if (n && !window.__ioRecInView(n)) n.scrollIntoView({ block: "center" }); return !!n; }, arg);
+      const b = own ? { x: 0, y: 0, t: arg } : await find(win, m ? m[1] : arg, m ? Number(m[2]) : 0);
+      await win.evaluate(([x, y, t]) => {
+        const at = t ? window.__ioRecSpotNode(t) : document.elementFromPoint(x, y);
+        const row = at.closest(".io-fields__item, .io-item__namerow, .setting-item, button") || at;
+        const parts = [row];
+        if (row.classList.contains("io-item__namerow")) for (let s = row.nextElementSibling; s && !s.classList.contains("io-item__namerow"); s = s.nextElementSibling) parts.push(s);
+        let d = document.getElementById("io-rec-spot");
+        if (!d) { d = document.createElement("div"); d.id = "io-rec-spot"; document.body.append(d); }
+        d.__parts = parts; d.style.opacity = "1";
+        const place = () => {
+          if (d.__parts !== parts || !d.isConnected) return;
+          const rs = parts.map((p) => p.getBoundingClientRect()).filter((r) => r.height > 0);
+          const l = Math.min(...rs.map((r) => r.left)), t = Math.min(...rs.map((r) => r.top));
+          const r = Math.max(...rs.map((q) => q.right)), btm = Math.min(window.innerHeight - 84, Math.max(...rs.map((q) => q.bottom)));
+          Object.assign(d.style, { left: l - 6 + "px", top: t - 6 + "px", width: r - l + 12 + "px", height: btm - t + 12 + "px" });
+          requestAnimationFrame(place);
+        };
+        place();
+      }, [b.x, b.y, b.t || ""]);
     } else if (op === "click") {
       /* `click <текст> #N` — N-е совпадение сверху (без номера — последнее); текста нет — узел по `aria-label`. */
       const m = arg.match(/^(.*) #(\d+)$/);
@@ -766,7 +812,7 @@ async function run(win, steps, cut, log) {
       await setControl(win, name.trim(), value.trim());
       /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04).
          Следующий шаг тоже в панели (галочки, окно, подсказка) — панель остаётся, закроет `close`. */
-      if (!["set", "click", "fill", "pick", "pause", "close"].includes(next)) {
+      if (!["set", "click", "fill", "pick", "pause", "close", "spot"].includes(next)) {
         await closeSettings(win);
         await win.waitForTimeout(450);
       }
@@ -816,7 +862,9 @@ function encode(frames, cut, end, tmp, out, bars) {
   keep.forEach((f, i) => {
     let next = i + 1 < keep.length ? keep[i + 1].t : end;
     for (const [a, b] of cut) if (a >= f.t && b <= next) next -= b - a;
-    lines.push("file '" + f.file.replace(/\\/g, "/") + "'", "duration " + Math.max(0.02, next - f.t).toFixed(3));
+    /* Длительность — точная: прежний пол 0,02 с растягивал частые кадры анимаций, и видео к концу
+       отставало от полосы этапов на секунды (его слово 2026-10-05 к jump-line). */
+    lines.push("file '" + f.file.replace(/\\/g, "/") + "'", "duration " + Math.max(0.001, next - f.t).toFixed(3));
   });
   lines.push("file '" + keep[keep.length - 1].file.replace(/\\/g, "/") + "'");
   const list = path.join(tmp, "frames.txt");

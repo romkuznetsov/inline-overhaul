@@ -2,6 +2,9 @@
 # Его сценарий 2026-10-05: выключено (Obsidian) → включено, остальные контролы выключены → по одному
 # включаются Drop the line Prefix и Join with a space → Smart Backspace со всем включённым.
 title Smart Delete and Backspace | Join two lines without dragging the indent and the bullet along
+# Его слово 2026-10-05: доп. контролы выключены заранее, не на камеру.
+preset editor.smartDelete.dropPrefix = false
+preset editor.smartDelete.joinWithSpace = false
 open Errands.md
 caret - Call the plumber
 stage Default Obsidian
@@ -13,8 +16,6 @@ stage Smart Delete
 say Smart Delete on, its options off
 settings Keyboard
 set Smart Delete = on
-set Drop the line Prefix = off
-set Join with a space = off
 caret - Call the plumber
 say Delete → only the indent goes
 key Delete
