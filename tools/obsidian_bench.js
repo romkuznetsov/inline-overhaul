@@ -240,6 +240,7 @@ const PREPARE = {
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-no-highlight"(vault) { PREPARE["shift-enter"](vault); },
   "undo-visual-redraw"(vault) { PREPARE["shift-enter"](vault); },
+  "separator-rewrite"(vault) { fs.writeFileSync(path.join(vault, "sep.md"), "- #todo || call Anna\n- just text\n"); },
   "move-heading"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-selection"(vault) { PREPARE["shift-enter"](vault); },
   /* Его заказ 2026-10-03: автокопии подпапкой `autosave`, предел из поля. Предел 2;
@@ -788,6 +789,50 @@ const SCENARIOS = {
    * закрытия ставит её в конец. Каретка до панели — за словом `банк`; после
    * `Esc` и после `Enter` без выбора она обязана стоять там же.
    */
+  /* 10.13.311, его ответ к В-292: строка замены Separators появляется, спрашивает, меняет заметку и пропадает. */
+  async "separator-rewrite"(win, browser) {
+    const cfgNow = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().pkm.lineFormat);
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    await host.waitForTimeout(600);
+    const rowShown = () => host.evaluate(() => [...document.querySelectorAll(".setting-item-name")]
+      .some((n) => n.textContent.trim() === "Old Separators in your notes" && getComputedStyle(n.closest(".setting-item")).display !== "none"));
+    if (!(await rowShown())) {
+      await host.evaluate(() => {
+        const h = [...document.querySelectorAll("*")].find((n) => n.children.length === 0 && n.textContent.trim() === "Separators" && n.getBoundingClientRect().width > 0);
+        if (h) h.click();
+      });
+      await host.waitForTimeout(600);
+    }
+    const before = await rowShown();
+    await host.evaluate(() => {
+      const b = [...document.querySelectorAll("button")].find((n) => n.textContent.trim() === "Replace in all notes");
+      if (b) b.click();
+    });
+    await host.waitForTimeout(1500);
+    const dialog = await host.evaluate(() => { const m = [...document.querySelectorAll(".modal")].pop(); return m ? m.innerText.replace(/\s+/g, " ").slice(0, 300) : ""; });
+    await host.evaluate(() => {
+      const b = [...document.querySelectorAll(".modal button")].find((n) => n.textContent.trim() === "Replace");
+      if (b) b.click();
+    });
+    await host.waitForTimeout(1500);
+    const after = await rowShown();
+    console.log("узел после: " + await host.evaluate(() => { const n = [...document.querySelectorAll(".setting-item-name")].find((x) => x.textContent.trim() === "Old Separators in your notes"); if (!n) return "нет"; const it = n.closest(".setting-item"); return it.className + " display=" + getComputedStyle(it).display + " hiddenAttr=" + it.hidden; }));
+    const text = await win.evaluate(() => window.app.vault.adapter.read("sep.md"));
+    const notes = await win.evaluate(() => window.app.plugins.plugins["inline-overhaul"].getConfig().pkm.lineFormat);
+    console.log("знаки: " + JSON.stringify(cfgNow));
+    console.log("строка до " + before + " | окно: " + dialog);
+    console.log("заметка: " + JSON.stringify(text) + " | строка после " + after + " | заметки написаны " + notes.notesSeparator1 + " " + notes.notesSeparator2);
+    const ok = before && !after && /Replace old Separators/.test(dialog) && text.startsWith("- #todo :: call Anna") && notes.notesSeparator1 === cfgNow.separator1;
+    console.log(ok ? "ok: замена прошла и строка пропала" : "РАСХОДИТСЯ");
+    return ok;
+  },
+
   /* В-289: набор имени в `Templates folder` по букве — поле не пустеет, чужой правки не объявлено. */
   async "templates-folder-typing"(win, browser) {
     await win.evaluate(async () => {

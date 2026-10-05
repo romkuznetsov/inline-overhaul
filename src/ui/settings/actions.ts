@@ -28,6 +28,7 @@ import {
 } from "../../features/settings_backup.js";
 /* Адрес полного рассказа о выпусках: один дом на окно и на кнопку панели. */
 import releaseNotes from "../../features/release_notes.js";
+import separatorRewrite from "../../features/separator_rewrite.js";
 
 /**
  * Действия с работающим методом. Список читает `build/gen_schema.js`;
@@ -39,6 +40,7 @@ export const READY_ACTIONS: readonly ActionId[] = [
   "save-backup",
   "restore-backup",
   "reset-settings",
+  "rewrite-separators",
 ];
 
 export interface ConfirmRequest {
@@ -113,6 +115,16 @@ export interface AnnounceRequest {
 export interface ConfigSeam {
   get: () => Record<string, unknown>;
   replace: (config: Record<string, unknown>) => Promise<boolean> | boolean;
+  /** Точечная запись мимо отмены: «чем написаны заметки» — не выбор человека (10.13.311). */
+  patch?: (patch: Record<string, unknown>) => Promise<void> | void;
+}
+
+/** Заметки vault для замены Separators (10.13.311). Нет шва — кнопка говорит, что не умеет. */
+export interface NotesSeam {
+  list: () => string[];
+  read: (path: string) => Promise<string>;
+  /** Запись правкой платформы (`vault.process`): заметку, изменённую тем временем, правит её же текст. */
+  rewrite: (path: string, fn: (text: string) => string) => Promise<void>;
 }
 
 /**
@@ -209,6 +221,8 @@ export interface ActionDeps {
   askBackupOptions?: (o: BackupOptionsRequest) => Promise<BackupOptions | null>;
   /** Видимый текст по ключу каталога (10.13.46). Без него — английский из таблицы. */
   t?: Resolve;
+  /** Заметки для замены Separators. */
+  notes?: NotesSeam;
 }
 
 /* ---- тексты: видимые строки английские, точек в конце нет (Р10) -------- */
@@ -497,6 +511,64 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           : String(e);
         notify(message);
         console.error("inline-overhaul: руководство не открылось", e);
+      }
+    },
+
+    /**
+     * Замена старых Separators (его ответ к В-292, 10.13.311): прогон вхолостую,
+     * окно с числами, запись, затем «заметки написаны новыми» — строка пропадает.
+     */
+    "rewrite-separators": async () => {
+      const config = deps.config;
+      const notes = deps.notes;
+      const ask = deps.confirm;
+      if (!config || !notes || typeof config.patch !== "function" || typeof ask !== "function") {
+        notify(say("NO_METHOD"));
+        console.error("inline-overhaul: заменять разделители нечем — нет заметок, конфига или окна");
+        return;
+      }
+      try {
+        const cfg = config.get();
+        const lf = ((cfg["pkm"] || {}) as Record<string, Record<string, unknown>>)["lineFormat"] || {};
+        const to = { s1: String(lf["separator1"] || ""), s2: String(lf["separator2"] || "") };
+        const from = { s1: String(lf["notesSeparator1"] || to.s1), s2: String(lf["notesSeparator2"] || to.s2) };
+        const settle = () => config.patch!({ pkm: { lineFormat: { notesSeparator1: to.s1, notesSeparator2: to.s2 } } });
+        if (!to.s1 || !to.s2 || (from.s1 === to.s1 && from.s2 === to.s2)) { await settle(); return; }
+        const run = separatorRewrite.makeNoteRewriter(cfg, from, to);
+        const hits: string[] = [];
+        let lines = 0;
+        let skipped = 0;
+        for (const path of notes.list()) {
+          const r = run(await notes.read(path));
+          skipped += r.skipped;
+          if (!r.lines) continue;
+          hits.push(path);
+          lines += r.lines;
+        }
+        if (!lines) {
+          notify(say("SEP_NOTHING"));
+          await settle();
+          return;
+        }
+        const rows: string[] = [];
+        if (from.s1 !== to.s1) rows.push(fill(say("SEP_ROW_FIRST"), from.s1, to.s1));
+        if (from.s2 !== to.s2) rows.push(fill(say("SEP_ROW_SECOND"), from.s2, to.s2));
+        const linesSaid = count(lines, "WORD_LINE_ONE", "WORD_LINE_MANY");
+        const notesSaid = count(hits.length, "WORD_NOTE_ONE", "WORD_NOTE_MANY");
+        const yes = await ask({
+          title: say("SEP_TITLE"),
+          body: fill(say("SEP_BODY"), linesSaid, notesSaid),
+          confirmLabel: say("SEP_CONFIRM"),
+          rows,
+          note: skipped ? fill(say("SEP_SKIPPED"), count(skipped, "WORD_LINE_ONE", "WORD_LINE_MANY")) : say("SEP_NOTE"),
+        });
+        if (!yes) return;
+        for (const path of hits) await notes.rewrite(path, text => run(text).text);
+        await settle();
+        notify(fill(say("SEP_DONE"), linesSaid, notesSaid));
+      } catch (e) {
+        notify(messageOf(e));
+        console.error("inline-overhaul: разделители не заменились", e);
       }
     },
 

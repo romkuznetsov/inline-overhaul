@@ -16,7 +16,8 @@ export type ActionId =
   | "open-hotkey"
   | "save-backup"
   | "restore-backup"
-  | "reset-settings";
+  | "reset-settings"
+  | "rewrite-separators";
 
 export interface SetOpts {
   /** Несколько записей с одним ключом внутри 400 мс склеиваются в одну запись undo. */
@@ -286,6 +287,14 @@ export function either(a: string, b: string): Predicate {
 /** Оба условия сразу: у строки уже было своё `visible`, и к нему добавился хозяин. */
 export function both(p: Predicate, q: Predicate): Predicate {
   return { deps: [...p.deps, ...q.deps], test: ctx => p.test(ctx) && q.test(ctx) };
+}
+
+/** Виден, пока хоть в одной паре значения расходятся (замена старых Separators, 10.13.311). */
+export function differ(...pairs: Array<[string, string]>): Predicate {
+  return {
+    deps: pairs.flat(),
+    test: ctx => pairs.some(([a, b]) => ctx.get(b) !== undefined && ctx.get(a) !== ctx.get(b)),
+  };
 }
 
 /* ---- конфиг редактора Fields (Ф16) ------------------------------------ */

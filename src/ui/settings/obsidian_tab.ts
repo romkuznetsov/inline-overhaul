@@ -30,11 +30,13 @@ import {
   type ConfigSeam,
   type ConfirmRequest,
   type HotkeySeam,
+  type NotesSeam,
   type PickRequest,
   type VaultSeam,
 } from "./actions.ts";
 import { checkInput, el, selectInput, textInput, tipBelow, type El, type ElCheck } from "./custom/dom.ts";
 import { bindingKey, hotkeyListWords } from "../../features/settings_backup.js";
+import sharedUtils from "../../core/shared_utils.js";
 import { tabStripRow } from "./custom/tab_strip.ts";
 import { BASE_LANG_SEED, type Catalogs } from "./texts.ts";
 import { ensureCatalogFiles, readCatalogs, type TextFiles } from "./texts_files.ts";
@@ -406,11 +408,34 @@ function vaultSeam(app: App): VaultSeam {
 }
 
 /** Хранилище для копий: запись тем же `update`, что вся панель (миграция, undo). */
+/** Заметки vault для замены Separators (10.13.311): чтение из кэша, запись `vault.process`. */
+function notesSeam(app: App): NotesSeam {
+  const byPath = (path: string) => app.vault.getFileByPath(path);
+  return {
+    list: () => app.vault.getMarkdownFiles().map(f => f.path),
+    read: async (path: string) => {
+      const file = byPath(path);
+      return file ? await app.vault.cachedRead(file) : "";
+    },
+    rewrite: async (path: string, fn: (text: string) => string) => {
+      const file = byPath(path);
+      if (file) await app.vault.process(file, fn);
+    },
+  };
+}
+
 function configSeam(plugin: HostPlugin): ConfigSeam {
   const store = storeFor(plugin);
   return {
     /* Снимок: восстановление собирает следующий конфиг из нынешнего. */
     get: () => JSON.parse(JSON.stringify(store.getConfig())) as Record<string, unknown>,
+    /* Мимо отмены: «чем написаны заметки» — следствие замены, а не выбор (10.13.311). */
+    patch: async (patch: Record<string, unknown>) => {
+      await store.update(cfg => {
+        const merged = sharedUtils.deepMerge(cfg, patch) as Record<string, unknown>;
+        for (const key of Object.keys(merged)) cfg[key] = merged[key];
+      }, "settings:separators-rewritten", { undoable: false });
+    },
     replace: async (next: Record<string, unknown>) => {
       const before = JSON.stringify(store.getConfig());
       await store.update(
@@ -692,6 +717,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         t: (key: string, fallback: string) => this.textFor(key, fallback),
         announce: (o: AnnounceRequest) => announce(app, o),
         askBackupOptions: (o: BackupOptionsRequest) => askBackupOptions(app, o, this.say),
+        notes: notesSeam(app),
       }) as Record<string, () => Promise<void> | void>,
       /* То же окно и для сброса группы (Н3). */
       confirm: (o: ConfirmRequest) => askConfirm(app, o, this.say),

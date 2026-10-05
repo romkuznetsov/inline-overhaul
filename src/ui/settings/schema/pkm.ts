@@ -6,7 +6,7 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { on, eq } from "../types.ts";
+import { on, eq, differ } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { fieldsEditor } from "../custom/fields_editor.ts";
 import { fieldOrderList, prefixOrderList } from "../custom/order_lists.ts";
@@ -37,7 +37,12 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       tip:"Pick something you would never type in a sentence by accident. That is why the default is two pipe characters\n- <b>||</b> — <code>- #high || call Anna</code>\n- <b>::</b> — <code>- #high :: call Anna</code>" },
     { kind:"text", id:"separator-2", path:"pkm.lineFormat.separator2", default:"||", mono:true,
       name:"Second Separator", desc:"Goes at the end of your sentence, before the dates and links",
-      tip:"It may match the first one: the plugin tells them apart by where they stand on the line, not by how they look. With <code>::</code> for both:\n<code>- #high :: call Anna :: 📅2026-10-04</code>" }
+      tip:"It may match the first one: the plugin tells them apart by where they stand on the line, not by how they look. With <code>::</code> for both:\n<code>- #high :: call Anna :: 📅2026-10-04</code>" },
+    { kind:"buttons", id:"separator-rewrite",
+      name:"Old Separators in your notes", desc:"You changed a Separator, and lines written before still use the old one",
+      tip:"Lines written before you changed a Separator keep the old one, and the plugin reads them as plain text: with <code>::</code> set, <code>- #todo || call Anna</code> has no Block any more\n- <b>Replace in all notes</b> — every such line gets the new Separator: <code>- #todo || call Anna</code> → <code>- #todo :: call Anna</code>. First you see how many lines and notes\nOnly the Separator changes. Your text, code, note properties and lines where the old one stands more than twice stay as they are. The row goes away once that is done, or when you set the old Separator back",
+      buttons:[ {label:"Replace in all notes", action:"rewrite-separators", cta:true} ],
+      visible: differ(["pkm.lineFormat.separator1", "pkm.lineFormat.notesSeparator1"], ["pkm.lineFormat.separator2", "pkm.lineFormat.notesSeparator2"]) }
   ]
 },
 {

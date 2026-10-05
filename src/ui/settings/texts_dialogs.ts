@@ -103,6 +103,23 @@ export const DIALOG_TEXTS = {
     HOTKEYS_CLEARED: "cleared",
   },
 
+  /* Замена старых Separators в заметках (его ответ к В-292, 10.13.311). */
+  "rewrite-separators": {
+    SEP_TITLE: "Replace old Separators",
+    SEP_BODY: "Lines with the old Separator: {0} in {1}. Only the Separator changes",
+    SEP_ROW_FIRST: "First Separator: {0} → {1}",
+    SEP_ROW_SECOND: "Second Separator: {0} → {1}",
+    SEP_NOTE: "Your text, code and note properties stay as they are",
+    SEP_SKIPPED: "{0} keep the old Separator: it stands there more than twice, so fix them by hand",
+    SEP_CONFIRM: "Replace",
+    SEP_DONE: "Separators replaced: {0} in {1}",
+    SEP_NOTHING: "No note uses the old Separator, so there is nothing to replace",
+    WORD_LINE_ONE: "line",
+    WORD_LINE_MANY: "lines",
+    WORD_NOTE_ONE: "note",
+    WORD_NOTE_MANY: "notes",
+  },
+
   shared: {
     /** Метода нет — говорим, а не молчим. */
     NO_METHOD: "This build cannot do that yet",
@@ -151,6 +168,7 @@ type FlatTexts =
   & (typeof DIALOG_TEXTS)["save-backup"]
   & (typeof DIALOG_TEXTS)["restore-backup"]
   & (typeof DIALOG_TEXTS)["reset-settings"]
+  & (typeof DIALOG_TEXTS)["rewrite-separators"]
   & (typeof DIALOG_TEXTS)["shared"];
 
 export const ACTION_TEXTS: FlatTexts = (() => {

@@ -22,11 +22,12 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 ## Unreleased
 
 1. ✨ **The eye now hides Values of an Emoji Field with a list of Values too.** A hidden Value is skipped by `next`, `previous` and tagWheel
-2. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
-3. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
-4. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
-5. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading
-6. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
+2. ✨ **After you change a Separator, one button replaces the old one in all your notes.** It appears under `Separators`, shows how many lines will change, touches only the Separators and goes away when done
+3. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
+4. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
+5. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
+6. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading
+7. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
 
 ## 0.15.0
 

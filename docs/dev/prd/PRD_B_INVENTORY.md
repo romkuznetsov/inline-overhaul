@@ -15,7 +15,7 @@ python tests/prototype/update_prd.py
 | 1 | General | — | 4 | 9 | 2 |
 | 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
-| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 23 | 5 |
+| 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
 | 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 10 | 1 |
@@ -521,6 +521,11 @@ _Tip:_ Pick these once and leave them. With <code>::</code> on both sides a line
 - **Second Separator** — `separator-2`, `text`, path `pkm.lineFormat.separator2`, default `||`
   - desc: Goes at the end of your sentence, before the dates and links
   - tip: It may match the first one: the plugin tells them apart by where they stand on the line, not by how they look. With <code>::</code> for both: ⏎ <code>- #high :: call Anna :: 📅2026-10-04</code>
+- **Old Separators in your notes** — `separator-rewrite`, `buttons`
+  - desc: You changed a Separator, and lines written before still use the old one
+  - tip: Lines written before you changed a Separator keep the old one, and the plugin reads them as plain text: with <code>::</code> set, <code>- #todo || call Anna</code> has no Block any more ⏎ - <b>Replace in all notes</b> — every such line gets the new Separator: <code>- #todo || call Anna</code> → <code>- #todo :: call Anna</code>. First you see how many lines and notes ⏎ Only the Separator changes. Your text, code, note properties and lines where the old one stands more than twice stay as they are. The row goes away once that is done, or when you set the old Separator back
+  - кнопки: `rewrite-separators` Replace in all notes
+  - видна если: `pkm.lineFormat.separator1, pkm.lineFormat.notesSeparator1, pkm.lineFormat.separator2, pkm.lineFormat.notesSeparator2`
 
 #### Writing rules — `writing-rules` (вкладка `pkm`)
 

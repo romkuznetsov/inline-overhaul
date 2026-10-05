@@ -826,6 +826,11 @@ function normalizeConfigV2(cfg) {
   oneOf("pkm.placement.freeInsertPosition", ["smart", "left", "right"]);
   text("pkm.lineFormat.separator1");
   text("pkm.lineFormat.separator2");
+  /* Чем написаны заметки (10.13.311): нет ключа — стартовыми знаками; расходится с нынешним — панель предлагает замену. */
+  for (const n of ["1", "2"]) {
+    const own = readCfgPath(cfg, "pkm.lineFormat.notesSeparator" + n);
+    if (typeof own !== "string" || !own.trim()) writeCfgPath(cfg, "pkm.lineFormat.notesSeparator" + n, def("pkm.lineFormat.separator" + n));
+  }
 
   /* --- навигация -------------------------------------------------------- */
   oneOf("navigation.moveLine.noSelectionMode", ["line-only", "with-children"]);

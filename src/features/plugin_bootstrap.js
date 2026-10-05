@@ -61,7 +61,7 @@ function followConfigWithCommands(plugin) {
      */
     const reason = String(payload && payload.reason || "");
     const tab = plugin._settingTab;
-    if (tab && typeof tab.update === "function" && (reason === "command:undo" || reason === "external" || /^toggle:/.test(reason))) {
+    if (tab && typeof tab.update === "function" && (reason === "command:undo" || reason === "external" || reason === "settings:separators-rewritten" || /^toggle:/.test(reason))) {
       try {
         /*
          * Строку с фокусом платформа при пересборке пропускает (`app.js` 1.13.7:

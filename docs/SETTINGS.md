@@ -291,6 +291,7 @@ and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
 |---|---|---|
 | `First Separator` | `\|\|` | Goes between the Left Block and the start of your sentence |
 | `Second Separator` | `\|\|` | Goes at the end of your sentence, before the Right Block |
+| `Old Separators in your notes` | — | Shown after you change a Separator: `Replace in all notes` puts the new one into lines written before, then the row goes away |
 
 ### Writing rules
 

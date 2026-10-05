@@ -12,4 +12,7 @@ module.exports = [
   /* Список custom block пишет редактор Fields (PRD 10.13.260); строке
      `Switch custom blocks on Tab` без блока переключать нечего. */
   "pkm.fields.order.custom",
+  /* «Чем написаны заметки» пишет нормализация и кнопка `Replace in all notes` (10.13.311). */
+  "pkm.lineFormat.notesSeparator1",
+  "pkm.lineFormat.notesSeparator2",
 ];
