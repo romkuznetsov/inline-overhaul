@@ -20,7 +20,7 @@
 | 6 | `ctrl-a-2` | Keyboard → Expanded Ctrl+A, вторая часть | Default Obsidian, Custom, Last press clears highlighting | перезаписан 2026-10-05, ждёт приёмки |
 | 7 | `smart-delete` | Keyboard → Smart Delete\Backspace | Default Obsidian, Smart Delete, Drop the line Prefix, Join with a space, Smart Backspace | принят 2026-10-05 (образец) |
 | 8 | `smart-enter` | Keyboard → Smart Enter | Default Obsidian, Smart Enter, все три Prefix on the new line, Use Shift+Enter instead | перезаписан 2026-10-05, ждёт приёмки |
-| 9 | `smart-paste` | Keyboard → Smart paste | Default Obsidian и Smart paste: две строки в два раздела | перезаписан 2026-10-05, ждёт приёмки; вопрос — Obsidian сам считает вставку под списком |
+| 9 | `smart-paste` | Keyboard → Smart paste | Default Obsidian и Smart paste: две строки в два раздела | перезаписан 2026-10-05, ждёт приёмки; Obsidian сам считает вставку под списком — оставлено честно (В-295) |
 | 10 | `binder` | Keyboard → Binder, Smart bracket | новая команда →, её клавиша в строке, Smart bracket | перезаписан 2026-10-05, ждёт приёмки |
 | 11 | `hotkeys` | Keyboard → Commands & Hotkeys | Hotkey settings, Obsidian's Hotkeys | перезаписан 2026-10-05, ждёт приёмки; только панель |
 | 12 | `fields` | Tags & PKM → Fields | один Field, его Values и tagWheel (его сценарий) | принят 2026-10-05 (образец) |
