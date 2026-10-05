@@ -4,9 +4,14 @@
 title Color custom tags | Give any tag its own color, or hide its word
 open Custom tags.md
 caret ## Saturday
-say Default: #errand and #home look like any tag
-pause 3000
+# Его замечание 2026-10-05: вступление — красятся не только Values из Fields, но и любые свои теги.
+stage Your own tags
+say Field Values like #todo get their colors in Fields
+pause 1800
+say Tags you type yourself, like #errand and #home, can get colors too
+pause 2600
 
+stage #errand in red
 say Color custom tags → add #errand in red
 settings Visual
 fill New tag to color = #errand
@@ -17,6 +22,7 @@ close
 say Every #errand gets a red bubble
 pause 2800
 
+stage #home in green
 say Color custom tags → add #home in green
 settings Visual
 fill New tag to color = #home
@@ -27,6 +33,7 @@ close
 say Every #home gets a green bubble
 pause 2800
 
+stage Hide the word
 say Show for #errand → empty
 settings Visual
 pick Show, for #errand = empty

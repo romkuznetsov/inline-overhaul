@@ -1,26 +1,21 @@
 # line-view — шаги записи (что показывается — line-view.md)
-# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом
-# виде. `pause` держит результат: `settings` не ждёт, пока прочитан субтитр.
-# Порядок — от формы к прозрачности: поблёкшие Block прячут пузыри и полосу.
+# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом виде.
+# Его замечание 2026-10-05: Stripe — в самом конце, вместе со сменой его opacity (раньше он перекрывал показ Block opacity).
 title Line view | Tune how tags and Blocks look on the line
 open Line view.md
 caret ## This week
+stage Default look
 say Default: tags, dates and links at full strength
 pause 2800
 
+stage Tag bubble corners
 say Tag bubble corners → 100
 settings Visual
 set Tag bubble corners = 100
 say Tag bubbles turn square
 pause 2600
 
-say Color the Block with Stripe → on
-settings Visual
-set Color the Block with Stripe = on
-set Stripe opacity = 35
-say A Stripe runs behind each Block
-pause 2600
-
+stage Block text size
 say Block text size → 70%
 settings Visual
 set Left Block text size = 70
@@ -28,9 +23,24 @@ set Right Block text size = 70
 say Both Blocks get smaller, your text stays
 pause 2600
 
-say Block opacity → 30%
+stage Block opacity
+say Block opacity → 40%
 settings Visual
-set Opacity of the Left Block = 30
-set Opacity of the Right Block = 30
+set Opacity of the Left Block = 40
+set Opacity of the Right Block = 40
 say Both Blocks fade, your text stands out
+pause 2600
+
+stage Stripe
+say Color the Block with Stripe → on
+settings Visual
+set Color the Block with Stripe = on
+say A faint Stripe runs behind each Block
+pause 2600
+
+stage Stripe opacity
+say Stripe opacity → 45
+settings Visual
+set Stripe opacity = 45
+say The Stripe gets stronger
 pause 3000

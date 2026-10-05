@@ -5,11 +5,13 @@ open Cursor.md
 # Родная каретка: GIF про саму каретку и её настройки.
 rec-caret off
 caret ## Monday
+stage Default cursor
 say Default: Jump down → the thin cursor is easy to lose
 cmd jump-next
 cmd jump-next
 expect ## Monday
 
+stage Cursor color
 say Color the text cursor → red
 settings Visual
 set Color the text cursor = on
@@ -19,6 +21,7 @@ say Jump down → the cursor is red
 cmd jump-next
 expect ## Monday
 
+stage Cursor width
 say Shape the text cursor → 6 px
 settings Visual
 set Shape the text cursor = on
@@ -28,6 +31,7 @@ say Jump down → a thick cursor
 cmd jump-next
 expect ## Monday
 
+stage Jump highlight
 say Highlight where you land → on
 settings Visual
 set Highlight where you land = on
@@ -39,6 +43,7 @@ cmd jump-next
 cmd jump-next
 expect ## Monday
 
+stage Inside the line
 say Use inside current line → on
 settings Visual
 set Use inside current line = on

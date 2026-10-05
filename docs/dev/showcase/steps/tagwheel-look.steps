@@ -5,6 +5,7 @@
 title tagWheel look | Markers and a Scroller with the neighbor Values
 open tagWheel look.md
 caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
+stage Default look
 say Default: tagWheel Left → the picker opens on the line
 cmd open-tagwheel-left
 expect - [ ] #todo #low ==**[#todo]** #low== || Buy groceries || 📅2026-10-08
@@ -12,6 +13,7 @@ say Escape → the line is back as it was
 key Escape
 expect - [ ] #todo #low || Buy groceries || 📅2026-10-08
 
+stage No tag markers
 say Show tag markers → off
 settings Visual
 set Show tag markers = off
@@ -21,6 +23,7 @@ cmd open-tagwheel-left
 key Escape
 expect - [ ] #todo #low || Buy groceries || 📅2026-10-08
 
+stage Scroller
 say Scroller → on
 settings Visual
 set Scroller = on

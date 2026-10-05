@@ -1,0 +1,39 @@
+# tag-bars-look — шаги записи (что показывается — tag-bars-look.md)
+# Его замечание 2026-10-05: вид Tag Bars — отдельным GIF: толщина, расстояние до строки, промежутки.
+# Tag Bars включены за кадром (их включение — в tag-bars).
+title Tag Bars: the look | Thickness and spacing of the Bars
+preset visual.tagBars.active = true
+preset visual.tagBars.fieldId = "Status"
+open Tag bars.md
+caret ## Garden project
+stage Default Bars
+say Default Bars: thin, close to the text
+pause 2600
+
+stage Bar thickness
+say Bar thickness → 6 px
+settings Visual
+set Bar thickness = 6
+say The Bars get wider
+pause 2600
+
+stage Distance from the text
+say Distance from the text → 40
+settings Visual
+set Distance from the text = 40
+say The Bars move away from the lines
+pause 2600
+
+stage Space between Bars
+say Space between Bars → 20
+settings Visual
+set Space between Bars = 20
+say The levels spread apart
+pause 2600
+
+stage Vertical gap
+say Vertical gap between Bars → 8
+settings Visual
+set Vertical gap between Bars = 8
+say Each Bar gets a gap above and below
+pause 2800

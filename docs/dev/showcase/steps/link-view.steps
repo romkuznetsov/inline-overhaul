@@ -6,9 +6,11 @@
 title Link view | Color link names, addresses and brackets
 open Link view.md
 caret ## Reading list
+stage Default look
 say Default: links take the theme's color
 pause 3000
 
+stage Link target
 say Link target color → red
 settings Visual
 set Link target color = #c0392b
@@ -16,6 +18,7 @@ caret ## Reading list
 say The note name in a link Value turns red
 pause 3000
 
+stage Link brackets
 say Link brackets color → green
 settings Visual
 set Link brackets color = #2f8a4c
@@ -23,6 +26,7 @@ caret - [ ] #todo || Read the brief || [[Project A]]
 say On the cursor line: green [[ ]]
 pause 3200
 
+stage Hyperlink text
 say Hyperlink target color → orange
 settings Visual
 set Hyperlink target color = #c77b26
@@ -30,6 +34,7 @@ caret ## Reading list
 say The text of a Markdown link turns orange
 pause 3000
 
+stage Hyperlink brackets
 say Hyperlink brackets color → green
 settings Visual
 set Hyperlink brackets color = #2f8a4c
@@ -37,6 +42,7 @@ caret - [ ] #doing || Skim the [release notes](https://example.com/notes)
 say On the cursor line: green [ ] ( )
 pause 3200
 
+stage Hyperlink address
 say Hyperlink address color → blue
 settings Visual
 set Hyperlink address color = #1c7ed6
