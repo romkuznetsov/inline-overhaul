@@ -965,6 +965,15 @@ const filled = (el: Any): boolean =>
     assert.ok(!/\s/.test(covered), "подменяется один токен, а не отрезок: " + covered);
   }
 
+  /* Его `💬` к тесту 6 цикла 135: пустая активная ячейка — `[Imp]` и `[-]` — полужирная и при `Bold Field names` = Off. */
+  const weight = (cellText: string): string => {
+    const line = LINE.replace("**[#/1]**", "**[" + cellText + "]**");
+    const a = spans({ activeTextColor: "#ff0000", boldFieldNames: false, highlightLine: true }, line).find((x: Any) => x.kind === "active");
+    return a ? String((/font-weight:\s*(\d+)/.exec(a.style) || [])[1]) : "нет";
+  };
+  assert.equal(weight("Imp"), "700", "имя Field в активной ячейке не полужирное");
+  assert.equal(weight("-"), "700", "`[-]` после прокрутки не полужирное");
+  assert.equal(weight("#todo"), "400", "отрицательный контроль: выбранное Value обычным начертанием, как было");
   ok("B2: слой панели оформляет отрезок пометками, а подменяет только токен");
 }
 

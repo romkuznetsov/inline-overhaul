@@ -1501,6 +1501,27 @@ async function main(): Promise<void> {
     assert.equal(line.textContent, id + " = " + (!was ? "on" : "off"), "раскрытие показало прежнее значение");
   });
 
+  await test("«?» за именем строки открывает подсказку, нажатие по самому имени — нет (пункт «Новое» цикла 135)", () => {
+    const { pane } = makePane();
+    /* Узлы платформы: имя с текстом до x = 100, описание с `details.io-tip`. */
+    const box = { open: false, querySelector: () => null };
+    const desc = { querySelector: (s: string) => (s === "details.io-tip" ? box : null) };
+    const info: Record<string, unknown> = { querySelector: (s: string) => (s === ".setting-item-description" ? desc : null) };
+    const name = {
+      parentElement: info,
+      closest: (s: string) => (s === ".setting-item-name" ? name : null),
+      ownerDocument: { createRange: () => ({ selectNodeContents() {}, getBoundingClientRect: () => ({ left: 0, right: 100 }) }) },
+    };
+    assert.equal(pane.toggleNameTip({ target: name, clientX: 50 }), false, "нажатие по тексту имени открыло подсказку");
+    assert.equal(box.open, false);
+    assert.equal(pane.toggleNameTip({ target: name, clientX: 112 }), true, "нажатие по «?» не узнано");
+    assert.equal(box.open, true, "подсказка не открылась");
+    pane.toggleNameTip({ target: name, clientX: 112 });
+    assert.equal(box.open, false, "второе нажатие не закрыло");
+    info.querySelector = () => null;
+    assert.equal(pane.toggleNameTip({ target: name, clientX: 112 }), false, "строка без подсказки: нажатие не перехвачено");
+  });
+
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];

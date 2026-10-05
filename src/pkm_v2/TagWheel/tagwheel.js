@@ -855,6 +855,8 @@ async function runTagWheel(input, quickAddSettings) {
 
     state.session.mode = plan.mode
     state.session.activeFieldId = plan.activeFieldId
+    /* Новый Field показывает своё имя, пока в нём не крутили (цикл 136). */
+    state.session.scrolledFieldId = ''
     /* Номер активного Field пересчитывает `ensureActiveFieldId` по стороне сессии; второй пересчёт разошёлся бы. */
     ensureActiveFieldId(state)
   }

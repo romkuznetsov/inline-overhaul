@@ -198,7 +198,7 @@ async function run() {
     const clone = await drive(config({ clone: true }), DOC, [OPEN, UP, RIGHT, UP, UP]);
     assert.ok(/\[Tip\]/.test(clone.seen[4]), "совпавший клон в колесе: " + clone.seen[4]);
     const named = await drive(config({ sub: "style" }), DOC, [OPEN, UP]);
-    assert.ok(/`-style`/.test(named.seen[1]) && !/preset/.test(named.seen[1]), "Child name in tagWheel не подписал ячейку пресетов: " + named.seen[1]);
+    assert.ok(/`style`/.test(named.seen[1]) && !/preset/.test(named.seen[1]), "Child name in tagWheel не подписал ячейку пресетов: " + named.seen[1]);
     ok("один пресет — без ячейки пресетов; совпавший клон не виден; ячейка пресетов — по Child name in tagWheel");
   }
 

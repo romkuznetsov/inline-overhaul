@@ -918,6 +918,30 @@ export class SettingsPane {
     line.textContent = idLine(id, this.getControlValue(path));
   }
 
+  /**
+   * Нажатие на «?» за именем строки (его пункт «Новое» цикла 135): знак рисует
+   * `::after` имени, своего узла там нет. Попадание — правее текста имени, в ширину знака.
+   * `true` — подсказка переключена.
+   */
+  toggleNameTip(e: { target: unknown; clientX: number }): boolean {
+    type Box = { left: number; right: number };
+    type Node = { closest?: (s: string) => Node | null; parentElement?: Node | null; open?: boolean;
+      querySelector?: (s: string) => Node | null; ownerDocument?: { createRange(): { selectNodeContents(n: unknown): void; getBoundingClientRect(): Box } } };
+    const t = e.target as Node | null;
+    const name = t && typeof t.closest === "function" ? t.closest(".setting-item-name") : null;
+    const info = name ? name.parentElement : null;
+    const desc = info && typeof info.querySelector === "function" ? info.querySelector(".setting-item-description") : null;
+    const box = desc && typeof desc.querySelector === "function" ? desc.querySelector("details.io-tip") : null;
+    if (!name || !box || !name.ownerDocument) return false;
+    const range = name.ownerDocument.createRange();
+    range.selectNodeContents(name);
+    const textRight = range.getBoundingClientRect().right;
+    if (e.clientX < textRight || e.clientX > textRight + 26) return false;
+    box.open = !box.open;
+    if (box.open) this.freshenTipValue(typeof box.querySelector === "function" ? box.querySelector(".io-tip__mark") : null);
+    return true;
+  }
+
   /** Свёрнута ли группа. Нужно проверке: своего состояния у неё нет. */
   isFolded(groupId: string): boolean {
     return this.folded.has(groupId);

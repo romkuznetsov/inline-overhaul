@@ -1609,6 +1609,8 @@ function cycleValue(rules, state, direction) {
   if (!field) field = mode.fields[state.activeField]
   if (!field) return
   if (!isFieldEnabled(fieldMode, state, field, rules)) return
+  /* В этом Field крутили: пустая ячейка теперь `[-]`, а не имя (цикл 136); снимает `nextVirtualField`. */
+  state.scrolledFieldId = String(field.id || '')
 
   if (field.kind === 'nowTime') {
     var cfgNow = getDateRuntimeCfg(rules, field)
@@ -2370,10 +2372,12 @@ function buildGroupDisplay(group, mode, state, rules, labels) {
     for (ti = 0; ti < tokens.length; ti++) shown.push(valueLabelInStrip(tokens[ti], labels))
     text = shown.join('+')
   } else {
-    /* Пустая ячейка — `-` перед именем, как `-` умолчания в скроллере (его пункт «Новое» цикла 130, З3 № 205). */
-    var ph = '-' + String(group.placeholder || '')
+    /* Пустая ячейка — имя Field; активная после прокрутки в ней — `-`, как умолчание скроллера
+       (его пункт «Новое» цикла 135, откат `-` перед именем З3 № 205). */
+    var ph = String(group.placeholder || '')
     if (hasActive) {
-      text = ph
+      var scrolled = state && state.scrolledFieldId && group.fields.indexOf(state.scrolledFieldId) !== -1
+      text = scrolled ? '-' : ph
     } else {
       var phStyle = rules.ui && rules.ui.placeholderStyle ? String(rules.ui.placeholderStyle) : 'code'
       if (phStyle === 'plain') text = ph

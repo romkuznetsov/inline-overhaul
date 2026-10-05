@@ -132,6 +132,25 @@ for (const [id, element, mode, extra] of [
   ok("Element-список: без знака, Values строками, определение среди тегов");
 }
 
+/* Его `💬` к тесту 5 цикла 135: первое дочернее Value — `Child Field` = `After parent`, а не `Hide`. */
+{
+  const p = panel();
+  assert.equal(p.model().addField("mood", "tag").ok, true);
+  assert.equal(p.model().configureNewField("mood", { side: "left", values: [{ token: "calm" }, { token: "busy" }, { token: "late" }] }).ok, true);
+  assert.equal(p.model().getSubMode("mood_sub"), "hide", "новый Field без дочерних — Hide, как было");
+  const child = (token: string): void => {
+    const ed = p.model().valuesEditor("mood");
+    const row = ed.tree.find((r: Any) => String(r.token).replace(/^#/, "") === token);
+    assert.equal(ed.saveTree(ed.toggleLevel(ed.tree, { level: 0, token: row.token }), "test:child").ok, true);
+  };
+  child("busy");
+  assert.equal(p.model().getSubMode("mood_sub"), "after-parent", "первое дочернее Value оставило Child Field в Hide");
+  p.model().setSubMode("mood_sub", "hide");
+  child("late");
+  assert.equal(p.model().getSubMode("mood_sub"), "hide", "отрицательный контроль: второе дочернее Value перебило выбор человека");
+  ok("первое дочернее Value включает Child Field в After parent, выбор человека потом не трогается");
+}
+
 /* Имя: то же правило, что у заведения. */
 {
   const m = panel().model();

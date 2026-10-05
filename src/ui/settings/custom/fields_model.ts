@@ -1976,7 +1976,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return nextTree;
     };
 
+    /** Первое дочернее Value включает `Child Field` в `After parent` (его `💬` к тесту 5 цикла 135). */
+    const hasKids = (t: Loose[]): boolean => t.some((r: Loose) => Array.isArray(r && r.children) && r.children.length > 0);
     const saveTree = (nextTree: Loose[], reason: string): WriteResult => {
+      const res = writeTree(nextTree, reason);
+      if (res.ok && !hasKids(tree) && hasKids(nextTree) && getSubMode(subKey) === "hide") setSubMode(subKey, "after-parent");
+      return res;
+    };
+
+    const writeTree = (nextTree: Loose[], reason: string): WriteResult => {
       if (newTakenToken(nextTree)) return { ok: false, error: SAY.ERR_VALUE_TAKEN };
       const misspelt = spellingError(treeList(nextTree));
       if (misspelt) return { ok: false, error: misspelt };

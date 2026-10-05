@@ -6,8 +6,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, type El, type ElInput } from "./dom.ts";
-import { paintTip, type DocLike } from "../describe.ts";
+import { el, tipBelow, type El, type ElInput } from "./dom.ts";
 import { inSettingsWindow } from "../settings_window.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
@@ -84,11 +83,14 @@ function askConditionModal(
     override onOpen(): void {
       const box = this.contentEl;
       box.empty();
-      box.addClass("io-dlg");
-      el(box, "h4", "io-dlg__title", conditionDialogTitle(o.kind, o.say));
-      /* Текст с `<code>` — разметкой подсказки, а не строкой (В-288). */
-      paintTip(el(box, "div", "io-item__desc") as unknown as DocLike, o.say(CONDITION_DIALOG_NOTE));
-      renderConditionPicker(box, {
+      box.addClass("io-dlg", "io-cpick");
+      /* Строка короткая, правило «что подходит» — под «?» у заголовка (его 💬 к тесту 7 цикла 135). */
+      const head = el(box, "div", "io-cpick__head");
+      el(head, "h4", "io-dlg__title", conditionDialogTitle(o.kind, o.say));
+      tipBelow({ head, host: box, afterHead: true, text: o.say(CONDITION_DIALOG_NOTE), label: o.say("CONDITION_MORE"),
+        id: "io-cpick-tip", showTips: true });
+      el(box, "div", "io-cpick__hint", o.say("CONDITION_HINT"));
+      const find = renderConditionPicker(box, {
         kind: o.kind,
         /* Подстановка едет и в список: без неё половина окна английская. */
         say: o.say,
@@ -97,6 +99,9 @@ function askConditionModal(
         pick: value => { finish({ kind: "value", id: value }); this.close(); },
         pickField: fieldId => { finish({ kind: "field", id: fieldId }); this.close(); },
       });
+      /* Печатать можно сразу: поиск в фокусе. Такт — окно платформа фокусирует после `onOpen`. */
+      const focusable = find as unknown as { focus?: () => void } | null;
+      if (focusable && typeof focusable.focus === "function") window.setTimeout(() => { focusable.focus?.(); }, 0);
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button",
         { cls: "io-btn", text: o.say("CANCEL"), attr: { type: "button" } });

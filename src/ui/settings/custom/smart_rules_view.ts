@@ -507,42 +507,44 @@ export function renderConditionPicker(host: El, o: {
   pick: (value: string) => void;
   /** Условие «любое значение Field» (10.13.14); нет — имя Field лишь подпись. */
   pickField?: (fieldId: string) => void;
-  /** Fields, у которых такое условие в правиле уже есть: их имя неактивно. */
+  /** Fields, у которых такое условие в правиле уже есть: их кнопка неактивна. */
   fieldsTaken?: readonly string[];
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
-}): void {
+}): ElInput | null {
   const say = o.say || PLAIN;
-  const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
-    el(box, "div", "io-side__empty", o.kind === "fields"
+    el(el(host, "div", "io-pickvals"), "div", "io-side__empty", o.kind === "fields"
       ? say("NO_FIELDS_YET")
       : say("NO_KIND_FIELDS_YET", KIND_LABEL[o.kind].toLowerCase()));
-    return;
+    return null;
   }
+  /* Поиск по Values и именам Fields (его 💬 к тесту 7 цикла 135): `Enter` берёт первое найденное. */
+  const find = textInput(host, "io-pickvals__find", { value: "", label: say("CONDITION_FIND"), placeholder: say("CONDITION_FIND") });
+  const box = el(host, "div", "io-pickvals");
   const taken = new Set((o.fieldsTaken || []).map(x => String(x || "").trim()));
+  const rows: Array<{ wrap: El; label: string; chips: Array<{ node: El; value: string }> }> = [];
   for (const group of o.choices) {
     const wrap = el(box, "div", "io-pickvals__group");
-    /* Имя Field — кнопка «любое значение» (10.13.14, B14); условие уже есть —
-       неактивна (З8). */
+    const head = el(wrap, "div", "io-pickvals__head");
+    el(head, "div", "io-pickvals__name", group.label);
+    /* «Любое значение» — своей кнопкой справа от имени (10.13.14, B14); условие уже есть — неактивна (З8). */
     const fieldId = String(group.fieldId || "").trim();
     if (o.pickField && fieldId) {
       const already = taken.has(fieldId);
-      const name = btn(wrap, "io-pickvals__name io-pickvals__name--pick", {
-        text: group.label,
-        label: already
-          ? say("ANY_VALUE_TAKEN", group.label)
-          : say("USE_ANY_VALUE_OF", group.label),
+      const any = btn(head, "io-pickvals__any", {
+        text: already ? say("ANY_VALUE_ADDED") : say("ANY_VALUE"),
+        label: already ? say("ANY_VALUE_TAKEN", group.label) : say("USE_ANY_VALUE_OF", group.label),
       });
-      name.disabled = already;
+      any.disabled = already;
       if (!already) {
         const take = o.pickField;
-        name.addEventListener("click", (() => { take(fieldId); }) as never);
+        any.addEventListener("click", (() => { take(fieldId); }) as never);
       }
-    } else {
-      el(wrap, "div", "io-pickvals__name", group.label);
     }
     const chips = el(wrap, "div", "io-pickvals__chips");
+    const row = { wrap, label: group.label, chips: [] as Array<{ node: El; value: string }> };
+    rows.push(row);
     if (!group.values.length) {
       el(chips, "span", "io-kind__none", say("VALUES_EMPTY"));
       continue;
@@ -553,8 +555,37 @@ export function renderConditionPicker(host: El, o: {
         label: say("USE_VALUE", value + " from " + group.label),
       });
       pick.addEventListener("click", (() => { o.pick(value); }) as never);
+      row.chips.push({ node: pick, value });
     }
   }
+  const none = el(box, "div", "io-pickvals__none");
+  none.hidden = true;
+  const visibleChips = (): Array<{ node: El; value: string }> =>
+    rows.flatMap(r => (r.wrap.hidden ? [] : r.chips.filter(c => !c.node.hidden)));
+  find.addEventListener("input", (() => {
+    const q = String(find.value || "").trim().toLowerCase();
+    let shown = 0;
+    for (const r of rows) {
+      const byName = !q || r.label.toLowerCase().includes(q);
+      let hits = 0;
+      for (const c of r.chips) {
+        c.node.hidden = !byName && !c.value.toLowerCase().includes(q);
+        if (!c.node.hidden) hits++;
+      }
+      r.wrap.hidden = !byName && hits === 0;
+      if (!r.wrap.hidden) shown++;
+    }
+    none.hidden = shown > 0;
+    none.textContent = shown ? "" : say("NOTHING_FOUND", String(find.value || "").trim());
+  }) as never);
+  find.addEventListener("keydown", ((e: { key: string; preventDefault(): void }) => {
+    if (e.key !== "Enter") return;
+    const first = visibleChips()[0];
+    if (!first) return;
+    e.preventDefault();
+    o.pick(first.value);
+  }) as never);
+  return find;
 }
 
 /** Заголовок диалога. */

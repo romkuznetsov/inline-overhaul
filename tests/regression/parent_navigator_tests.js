@@ -462,9 +462,23 @@ async function run() {
     assert.ok(r.opened[0], "панель открылась");
     /* `Clients` показывает своё Value `[[AK]]`, за ним его собственный `sub`. */
     const at = (label) => r.line.indexOf(label);
-    assert.ok(at("-Type") !== -1 && at("`-sub`") !== -1 && at("[[AK]]") !== -1, "все три поля в полосе: " + r.line);
-    assert.ok(at("-Type") < at("`-sub`") && at("`-sub`") < at("[[AK]]"), "sub сразу за Type, до Clients: " + r.line);
+    assert.ok(at("Type") !== -1 && at("`sub`") !== -1 && at("[[AK]]") !== -1, "все три поля в полосе: " + r.line);
+    assert.ok(at("Type") < at("`sub`") && at("`sub`") < at("[[AK]]"), "sub сразу за Type, до Clients: " + r.line);
     ok("панель: дочерний Field стоит за родителем с предусловием, а не в хвосте Block");
+  }
+
+  /* ---- пустая активная ячейка: имя, после прокрутки `[-]` (его пункт «Новое» цикла 135) -- */
+  {
+    const LEFT = { key: "ArrowLeft" };
+    const cell = async (steps) => {
+      const m = /\*\*\[([^\]]*)\]\*\*/.exec((await drive(config(), "- text", [OPEN, ...steps])).line);
+      return m ? m[1] : "нет активной ячейки";
+    };
+    assert.equal(await cell([]), "Type", "Field без выбора показывает своё имя, без дефиса");
+    assert.equal(await cell([UP, DOWN]), "-", "после прокрутки к умолчанию — `[-]`, как в скроллере");
+    assert.equal(await cell([UP, DOWN, RIGHT, LEFT]), "Type", "вернулись в Field — снова имя, пока не крутили");
+    assert.ok(/\bType\b/.test((await drive(config(), "- text", [OPEN, UP, DOWN, RIGHT])).line), "ушли в другой Field — имя у прежнего");
+    ok("пустая активная ячейка: имя Field, после прокрутки `[-]`, новый Field — снова имя");
   }
 
   /* ---- Value ссылки с папкой (его заказ к тесту 2 цикла 96, 10.13.277) -- */

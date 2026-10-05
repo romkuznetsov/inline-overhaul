@@ -1100,19 +1100,19 @@ _Tip:_ Every Field has its own pair of hotkeys, which is too many to remember. I
   - старые названия для поиска: «Highlight the line»
 - **Inactive Field text color** — `panel-text-color`, `color`, path `visual.tagWheel.textColor`, default `""`
   - desc: The color of the Field names you are not standing on, while the line is marked
-  - tip: Colors the Fields you are not on. In the picker <code>#todo [-Due] -Imp</code> you stand on <code>Due</code>, so this colors <code>-Imp</code> ⏎ - <b>Empty</b> — your theme’s text color ⏎ - <b>A color</b> — those Fields take that color ⏎ Works only while <code>Highlight the tagWheel line</code> is on. The box of neighboring Values is not affected
+  - tip: Colors the Fields you are not on. In the picker <code>#todo [Due] Imp</code> you stand on <code>Due</code>, so this colors <code>Imp</code> ⏎ - <b>Empty</b> — your theme’s text color ⏎ - <b>A color</b> — those Fields take that color ⏎ Works only while <code>Highlight the tagWheel line</code> is on. The box of neighboring Values is not affected
   - старые названия для поиска: «Text color»
 - **Bold Field names** — `panel-bold-names`, `toggle`, path `visual.tagWheel.boldFieldNames`, default `false`
   - desc: Print every Field that shows its own name in bold, while the line is marked
-  - tip: Example picker: <code>#todo [-Due] -Imp</code>, you stand on <code>Due</code> ⏎ - <b>Off</b> — only the Field you are on, <code>[-Due]</code>, is bold ⏎ - <b>On</b> — <code>-Imp</code> is bold too, so empty Fields stand out. <code>#todo</code> has a Value and stays regular ⏎ Needs <code>Highlight the tagWheel line</code> on
+  - tip: Example picker: <code>#todo [Due] Imp</code>, you stand on <code>Due</code> ⏎ - <b>Off</b> — only the Field you are on, <code>[Due]</code>, is bold ⏎ - <b>On</b> — <code>Imp</code> is bold too, so empty Fields stand out. <code>#todo</code> has a Value and stays regular ⏎ Needs <code>Highlight the tagWheel line</code> on
   - старые названия для поиска: «Bold names», «Empty Fields in bold»
 - **Active Field text color** — `panel-active-color`, `color`, path `visual.tagWheel.activeTextColor`, default `""`
   - desc: The color of the Field you are on, while the line is marked
-  - tip: Colors the Field you are on, the one the up and down keys change. In <code>#todo [-Due] -Imp</code> that is <code>[-Due]</code> ⏎ - <b>Empty</b> — it uses <code>Inactive Field text color</code> and is easy to miss on a line with many Fields ⏎ - <b>A color</b> — it stands out at a glance
+  - tip: Colors the Field you are on, the one the up and down keys change. In <code>#todo [Due] Imp</code> that is <code>[Due]</code> ⏎ - <b>Empty</b> — it uses <code>Inactive Field text color</code> and is easy to miss on a line with many Fields ⏎ - <b>A color</b> — it stands out at a glance
   - старые названия для поиска: «Current Field color»
 - **Chosen Value text color** — `panel-chosen-color`, `color`, path `visual.tagWheel.chosenValueColor`, default `""`
   - desc: The color of a Field that already carries a Value, while the line is marked
-  - tip: Colors Fields that already have a Value, so you see at a glance what is filled in. In <code>#todo [-Due] -Imp</code> that is <code>#todo</code> ⏎ - <b>Empty</b> — they use <code>Inactive Field text color</code> ⏎ - <b>A color</b> — <code>#todo</code> takes that color, <code>-Imp</code> does not ⏎ The Field you are on has its own row above
+  - tip: Colors Fields that already have a Value, so you see at a glance what is filled in. In <code>#todo [Due] Imp</code> that is <code>#todo</code> ⏎ - <b>Empty</b> — they use <code>Inactive Field text color</code> ⏎ - <b>A color</b> — <code>#todo</code> takes that color, <code>Imp</code> does not ⏎ The Field you are on has its own row above
   - старые названия для поиска: «Chosen value color», «Picked value color»
 - **Background color** — `panel-background`, `color`, path `visual.tagWheel.fillColor`, default `""`
   - desc: The color behind the picker, while the line is marked

@@ -2731,48 +2731,36 @@ body.theme-dark {
 /* Между строками типов слово стоит своей строкой, а не в ряду значений. */
 .io-op--row { display: block; padding: 2px 0 2px 4px; }
 
-/* Выбор значения в окне: Field, под ним его значения (С-5). */
-.io-pickvals { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
-.io-pickvals__name {
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-/*
- * Имя Field, которое можно нажать: заводит условие «любое значение этого
- * Field» (10.13.14). Выглядит подписью, ведёт себя кнопкой — подчёркивание
- * появляется под курсором, чтобы её было видно, но она не спорила за внимание
- * с самими значениями.
- */
-.io-pickvals__name--pick {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-family: inherit;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  text-align: left;
-  cursor: pointer;
-}
-.io-pickvals__name--pick:hover:not(:disabled) {
-  color: var(--text-normal);
-  text-decoration: underline;
-}
-.io-pickvals__name--pick:disabled {
-  color: var(--text-faint);
-  cursor: default;
-}
+/* Окно выбора условия (С-5; переделано по его 💬 к тесту 7 цикла 135): поиск, Field строкой
+   «имя — Any value», Values — плоскими метками. Кнопки объявлены с тегом и контейнером:
+   правило Obsidian `button:not(.clickable-icon)` перекрашивало их в серые коробки с тенью (правило 214). */
+.io-cpick__head { display: flex; align-items: center; gap: 8px; }
+.io-cpick__head .io-dlg__title { margin: 0; }
+.io-cpick__hint { margin: 6px 0 12px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.io-cpick > .io-tip--below { margin: 8px 0 4px; }
+.io-pickvals__find { width: 100%; margin-bottom: 4px; }
+.io-pickvals { display: flex; flex-direction: column; max-height: min(52vh, 460px); overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.io-pickvals__group { padding: 10px 0; }
+.io-pickvals__group:not([hidden]) ~ .io-pickvals__group { border-top: 1px solid var(--background-modifier-border); }
+.io-pickvals__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.io-pickvals__name { font-size: var(--font-ui-small); font-weight: var(--font-semibold); color: var(--text-normal); }
 .io-pickvals__chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.io-vchip--pick {
-  appearance: none;
-  cursor: pointer;
-  padding: 3px 10px;
+.io-pickvals__none { padding: 16px 0; font-size: var(--font-ui-small); color: var(--text-faint); text-align: center; }
+.modal .io-pickvals button.io-pickvals__any {
+  appearance: none; box-shadow: none; border: 0; background-color: transparent; height: auto;
+  padding: 0; font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-accent); cursor: pointer;
 }
-.io-vchip--pick:hover {
-  background: var(--background-modifier-hover);
-  border-color: var(--interactive-accent);
+.modal .io-pickvals button.io-pickvals__any:hover:not(:disabled) { background-color: transparent; text-decoration: underline; }
+.modal .io-pickvals button.io-pickvals__any:disabled { color: var(--text-faint); cursor: default; }
+.modal .io-pickvals button.io-vchip--pick {
+  appearance: none; box-shadow: none; height: auto; padding: 3px 10px;
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+  background-color: var(--background-secondary); color: var(--text-normal);
+  font-family: var(--font-interface); font-size: var(--font-ui-small); font-weight: 400; line-height: 1.4; cursor: pointer;
 }
+.modal .io-pickvals button.io-vchip--pick:hover,
+.modal .io-pickvals button.io-vchip--pick:focus-visible { border-color: var(--interactive-accent); color: var(--text-accent); background-color: var(--background-modifier-hover); }
+.modal .io-pickvals button.io-vchip--pick:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 
 /* ======================================================================
  * Разбор `Move left` и `Move right` (PRD 10.6): две таблицы рядом.
@@ -4110,10 +4098,21 @@ body.theme-dark {
 :is(.vertical-tab-content, .modal) button.io-icon:disabled { opacity: 0.3; cursor: default; }
 :is(.vertical-tab-content, .modal) button.io-icon--danger, :is(.vertical-tab-content, .modal) button.io-icon--danger:hover { color: var(--text-error); }
 
-/* «?» строки — в конце её описания, как у строк своих блоков рядом с именем, а не отдельной строкой ниже. */
-[class*="io-group-"] .setting-item-description > .io-tip { display: inline; margin: 0 0 0 4px; }
-[class*="io-group-"] .setting-item-description > .io-tip > .io-tip__mark { display: inline-flex; vertical-align: -3px; width: 15px; height: 15px; font-size: 10px; }
+/* «?» строки — сразу за её именем, как в прототипе (его пункт «Новое» цикла 135). Имя — строка платформы,
+   своего узла в нём не бывает: знак рисует `::after`, нажатие ловит `SettingsPane.toggleNameTip`,
+   `summary` остаётся кнопкой для клавиатуры и программы чтения, но не виден. */
+[class*="io-group-"] .setting-item-description > .io-tip { display: inline; margin: 0; }
+[class*="io-group-"] .setting-item-description > .io-tip > .io-tip__mark { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 [class*="io-group-"] .setting-item-description > .io-tip[open] > .io-tip__body { display: block; margin-top: 6px; }
+[class*="io-group-"] .setting-item-info:has(> .setting-item-description > .io-tip) > .setting-item-name::after {
+  content: "?"; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  width: 15px; height: 15px; margin-left: 6px; vertical-align: 1px; border-radius: 50%;
+  border: 1px solid var(--background-modifier-border); background: var(--background-modifier-hover);
+  color: var(--text-muted); font-size: 10px; font-weight: 400; line-height: 1; cursor: help;
+}
+[class*="io-group-"] .setting-item-info:has(> .setting-item-description > .io-tip[open]) > .setting-item-name::after,
+[class*="io-group-"] .setting-item-info:has(> .setting-item-description > .io-tip) > .setting-item-name:hover::after { color: var(--text-normal); border-color: var(--background-modifier-border-hover); }
+[class*="io-group-"] .setting-item-info:has(> .setting-item-description > .io-tip > .io-tip__mark:focus-visible) > .setting-item-name::after { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 
 /* Стрелка сворачивания группы — знаком без рамки, как у Obsidian; свёрнутую отличает сам знак. */
 :is(.vertical-tab-content, .modal) [class*="io-group-"] button.io-fold, :is(.vertical-tab-content, .modal) button.io-fold { border-color: transparent; background: transparent; box-shadow: none; font-size: 13px; }

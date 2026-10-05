@@ -79,6 +79,8 @@ function buildTagwheelPlaceholderSetFromConfig(cfg) {
       if (placeholder) out.add(placeholder);
     }
   }
+  /* `[-]` — пустая активная ячейка после прокрутки (цикл 136): полужирная, как имя. */
+  out.add("-");
   return out;
 }
 

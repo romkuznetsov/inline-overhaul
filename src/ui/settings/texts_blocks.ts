@@ -547,6 +547,13 @@ export const BLOCK_TEXTS = {
     NO_KIND_FIELDS_YET: "no {0} Fields yet — set one up on the Tags & PKM tab",
     VALUES_EMPTY: "no Values yet",
     USE_VALUE: "Use {0}",
+    /* Окно выбора условия (его 💬 к тесту 7 цикла 135): строка под заголовком, поиск, кнопка Field. */
+    CONDITION_HINT: "Click a Value to add it. Any value accepts every Value of that Field",
+    CONDITION_FIND: "Find a Value",
+    ANY_VALUE: "Any value",
+    ANY_VALUE_ADDED: "Already in this rule",
+    NOTHING_FOUND: "Nothing matches {0}",
+    CONDITION_MORE: "More about this choice",
     CONDITION_TIP: "Pick one of the Values your Fields already offer. Within one kind, any one Value is enough. Every kind you filled in must be on the line. A rule with <code>#todo</code> or <code>#idea</code>, and <code>[[Project X]]</code>:\n- <code>- call Anna #todo [[Project X]]</code> — fits\n- <code>- call Anna #todo</code> — does not fit, there is no link",
     ADD_CONDITION: "Add {0}",
     RULE_NAME_ARIA: "Name of {0}",

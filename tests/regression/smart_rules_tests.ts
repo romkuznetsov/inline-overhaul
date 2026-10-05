@@ -915,10 +915,11 @@ function baseConfig(rules?: Any[]): Any {
     pick: () => {},
     pickField: () => {},
   });
-  const names = all(host, "io-pickvals__name");
-  assert.equal(names.length, 2, "имена обоих Fields нарисованы");
-  assert.equal(names[0]?.disabled, true, "уже заведённый Field неактивен");
-  assert.equal(names[1]?.disabled, false, "а свободный нажимается");
+  assert.equal(all(host, "io-pickvals__name").length, 2, "имена обоих Fields нарисованы");
+  const any = all(host, "io-pickvals__any");
+  assert.equal(any.length, 2, "у каждого Field кнопка `Any value`");
+  assert.equal(any[0]?.disabled, true, "уже заведённый Field неактивен");
+  assert.equal(any[1]?.disabled, false, "а свободный нажимается");
   ok("B14: уже заведённый Field в окне неактивен");
 }
 
@@ -935,11 +936,38 @@ function baseConfig(rules?: Any[]): Any {
   assert.equal(names.length, 1, "имя нарисовано");
   /* Признак — класс кнопки, а не поле `disabled`: у заглушки узла оно есть у
      любого узла, и опираться на него значило бы проверять заглушку. */
-  assert.equal(names[0]?.classList.contains("io-pickvals__name--pick"), false,
-    "и это не кнопка: класса кнопки на узле нет");
-  assert.equal(all(host, "io-pickvals__name--pick").length, 0,
-    "кнопок-имён в окне нет вовсе");
+  assert.equal(all(host, "io-pickvals__any").length, 0,
+    "кнопки `Any value` в окне нет вовсе");
   ok("без обработчика имя Field остаётся подписью");
+}
+
+{
+  /* Поиск окна (его 💬 к тесту 7 цикла 135): Values и имена Fields, `Enter` — первое найденное. */
+  const host = makeNode("div");
+  const picked: string[] = [];
+  const find = renderConditionPicker(host as unknown as El, {
+    kind: "tags",
+    choices: [
+      { label: "Imp", fieldId: "imp", values: ["#high", "#low"] },
+      { label: "Type", fieldId: "type", values: ["#todo", "#idea"] },
+    ],
+    pick: (v) => { picked.push(v); },
+  }) as unknown as StubNode;
+  const groups = all(host, "io-pickvals__group");
+  const chips = all(host, "io-vchip--pick");
+  find.value = "lo";
+  find.dispatch("input");
+  assert.deepEqual(chips.map(c => Boolean((c as { hidden?: boolean }).hidden)), [true, false, true, true], "по `lo` виден только #low");
+  assert.deepEqual(groups.map(g => Boolean((g as { hidden?: boolean }).hidden)), [false, true], "Field без найденного спрятан");
+  find.dispatch("keydown", { key: "Enter", preventDefault() {} });
+  assert.deepEqual(picked, ["#low"], "Enter взял не первое найденное");
+  find.value = "type";
+  find.dispatch("input");
+  assert.deepEqual(chips.map(c => Boolean((c as { hidden?: boolean }).hidden)), [true, true, false, false], "по имени Field видны все его Values");
+  find.value = "zzz";
+  find.dispatch("input");
+  assert.equal(Boolean((all(host, "io-pickvals__none")[0] as { hidden?: boolean } | undefined)?.hidden), false, "«ничего не найдено» не показано");
+  ok("поиск в окне условия: Values, имя Field, Enter, пустой ответ");
 }
 
 /* ---- `Advanced settings` у правила (З-5) -------------------------------- */

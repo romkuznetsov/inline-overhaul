@@ -235,6 +235,10 @@ const PREPARE = {
     fs.mkdirSync(path.join(vault, "111"), { recursive: true });
     fs.copyFileSync(path.join(SRC_VAULT, "111", "template.md"), path.join(vault, "111", "template.md"));
   },
+  "automoc-empty-child"(vault) {
+    fs.writeFileSync(path.join(vault, "moc.md"), "- [[Man1]] [[Child1]] :: Research plan\n");
+    PREPARE["transform-start-forms"](vault);
+  },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
@@ -544,6 +548,41 @@ const SCENARIOS = {
     if (process.env.IO_JS) console.log(await host.evaluate(process.env.IO_JS));
     if (process.env.IO_SHOT) { const n = await host.$(process.env.IO_SEL); if (n) await n.screenshot({ path: process.env.IO_SHOT }); }
     return out.length > 0;
+  },
+  /* Тест 7 цикла 135: окно условия Smart Rules — снимки закрытым, с поиском и с «?» в IO_SHOTS. */
+  async "smart-rule-condition"(win, browser) {
+    const dir = process.env.IO_SHOTS;
+    if (!dir) { console.log("нужен IO_SHOTS"); return false; }
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Transform");
+    await clickIn(host, "Add rule");
+    const plus = await host.evaluate(() => {
+      const b = [...document.querySelectorAll("button[aria-label^='Add tag']")].pop();
+      if (!b) return null;
+      b.scrollIntoView({ block: "center" });
+      const r = b.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    if (!plus) { console.log("нет кнопки Add Tag"); return false; }
+    await host.mouse.click(plus.x, plus.y);
+    await host.waitForTimeout(700);
+    const modal = await host.$(".modal:has(.io-cpick)");
+    if (!modal) { console.log("окно условия не открылось"); return false; }
+    await modal.screenshot({ path: path.join(dir, "cpick-1.png") });
+    await host.keyboard.type("te");
+    await host.waitForTimeout(300);
+    await modal.screenshot({ path: path.join(dir, "cpick-2-find.png") });
+    await host.evaluate(() => { const i = document.querySelector(".io-pickvals__find"); i.value = ""; i.dispatchEvent(new Event("input")); });
+    await (await modal.$(".io-cpick__head .io-help")).click();
+    await host.waitForTimeout(300);
+    await modal.screenshot({ path: path.join(dir, "cpick-3-tip.png") });
+    console.log("ok: снимки окна условия");
+    return true;
   },
   /* Обход вида панели: каждая вкладка снимками по высоте экрана в IO_SHOTS (разбор дизайна, цикл 129). Вердикт — глазами, не числом. */
   async "panel-tour"(win, browser) {
@@ -2857,6 +2896,29 @@ const SCENARIOS = {
     return ok;
   },
 
+  /* Тест 11 цикла 135: Auto-MOC под заголовком в пустую заметку дочернего Value `Child1`.
+     Без `[[Man1]]` дочерний Value ждёт родителя и Value не считается — Child1 пуст (цикл 136). */
+  async "automoc-empty-child"(win) {
+    const LINE = "- [[Man1]] [[Child1]] :: Research plan";
+    const n = await openAt(win, "moc.md", LINE);
+    if (n < 0) throw new Error("в moc.md нет строки: " + LINE);
+    const res = await win.evaluate(async ({ LINE, n }) => {
+      const a = window.app;
+      const ed = a.workspace.activeEditor.editor;
+      ed.setCursor({ line: n, ch: LINE.length });
+      const before = await a.vault.adapter.read("Child1.md");
+      a.commands.executeCommandById("inline-overhaul:transform-inline-to-note");
+      await new Promise((r) => setTimeout(r, 3000));
+      return { before, after: await a.vault.adapter.read("Child1.md"), line: ed.getLine(n),
+        bl: a.plugins.plugins["inline-overhaul"].getConfig().transform.inline2note.backlink };
+    }, { LINE, n });
+    console.log("Auto-MOC:", JSON.stringify(res.bl));
+    console.log("строка после:", res.line);
+    console.log("Child1 до:", JSON.stringify(res.before), "после:", JSON.stringify(res.after));
+    const ok = /Research plan/.test(res.after) && /^#+ /m.test(res.after);
+    console.log(ok ? "ok: в пустой Child1 заголовок и ссылка" : "РАСХОДИТСЯ: в Child1 ничего не дописано");
+    return ok;
+  },
   /* Тест 2 цикла 96: куда ведёт щелчок по [[123]] и куда пишет ссылку Inline to note. */
   async "link-click"(win) {
     const LINE = "- строка для проверки Link to Navigator :: [[123]]";
