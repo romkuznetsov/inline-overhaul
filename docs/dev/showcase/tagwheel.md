@@ -8,26 +8,12 @@
 
 ## Что на экране
 
-Полоса внизу GIF — этапы. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки и сменой контрола, после выхода — исходная заметка.
+| Этап | Субтитры |
+|---|---|
+| Default behavior | `Default: → stays inside the Block`, `Default: the other Block is hidden` |
+| Next Block | `tagWheel navigation behavior → Next Block`, `→ walks on into the right Block` |
+| Show the other Block | `Values in the other Block → Show`, `The other Block stays in view` |
 
-### tagwheel.gif
-
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | tagWheel Left на `- call the bank`: `↑` — `#todo`, `→` — Priority, `→` — снова Status, `Enter` | `Default: → stays inside the Block` |
-| 1 | tagWheel Left на `- #todo \|\| pay the rent \|\| [[Project A]]` — `[[Project A]]` пропадает, пока tagWheel открыт; `Esc` | `Default: the other Block is hidden` |
-| 2 | `tagWheel navigation behavior` → `Next Block`; на `call the bank`: `→` `→` — переход в Due, `↑` — сегодняшняя дата, `Enter` | `→ walks on into the right Block` |
-| 3 | `Values in the other Block` → `Show`; та же строка — `[[Project A]]` остаётся на виду; `Esc` | `The other Block stays in view` |
-
-### tagwheel-2.gif
-
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | tagWheel Left на `- call the bank` открывается на Status, `↑` — `#todo`, `Enter` | `Default: tagWheel Left opens on the first Field` |
-| 1 | tagWheel Right открывается на Due, `↑` — сегодняшняя дата, `Enter` | `Default: tagWheel Right opens on the first Field` |
-| 2 | `Active Field on opening` → `Chosen Field`, `Left Block active Field` → `Priority`, `Right Block active Field` → `Project`; tagWheel Left открывается на Priority, `↓` — `#high`, `Enter` | `tagWheel Left opens on Priority` |
-| 2 | tagWheel Right открывается на Project, `↑` — `[[Project A]]`, `Enter` | `tagWheel Right opens on Project` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Left` / `hotkey: tagWheel Right`, затем каждая клавиша.
+Таблица собрана из `steps/tagwheel.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/tagwheel.steps`, `steps/tagwheel-2.steps` (технические, не согласуются).

@@ -4,18 +4,22 @@
 title Backup | Keep your settings as a note in your vault
 open Home tasks.md
 caret - [ ] #todo #low || Water the plants
+stage Save a backup
 say Backup: your settings, kept as a note in your vault
-pause 1500
 settings Advanced
+spot Save a backup
+pause 1500
 click Save a backup
 say Pick the tabs to keep, then Save
 pause 2500
 click Save
 pause 1500
+stage Restore
 say Restore a backup lists them, newest first
 click Restore a backup
 pause 2500
 click Cancel
+stage Autosave
 say Autosave → on: a fresh copy whenever your settings change
 set Autosave = on
 caret - [ ] #todo #low || Water the plants

@@ -1,6 +1,6 @@
 # move-inline — Move lines (left/right): выделенный текст
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Navigation → Move lines (left/right)`, половина `Move text`, в `docs/SETTINGS.md`. Показан контрол `Continue past Separators`; `Movement step` — только умолчанием `Auto` (слово идёт по словам, часть слова — по буквам).
 
@@ -10,15 +10,12 @@
 
 ## Что на экране
 
-Два этапа — полоса внизу GIF.
+| Этап | Субтитры |
+|---|---|
+| Move selected text | `Move selected text → on`, `A selected word moves word by word`, `A part of a word moves by letter`, `…and stays inside its word`, `A word can jump past the Separator` |
+| Step out of the word | `Step out of the word → on`, `Move right → the letter leaves its word` |
+| Stay between Separators | `Continue past Separators → off`, `Move left → it stays between the Separators` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | в `buy milk bread and eggs` выделено `milk`, вправо дважды — `buy bread and milk eggs` | `Default: a selected word moves word by word` |
-| 1 | в `fix teh typo` выделена `e`, вправо — `fix the typo` | `Default: a part of a word moves by letter` |
-| 1 | в строке `#todo`, `call the plumber`, дата выделено `call`, влево — слово перескакивает разделитель к тегу | `Default: it can jump past the Separator` |
-| 2 | `Continue past Separators` → off; то же `call` влево дважды — слово стоит, плашка мигает | `Move left → it stays between the Separators` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Move right` / `Move left`), до нажатия.
+Таблица собрана из `steps/move-inline.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/move-inline.steps` (технические, не согласуются).

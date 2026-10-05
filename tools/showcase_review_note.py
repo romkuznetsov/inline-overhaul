@@ -21,8 +21,6 @@ SECTIONS = ['Navigation', 'Keyboard', 'Tags & PKM', 'Transform', 'Visual', 'Gene
 def section(feature, gid):
     if gid == 'readme-hero':
         return 'Tags & PKM'
-    if gid == 'move-lines-before':
-        return 'Navigation'
     for s in SECTIONS:
         if feature.startswith(s):
             return 'General и Advanced' if s in ('General', 'Advanced') else s

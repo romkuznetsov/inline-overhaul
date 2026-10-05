@@ -1,6 +1,6 @@
 # custom-tags — Visual → Color custom tags
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Visual → Color custom tags` в `docs/SETTINGS.md`: таблица цветов для тегов, которые не Value ни одного Field. Показаны: добавление тега (`Add tag`), его `Fill` и `Text`, `Show` = `empty`. Не показан `Side` — цвет полосы у тега, отдельный вид.
 
@@ -8,13 +8,13 @@
 
 ## Что на экране
 
-Четыре этапа — полоса внизу GIF. Первый — вид по умолчанию; каждый следующий начинается заходом в настройки и правкой таблицы, после выхода — та же заметка в новом виде. Настройки копятся.
+| Этап | Субтитры |
+|---|---|
+| Your own tags | `Field Values like #todo get their colors in Fields`, `Tags you type yourself, like #errand and #home, can get colors too` |
+| #errand in red | `Color custom tags → add #errand in red`, `Every #errand gets a red bubble` |
+| #home in green | `Color custom tags → add #home in green`, `Every #home gets a green bubble` |
+| Hide the word | `Show for #errand → empty`, `#errand keeps its color, the word is hidden` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | `#errand` и `#home` нарисованы как любой тег темы | `Default: #errand and #home look like any tag` |
-| 2 | В таблицу добавлен `#errand`, заливка красная, текст белый: оба `#errand` в заметке — красные пузыри | `Every #errand gets a red bubble` |
-| 3 | Добавлен `#home`, заливка зелёная: оба `#home` — зелёные пузыри | `Every #home gets a green bubble` |
-| 4 | `Show` у `#errand` → `empty`: пузырь остался красным, слово скрыто | `#errand keeps its color, the word is hidden` |
+Таблица собрана из `steps/custom-tags.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/custom-tags.steps` (технические, не согласуются).

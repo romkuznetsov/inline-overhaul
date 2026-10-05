@@ -1,6 +1,6 @@
 # readme-hero — GIF в шапке README
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Его слово 2026-09-29: «исходная строка, пользователь вызывает tagwheel и за 5 секунд настраивает все values». Один показ, этапов и полосы нет: заход в настройки не нужен, всё — стартовый набор чистого vault.
 
@@ -8,14 +8,12 @@
 
 ## Что на экране
 
-| Что показывается | Субтитр |
+| Этап | Субтитры |
 |---|---|
-| строка `- call the bank`; tagWheel слева: `↑` — `#todo`, `→` — Priority, `↓` — `#high`, `Enter` — записано | `A plain line → tagWheel fills it in` |
-| tagWheel справа: `↑` — сегодняшняя дата в Due, `→` — Project, `↑` — `[[Project A]]`, `Enter` — записано | (тот же) |
-| готовая строка `- #todo #high \|\| call the bank \|\| 📅<сегодня> [[Project A]]` | `Done: status, priority, date and project` |
+| Left: status and priority | `A plain line. tagWheel Left opens on Status`, `↑ picks #todo in the Scroller`, `→ steps to Priority, ↓ picks #high` |
+| Right: project and date | `tagWheel Right: ↑ picks Project A`, `→ steps to Due, ↑ is today` |
+| Done | `Status, priority, project and date — in seconds` |
 
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Left`, затем каждая клавиша (`key: ↑`, `key: →`, `key: Enter`).
-
-Расхождение с README, которое решает он: блок `markdown` README обещает `- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15`. Стартовый набор даёт строку без чекбокса и с датой перед ссылкой (Due стоит в Right Block раньше Project). Действие идёт около 14 секунд, а не пяти: темп инструмента — 1,35 с на нажатие, нажатий десять.
+Таблица собрана из `steps/readme-hero.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/readme-hero.steps` (технические, не согласуются).

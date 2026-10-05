@@ -1,6 +1,6 @@
 # tagwheel-look — Visual → tagWheel (Panel, Scroller)
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Visual → tagWheel` в `docs/SETTINGS.md`. Показаны два контрола: `Show tag markers` (Panel) и `Scroller` (Scroller). Цвета панели и скроллера, `Scroller size` — без записи: инструмент пока не умеет ставить цвет и ползунок. `Highlight the tagWheel line` = off снят из записи: с ним открытый tagWheel показывает в строке лишние `**` (похоже на поломку, вопрос в отчёте сессии). Поведение tagWheel (выбор Value) — запись `tagwheel`.
 
@@ -8,16 +8,12 @@
 
 ## Что на экране
 
-Три этапа — полоса внизу GIF. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки и сменой контрола, после выхода — исходная заметка. tagWheel каждый раз закрывается `Escape`, строка возвращается как была.
+| Этап | Субтитры |
+|---|---|
+| Default look | `Default: tagWheel Left → the picker opens on the line`, `Escape → the line is back as it was` |
+| No tag markers | `Show tag markers → off`, `tagWheel Left → Values without the #` |
+| Scroller | `Scroller → on`, `tagWheel Left → neighbor Values above and below`, `↓ → the next Value, the Scroller rolls` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | На строке `Buy groceries` открывается tagWheel: строка подсвечена, Value `#todo` в скобках | `Default: tagWheel Left → the picker opens on the line` |
-| 1 | `Escape` — tagWheel закрыт, строка прежняя | `Escape → the line is back as it was` |
-| 2 | `Show tag markers` → off; tagWheel пишет Values без решётки: `[todo] low` | `tagWheel Left → Values without the #` |
-| 3 | `Scroller` → on; над строкой и под ней — рамки с соседними Values | `tagWheel Left → neighbor Values above and below` |
-| 3 | `↓` — Value сменилось, рамки прокрутились; `Escape` — строка прежняя | `↓ → the next Value, the Scroller rolls` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: tagWheel Left`) или клавишей (`key: Escape`, `key: ↓`), до нажатия.
+Таблица собрана из `steps/tagwheel-look.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/tagwheel-look.steps` (технические, не согласуются).

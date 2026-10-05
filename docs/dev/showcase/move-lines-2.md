@@ -1,6 +1,6 @@
 # move-lines-2 — Move lines (up/down), вторая часть
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Navigation → Move lines (up/down)` в `docs/SETTINGS.md`. Контролы: `Highlight after moving`, `Where the line lands`, `Follow the moved line`. Первая часть группы — `move-lines`.
 
@@ -10,15 +10,13 @@
 
 ## Что на экране
 
-Четыре этапа — полоса внизу GIF. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки и сменой контрола, после выхода — исходная заметка (настройки копятся).
+| Этап | Субтитры |
+|---|---|
+| The note follows | `Default: the note follows the moved line` |
+| Highlight after moving | `Highlight after moving → on`, `Move down → the moved line stays highlighted` |
+| Lands at the top | `Where the line lands → Top`, `Move down → the line is kept at the top` |
+| The note stays put | `Follow the moved line → off`, `Move down → the note stays put` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | `snacks` у нижнего края вниз дважды — экран прокручивается, строка встаёт в середину окна | `Default: the note follows the moved line` |
-| 2 | `Highlight after moving` → on; `snacks` вниз дважды — после нажатий строка остаётся выделенной цветом темы | `Move down → the moved line stays highlighted` |
-| 3 | `Where the line lands` → `Top`; `snacks` вниз дважды — строка встаёт к верхнему краю окна | `Move down → the line is kept at the top` |
-| 4 | `Follow the moved line` → off; `snacks` вниз шесть раз — экран стоит, строка уходит за нижний край | `Move down → the note stays put` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Move down`), до нажатия. На этапе 2 подсветка записи гаснет, а выделение плагина остаётся — для этого добавлена пауза.
+Таблица собрана из `steps/move-lines-2.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/move-lines-2.steps` (технические, не согласуются).

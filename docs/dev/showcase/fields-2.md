@@ -1,6 +1,6 @@
 # fields-2 — Fields: таблица Values
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Tags & PKM → Fields`, таблица Values в `docs/SETTINGS.md`. Показаны `Add Value`, глаз (Value скрыт от `next`, `previous` и tagWheel) и столбец `Show` (`custom` — Value рисуется своим текстом). Первая часть — `fields`: три типа Field и команды `next` / `previous`.
 
@@ -8,15 +8,11 @@
 
 ## Что на экране
 
-Четыре этапа — полоса внизу GIF. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки, после выхода — исходная заметка.
+| Этап | Субтитры |
+|---|---|
+| New Field | `One Field so far — Status`, `A new Field: Energy, with one Value #focus` |
+| tagWheel: two Fields | `tagWheel Left → Status and the new Energy`, `↑ ↓ pick a Value of Status in the Scroller`, `→ steps to Energy; ↓ picks #focus`, `Enter → both Values land in the line` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | `Status next` дважды на `- #todo \|\| call the bank` — `#doing`, затем `#done` | `Default: Status next walks its Values` |
-| 2 | в таблице Values Status набрать `waiting`, `Add Value`; `Status next` на `- #done \|\| pay the rent` — `#waiting` | `Status next → the new Value comes after #done` |
-| 3 | глаз у `#doing`; `Status next` на `#todo` — сразу `#done`, `#doing` пропущен | `Status next → #doing is skipped` |
-| 4 | `Show` у `#todo` → `custom`, текст `🎯`; на строке вместо `#todo` — 🎯; `Priority next` — рядом встаёт `#low`, 🎯 остаётся | `Priority next → 🎯 stays in place of #todo` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`), до нажатия.
+Таблица собрана из `steps/fields-2.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/fields-2.steps` (технические, не согласуются).

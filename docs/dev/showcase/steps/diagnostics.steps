@@ -4,12 +4,16 @@
 # Отмена показана на Navigation, а не на Visual: после отмены Visual → off заметка
 # остаётся без оформления до следующей правки (находка, см. отчёт среза).
 title Diagnostics | Undo a settings change and see option ids
+# Раскрытая подсказка длинная: без запаса строка с id уходит под субтитр.
+room 360
 open Home tasks.md
 caret - [ ] #todo #low || Water the plants
+stage Move up works
 say Default: Move up works
 cmd move-line-up
 expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #todo #low || Water the plants / - [ ] #doing #med || Paint the door || [[Project A]]
 
+stage Undo a change
 say Navigation → off, by mistake
 settings General
 set Navigation = off
@@ -22,10 +26,12 @@ cmd undo-last-settings-change
 cmd move-line-up
 expect ## Home / - [ ] #todo #high || Fix the shelf || 📅2026-10-06 / - [ ] #todo #low || Water the plants / - [ ] #doing #med || Paint the door || [[Project A]]
 
+stage Option IDs
 say Show option IDs in tips → on: a tip ends with its id
 settings Advanced
 set Show option IDs in tips = on
-set Your settings = ?
+pause 600
+tip Autosave
 pause 3500
 close
 caret - [ ] #todo #low || Water the plants

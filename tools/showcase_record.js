@@ -49,7 +49,8 @@
  *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
  *   hover <текст>[ #N][ + Ctrl]  указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   spot <текст>[ #N]        рамка вокруг узла панели, о котором субтитр (строка списка Fields; заголовок
- *                            раздела — вместе с разделом); ждёт, пока прочитан прежний субтитр
+ *                            раздела — вместе с разделом); ждёт, пока прочитан прежний субтитр; снимается щелчком
+ *   tip <строка>             раскрыть «?» строки панели (подсказка с id в diagnostics)
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
  *   mark none | line | prefix | caret  акцент нажатия: none (умолчание) — ничего; line — строка и то, что
@@ -472,7 +473,7 @@ const markRow = (win, name, nth) => win.evaluate(([name, nth]) => {
 /** За кадром, пока панель невидима: прокрутить к контролу первого шага в ней. */
 async function aimAt(win, [op, arg]) {
   const m = arg.match(/^(.*?)(?: #(\d+))?(?: = .*)?$/);
-  if (op === "set") await markRow(win, m[1].trim(), m[2] ? Number(m[2]) : 1);
+  if (op === "set" || op === "tip") await markRow(win, m[1].trim(), m[2] ? Number(m[2]) : 1);
   /* Первая рамка — у верха панели: следующие разделы (`Values` под Field) остаются в кадре без прокрутки. */
   else if (op === "spot" && await win.evaluate((t) => {
     const n = window.__ioRecSpotNode(t);
@@ -712,7 +713,7 @@ async function run(win, steps, cut, log) {
         const ch = part === undefined ? line.length : line.indexOf(part);
         if (k >= 0 && ch >= 0) e.setCursor({ line: k, ch });
       }, [notes(), nc ? nc[1] : ""]);
-      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover", "spot"].includes(o));
+      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover", "spot", "tip"].includes(o));
       if (aim) await aimAt(win, aim).catch(() => { /* не нашёлся — упадёт сам шаг, с понятной ошибкой */ });
       await win.waitForTimeout(150);
       await win.evaluate(() => document.body.classList.remove("io-rec-hidemodal"));
@@ -805,14 +806,32 @@ async function run(win, steps, cut, log) {
       const m = arg.match(/^(.*) #(\d+)$/);
       const b = await find(win, m ? m[1] : arg, m ? Number(m[2]) : 0).catch(() => findLabel(win, arg));
       await point(win, b);
+      /* Рамка `spot` объясняет до действия: открытое щелчком окно она не обводит (backup, binder 2026-10-05). */
+      await win.evaluate(() => { const s = document.getElementById("io-rec-spot"); if (s) s.remove(); });
       await win.mouse.click(b.x, b.y);
+      await win.waitForTimeout(600);
+    } else if (op === "tip") {
+      /* `tip <строка>` — раскрыть «?» строки панели (подсказка с id в diagnostics); `set … = ?` щёлкал переключатель. */
+      if (!(await markRow(win, arg, 1))) throw new Error("нет контрола «" + arg + "»");
+      /* «?» — `::after` имени, своего узла нет (`toggleNameTip`): щелчок правее текста имени. */
+      const b = await win.evaluate(() => {
+        const n = document.querySelector("[data-io-rec='1'] .setting-item-name");
+        if (!n) return null;
+        const r = document.createRange(); r.selectNodeContents(n);
+        const q = r.getBoundingClientRect();
+        return { x: q.right + 12, y: q.top + q.height / 2 };
+      });
+      if (!b) throw new Error("у «" + arg + "» нет «?»");
+      await point(win, b);
+      await win.mouse.click(b.x, b.y);
+      await win.evaluate(() => document.querySelectorAll("[data-io-rec]").forEach((n) => n.removeAttribute("data-io-rec")));
       await win.waitForTimeout(600);
     } else if (op === "set") {
       const [name, value] = arg.split(" = ");
       await setControl(win, name.trim(), value.trim());
       /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04).
          Следующий шаг тоже в панели (галочки, окно, подсказка) — панель остаётся, закроет `close`. */
-      if (!["set", "click", "fill", "pick", "pause", "close", "spot"].includes(next)) {
+      if (!["set", "click", "fill", "pick", "pause", "close", "spot", "tip"].includes(next)) {
         await closeSettings(win);
         await win.waitForTimeout(450);
       }

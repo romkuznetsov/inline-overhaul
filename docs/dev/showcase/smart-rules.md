@@ -1,19 +1,16 @@
 # smart-rules — Smart Rules
 
-**Состояние: отложен 2026-10-04 — показ выглядит поломкой плагина. Шагов записи нет.**
+**Состояние: записан впервые 2026-10-05 (был отложен 2026-10-04: подсказка окна условия показывала HTML; с цикла 136 она за «?»); ждёт приёмки.**
 
-Группа `Transform → Smart Rules` в `docs/SETTINGS.md`. Правило выбирает шаблон по Values строки; условие правила добавляется кнопкой `+` в карточке, и она открывает окно `Add a tag` / `Add a link`.
+Группа `Transform → Smart Rules` в `docs/SETTINGS.md`. Правило выбирает шаблон по Values строки. `Inline to note`, открытие заметки, папка шаблонов `Templates` и шаблон по умолчанию `Errand` выставлены до ролика: GIF про правило.
 
-## Почему отложен
+Заметка — `vault/Smart rules.md`, шаблоны — `vault/Templates/Errand.md`, `vault/Templates/Project task.md`.
 
-В окне `Add a tag` / `Add a link` текст подсказки показывает разметку как есть: `<code>#todo</code> or <code>#idea</code>…`. Окно стоит в кадре, пока выбирается Value, — на GIF это читается как поломка. Источник текста — `CONDITION_TIP` в `src/ui/settings/texts_blocks.ts`.
+## Что на экране
 
-Всё остальное для показа у инструмента теперь есть: шаблоны в подпапке `vault/`, `pick` для списка `Template for Rule 1`, `click` для `+` и Value в окне. Оговорка: папка шаблонов набирается в поле `Templates folder` по букве, и в записи `transform` при этом всплывало «Settings changed on disk…» — для этой записи папку придётся проверить на кадрах заново.
+| Этап | Субтитры |
+|---|---|
+| Default template | `Every line becomes a note from the default template` |
+| A rule for Project A | `Add rule: a line with [[Project A]] → Project task template`, `A line with [[Project A]] → the Project task template` |
 
-## Задуманный показ
-
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | Заметка как есть, без нажатия | `Transform is off by default` |
-| 2 | `Inline to note`, `Open note after creation`, папка шаблонов и шаблон по умолчанию `Errand`; строка `#todo` становится заметкой по нему | `Every line uses the default template` |
-| 3 | Правило «link `Project A` → шаблон `Project task`»; строка с `[[Project A]]` становится заметкой по другому шаблону | `A rule picks the template by the line's link` |
+Таблица собрана из `steps/smart-rules.steps` (этапы — `stage`, субтитры — `say`).

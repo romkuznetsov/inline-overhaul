@@ -1,6 +1,6 @@
 # child-fields — Fields: дочерний Field
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
 Группа `Tags & PKM → Fields`, строка `Child Field` в `docs/SETTINGS.md`. Дочерний Value заводится в таблице Values стрелкой уровня: `#review` встаёт под `#done`, и дочерний Field Status предлагает его. Показаны `After parent` и `Always`. `On Alt`, `Parent Value` и `Parent is Navigator` не показаны: при текущем темпе GIF выходит за 60 с; это будет `child-fields-2`.
 
@@ -8,14 +8,12 @@
 
 ## Что на экране
 
-Три этапа — полоса внизу GIF. Первый — поведение по умолчанию; каждый следующий начинается заходом в настройки и сменой контрола, после выхода — исходная заметка.
+| Этап | Субтитры |
+|---|---|
+| Status and Priority | `tagWheel has two Fields: Status and Priority` |
+| Child Field: After parent | `Add #review under #done, Child Field → After parent`, `After #done → its child Field offers #review` |
+| Child Field: Always | `Child Field → Always`, `Always → the child is offered without a parent` |
 
-| Этап | Что показывается | Субтитр |
-|---|---|---|
-| 1 | tagWheel Left на `- #done \|\| call the bank`: `→` `→` — только Status и Priority; `Esc` | `Default: tagWheel has Status and Priority` |
-| 2 | в таблице Values Status: набрать `review`, `Add Value`, стрелка уровня — `#review` под `#done`; `Child Field` → `After parent`. tagWheel Left на той же строке: после Status появляется `sub`, `→` `↑` — `#review`, `Enter` — `- #done #review \|\| call the bank` | `After #done → its child Field offers #review` |
-| 3 | `Child Field` → `Always`; tagWheel Left на `- pay the rent` без Status: `sub` есть и так, `→` `↑` — `#review`, `Enter` — `- #review \|\| pay the rent` | `Always → the child is offered without a parent` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка: `hotkey: tagWheel Left`, затем каждая клавиша.
+Таблица собрана из `steps/child-fields.steps` (этапы — `stage`, субтитры — `say`).
 
 Шаги записи — `steps/child-fields.steps` (технические, не согласуются).

@@ -1,24 +1,35 @@
 # readme-hero — шаги записи (что показывается — readme-hero.md)
-# Один показ, без этапов: исходная строка → tagWheel слева и справа → готовая строка.
+# Главное рекламное демо (его слово 2026-10-05: «поработать получше, отложи на конец»): исходная строка →
+# tagWheel слева (Status, Priority) → tagWheel справа (Project, Due) → готовая строка.
+# Каркас: Scroller виден, в tagWheel каретки нет, субтитр под текстом, плашка слева от строки.
 # Дата Due — день записи: перезапись в другой день правит последний expect.
 # Его ответ 2026-10-05: строка как в README — чекбокс у #todo и Project раньше Due, за кадром.
 preset pkm.prefixRules.checkboxByFieldValue = {"Status":{"todo":"[ ]"}}
 preset pkm.fields.order.right = ["Project","Due"]
-title tagWheel | Fill a line with status, priority, date and project from the keyboard
+preset visual.tagWheel.scroller.enabled = true
+title tagWheel | Fill a line with status, priority, project and date — from the keyboard
 open Inbox.md
+line-width 620
 caret - call the bank
-say A plain line → tagWheel fills it in
+stage Left: status and priority
+say A plain line. tagWheel Left opens on Status
 cmd open-tagwheel-left
+say ↑ picks #todo in the Scroller
 key ArrowUp
+say → steps to Priority, ↓ picks #high
 key ArrowRight
 key ArrowDown
 key Enter
 expect - [ ] #todo #high || call the bank
+stage Right: project and date
+say tagWheel Right: ↑ picks Project A
 cmd open-tagwheel-right
 key ArrowUp
+say → steps to Due, ↑ is today
 key ArrowRight
 key ArrowUp
 key Enter
 expect - [ ] #todo #high || call the bank || [[Project A]] 📅2026-10-05
-say Done: status, priority, date and project
-pause 1500
+stage Done
+say Status, priority, project and date — in seconds
+pause 2200
