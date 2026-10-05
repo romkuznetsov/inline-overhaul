@@ -3178,14 +3178,17 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   const before = String(previous == null ? "" : previous);
   const text = String(block || "").trim().replace(/\r?\n/g, nl);
   if (!text) return before;
-  /* Пустая заметка получает блок с первой строки (`В-244`). */
-  if (!before.trim()) return text + nl;
+  const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
+  const pos = String(placement.position || "end").trim().toLowerCase();
+  /* Пустая заметка получает блок с первой строки (`В-244`); `Under heading` — под своим заголовком (В-291). */
+  if (!before.trim()) {
+    if (pos !== "custom-header") return text + nl;
+    return blockWithOwnHeader(text, parseTargetHeaderSpec(placement.targetHeader), nl, /^#/.test(formatHeaderByMode(i2n))) + nl;
+  }
   /* Пустая строка между записью и соседями; `emptyLine: false` у ссылок в чужих
      заметках её снимает (`Add empty line before wikilink`, 2026-09-28). */
   const spaced = !(isObj(i2n) && i2n.emptyLine === false);
   const gap = spaced ? nl + nl : nl;
-  const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
-  const pos = String(placement.position || "end").trim().toLowerCase();
   /* `At the beginning` — за frontmatter, в начало тела (BUGHUNT T14). */
   if (pos === "beginning") {
     const fm = parseFrontmatter(before);

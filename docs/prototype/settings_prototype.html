@@ -2452,7 +2452,7 @@ const SCHEMA = [
       searchTerms:["Inline move mode"], visible: on("navigation.moveSelection.inlineEnabled"),
       options:[ {value:"auto",label:"Auto"}, {value:"char",label:"Character"},
                 {value:"word",label:"Word"}, {value:"disabled",label:"Off"} ],
-      tip:"How far selected text goes on one press of <code>Move right</code>:\n- <b>Auto</b> — part of a word moves by letter: <code>e</code> in <code>teh</code> → <code>the</code>. A whole word moves by word: <code>call</code> → <code>Anna call</code>\n- <b>Character</b> — always one letter, even for a whole word\n- <b>Word</b> — always one word: <code>call Anna</code> → <code>Anna call</code>\n- <b>Off</b> — selected text does not move" },
+      tip:"How far selected text goes on one press of <code>Move right</code>:\n- <b>Auto</b> — part of a word moves by letter: <code>e</code> in <code>teh</code> → <code>the</code>. A whole word moves by word: <code>call</code> → <code>Anna call</code>\n- <b>Character</b> — always one letter, even for a whole word\n- <b>Word</b> — jumps over the next word: <code>call Anna</code> → <code>Anna call</code>. Part of a word jumps over the rest of it: <code>e</code> in <code>teh</code> → <code>the</code>\n- <b>Off</b> — selected text does not move" },
     { kind:"toggle", id:"move-text-word-escape", path:"navigation.moveSelection.inlineWordEscape", default:false,
       name:"Step out of the word", desc:"Let a highlighted part of a word carry on past the word it came from",
       searchTerms:["Leave the word","Word escape"],

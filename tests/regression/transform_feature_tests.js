@@ -1113,6 +1113,11 @@ runElementValueWrittenByPluginIsFoundSuite();
     "Off под заголовком: без пустых строк");
   assertEq(transform.appendBlockIntoNote("текст\n", "- [[y]]", { ...head, placement: { ...head.placement, targetHeader: "## Нет" } }, "\n"),
     "текст\n## Нет\n- [[y]]\n", "Off: заведённый заголовок тоже без пустой строки");
+  /* В-291 (его ответ 2026-10-05): пустая заметка при `Under heading` получает и заголовок. */
+  assertEq(transform.appendBlockIntoNote("", "- [[y]]", head, "\n"), "## Log\n- [[y]]\n", "пустая заметка: ссылка без заголовка");
+  assertEq(transform.appendBlockIntoNote("\n\n", "- [[y]]", head, "\n"), "## Log\n- [[y]]\n", "заметка из пустых строк: ссылка без заголовка");
+  assertEq(transform.appendBlockIntoNote("", "- [[y]]", { ...off, placement: { position: "end" } }, "\n"), "- [[y]]\n",
+    "отрицательный контроль: `End` в пустой заметке — с первой строки, как было (`В-244`)");
   const top = { ...off, placement: { position: "beginning" } };
   assertEq(transform.appendBlockIntoNote("- [[x]]\n", "- [[y]]", top, "\n"), "- [[y]]\n- [[x]]\n", "Off в начале");
   console.log("  ok Add empty line before wikilink: Off пишет ссылки без пустых строк, On — как было");

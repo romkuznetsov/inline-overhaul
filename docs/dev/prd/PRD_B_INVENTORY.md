@@ -388,7 +388,7 @@ _Tip:_ <code>Move left</code> and <code>Move right</code> do three jobs: ⏎ - <
   - старые названия для поиска: «Enable inline text move»
 - **Movement step** — `move-text-step`, `dropdown`, path `navigation.moveSelection.inlineMoveMode`, default `auto`
   - desc: How far the highlighted text goes on each press
-  - tip: How far selected text goes on one press of <code>Move right</code>: ⏎ - <b>Auto</b> — part of a word moves by letter: <code>e</code> in <code>teh</code> → <code>the</code>. A whole word moves by word: <code>call</code> → <code>Anna call</code> ⏎ - <b>Character</b> — always one letter, even for a whole word ⏎ - <b>Word</b> — always one word: <code>call Anna</code> → <code>Anna call</code> ⏎ - <b>Off</b> — selected text does not move
+  - tip: How far selected text goes on one press of <code>Move right</code>: ⏎ - <b>Auto</b> — part of a word moves by letter: <code>e</code> in <code>teh</code> → <code>the</code>. A whole word moves by word: <code>call</code> → <code>Anna call</code> ⏎ - <b>Character</b> — always one letter, even for a whole word ⏎ - <b>Word</b> — jumps over the next word: <code>call Anna</code> → <code>Anna call</code>. Part of a word jumps over the rest of it: <code>e</code> in <code>teh</code> → <code>the</code> ⏎ - <b>Off</b> — selected text does not move
   - варианты: `auto` Auto · `char` Character · `word` Word · `disabled` Off
   - видна если: `navigation.moveSelection.inlineEnabled`
   - старые названия для поиска: «Inline move mode»
