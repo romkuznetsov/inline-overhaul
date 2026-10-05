@@ -236,7 +236,7 @@ const PREPARE = {
     fs.copyFileSync(path.join(SRC_VAULT, "111", "template.md"), path.join(vault, "111", "template.md"));
   },
   "automoc-empty-child"(vault) {
-    fs.writeFileSync(path.join(vault, "moc.md"), "- [[Man1]] [[Child1]] :: Research plan\n");
+    fs.writeFileSync(path.join(vault, "moc.md"), "- [[Child1]] :: Research plan\n");
     PREPARE["transform-start-forms"](vault);
   },
   "shift-enter"(vault) { fs.writeFileSync(path.join(vault, "enter.md"), "\n"); },
@@ -2897,9 +2897,9 @@ const SCENARIOS = {
   },
 
   /* Тест 11 цикла 135: Auto-MOC под заголовком в пустую заметку дочернего Value `Child1`.
-     Без `[[Man1]]` дочерний Value ждёт родителя и Value не считается — Child1 пуст (цикл 136). */
+     Без родителя `[[Man1]]` на строке — его ответ: Auto-MOC пишет во все link-Values строки (цикл 136). */
   async "automoc-empty-child"(win) {
-    const LINE = "- [[Man1]] [[Child1]] :: Research plan";
+    const LINE = "- [[Child1]] :: Research plan";
     const n = await openAt(win, "moc.md", LINE);
     if (n < 0) throw new Error("в moc.md нет строки: " + LINE);
     const res = await win.evaluate(async ({ LINE, n }) => {

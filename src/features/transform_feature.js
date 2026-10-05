@@ -1214,6 +1214,8 @@ function buildTransformContext(parsed, cfg) {
     emojis: emojis.slice(),
     byFieldId: dependencySafeByFieldId,
     matches: dependencySafeMatches,
+    /* Все Values строки, и ждущие родителя: Auto-MOC пишет во все (его ответ к тесту 11 цикла 135). */
+    allMatches: matches,
   };
 }
 
@@ -1956,7 +1958,9 @@ function folderOfNotePath(notePath) {
  * (В-135): ссылка в тексте — слово человека. Цели в порядке строки, без повторов.
  */
 function backlinkTargetsFromContext(context, cfg) {
-  const rows = Array.isArray(context && context.matches) ? context.matches : [];
+  /* Предусловие Field — про tagWheel и строку, не про Auto-MOC: `Child1` без `Man1` тоже получает ссылку (цикл 136). */
+  const all = context && Array.isArray(context.allMatches) ? context.allMatches : null;
+  const rows = all || (Array.isArray(context && context.matches) ? context.matches : []);
   const off = notMocFieldIds(cfg);
   const out = [];
   const seen = new Set();

@@ -1177,6 +1177,16 @@ function runBacklinkPiecesSuite() {
   assertEq(JSON.stringify(transform.backlinkTargetsFromContext(inText)), JSON.stringify([]),
     "ссылка внутри слова человека целью не становится");
 
+  /* Его ответ к тесту 11 цикла 135: дочерний Value без родителя на строке — тоже цель Auto-MOC. */
+  const kidCfg = makeConfig({}, makeFieldsConfig());
+  kidCfg.pkm.fields.links.fields.push({ id: "Project_sub", type: "wikilink", dependsOn: "Project", source: "wikilinks:Project_sub",
+    values: [{ token: "kid", allowedParentValues: ["test1"] }] });
+  const kid = transform.buildTransformContext(transform.parseInlineLine("- #todo [[kid]] :: Отчёт", kidCfg), kidCfg);
+  assertEq(JSON.stringify(kid.matches.map((m) => m.rawToken)).includes("kid"), false,
+    "контроль фикстуры: Value ждёт родителя и в заметку не идёт");
+  assertEq(JSON.stringify(transform.backlinkTargetsFromContext(kid, kidCfg)), JSON.stringify(["kid"]),
+    "дочерний Value без родителя — цель Auto-MOC");
+
   /* Повтор одного значения на строке — одна заметка, а не две записи. */
   const twice = transform.buildTransformContext(
     transform.parseInlineLine("- #todo [[test1]] [[test1]] :: Отчёт", cfg), cfg);
