@@ -4,7 +4,6 @@
 title Smart Delete and Backspace | Join two lines without dragging the indent and the bullet along
 open Errands.md
 caret - Call the plumber
-mark line
 stage Default Obsidian
 say Obsidian: Delete pulls up the indent and the bullet too
 key Delete

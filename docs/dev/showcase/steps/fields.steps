@@ -7,6 +7,7 @@ drop Due
 drop Project
 preset visual.tagWheel.scroller.enabled = true
 open Task fields.md
+line-width 480
 caret - call the bank
 stage Status Field and its Values
 say One Field: Status, with Values todo, doing, done
