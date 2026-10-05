@@ -19,21 +19,32 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.16.0
+
+_2026-10-05 · [all changes since 0.15.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.15.0...0.16.0)_
+
+> [!NOTE]
+> ✨ **4** new things · 🎨 **5** changes you can see · 🐛 **4** bug fixes
+>
+> **New in this release**
+> - **The eye now hides Values of an Emoji Field with a list of Values too**
+> - **After you change a Separator, one button replaces the old one in all your notes**
+> - **Auto-MOC can add a Value or the date after the link**
+> - **Auto-MOC under a heading can put the new link on top**
 
 1. ✨ **The eye now hides Values of an Emoji Field with a list of Values too.** A hidden Value is skipped by `next`, `previous` and tagWheel
 2. ✨ **After you change a Separator, one button replaces the old one in all your notes.** It appears under `Separators`, shows how many lines will change, touches only the Separators and goes away when done
-3. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
-4. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
-5. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
-6. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading. A child link Value gets its link even when its parent is not on the line, and leaves the line like any other Value
-7. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
-8. 🎨 **The Smart Rules condition window is easier to use.** A search box on top, each Field with its own `Any value` button, and flat Values instead of grey boxes
-9. 🎨 **The `?` of a setting now stands right after its name**
-10. 🎨 **tagWheel shows an empty Field by its name again, without `-`.** Once you scroll in it, it shows `[  -  ]`, like the scroller, and the Field you stand on is always bold
-11. 🎨 **The first child Value of a Field turns `Child Field` on as `After parent`.** It used to stay on `Hide`
-12. ✨ **Auto-MOC can add a Value or the date after the link.** `Add after the link` writes the Value of an Emoji Field you pick, or the date and time in your format with an optional emoji
-13. ✨ **Auto-MOC under a heading can put the new link on top.** `Place in the list` chooses the top or the bottom of the links under that heading
+3. ✨ **Auto-MOC can add a Value or the date after the link.** `Add after the link` writes the Value of an Emoji Field you pick, or the date and time in your format with an optional emoji
+4. ✨ **Auto-MOC under a heading can put the new link on top.** `Place in the list` chooses the top or the bottom of the links under that heading
+5. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
+6. 🎨 **The Smart Rules condition window is easier to use.** A search box on top, each Field with its own `Any value` button, and flat Values instead of grey boxes
+7. 🎨 **The `?` of a setting now stands right after its name**
+8. 🎨 **tagWheel shows an empty Field by its name again, without `-`.** Once you scroll in it, it shows `[  -  ]`, like the scroller, and the Field you stand on is always bold
+9. 🎨 **The first child Value of a Field turns `Child Field` on as `After parent`.** It used to stay on `Hide`
+10. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
+11. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
+12. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading. A child link Value gets its link even when its parent is not on the line, and leaves the line like any other Value
+13. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
 
 ## 0.15.0
 
