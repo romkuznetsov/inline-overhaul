@@ -1,0 +1,22 @@
+# value-prefix — шаги записи (что показывается — value-prefix.md)
+# Его ответ 2026-10-05: «среди gif должен быть назначение prefix с демонстрацией работы».
+# Этап 1 — умолчания; этап 2 — Prefix у #todo в таблице Values Status.
+title Prefix | A Value can bring its checkbox to the line
+open Prefix values.md
+caret - call the bank
+mark prefix
+say Default: Status next → #todo, no checkbox
+cmd status-next
+expect - #todo || call the bank / - pay the rent
+
+say Prefix of #todo → [ ]
+settings Tags & PKM
+fill Prefix for #todo = [ ]
+close
+caret - pay the rent
+say Status next → #todo brings [ ] with it
+cmd status-next
+expect - call the bank / - [ ] #todo || pay the rent
+say Status next → #doing has no Prefix, the checkbox goes
+cmd status-next
+expect - call the bank / - #doing || pay the rent

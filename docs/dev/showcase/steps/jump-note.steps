@@ -4,6 +4,7 @@
 title Jump inside a note | Hop the cursor between sections and lines
 open Week notes.md
 caret ## Monday
+mark caret
 say Default: Jump down stops at the end of a section…
 cmd jump-next
 say …then at the start of the next one

@@ -1,23 +1,19 @@
-# fields — Fields: три типа и команды next/previous
+# fields — Field и его Values через tagWheel
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по его сценарию; один из трёх образцов новых правил, ждёт приёмки.**
 
-Группа `Tags & PKM → Fields` в `docs/SETTINGS.md`. Показано то, что стартовый набор даёт без настройки: у каждого Field своя пара команд `<Field> next` / `<Field> previous`, и три типа Field — Tag (`Status`, `Priority`), Element (`Due`) и Link (`Project`) — пишутся каждый в свой Block. Правка Values (`Add Value`, глаз, столбец `Show`) — вторая часть, `fields-2`.
+Группа `Tags & PKM → Fields` в `docs/SETTINGS.md`. Его сценарий 2026-10-05: в настройках один Field и его Values → tagWheel ставит Value в строку → tagWheel ещё раз, Value назад на пустое — тег уходит. Команды `next`/`previous` против tagWheel — отдельный GIF (его слово к `fields-2`).
 
-Заметка — `vault/Task fields.md`, ссылки ведут на пустые `vault/Project A.md` и `vault/Project B.md`. Старт — стартовый набор, светлая тема, английский интерфейс.
+Заметка — `vault/Task fields.md`. За кадром из стартового набора убраны Priority, Due, Project (в панели один Field) и включён `Scroller`. Светлая тема, английский интерфейс.
 
 ## Что на экране
 
-Один этап — поведение по умолчанию; строка `pay the rent` правится подряд.
+| Этап | Что показывается | Субтитр |
+|---|---|---|
+| Status Field and its Values | панель открывается сразу на редакторе Fields: слева один Field `Status`, справа его Values `#todo`, `#doing`, `#done` | `One Field: Status, with Values todo, doing, done` |
+| Pick a Value in tagWheel | на `- call the bank` tagWheel Left — `[Status]` и окно Values (Scroller); ↑ `#todo`, ↑ `#doing`, Enter — `- #doing \|\| call the bank` | `tagWheel Left → Status and its Values` |
+| Back to empty | tagWheel Left ещё раз — открывается на `#doing`; ↓ `#todo`, ↓ пустое `[ - ]`, Enter — тег уходит: `- call the bank` | `tagWheel Left again → it opens on #doing`, `Enter on the empty slot → the tag leaves the line` |
 
-| Что показывается | Субтитр |
-|---|---|
-| `Status next` трижды — `#todo`, `#doing`, `#done` перед текстом | `Default: Status next → its Values in turn` |
-| `Priority next` — `#low` рядом со `#done`, в том же Block | `Priority next → a second tag, same Block` |
-| `Due next` дважды — сегодняшняя дата за текстом, затем следующий день | `Due next → today, then one day later` |
-| `Project next` дважды — `[[Project A]]`, затем `[[Project B]]` | `Project next → a link to the note` |
-| `Status previous` — `#done` становится `#doing` | `Status previous → one step back` |
-
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Status next`), до нажатия.
+Каретки в открытом tagWheel нет; у строки — плашка (`hotkey: tagWheel Left`, `key: ↑`, `key: Enter`), до нажатия.
 
 Шаги записи — `steps/fields.steps` (технические, не согласуются).

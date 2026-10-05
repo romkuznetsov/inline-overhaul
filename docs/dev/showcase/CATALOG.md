@@ -15,16 +15,16 @@
 | 1 | `move-lines-2` | Navigation → Move lines (up/down), вторая часть | Highlight after moving, Where the line lands, Follow the moved line | записан |
 | 2 | `move-inline` | Navigation → Move lines (left/right): выделенный текст | Movement step (auto), Continue past Separators | записан; `Character` не показан, вопрос о `Word` |
 | 3 | `prefix-cycle` | Navigation → Move lines (left/right): префикс и отступ | After the last one, Cycle in both directions | записан; заменил прежний GIF, на который ссылается SHOWCASE.md |
-| 4 | `jump-line` | Navigation → Jump inside a line | Step size, What to do at the end, Continue past Separators | записан |
+| 4 | `jump-line` | Navigation → Jump inside a line | Step size, What to do at the end, Continue past Separators | перезаписан 2026-10-05, образец новых правил |
 | 5 | `jump-note` | Navigation → Jump inside a note | Where in the section, Jump target | записан |
 | 6 | `ctrl-a` | Keyboard → Expanded Ctrl+A | Smart Ctrl+A, Selection steps | записан |
 | 6 | `ctrl-a-2` | Keyboard → Expanded Ctrl+A, вторая часть | Custom, Last press clears highlighting | записан |
-| 7 | `smart-delete` | Keyboard → Smart Delete\Backspace | Smart Delete, Smart Backspace, Drop the line Prefix | записан |
+| 7 | `smart-delete` | Keyboard → Smart Delete\Backspace | Smart Delete, Smart Backspace, Drop the line Prefix | перезаписан 2026-10-05, образец новых правил |
 | 8 | `smart-enter` | Keyboard → Smart Enter | Smart Enter, Use Shift+Enter instead, Prefix on the new line | записан; `Text only` не показан — кадр похож на поломку |
 | 9 | `smart-paste` | Keyboard → Smart paste | Smart paste | записан |
 | 10 | `binder` | Keyboard → Binder, Smart bracket | Smart bracket, Add command | записан |
 | 11 | `hotkeys` | Keyboard → Commands & Hotkeys | to hotkeys | записан; только панель |
-| 12 | `fields` | Tags & PKM → Fields: `next`/`previous` | команды Fields на одной строке | записан |
+| 12 | `fields` | Tags & PKM → Fields | один Field, его Values и tagWheel (его сценарий) | перезаписан 2026-10-05, образец новых правил |
 | 12 | `fields-2` | Tags & PKM → Fields: Values | Add Value, глаз, Show custom | записан |
 | 13 | `child-fields` | Tags & PKM → Fields: дети | Child Field: After parent, Always | записан; On Alt, Parent Value, Navigator — не вошли |
 | 14 | `custom-blocks` | Tags & PKM → Fields: Add Block | Add Block, tagWheel Custom block | записан |

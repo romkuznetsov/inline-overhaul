@@ -19,6 +19,8 @@
  *
  * Шаги, по одному в строке (`#` — комментарий):
  *   title <заголовок> | <строка>  заставка в начале GIF: что он покажет (место в файле любое)
+ *   preset <путь> = <JSON>    настройка за кадром, до первого кадра (`readme-hero`: строка как в README);
+ *                            объекты сливаются с конфигом, массивы и листья заменяются
  *   open <файл>              открыть заметку (до первого кадра, если стоит первой)
  *   caret <строка>[ @ <кусок>]  каретка в конец строки с ровно этим текстом или перед куском
  *   select <строка> @ <кусок>   кусок строки выделен
@@ -45,11 +47,14 @@
  *                            подсказки нет — по `aria-label`, например `Custom text for #todo`)
  *                            поле цвета (`Fill color for #errand = #e05050`) — значение без системного окна
  *   pick <подпись> = <вариант>  список без имени строки (по aria-label, title или подписи рядом)
- *   hover <текст>[ + Ctrl]   указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
+ *   hover <текст>[ #N][ + Ctrl]  указатель на узел с этим текстом; с Ctrl — зажат 1,5 с (превью ссылки)
  *   close                    закрыть панель (показ только в самой панели)
  *   pause <мс>               редко: когда темпа по умолчанию мало
- *   mark none | line | prefix  фон у нажатий: none (умолчание) — без фона, светится каретка;
- *                            line — строка и то, что поехало с ней; prefix — отступ и Prefix строки
+ *   mark none | line | prefix | caret  акцент нажатия: none (умолчание) — ничего; line — строка и то, что
+ *                            поехало с ней; prefix — отступ и Prefix строки; caret — светится каретка (прыжки)
+ *   stage <подпись>          новый этап полосы под кадром, назван сценарием; есть хоть один — `settings` этапа не начинает
+ *   drop <Field>             Field и его дочерний убраны за кадром (в панели только нужное GIF)
+ *   room <px>                запас высоты окна под заметкой (окно ужимается по заметке)
  *   rec-caret off            родная каретка Obsidian вместо фиолетовой каретки записи (GIF про каретку)
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
@@ -66,6 +71,10 @@ const { launch } = require("./obsidian_bench.js");
 const ROOT = path.resolve(__dirname, "..");
 const SHOW = path.join(ROOT, "docs", "dev", "showcase");
 const OUT_W = 960, FPS = 15;
+/* Полоса этапов под кадром: подписи и полоска просмотра, пиксели GIF. */
+const BAR_H = 42, PROG_H = 8;
+/* Окно GIF с панелью настроек не ниже этого: панель в кадре остаётся читаемой. */
+const MIN_H = 560;
 /* Темп: результат нажатия на экране, чтение субтитра — основа и на знак. */
 const RESULT_MS = 1700, READ_MS = 400, READ_PER_CHAR = 45;
 /* Клавиши команд `cmd` назначает инструмент: на экране их нет, плашка называет команду.
@@ -99,18 +108,19 @@ const CSS = `
 .status-bar{display:none!important}
 /* Субтитр — справа, в пустом месте заметки, мимо текста и каретки (его слово 2026-10-04);
    место выбирает страница каждый кадр. В панели настроек пустого места нет — внизу по центру. */
-#io-rec-sub{position:fixed;z-index:99999;max-width:36vw;right:24px;top:-200px;
+#io-rec-sub{position:fixed;z-index:99999;max-width:60vw;right:24px;top:-200px;
  padding:10px 18px;border-radius:10px;background:rgba(20,20,24,.86);color:#fff;font:600 20px/1.3 system-ui,sans-serif;
  text-align:left;pointer-events:none;transition:opacity .2s}
-#io-rec-sub.is-wide{right:auto;left:50%;top:auto!important;bottom:40px;transform:translateX(-50%);max-width:86%;text-align:center}
-/* Полоса этапов внизу (его слово 2026-10-04: «GIF зациклена, непонятно где начало и конец»):
-   этап начинается заходом в настройки; первый — поведение по умолчанию. На каждом этапе — подпись,
-   что в нём происходит (его слово 2026-10-04: «навигатор»). */
-#io-rec-bar{position:fixed;left:0;right:0;bottom:0;height:26px;z-index:99999;display:flex;gap:3px;pointer-events:none}
-#io-rec-bar>i{flex:1;min-width:0;padding:0 8px;background:#e9e6f0;color:#666;font:600 13px/26px system-ui,sans-serif;font-style:normal;
+#io-rec-sub.is-wide{right:auto!important;left:50%!important;top:auto!important;bottom:16px;transform:translateX(-50%);max-width:86%;text-align:center}
+/* Полоса этапов — не на странице, а под кадром, при сборке GIF (\`renderBars\`, \`encode\`): своя заливка, текст под неё не залезает (его слово 2026-10-05). */
+#io-rec-barsrc{position:fixed;left:0;top:0;width:960px;z-index:100010;background:#fff}
+#io-rec-barsrc>div{display:flex;gap:2px;height:34px}
+#io-rec-barsrc i{min-width:0;padding:0 6px;background:#ecebf0;color:#555;font:600 14px/34px system-ui,sans-serif;font-style:normal;
  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#io-rec-bar>i.is-done{background:hsla(var(--accent-h),var(--accent-s),var(--accent-l),.3);color:#333}
-#io-rec-bar>i.is-now{background:hsl(var(--accent-h),var(--accent-s),var(--accent-l));color:#fff}
+#io-rec-barsrc i.is-done{background:#ddd0f7;color:#333}
+#io-rec-barsrc i.is-now{background:#8b3dff;color:#fff}
+#io-rec-barsrc>b{display:block;height:8px;background:#ecebf0}
+body.io-rec-hidemodal .modal-container{opacity:0!important}
 /* Заставка: что покажет GIF (его слово 2026-10-04: «в начале gif нужно понятное описание того, что будет»). */
 #io-rec-title{position:fixed;inset:0;z-index:100003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
  padding:0 10%;background:rgba(255,255,255,.94);text-align:center;pointer-events:none;transition:opacity .4s}
@@ -146,7 +156,7 @@ body.io-rec-caret .cm-cursor{display:none!important}
 .mod-settings .vertical-tab-content-container{zoom:1.35}`;
 
 /** Демо-хранилище: английский интерфейс, окно без лишнего, свои заметки и клавиши, панель выбрана за кадром. */
-async function stage(win, browser, tab, stages, hotkeys) {
+async function stage(win, browser, tab, hotkeys) {
   await win.evaluate(() => { window.localStorage.setItem("language", "en"); });
   await win.reload();
   for (let i = 0; i < 40; i++) {
@@ -194,23 +204,24 @@ async function stage(win, browser, tab, stages, hotkeys) {
   await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await win.waitForTimeout(800);
   /* Слой поверх окна: субтитр, плашка клавиши, указатель, круг щелчка — снимок окна указателя не содержит. */
-  const labels = typeof stages === "number" ? Array(stages).fill("") : stages;
-  await win.evaluate(([css, labels]) => {
+  await win.evaluate((css) => {
     const st = document.createElement("style");
     st.textContent = css;
     document.head.appendChild(st);
-    for (const id of ["io-rec-sub", "io-rec-ptr", "io-rec-bar", "io-rec-caret"]) {
+    for (const id of ["io-rec-sub", "io-rec-ptr", "io-rec-caret"]) {
       const d = document.createElement("div"); d.id = id; d.style.opacity = id === "io-rec-sub" ? "0" : "1"; document.body.appendChild(d);
     }
     document.body.classList.add("io-rec-caret");
-    for (const t of labels) { const i = document.createElement("i"); i.textContent = t; document.getElementById("io-rec-bar").appendChild(i); }
+    /* Узел в кадре — прокрутки нет: панель не ездит на камеру (его слово 2026-10-05). */
+    window.__ioRecInView = (n) => { const r = n.getBoundingClientRect(); return r.top >= 50 && r.bottom <= window.innerHeight - 70; };
     /* Каждый кадр: каретка записи у головы выделения; субтитр — справа, в первом снизу месте,
        где он не задевает текст строк, плашку и каретку; с места уходит, только когда задел. */
     const sub = document.getElementById("io-rec-sub"), car = document.getElementById("io-rec-caret");
     let lastHead = -1, frame = 0;
     const tick = () => {
       const ae = window.app.workspace.activeEditor, ed = ae && ae.editor;
-      const modal = !!document.querySelector(".modal-container");
+      /* В открытом tagWheel каретки нет: смотреть на панель (его слово 2026-10-05). */
+      const modal = !!document.querySelector(".modal-container, .cm-line.io-twline");
       const r = ed && !modal && document.body.classList.contains("io-rec-caret") ? ed.cm.coordsAtPos(ed.cm.state.selection.main.head) : null;
       if (!r) car.style.display = "none";
       else {
@@ -221,7 +232,7 @@ async function stage(win, browser, tab, stages, hotkeys) {
       }
       const m = window.__ioRecMark;
       car.classList.toggle("is-hot", !!(m && m.hot));
-      sub.classList.toggle("is-wide", !!document.querySelector(".modal.mod-settings"));
+      sub.classList.toggle("is-wide", !!document.querySelector(".modal.mod-settings") && !document.body.classList.contains("io-rec-hidemodal"));
       /* Место субтитра — раз в шесть кадров: замер строк каждый кадр тормозит запись. */
       if (++frame % 6 === 0 && !sub.classList.contains("is-wide") && sub.style.opacity !== "0") {
         const W = window.innerWidth, H = window.innerHeight, b = sub.getBoundingClientRect();
@@ -229,32 +240,39 @@ async function stage(win, browser, tab, stages, hotkeys) {
           const rg = document.createRange(); rg.selectNodeContents(l); return rg.getBoundingClientRect();
         }).filter((x) => x.width > 0);
         for (const n of [car, m && m.k, m && m.bg && m.d]) if (n && n.style.opacity !== "0" && n.style.display !== "none") rects.push(n.getBoundingClientRect());
-        const x = W - 24 - b.width;
-        const hit = (y) => rects.some((q) => q.left < x + b.width + 10 && q.right > x - 10 && q.top < y + b.height + 10 && q.bottom > y - 10);
-        let y = sub.__y;
-        if (y === undefined || sub.__h !== b.height || hit(y)) {
-          y = H - 44 - b.height;
-          for (let c = y; c > 90; c -= 12) if (!hit(c)) { y = c; break; }
-          sub.__y = y; sub.__h = b.height; sub.style.top = y + "px";
+        for (const n of document.querySelectorAll(".io-twscroller--shown, .hover-popover, .suggestion-container")) rects.push(n.getBoundingClientRect());
+        const hit = (x, y) => rects.some((q) => q.left < x + b.width + 10 && q.right > x - 10 && q.top < y + b.height + 10 && q.bottom > y - 10);
+        /* Сперва — сразу под текстом заметки, от его левого края: глаз не разрывается между строкой и субтитром (его слово 2026-10-05);
+           не влез — справа снизу, мимо текста. */
+        const text = rects.filter((q) => q.height < 80);
+        const left = text.length ? Math.min(...text.map((q) => q.left)) : 24;
+        const low = text.length ? Math.max(...text.map((q) => q.bottom)) : 90;
+        let x = sub.__x, y = sub.__y;
+        if (y === undefined || sub.__h !== b.height || hit(x, y)) {
+          x = undefined;
+          for (let c = low + 18; c + b.height < H - 12; c += 12) if (!hit(left, c)) { x = left; y = c; break; }
+          if (x === undefined) {
+            x = W - 24 - b.width; y = H - 20 - b.height;
+            for (let c = y; c > 90; c -= 12) if (!hit(x, c)) { y = c; break; }
+          }
+          sub.__x = x; sub.__y = y; sub.__h = b.height; sub.style.top = y + "px"; sub.style.left = x + "px"; sub.style.right = "auto";
         }
       }
       requestAnimationFrame(tick);
     };
     tick();
-    document.addEventListener("mousemove", (e) => { const p = document.getElementById("io-rec-ptr"); p.style.left = e.clientX + "px"; p.style.top = e.clientY + "px"; }, true);
+    document.addEventListener("mousemove", (e) => { const p = document.getElementById("io-rec-ptr"); p.style.left = e.clientX + "px"; p.style.top = e.clientY + "px"; p.style.opacity = "1"; }, true);
+    /* Указатель прячется при нажатии клавиши, как у системы при наборе: в заметке он отвлекает (его слово 2026-10-05). */
+    document.addEventListener("keydown", () => { document.getElementById("io-rec-ptr").style.opacity = "0"; }, true);
     /* Затухающий круг на месте щелчка (его слово 2026-10-04). */
     document.addEventListener("mousedown", (e) => {
       const d = document.createElement("div"); d.className = "io-rec-ripple";
       d.style.left = e.clientX + "px"; d.style.top = e.clientY + "px";
       document.body.appendChild(d); setTimeout(() => d.remove(), 800);
     }, true);
-  }, [CSS, labels]);
-  await setStage(win, 0);
+  }, CSS);
   return cdp;
 }
-
-const setStage = (win, n) => win.evaluate((n) => [...document.querySelectorAll("#io-rec-bar>i")]
-  .forEach((x, i) => { x.className = i < n ? "is-done" : i === n ? "is-now" : ""; }), n);
 
 const overlay = (win, id, text) => win.evaluate(([id, t]) => {
   const d = document.getElementById(id); if (t) d.textContent = t; d.style.opacity = t ? "1" : "0";
@@ -275,14 +293,15 @@ const markStart = (win, mode) => win.evaluate(([movedSrc, mode]) => {
   const d = document.createElement("div"); d.className = "io-rec-mark";
   /* Фон строки — только `mark line` (перенос строк): в остальных GIF он сбивал (его слово 2026-10-04);
      без фона смотреть на каретку, она светится. `mark prefix` — фон на отступе и Prefix строки. */
-  const bg = mode !== "none";
+  const bg = mode === "line" || mode === "prefix";
   if (!bg) d.style.background = "none";
   if (mode === "prefix") d.style.background = "hsla(var(--accent-h),var(--accent-s),var(--accent-l),.35)";
   /* Клавиша — у самой строки, а не в углу (его слово 2026-10-04): видно, что нажатие и правка одно. */
   const k = document.createElement("div"); k.className = "io-rec-hk"; k.style.opacity = "0";
   document.body.append(d, k);
-  const st = { live: true, hot: true, bg, d, k };
-  let caret = before.at;
+  /* Светится каретка только в `mark caret` — где суть в её месте (прыжки), его слово 2026-10-05. */
+  const st = { live: true, hot: mode === "caret", bg, d, k };
+  let caret = before.at, kx = 0;
   const place = () => {
     if (!st.live) return;
     const now = ed.getValue(), at = ed.getCursor().line;
@@ -301,7 +320,8 @@ const markStart = (win, mode) => win.evaluate(([movedSrc, mode]) => {
       const z = cm.coordsAtPos(ed.posToOffset({ line: span[0], ch: p }));
       if (a && z) Object.assign(d.style, { left: a.left - 6 + "px", width: Math.max(10, z.left - a.left + 6) + "px", top: a.top - 3 + "px", height: a.bottom - a.top + 6 + "px" });
     } else if (top && bot) Object.assign(d.style, { left: box.left - 12 + "px", width: box.width + 24 + "px", top: top.top - 3 + "px", height: bot.bottom - top.top + 6 + "px" });
-    if (end) Object.assign(k.style, { left: end.right + 28 + "px", top: (end.top + end.bottom) / 2 - 15 + "px" });
+    /* Плашка не скачет вбок за длиной строки (его слово 2026-10-05): сдвигается только вправо, когда строка её догнала. */
+    if (end) { kx = Math.max(kx, end.right + 28); Object.assign(k.style, { left: kx + "px", top: (end.top + end.bottom) / 2 - 15 + "px" }); }
     requestAnimationFrame(place);
   };
   place();
@@ -322,6 +342,9 @@ const markEnd = (win) => win.evaluate(() => {
   st.d.style.opacity = "0"; st.k.style.opacity = "0";
   setTimeout(() => { st.live = false; st.d.remove(); st.k.remove(); }, 700);
 });
+
+/** Панель закрыта — указатель уходит с экрана: в заметке он отвлекает (его слово 2026-10-05). */
+const closeSettings = (win) => win.evaluate(() => { window.app.setting.close(); document.getElementById("io-rec-ptr").style.opacity = "0"; });
 
 const editorState = (win) => win.evaluate(() => {
   const ed = window.app.workspace.activeEditor.editor;
@@ -359,7 +382,7 @@ async function find(win, text, nth = 0) {
     };
     const n = hit("button, [role=tab], .vertical-tab-nav-item", false) || hit(".setting-item-name, div, span, a", true);
     if (!n) return null;
-    n.scrollIntoView({ block: "center" });
+    if (!window.__ioRecInView(n)) n.scrollIntoView({ block: "center" });
     const r = n.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   }, [text, nth]);
@@ -373,7 +396,7 @@ async function findLabel(win, label) {
     const n = [...document.querySelectorAll("[aria-label]")]
       .filter((x) => x.getAttribute("aria-label") === t && x.getBoundingClientRect().width > 0).pop();
     if (!n) return null;
-    n.scrollIntoView({ block: "center" });
+    if (!window.__ioRecInView(n)) n.scrollIntoView({ block: "center" });
     const r = n.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   }, label);
@@ -386,13 +409,8 @@ async function point(win, box) {
   await win.waitForTimeout(200);
 }
 
-/** Контрол строки панели по её имени: выпадающий список, переключатель или кнопки-варианты. */
-async function setControl(win, name, value) {
-  /* `<имя> #2` — второй контрол с тем же именем на вкладке. */
-  const m = name.match(/^(.*) #(\d+)$/);
-  const nth = m ? Number(m[2]) : 1;
-  if (m) name = m[1];
-  const kind = await win.evaluate(([name, nth]) => {
+/** Строка панели по имени (у неё есть контрол): метка `data-io-rec`, в кадр без прокрутки, если уже видна; род контрола. */
+const markRow = (win, name, nth) => win.evaluate(([name, nth]) => {
     /* Заголовок группы бывает тёзкой контрола (`Tag Bars`, `Inline to note`): берётся строка,
        у которой есть контрол, а не заголовок. */
     const ctl = "select, .checkbox-container, input, textarea, button:not(.clickable-icon)";
@@ -408,12 +426,37 @@ async function setControl(win, name, value) {
         return n && n.textContent.trim() === name && c && c.querySelector(ctl) && r.getBoundingClientRect().height > 0;
       })[nth - 1];
     if (!row) return null;
-    row.scrollIntoView({ block: "center" });
+    if (!window.__ioRecInView(row)) row.scrollIntoView({ block: "center" });
     row.setAttribute("data-io-rec", "1");
     return row.querySelector("select") ? "select" : row.querySelector(".checkbox-container") ? "toggle"
       : row.querySelector("input[type=range]") ? "range" : row.querySelector("input[type=color]") ? "color"
         : row.querySelector("input[type=text], input[type=number], input:not([type]), textarea") ? "text" : "buttons";
-  }, [name, nth]);
+}, [name, nth]);
+
+/** За кадром, пока панель невидима: прокрутить к контролу первого шага в ней. */
+async function aimAt(win, [op, arg]) {
+  const m = arg.match(/^(.*?)(?: #(\d+))?(?: = .*)?$/);
+  if (op === "set") await markRow(win, m[1].trim(), m[2] ? Number(m[2]) : 1);
+  else if (op === "click") await find(win, m[1], m[2] ? Number(m[2]) : 0).catch(() => findLabel(win, arg));
+  else if (op === "hover") { const h = arg.split(" + ")[0].match(/^(.*?)(?: #(\d+))?$/); await find(win, h[1], h[2] ? Number(h[2]) : 0); }
+  else if (op === "fill" || op === "pick") {
+    const t = arg.split(" = ")[0];
+    await win.evaluate((t) => {
+      const n = [...document.querySelectorAll("input, textarea, select")].find((x) => x.getBoundingClientRect().width > 0
+        && [x.placeholder, x.getAttribute("aria-label"), x.title].some((v) => v && v.startsWith(t)));
+      if (n && !window.__ioRecInView(n)) n.scrollIntoView({ block: "center" });
+    }, t);
+  }
+  await win.evaluate(() => document.querySelectorAll("[data-io-rec]").forEach((n) => n.removeAttribute("data-io-rec")));
+}
+
+/** Контрол строки панели по её имени: выпадающий список, переключатель или кнопки-варианты. */
+async function setControl(win, name, value) {
+  /* `<имя> #2` — второй контрол с тем же именем на вкладке. */
+  const m = name.match(/^(.*) #(\d+)$/);
+  const nth = m ? Number(m[2]) : 1;
+  if (m) name = m[1];
+  const kind = await markRow(win, name, nth);
   if (!kind) throw new Error("нет контрола «" + name + "»");
   await win.waitForTimeout(250);
   const row = win.locator("[data-io-rec='1']");
@@ -486,7 +529,33 @@ async function run(win, steps, cut, log) {
     const [op, arg] = steps[si];
     const next = steps[si + 1] ? steps[si + 1][0] : "";
     log.push(op + " " + arg);
-    if (op === "open") {
+    if (op === "preset") {
+      const at = arg.indexOf(" = ");
+      if (at < 0) throw new Error("preset: нужно «путь = JSON»: " + arg);
+      await win.evaluate(([p, v]) => {
+        const patch = {};
+        const keys = p.split(".");
+        let o = patch;
+        for (const k of keys.slice(0, -1)) o = o[k] = {};
+        o[keys[keys.length - 1]] = v;
+        window.app.plugins.plugins["inline-overhaul"].setConfigPatch(patch, "showcase:preset");
+      }, [arg.slice(0, at).trim(), JSON.parse(arg.slice(at + 3))]);
+      await win.waitForTimeout(300);
+    } else if (op === "drop") {
+      /* `drop <Field>` — Field (и его дочерний) убран за кадром: в панели остаются только нужные GIF (его слово 2026-10-05). */
+      await win.evaluate((k) => {
+        const ks = [k, k + "_sub"];
+        window.app.plugins.plugins["inline-overhaul"].store.update((c) => {
+          const f = c.pkm.fields, o = f.order;
+          for (const side of ["left", "right"]) o[side] = (o[side] || []).filter((x) => !ks.includes(x));
+          for (const b of o.custom || []) b.keys = (b.keys || []).filter((x) => !ks.includes(x));
+          for (const v of Object.values(o)) if (v && typeof v === "object" && !Array.isArray(v)) for (const x of ks) delete v[x];
+          for (const g of ["tags", "links"]) if (f[g]) f[g].fields = (f[g].fields || []).filter((x) => !ks.includes(x.id));
+          return c;
+        }, "showcase:drop", { undoable: false });
+      }, arg);
+      await win.waitForTimeout(300);
+    } else if (op === "open") {
       await win.evaluate(async (f) => {
         const a = window.app;
         await a.workspace.getLeaf(false).openFile(a.vault.getAbstractFileByPath(f), { state: { mode: "source", source: false } });
@@ -536,19 +605,27 @@ async function run(win, steps, cut, log) {
       await win.waitForTimeout(600);
     } else if (op === "close") {
       /* Только для показов в самой панели: после `set` панель закрывается сама. */
-      await win.evaluate(() => window.app.setting.close());
+      await closeSettings(win);
       await win.waitForTimeout(450);
     } else if (op === "mark") {
-      /* `mark line` — фон строки (перенос строк), `mark prefix` — фон отступа и Prefix, `mark none` — без фона. */
+      /* `mark line` — фон строки (перенос строк), `mark prefix` — фон отступа и Prefix, `mark caret` — светится каретка (прыжки), `mark none` — ничего. */
       run.markMode = { on: "line", off: "none" }[arg] || arg;
-      if (!["line", "prefix", "none"].includes(run.markMode)) throw new Error("mark: line | prefix | none");
+      if (!["line", "prefix", "caret", "none"].includes(run.markMode)) throw new Error("mark: line | prefix | caret | none");
+    } else if (op === "stage") {
+      /* `stage <подпись>` — новый этап полосы, назван сценарием (его слово 2026-10-05); `settings` тогда этапа не начинает. */
+      run.stages.push({ t: Date.now() / 1000, label: arg });
+    } else if (op === "room") {
+      /* `room <px>` — запас высоты окна под заметкой (окно открывающегося вниз tagWheel). */
+      run.room = Number(arg);
     } else if (op === "rec-caret") {
       /* `rec-caret off` — родная каретка вместо каретки записи: GIF про саму каретку (cursor). */
       await win.evaluate((on) => document.body.classList.toggle("io-rec-caret", on), arg !== "off");
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
-      await setStage(win, run.stage = (run.stage || 0) + 1);
+      if (run.autoStages) run.stages.push({ t: Date.now() / 1000, label: run.autoStages.shift() });
+      /* Панель открывается невидимой и показывается уже на нужном контроле — без прокрутки на камеру (его слово 2026-10-05). */
+      await win.evaluate(() => document.body.classList.add("io-rec-hidemodal"));
       /* Без плашки: Ctrl+, к фиче не относится (его слово 2026-10-04). */
       await win.keyboard.press("Control+Comma");
       await win.waitForTimeout(700);
@@ -585,6 +662,11 @@ async function run(win, steps, cut, log) {
         const ch = part === undefined ? line.length : line.indexOf(part);
         if (k >= 0 && ch >= 0) e.setCursor({ line: k, ch });
       }, [notes(), nc ? nc[1] : ""]);
+      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover"].includes(o));
+      if (aim) await aimAt(win, aim).catch(() => { /* не нашёлся — упадёт сам шаг, с понятной ошибкой */ });
+      await win.waitForTimeout(150);
+      await win.evaluate(() => document.body.classList.remove("io-rec-hidemodal"));
+      await win.waitForTimeout(350);
     } else if (op === "fill") {
       /* Поле своего блока без имени строки — по подсказке внутри поля. */
       const [ph, text] = arg.split(" = ");
@@ -619,7 +701,7 @@ async function run(win, steps, cut, log) {
         const s = [...document.querySelectorAll("select:not(.is-measuring)")]
           .find((x) => x.getBoundingClientRect().width > 0 && own(x).some((t) => t && t.trim().startsWith(label)));
         if (!s) return false;
-        s.scrollIntoView({ block: "center" });
+        if (!window.__ioRecInView(s)) s.scrollIntoView({ block: "center" });
         s.setAttribute("data-io-pick", "1");
         return true;
       }, label);
@@ -636,8 +718,9 @@ async function run(win, steps, cut, log) {
       await win.waitForTimeout(500);
     } else if (op === "hover") {
       /* `hover <текст>` — указатель на узел; `+ Ctrl` — с зажатым Ctrl (превью ссылки), 1,5 с. */
-      const [t, mod] = arg.split(" + ");
-      const b = await find(win, t);
+      const [t0, mod] = arg.split(" + ");
+      const m = t0.match(/^(.*) #(\d+)$/);
+      const b = await find(win, m ? m[1] : t0, m ? Number(m[2]) : 0);
       if (mod) await win.keyboard.down(mod === "Ctrl" ? "Control" : mod);
       await point(win, b);
       await win.waitForTimeout(1500);
@@ -655,7 +738,7 @@ async function run(win, steps, cut, log) {
       /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04).
          Следующий шаг тоже в панели (галочки, окно, подсказка) — панель остаётся, закроет `close`. */
       if (!["set", "click", "fill", "pick", "pause", "close"].includes(next)) {
-        await win.evaluate(() => window.app.setting.close());
+        await closeSettings(win);
         await win.waitForTimeout(450);
       }
     } else if (op === "expect" && arg === "?") {
@@ -675,8 +758,30 @@ async function run(win, steps, cut, log) {
   }
 }
 
-/** Кадры с метками времени → GIF: длительность каждого кадра — до следующего, вырезки за кадром выброшены. */
-function encode(frames, cut, end, tmp, out) {
+/** Полоса этапов картинками: на каждый этап своя (он залит, прошедшие светлее) и одна без этапа — под заставку. Ширина этапа — его доля времени. */
+async function renderBars(win, labels, widths, tmp) {
+  const files = [];
+  for (let now = -1; now < labels.length; now++) {
+    await win.evaluate(([labels, widths, now]) => {
+      let d = document.getElementById("io-rec-barsrc");
+      if (!d) { d = document.createElement("div"); d.id = "io-rec-barsrc"; document.body.append(d); }
+      d.innerHTML = "<div></div><b></b>";
+      labels.forEach((t, i) => {
+        const x = document.createElement("i"); x.textContent = t; x.style.flex = widths[i] + " 1 0";
+        if (i < now) x.className = "is-done"; else if (i === now) x.className = "is-now";
+        d.firstChild.append(x);
+      });
+    }, [labels, widths, now]);
+    const f = path.join(tmp, "bar" + (now + 1) + ".png");
+    await win.locator("#io-rec-barsrc").screenshot({ path: f });
+    files.push(f);
+  }
+  return files;
+}
+
+/** Кадры с метками времени → GIF: длительность каждого кадра — до следующего, вырезки за кадром выброшены.
+    Под кадром — полоса этапов (\`bars\`: картинки и начала этапов в секундах GIF) и полоска просмотра под ней (его слово 2026-10-05). */
+function encode(frames, cut, end, tmp, out, bars) {
   const keep = frames.filter((f) => !cut.some(([a, b]) => f.t >= a && f.t <= b));
   const lines = [];
   keep.forEach((f, i) => {
@@ -687,8 +792,19 @@ function encode(frames, cut, end, tmp, out) {
   lines.push("file '" + keep[keep.length - 1].file.replace(/\\/g, "/") + "'");
   const list = path.join(tmp, "frames.txt");
   fs.writeFileSync(list, lines.join("\n"));
-  const vf = "fps=" + FPS + ",scale=" + OUT_W + ":-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle";
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, "-vf", vf, "-loop", "0", out]);
+  const { files, starts, total } = bars;
+  const g = ["[0:v]fps=" + FPS + ",scale=" + OUT_W + ":-2:flags=lanczos,pad=iw:ih+" + BAR_H + ":0:0:white[v0]"];
+  /* Картинка 0 — до первого этапа (заставка), картинка i+1 — этап i до начала следующего. */
+  const from = [0, ...starts], to = [...starts, 1e9];
+  files.forEach((_f, k) => {
+    g.push("[" + (k + 1) + ":v]scale=" + OUT_W + ":" + BAR_H + "[b" + k + "]");
+    g.push("[v" + k + "][b" + k + "]overlay=0:main_h-" + BAR_H + ":enable='gte(t," + from[k].toFixed(3) + ")*lt(t," + to[k].toFixed(3) + ")'[v" + (k + 1) + "]");
+  });
+  const t0 = starts[0];
+  g.push("[v" + files.length + "]drawbox=x=0:y=ih-" + PROG_H + ":w='iw*clip((t-" + t0.toFixed(3) + ")/" + Math.max(0.1, total - t0).toFixed(3) + ",0,1)':h=" + PROG_H
+    + ":color=0x8b3dff:t=fill,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle");
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, ...files.flatMap((f) => ["-i", f]),
+    "-filter_complex", g.join(";"), "-loop", "0", out]);
 }
 
 async function main() {
@@ -707,14 +823,20 @@ async function main() {
   watchdog.unref();
   try {
     const first = steps.find(([op]) => op === "settings");
-    /* Подпись этапа — последний субтитр перед заходом в настройки (`Moving behavior → Whole tree`). */
-    const labels = [steps.some(([op]) => op === "settings") ? "Default" : title[0] || "Default"];
-    steps.forEach(([op], i) => {
-      if (op !== "settings") return;
-      const say = steps.slice(0, i).reverse().find(([o, a]) => o === "say" && a);
-      labels.push(say ? say[1] : "");
-    });
-    const cdp = await stage(win, browser, first && first[1], labels, bindCommands(steps));
+    run.stages = [];
+    run.autoStages = null;
+    if (!steps.some(([op]) => op === "stage")) {
+      /* Без шагов \`stage\` — прежние подписи: последний субтитр перед заходом в настройки (\`Moving behavior → Whole tree\`). */
+      const labels = [first ? "Default" : title[0] || "Default"];
+      steps.forEach(([op], i) => {
+        if (op !== "settings") return;
+        const say = steps.slice(0, i).reverse().find(([o, a]) => o === "say" && a);
+        labels.push(say ? say[1] : "");
+      });
+      run.stages.push({ t: 0, label: labels[0] });
+      run.autoStages = labels.slice(1);
+    }
+    const cdp = await stage(win, browser, first && first[1], bindCommands(steps));
     if (!dry) {
       cdp.on("Page.screencastFrame", (f) => {
         const file = path.join(tmp, String(frames.length).padStart(5, "0") + ".jpg");
@@ -725,8 +847,17 @@ async function main() {
     }
     try {
       /* `open` и первый `caret` — до первого кадра: иначе GIF начинается с каретки в первой строке. */
-      const pre = steps.findIndex(([op]) => !["open", "caret", "mark", "rec-caret"].includes(op));
+      const pre = steps.findIndex(([op]) => !["preset", "drop", "open", "caret", "mark", "rec-caret", "stage", "room"].includes(op));
       await run(win, steps.slice(0, pre), cut, log);
+      /* Окно — по высоте заметки: без пустоты между текстом и субтитром (его слово 2026-10-05). */
+      await win.evaluate(async ([room, minH]) => {
+        const lines = [...document.querySelectorAll(".workspace-leaf.mod-active .cm-line")];
+        const last = lines.length ? lines[lines.length - 1].getBoundingClientRect().bottom : window.innerHeight;
+        const h = Math.min(window.innerHeight, Math.max(minH, Math.ceil(last + room + 110)));
+        const bw = window.require("@electron/remote").getCurrentWindow();
+        bw.setContentSize(bw.getContentSize()[0], h);
+        await new Promise((r) => setTimeout(r, 600));
+      }, [run.room || 0, first ? MIN_H : 0]);
       /* Первый кадр — чистая заметка: ни окна, ни уведомления (его слово 2026-10-04). */
       await win.evaluate(() => document.querySelectorAll(".notice").forEach((n) => n.remove()));
       const extra = await win.evaluate(() => [...document.querySelectorAll(".modal-container, .notice")].map((n) => n.textContent.slice(0, 60)));
@@ -745,6 +876,7 @@ async function main() {
         await win.waitForTimeout(Math.max(2600, READ_MS + READ_PER_CHAR * title.join(" ").length));
         await win.evaluate(() => { const d = document.getElementById("io-rec-title"); d.style.opacity = "0"; setTimeout(() => d.remove(), 500); });
       }
+      run.titleEnd = Date.now() / 1000;
       await win.waitForTimeout(600);
       await run(win, steps.slice(pre), cut, log);
     } catch (e) {
@@ -757,8 +889,12 @@ async function main() {
     if (!dry) {
       await cdp.send("Page.stopScreencast");
       const out = path.join(ROOT, "docs", "media", "showcase", id + ".gif");
-      encode(frames, cut, end, tmp, out);
       const sec = end - frames[0].t - cut.reduce((s, [a, b]) => s + b - a, 0);
+      /* Этап начинается не раньше конца заставки; ширина на полосе — доля его времени. */
+      const starts = run.stages.map((x) => Math.max(x.t, run.titleEnd) - frames[0].t);
+      const widths = starts.map((a, i) => Math.max(0.01, (i + 1 < starts.length ? starts[i + 1] : sec) - a));
+      const files = await renderBars(win, run.stages.map((x) => x.label), widths, tmp);
+      encode(frames, cut, end, tmp, out, { files, starts, total: sec });
       console.log("ok: " + path.relative(ROOT, out) + " — " + sec.toFixed(1) + " с, " + (fs.statSync(out).size / 1048576).toFixed(2) + " МБ, кадров " + frames.length);
     } else console.log("ok: шагов " + log.length + " (без записи)");
     ok = true;

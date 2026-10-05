@@ -1,28 +1,35 @@
 # fields — шаги записи (что показывается — fields.md)
-# Один этап: стартовый набор, команды next/previous трёх типов Field на одной строке.
-# Дата Due — день записи: перезапись в другой день правит expect с датой.
-title Fields | Step a tag, a date or a link through its Values with one key
+# Его сценарий 2026-10-05: в настройках один Field и его Values → tagWheel ставит Value в строку →
+# tagWheel ещё раз, Value назад на пустое — тег уходит из строки. Команды next/previous — отдельный GIF.
+title Fields | A Field is a list of Values that tagWheel puts in your line
+drop Priority
+drop Due
+drop Project
+preset visual.tagWheel.scroller.enabled = true
 open Task fields.md
-caret - pay the rent
-say Default: Status next → its Values in turn
-cmd status-next
-expect - #todo || pay the rent
-cmd status-next
-cmd status-next
-expect - #done || pay the rent
-say Priority next → a second tag, same Block
-cmd priority-next
-expect - #done #low || pay the rent
-say Due next → today, then one day later
-cmd due-next
-expect - #done #low || pay the rent || 📅2026-10-04
-cmd due-next
-expect - #done #low || pay the rent || 📅2026-10-05
-say Project next → a link to the note
-cmd project-next
-expect - #done #low || pay the rent || 📅2026-10-05 [[Project A]]
-cmd project-next
-expect - #done #low || pay the rent || 📅2026-10-05 [[Project B]]
-say Status previous → one step back
-cmd status-previous
-expect - #doing #low || pay the rent || 📅2026-10-05 [[Project B]]
+caret - call the bank
+stage Status Field and its Values
+say One Field: Status, with Values todo, doing, done
+settings Tags & PKM
+hover Values
+pause 1500
+close
+caret - call the bank
+stage Pick a Value in tagWheel
+say tagWheel Left → Status and its Values
+cmd open-tagwheel-left
+expect - ==**[Status]**== || call the bank
+key ArrowUp
+expect - ==**[#todo]**== || call the bank
+key ArrowUp
+expect - ==**[#doing]**== || call the bank
+key Enter
+expect - #doing || call the bank
+stage Back to empty
+say tagWheel Left again → it opens on #doing
+cmd open-tagwheel-left
+key ArrowDown
+key ArrowDown
+say Enter on the empty slot → the tag leaves the line
+key Enter
+expect - book a table / - call the bank

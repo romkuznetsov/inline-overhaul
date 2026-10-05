@@ -1,21 +1,30 @@
 # jump-line — шаги записи (что показывается — jump-line.md)
 # Команды меняют только место каретки: `expect` держит, что текст не тронут, а место каретки
 # проверяется кадрами. `#2` — второй `Continue past Separators` на вкладке (первый — у Move text). Разделители стартового набора — `||`.
+# Его слово 2026-10-05: этап «Default Obsidian» — поведение без плагина (Ctrl+→ идёт через теги), акцент — на каретку.
 title Jump inside a line | Hop the cursor by word or by sentence, past the tags
 open Jump in line.md
+caret 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 @ Friday
+mark caret
+stage Default Obsidian
+say Obsidian: Ctrl+→ walks on into the separator and the date
+key Ctrl+ArrowRight
+key Ctrl+ArrowRight
+key Ctrl+ArrowRight
+expect 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06
+
+stage Jump by word
+say Plugin: Jump right hops word by word
 caret 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 @ call
-say Default: Jump right hops word by word
 cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line
 caret 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 @  || 📅
 say At the end of your text it wraps back to its start
 cmd move-cursor-right-in-line
-say Jump left → it never steps into the tags
-cmd move-cursor-left-in-line
-cmd move-cursor-left-in-line
 expect 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06
 
+stage Step size: Sentence
 say Step size → Sentence
 settings Navigation
 set Step size = Sentence
@@ -25,6 +34,7 @@ cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line
 expect 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06
 
+stage At the end: Stop
 say What to do at the end → Stop
 settings Navigation
 set What to do at the end = Stop
@@ -34,6 +44,7 @@ cmd move-cursor-right-in-line
 cmd move-cursor-right-in-line
 expect 1. #todo || call the plumber. Ask about Friday || 📅2026-10-06 / 2. book a table for two
 
+stage Into the tags
 say Continue past Separators → on
 settings Navigation
 set Continue past Separators #2 = on

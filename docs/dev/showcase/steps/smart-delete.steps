@@ -1,32 +1,49 @@
 # smart-delete — шаги записи (что показывается — smart-delete.md)
-# Этап 1 — умолчание: обе клавиши выключены, Delete — обычный Obsidian.
-title Smart Delete and Backspace | Join lines without dragging the indent and the bullet along
+# Его сценарий 2026-10-05: выключено (Obsidian) → включено, остальные контролы выключены → по одному
+# включаются Drop the line Prefix и Join with a space → Smart Backspace со всем включённым.
+title Smart Delete and Backspace | Join two lines without dragging the indent and the bullet along
 open Errands.md
 caret - Call the plumber
-say Default: Delete pulls up the indent and the bullet too
+mark line
+stage Default Obsidian
+say Obsidian: Delete pulls up the indent and the bullet too
 key Delete
 expect ## To do / - Call the plumber    - about the kitchen sink / - Book a table
 
-say Smart Delete → on
+stage Smart Delete
+say Smart Delete on, its options off
 settings Keyboard
 set Smart Delete = on
-caret - Book a table
-say Delete at the end → only the words come up
+set Drop the line Prefix = off
+set Join with a space = off
+caret - Call the plumber
+say Delete → only the indent goes
 key Delete
-expect ## To do / - Book a table for Friday evening / - Buy stamps
+expect ## To do / - Call the plumber- about the kitchen sink / - Book a table
 
+stage Drop the line Prefix
+say Drop the line Prefix → on
+settings Keyboard
+set Drop the line Prefix = on
+caret - Call the plumber
+say Delete → the bullet goes too
+key Delete
+expect ## To do / - Call the plumberabout the kitchen sink / - Book a table
+
+stage Join with a space
+say Join with a space → on
+settings Keyboard
+set Join with a space = on
+caret - Call the plumber
+say Delete → the words join with a space
+key Delete
+expect ## To do / - Call the plumber about the kitchen sink / - Book a table
+
+stage Smart Backspace
 say Smart Backspace → on
 settings Keyboard
 set Smart Backspace = on
 caret - and envelopes @ and
-say Backspace at the start → the words go up
+say Backspace at the start → the words go up the same way
 key Backspace
-expect ## To do / - Book a table / - Buy stamps and envelopes
-
-say Drop the line Prefix → off
-settings Keyboard
-set Drop the line Prefix = off
-caret - Call the plumber
-say Delete → the bullet comes along, the indent does not
-key Delete
-expect ## To do / - Call the plumber - about the kitchen sink / - Book a table
+expect - Book a table / - Buy stamps and envelopes

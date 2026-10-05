@@ -1,6 +1,9 @@
 # readme-hero — шаги записи (что показывается — readme-hero.md)
 # Один показ, без этапов: исходная строка → tagWheel слева и справа → готовая строка.
 # Дата Due — день записи: перезапись в другой день правит последний expect.
+# Его ответ 2026-10-05: строка как в README — чекбокс у #todo и Project раньше Due, за кадром.
+preset pkm.prefixRules.checkboxByFieldValue = {"Status":{"todo":"[ ]"}}
+preset pkm.fields.order.right = ["Project","Due"]
 title tagWheel | Fill a line with status, priority, date and project from the keyboard
 open Inbox.md
 caret - call the bank
@@ -10,12 +13,12 @@ key ArrowUp
 key ArrowRight
 key ArrowDown
 key Enter
-expect - #todo #high || call the bank
+expect - [ ] #todo #high || call the bank
 cmd open-tagwheel-right
 key ArrowUp
 key ArrowRight
 key ArrowUp
 key Enter
-expect - #todo #high || call the bank || 📅2026-10-04 [[Project A]]
+expect - [ ] #todo #high || call the bank || [[Project A]] 📅2026-10-05
 say Done: status, priority, date and project
 pause 1500

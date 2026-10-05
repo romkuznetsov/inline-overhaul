@@ -1,26 +1,21 @@
 # jump-line — Jump inside a line (left/right)
 
-**Состояние: записан 2026-10-04; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-05 по новым правилам; один из трёх образцов, ждёт приёмки.**
 
-Группа `Navigation → Jump inside a line (left/right)` в `docs/SETTINGS.md`. Контролы: `Step size`, `What to do at the end`, `Continue past Separators` (тот, что в этой группе).
+Группа `Navigation → Jump inside a line (left/right)` в `docs/SETTINGS.md`. Контролы: `Step size`, `What to do at the end`, `Continue past Separators` (тот, что в этой группе). Не показаны: `Next line`, `Start or end`, `Move cursor inside a line` → off.
 
-Не показаны: `What to do at the end` → `Next line`; `Step size` → `Start or end`; `Move cursor inside a line` → off.
-
-Заметка — `vault/Jump in line.md`. Клавиши — `Jump right`, `Jump left`. Разделители стартового набора — `||`. Команды меняют только место каретки, текст не меняется; каретка на GIF тонкая. Старт — стартовый набор, светлая тема, английский интерфейс.
+Заметка — `vault/Jump in line.md`. Разделители стартового набора — `||`. Старт — стартовый набор, светлая тема, английский интерфейс.
 
 ## Что на экране
 
-Четыре этапа — полоса внизу GIF.
-
 | Этап | Что показывается | Субтитр |
 |---|---|---|
-| 1 | каретка перед `call`, вправо трижды — `the`, `plumber`, `Ask` | `Default: Jump right hops word by word` |
-| 1 | каретка после `Friday`, вправо — обратно к началу текста, перед `call` | `At the end of your text it wraps back to its start` |
-| 1 | влево дважды — каретка не уходит в `#todo`: переходит в конец текста, затем к `Friday` | `Jump left → it never steps into the tags` |
-| 2 | `Step size` → `Sentence`; от `call` вправо дважды — `plumber.`, затем `Friday` | `Jump right → to the end of each sentence` |
-| 3 | `What to do at the end` → `Stop`; после `Friday` вправо дважды — каретка стоит, плашка мигает | `Jump right at the end → the cursor stays put` |
-| 4 | `Continue past Separators` → on; от `call` влево дважды — каретка уходит за разделитель к тегу `#todo`, в начало строки, и там стоит (`Stop` с этапа 3) | `Jump left → the cursor walks into the tags` |
+| Default Obsidian | без команд плагина: от `Friday` Ctrl+→ трижды — каретка уходит в `\|\|` и дату | `Obsidian: Ctrl+→ walks on into the separator and the date` |
+| Jump by word | Jump right от `call` трижды — по словам; после `Friday` — обратно к началу текста | `Plugin: Jump right hops word by word`, `At the end of your text it wraps back to its start` |
+| Step size: Sentence | `Step size` → `Sentence`; вправо дважды — `plumber.`, затем `Friday` | `Jump right → to the end of each sentence` |
+| At the end: Stop | `What to do at the end` → `Stop`; после `Friday` вправо дважды — каретка стоит | `Jump right at the end → the cursor stays put` |
+| Into the tags | `Continue past Separators` → on; от `call` влево дважды — к тегу `#todo` | `Jump left → the cursor walks into the tags` |
 
-Светится фиолетовая каретка (фона строки нет — его слово 2026-10-04); у строки — плашка с командой (`hotkey: Jump right` / `Jump left`), до нажатия.
+Светится каретка (`mark caret` — суть в её месте); у строки — плашка, до нажатия. 61 с.
 
 Шаги записи — `steps/jump-line.steps` (технические, не согласуются).
