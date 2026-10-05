@@ -1987,6 +1987,19 @@ body.theme-dark {
   content: ""; position: absolute; left: 10px; top: 7px;
   border-left: 5px solid var(--text-faint); border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
 }
+/*
+ * Зависимый Field в предпросмотре строки (его пункт «Новое» цикла 139): чип бледнее,
+ * под ним подпись, чего он ждёт. Подпись нулевой высоты — ряд строки не растёт и
+ * чипы не разъезжаются по вертикали; место под ней дают одинаковые поля у всех
+ * ячеек строки, поэтому их середины по-прежнему на одной линии.
+ */
+.io-struct__waiting { display: inline-flex; flex-direction: column; align-items: center; }
+.io-struct .io-bubble--waits { opacity: 0.45; }
+.io-struct__waits {
+  height: 0; overflow: visible; line-height: 12px;
+  font-size: 9.5px; letter-spacing: 0.02em; color: var(--text-faint); white-space: nowrap;
+}
+.io-struct--waits .io-struct__cell { padding-bottom: 13px; }
 
 /* «Add a Field»: essentials at once and a live preview (his order 2026-09-27).
    The same classes as the plugin's styles.css. */
@@ -3814,7 +3827,7 @@ const FIELDS = [
       { token:"almost_done", prefix:"",      shown:"value",  custom:"",  color:"#c98a20", textColor:"#23222b", depth:1 },
       { token:"done",        prefix:"- [x]", shown:"custom", custom:"✓", color:"#3ba76a", textColor:"#23222b", depth:0 }
     ] },
-  { id:"priority", strict:"priority", name:"Priority", short:"Prio", type:"tag", position:"Left", behavior:"Insert only", color:"#d9534f", property:"priority", cardinality:"auto", valueRule:"raw",
+  { id:"priority", strict:"priority", name:"Priority", short:"Prio", type:"tag", position:"Left", behavior:"Insert only", color:"#d9534f", property:"priority", cardinality:"auto", valueRule:"raw", prereq:"status", prereqValue:"",
     values:[
       { token:"none",   prefix:"",      shown:"nothing", custom:"", color:"#b9b8c4", textColor:"#23222b", depth:0 },
       { token:"low",    prefix:"",      shown:"value",   custom:"", color:"#8b8ea3", textColor:"#23222b", depth:0 },
@@ -5270,6 +5283,22 @@ const PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
    travels to the panel with the rest of it. */
 const MODULE_OFF_NOTE = "This module is off, so its settings are hidden. Turn it on to configure it";
 
+/* Зависимый Field в превью строки (его пункт «Новое» цикла 139): чип бледнее, под ним —
+   чего он ждёт: выбранный Value, иначе имя Field. Копия — `lineChip` в `previews.ts`. */
+function waitsFor(f) {
+  if (!f.prereq) return "";
+  const of = FIELDS.find(x => x.id === f.prereq);
+  if (f.prereqValue) return (of && of.type === "tag" ? "#" : "") + String(f.prereqValue).replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
+  return of ? of.short || of.name : f.prereq;
+}
+function lineChip(parent, f) {
+  const waits = waitsFor(f);
+  if (!waits) return fieldChip(parent, f);
+  const w = el("span", "io-struct__waiting", parent);
+  fieldChip(w, f).classList.add("io-bubble--waits");
+  el("span", "io-struct__waits", w, "after " + waits);
+}
+
 function renderLinePreview(host) {
   const pt = PREVIEW_TEXTS["line-preview"];
   const box = previewShell(host, pt.cap, pt.tip);
@@ -5282,6 +5311,7 @@ function renderLinePreview(host) {
     holder.textContent = "";
     /* Полосы Block в этом превью нет — его слово, цикл 90. */
     applyTagVars(holder, { plainSize: true, blockFill: false });
+    holder.classList.toggle("io-struct--waits", FIELDS.some(f => !f.parent && waitsFor(f)));
 
     const cell = (cls, fill) => {
       const c = el("div", "io-struct__cell " + cls, holder);
@@ -5312,13 +5342,13 @@ function renderLinePreview(host) {
 
     /* row three: the line itself */
     cell("io-struct__prefix", c => el("span", "io-line__prefix", c, "- "));
-    cell("io-struct__side io-line__side--left", c => fieldsOn("Left").forEach(f => fieldChip(c, f)));
+    cell("io-struct__side io-line__side--left", c => fieldsOn("Left").forEach(f => lineChip(c, f)));
     cell("io-struct__sep", c => el("span", "io-line__sep", c, String(val("pkm.lineFormat.separator1") || "||")));
     cell("io-struct__text", c => el("span", "io-line__text", c, "your text"));
     cell("io-struct__sep", c => el("span", "io-line__sep", c, String(val("pkm.lineFormat.separator2") || "||")));
     cell("io-struct__side io-line__side--right", c => {
       const right = fieldsOn("Right");
-      if (right.length) right.forEach(f => fieldChip(c, f));
+      if (right.length) right.forEach(f => lineChip(c, f));
       else el("span", "io-line__hint", c, "empty");
     });
 
@@ -5330,7 +5360,7 @@ function renderLinePreview(host) {
         const branch = el("div", "io-struct__branch", tree);
         const chips = el("div", "io-struct__cell", branch);
         const mine = FIELDS.filter(f => f.position === customSide(b) && !f.parent);
-        if (mine.length) mine.forEach(f => fieldChip(chips, f));
+        if (mine.length) mine.forEach(f => lineChip(chips, f));
         else el("span", "io-line__hint", chips, "empty");
         const w = el("div", "io-struct__block", branch);
         el("div", "io-struct__bracket", w);

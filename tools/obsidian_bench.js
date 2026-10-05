@@ -216,6 +216,15 @@ function runCommand(win, id) {
 const README_LINE = "- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15";
 
 const PREPARE = {
+  /* Его пункт «Новое» цикла 139: Importance ждёт Type, People — Value `#todo` (в копии его настроек). */
+  "line-preview-waits"(vault) {
+    const file = path.join(vault, ".obsidian", "plugins", "inline-overhaul", "data.json");
+    const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+    const pick = (branch, id) => cfg.pkm.fields[branch].fields.find((f) => f.id === id);
+    Object.assign(pick("tags", "Importance"), { dependsOn: "Type" });
+    Object.assign(pick("links", "People"), { dependsOn: "Type", enabledForParentValues: ["#todo"] });
+    fs.writeFileSync(file, JSON.stringify(cfg, null, 2));
+  },
   /* H1.1 прогона 2026-10-02: пустой пузырь для сценария `panel-write-refresh`. */
   "panel-write-refresh"(vault) {
     fs.writeFileSync(path.join(vault, "bubble.md"), "первая строка\n\n- #high :: текст\n\nпоследняя строка\n");
@@ -549,6 +558,32 @@ const SCENARIOS = {
     if (process.env.IO_JS) console.log(await host.evaluate(process.env.IO_JS));
     if (process.env.IO_SHOT) { const n = await host.$(process.env.IO_SEL); if (n) await n.screenshot({ path: process.env.IO_SHOT }); }
     return out.length > 0;
+  },
+  /* Его пункт «Новое» цикла 139: предпросмотр строки с зависимыми Fields — подписи и снимок в IO_SHOT. */
+  async "line-preview-waits"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    const got = await host.evaluate(() => {
+      const s = document.querySelector(".io-struct");
+      if (!s) return null;
+      s.scrollIntoView({ block: "center" });
+      const mid = (n) => { const r = n.getBoundingClientRect(); return Math.round(r.top + r.height / 2); };
+      const chips = [...s.querySelectorAll(".io-struct__side .io-bubble")];
+      return {
+        waits: [...s.querySelectorAll(".io-struct__waits")].map((n) => n.textContent),
+        faded: [...s.querySelectorAll(".io-bubble--waits")].map((n) => n.textContent + "=" + getComputedStyle(n).opacity),
+        /* Середины чипов и текста на одной линии: подпись не сдвигает ряд. */
+        mids: [...new Set(chips.concat([s.querySelector(".io-line__text")]).map(mid))],
+      };
+    });
+    console.log(JSON.stringify(got));
+    if (process.env.IO_SHOT) { const n = await host.$(".io-struct"); if (n) await n.screenshot({ path: process.env.IO_SHOT }); }
+    return !!got && got.waits.length === 2 && got.mids.length === 1;
   },
   /* Тест 7 цикла 135: окно условия Smart Rules — снимки закрытым, с поиском и с «?» в IO_SHOTS. */
   async "smart-rule-condition"(win, browser) {

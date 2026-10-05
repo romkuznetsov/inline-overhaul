@@ -3872,6 +3872,19 @@ body.theme-dark {
   content: ""; position: absolute; left: 10px; top: 7px;
   border-left: 5px solid var(--text-faint); border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
 }
+/*
+ * Зависимый Field в предпросмотре строки (его пункт «Новое» цикла 139): чип бледнее,
+ * под ним подпись, чего он ждёт. Подпись нулевой высоты — ряд строки не растёт и
+ * чипы не разъезжаются по вертикали; место под ней дают одинаковые поля у всех
+ * ячеек строки, поэтому их середины по-прежнему на одной линии.
+ */
+.io-struct__waiting { display: inline-flex; flex-direction: column; align-items: center; }
+.io-struct .io-bubble--waits { opacity: 0.45; }
+.io-struct__waits {
+  height: 0; overflow: visible; line-height: 12px;
+  font-size: 9.5px; letter-spacing: 0.02em; color: var(--text-faint); white-space: nowrap;
+}
+.io-struct--waits .io-struct__cell { padding-bottom: 13px; }
 /* ---- окно «Add a Field»: главное сразу и предпросмотр (его заказ 2026-09-27)
    Всё — переменными темы: окно обязано выглядеть своим в любой теме. Кнопки
    здесь свои узлы, и правило Obsidian `button { height: var(--input-height);

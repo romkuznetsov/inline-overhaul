@@ -1165,4 +1165,39 @@ function realConfig(): Any {
   ok("его слово: кегль Block слушает только предпросмотр тегов");
 }
 
+/* ======================================================================
+ * Зависимый Field в io-tip-line-preview (его пункт «Новое» цикла 139):
+ * «для каждого зависимого поля менять цвет (делать прозрачнее и указывать,
+ * какое поле/value является пререквизитом)». Ждёт Field — подпись его именем,
+ * ждёт Value — самим Value; не ждёт — чип прежний.
+ * ====================================================================== */
+{
+  const withPrereq = (allowed: string[] | null): Any => {
+    const raw = realConfig();
+    const urgency = raw.pkm.fields.tags.fields.find((f: Any) => f.id === "urgency");
+    urgency.dependsOn = "state";
+    if (allowed) urgency.enabledForParentValues = allowed;
+    return raw;
+  };
+  const draw = (cfg: Any): StubNode => {
+    const host = makeNode("div");
+    linePreview(host as unknown as El, makeCtx(cfg))();
+    return host;
+  };
+  const plain = draw(realConfig());
+  /* Контроль: предпросмотр нарисовал чипы, а не пустоту (У-152). */
+  assert.ok(texts(plain, "io-bubble").includes("Urgency"), "чип Urgency нарисован");
+  assert.equal(all(plain, "io-struct__waits").length, 0, "никто не ждёт — подписей нет");
+  assert.equal(all(plain, "io-struct--waits").length, 0, "никто не ждёт — места под подписи нет");
+
+  const byField = draw(withPrereq(null));
+  assert.deepEqual(texts(byField, "io-struct__waits"), ["after State"], "ждёт Field — подпись его видимым именем");
+  assert.deepEqual(texts(byField, "io-bubble--waits"), ["Urgency"], "бледнеет только зависимый чип");
+  assert.equal(all(byField, "io-struct--waits").length, 1, "под подписью есть место");
+
+  const byValue = draw(withPrereq(["#open"]));
+  assert.deepEqual(texts(byValue, "io-struct__waits"), ["after #open"], "ждёт Value — подпись самим Value, как в пузыре");
+  ok("io-tip-line-preview: зависимый Field бледнее и подписан тем, чего ждёт");
+}
+
 console.log("\n" + passed + " проверок пройдено");

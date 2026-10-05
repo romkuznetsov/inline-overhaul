@@ -243,6 +243,18 @@ function fieldChip(parent: El, f: PreviewChip): El {
   return chip;
 }
 
+/**
+ * Чип предпросмотра строки: зависимый Field бледнее и с подписью, чего он ждёт
+ * (его пункт «Новое» цикла 139). Подпись нулевой высоты — ряд не растёт, место под
+ * ней даёт `io-struct--waits`.
+ */
+function lineChip(parent: El, f: PreviewChip, ctx: SettingsCtx): void {
+  if (!f.waits) { fieldChip(parent, f); return; }
+  const w = el(parent, "span", "io-struct__waiting");
+  fieldChip(w, f).addClass("io-bubble--waits");
+  el(w, "span", "io-struct__waits", frame(ctx, "PREVIEW_WAITS_FOR").replace("{0}", f.waits));
+}
+
 /** Форма строки: чип на Field по порядку. `chipFor` — свой чип (так TagWheel вешает скроллер). */
 function structuralLine(
   parent: El,
@@ -649,6 +661,9 @@ export const linePreview: CustomRender = (host, ctx) => {
     /* Полосы Block здесь нет (цикл 90). */
     applyTagVars(holder, ctx, { plainSize: true, blockFill: false });
     const { fields, example } = previewFields(ctx);
+    const blocks = previewCustomBlocks(ctx);
+    holder.classList.remove("io-struct--waits");
+    if (fields.some(f => f.waits) || blocks.some(b => b.fields.some(f => f.waits))) holder.addClass("io-struct--waits");
 
     const cell = (cls: string, fill?: (c: El) => void): El => {
       const c = el(holder, "div", "io-struct__cell " + cls);
@@ -683,7 +698,7 @@ export const linePreview: CustomRender = (host, ctx) => {
     /* Ряд третий — сама строка. */
     cell("io-struct__prefix", c => { el(c, "span", "io-line__prefix", "- "); });
     cell("io-struct__side io-line__side--left", c => {
-      for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
+      for (const f of fieldsOn(fields, "left")) lineChip(c, f, ctx);
     });
     cell("io-struct__sep", c => {
       el(c, "span", "io-line__sep", sep(ctx, SEP1_PATH));
@@ -694,18 +709,17 @@ export const linePreview: CustomRender = (host, ctx) => {
     });
     cell("io-struct__side io-line__side--right", c => {
       const right = fieldsOn(fields, "right");
-      if (right.length) for (const f of right) fieldChip(c, f);
+      if (right.length) for (const f of right) lineChip(c, f, ctx);
       else el(c, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
     });
 
     /* Ряд четвёртый — стрелка от середины текста к custom block, каждый как Left/Right: чипы, скобка, имя. */
-    const blocks = previewCustomBlocks(ctx);
     if (blocks.length) {
       const tree = el(el(holder, "div", "io-struct__custom"), "div", "io-struct__tree");
       for (const b of blocks) {
         const branch = el(tree, "div", "io-struct__branch");
         const chips = el(branch, "div", "io-struct__cell");
-        if (b.fields.length) for (const f of b.fields) fieldChip(chips, f);
+        if (b.fields.length) for (const f of b.fields) lineChip(chips, f, ctx);
         else el(chips, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
         const w = el(branch, "div", "io-struct__block");
         el(w, "div", "io-struct__bracket");

@@ -42,6 +42,8 @@ export interface PreviewField {
   /** В каком Block стоит Field: до текста или после него. */
   side: "left" | "right";
   values: readonly PreviewValue[];
+  /** Чего Field ждёт (`Prerequisite Field`): имя Field или его Value; пусто — не ждёт. */
+  waits?: string;
 }
 
 /**
@@ -136,6 +138,7 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
         kind: row.kind === "wikilink" ? "link" : row.kind as "tag" | "element",
         side: row.side,
         values,
+        waits: waitsFor(model, row.key),
       });
     }
     return out;
@@ -146,11 +149,24 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
   }
 }
 
+/**
+ * Подпись зависимого Field для предпросмотра строки (его пункт «Новое» цикла 139):
+ * выбран Value — он сам, как в пузыре; иначе — видимое имя Field.
+ */
+function waitsFor(model: ReturnType<typeof createFieldsModel>, key: string): string {
+  const pre = model.getPrerequisite(key);
+  if (!pre.fieldId) return "";
+  const of = model.listFields().find(r => r.key === pre.fieldId);
+  if (pre.value) return (of && of.kind === "tag" ? "#" : "") + bareToken(pre.value);
+  return of ? of.label || of.strictName : pre.fieldId;
+}
+
 /** Чип Field в custom block: имя и вид, Values не нужны. */
 export interface PreviewChip {
   name: string;
   short?: string;
   kind: string;
+  waits?: string;
 }
 
 /**
@@ -172,7 +188,7 @@ export function previewCustomBlocks(ctx: SettingsCtx): ReadonlyArray<{ name: str
     return model.listBlocks().map(b => ({
       name: b.name,
       fields: rows.filter(r => r.side === `custom:${b.id}`)
-        .map(r => ({ name: r.strictName || r.key, short: r.label, kind: r.kind })),
+        .map(r => ({ name: r.strictName || r.key, short: r.label, kind: r.kind, waits: waitsFor(model, r.key) })),
     }));
   } catch (e) {
     /* Украшение: предпросмотр рисуется без custom block; сообщение разработчику (З8). */
