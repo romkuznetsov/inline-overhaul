@@ -1,30 +1,37 @@
 # binder — шаги записи (что показывается — binder.md)
-# Этап 1 — строка Binder, которая приходит с плагином, — Smart bracket.
-# Этап 2 — своя строка: Add command, в Inserts — ✅, имя команды заполняется само
-# (`Check mark button` → id `check-mark-button`), затем её клавиша в заметке.
-title Binder | Smart brackets and your own text on a key
+# Его замечание 2026-10-05: три этапа — новая команда в Binder (вставка →), её применение в строке,
+# затем Smart bracket. Имя команды заполняется само из выбора (`Arrow right` → id `arrow-right`).
+title Binder | Your own text on a key, and smart brackets
 open Reading list.md
-caret - Lisbon travel guide @ bon
+caret - Lisbon travel guide
+stage New Binder command
+settings Keyboard
+spot Smart bracket #1
+say This is Binder — text you drop in with one key
+pause 2200
+click Add command
+fill Type anything or choose below = →
+say Inserts → the arrow; the name fills itself in
+pause 800
+click Add
+pause 1000
+close
+stage Use it in a line
+caret - Lisbon travel guide
+say Its key drops → in at the cursor
+key Space
+cmd arrow-right
+key Space
+type book the hotel
+expect - Lisbon travel guide → book the hotel
+stage Smart bracket
+caret - Notes on the garden @ garden
 say Smart bracket: [text], then [[text]], then back
 cmd smart-bracket
 cmd smart-bracket
 cmd smart-bracket
-expect ## Reading / - Lisbon travel guide / - Notes on the garden
 select - Notes on the garden @ the garden
 say It works on a selection too
 cmd smart-bracket
 cmd smart-bracket
 expect - Notes on [[the garden]]
-
-say Add command → a row of your own
-settings Keyboard
-click Add command
-fill Type anything or choose below = ✅
-pause 1200
-click Add
-pause 1200
-close
-caret - Notes on the garden @ Notes
-say One key drops it in at the cursor
-cmd check-mark-button
-expect ## Reading / - Lisbon travel guide / - ✅Notes on the garden

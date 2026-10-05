@@ -5,10 +5,12 @@ title Smart Ctrl+A: your own steps | Choose where a press stops, and let the las
 open Trip plan.md
 caret - Day 1: train to the coast @ train
 mark off
-say Default: Ctrl+A selects the whole note
+stage Default Obsidian
+say Obsidian: Ctrl+A selects the whole note
 key Ctrl+A
 expect ## Packing / - Clothes / ## Route
 
+stage Custom steps
 say Selection steps → Custom: tick where a press stops
 settings Keyboard
 set Smart Ctrl+A = on
@@ -25,6 +27,7 @@ key Ctrl+A
 key Ctrl+A
 expect ## Packing / - Clothes / ## Route
 
+stage Last press clears
 say Last press clears highlighting → on
 settings Keyboard
 set Last press clears highlighting = on

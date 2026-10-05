@@ -1,12 +1,15 @@
 # smart-enter — шаги записи (что показывается — smart-enter.md)
-# Этап 1 — умолчание: Smart Enter выключен, Enter — обычный Obsidian.
+# Его замечание 2026-10-05: показать все режимы Prefix on the new line. Заметка — номер и буллет рядом,
+# чтобы Numbered lines only было видно на обоих.
 title Smart Enter | A new line below without splitting the one you are on
-open Shopping list.md
+open Smart enter.md
 caret 1. Buy milk and bread @ and
-say Default: Enter splits the line
+stage Default Obsidian
+say Obsidian: Enter splits the line
 key Enter
 expect 1. Buy milk / 2. and bread / 3. Pick up the parcel
 
+stage Smart Enter
 say Smart Enter → on
 settings Keyboard
 set Smart Enter = on
@@ -15,23 +18,44 @@ say Enter → a new line below, this one stays whole
 key Enter
 type Call the vet
 expect 1. Buy milk and bread / 2. Call the vet / 3. Pick up the parcel
+caret - call the vet @ vet
+say The new line takes the same marker
+key Enter
+type book a visit
+expect - call the vet / - book a visit / - ring the bank
 
+stage Prefix: None
+say Prefix on the new line → None
+settings Keyboard
+set Prefix on the new line = None
+caret 1. Buy milk and bread @ and
+say Enter → the new line starts bare
+key Enter
+type Call the vet
+expect 1. Buy milk and bread / Call the vet / 2. Pick up the parcel
+
+stage Prefix: Numbered lines only
+say Prefix on the new line → Numbered lines only
+settings Keyboard
+set Prefix on the new line = Numbered lines only
+caret 1. Buy milk and bread @ and
+say A numbered line → the next number
+key Enter
+type Call the vet
+caret - call the vet @ vet
+say A bullet line → the new line starts bare
+key Enter
+type book a visit
+expect 2. Call the vet / 3. Pick up the parcel / ## Calls / - call the vet / book a visit / - ring the bank
+
+stage Use Shift+Enter
 say Use Shift+Enter instead → on
 settings Keyboard
 set Use Shift+Enter instead = on
 caret 2. Pick up the parcel @ the
 say Enter splits as usual
 key Enter
-expect 1. Buy milk and bread / 2. Pick up / 3. the parcel
 caret 1. Buy milk and bread @ and
 say Shift+Enter → a new line below
 key Shift+Enter
 expect 1. Buy milk and bread / 2. / 3. Pick up / 4. the parcel
-
-say Prefix on the new line → None
-settings Keyboard
-set Prefix on the new line = None
-caret 1. Buy milk and bread @ and
-say Shift+Enter → the new line starts empty
-key Shift+Enter
-expect 1. Buy milk and bread /  / 2. Pick up the parcel

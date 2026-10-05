@@ -1,25 +1,34 @@
 # smart-paste — шаги записи (что показывается — smart-paste.md)
-# Этап 1 — умолчание: Smart paste выключен, вставка — обычная Obsidian.
-# Копирование — на камеру, своими клавишами, один раз: буфер обмена переживает заход в настройки.
-# Вставка — в конец своего раздела: подсветка растягивается на неизменные строки ниже правки.
+# Его сценарий 2026-10-05: копировать две нумерованные строки, вставить в два раздела — без плагина обе
+# вставки неверны (лишний номер, чужой счёт); затем Smart paste и те же два действия. Obsidian 1.13 под списком
+# считает верно сам (стенд 2026-10-05) — лишнего номера нет, неверен только счёт отдельной вставки.
+# Копирование — на камеру, один раз: буфер обмена переживает заход в настройки.
 title Smart paste | Pasted numbered lists keep the right count
 open Pantry.md
 caret 4. Eggs @ 4. Eggs
-say Default: the copied numbers come along
+stage Default Obsidian
+say Copy two numbered lines…
 select 4. Eggs @ 4. Eggs
 key Shift+ArrowDown
 key Shift+End
 key Ctrl+C
 caret 2. Bake bread
+say Obsidian: under a list the count is right
 key Enter
 key Ctrl+V
-expect 2. Bake bread / 3. 4. Eggs / 4. Butter / ## For the cake
+expect 2. Bake bread / 3. Eggs / 4. Butter / ## For the cake
+caret ## For the cake
+say …but on its own it keeps the old 4, 5
+key Enter
+key Ctrl+V
+expect ## For the cake / 4. Eggs / 5. Butter
 
+stage Smart paste
 say Smart paste → on
 settings Keyboard
 set Smart paste = on
 caret 2. Bake bread
-say Pasted under a list → the count carries on
+say Under a list → the count carries on
 key Enter
 key Ctrl+V
 expect 2. Bake bread / 3. Eggs / 4. Butter / ## For the cake

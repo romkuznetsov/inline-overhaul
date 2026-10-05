@@ -7,10 +7,12 @@ title Smart Ctrl+A | Each press selects a bigger piece: word, line, tree, sectio
 open Trip plan.md
 caret - Day 1: train to the coast @ train
 mark off
-say Default: Ctrl+A selects the whole note
+stage Default Obsidian
+say Obsidian: Ctrl+A selects the whole note
 key Ctrl+A
 expect ## Packing / - Clothes / ## Route
 
+stage Smart Ctrl+A
 say Smart Ctrl+A → on
 settings Keyboard
 set Smart Ctrl+A = on
@@ -20,6 +22,7 @@ key Ctrl+A
 key Ctrl+A
 expect ## Packing / - Clothes / ## Route
 
+stage Selection steps
 say Selection steps → Word, line, tree, heading, note
 settings Keyboard
 set Selection steps = Word, line, tree, heading, note

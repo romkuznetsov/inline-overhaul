@@ -1,17 +1,17 @@
 # hotkeys — шаги записи (что показывается — hotkeys.md). Только панель.
-# Этап 1 — заметка; этап 2 — справочник команд и переход в Hotkeys Obsidian.
-# `click Move up` — указатель к таблице: щелчок по имени команды ничего не делает, но
-# прокручивает таблицу в кадр. `click to hotkeys` берёт последнюю кнопку — группы General.
+# Его замечание 2026-10-05: этап не Default, а «Hotkey settings». Рамка — на таблице команд (устройство панели).
+# `click to hotkeys` берёт последнюю кнопку — группы General.
 title Commands and hotkeys | Every command of the plugin in one table
 open Reading list.md
 caret - Lisbon travel guide
-say Every command of the plugin, with its hotkey
-pause 1500
+stage Hotkey settings
 settings Keyboard
-click Move up
-pause 2500
+spot Move up #1
+say This is every command of the plugin, with its hotkey
+pause 1500
 say A command with no key shows an empty slot
-pause 2500
+pause 2000
+stage Obsidian's Hotkeys
 say "to hotkeys" opens Obsidian's Hotkeys, filtered to that group
 click to hotkeys
 pause 3500
