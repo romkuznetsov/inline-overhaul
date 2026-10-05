@@ -1191,12 +1191,12 @@ function realConfig(): Any {
   assert.equal(all(plain, "io-struct--waits").length, 0, "никто не ждёт — места под подписи нет");
 
   const byField = draw(withPrereq(null));
-  assert.deepEqual(texts(byField, "io-struct__waits"), ["State ↰"], "ждёт Field — подпись его видимым именем");
+  assert.deepEqual(texts(byField, "io-struct__waits"), ["⬑State"], "ждёт Field — подпись его видимым именем");
   assert.deepEqual(texts(byField, "io-bubble--waits"), ["Urgency"], "бледнеет только зависимый чип");
   assert.equal(all(byField, "io-struct--waits").length, 1, "под подписью есть место");
 
   const byValue = draw(withPrereq(["#open"]));
-  assert.deepEqual(texts(byValue, "io-struct__waits"), ["#open ↰"], "ждёт Value — подпись самим Value, как в пузыре");
+  assert.deepEqual(texts(byValue, "io-struct__waits"), ["⬑#open"], "ждёт Value — подпись самим Value, как в пузыре");
   ok("io-tip-line-preview: зависимый Field бледнее и подписан тем, чего ждёт");
 }
 

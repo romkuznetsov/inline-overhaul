@@ -5296,7 +5296,7 @@ function lineChip(parent, f) {
   if (!waits) return fieldChip(parent, f);
   const w = el("span", "io-struct__waiting", parent);
   fieldChip(w, f).classList.add("io-bubble--waits");
-  el("span", "io-struct__waits", w, waits + " \u21B0");
+  el("span", "io-struct__waits", w, "\u2B11" + waits);
 }
 
 function renderLinePreview(host) {
