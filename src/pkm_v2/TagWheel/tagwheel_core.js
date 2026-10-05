@@ -2377,7 +2377,8 @@ function buildGroupDisplay(group, mode, state, rules, labels) {
     var ph = String(group.placeholder || '')
     if (hasActive) {
       var scrolled = state && state.scrolledFieldId && group.fields.indexOf(state.scrolledFieldId) !== -1
-      text = scrolled ? '-' : ph
+      /* `[  -  ]` неразрывными пробелами: голый `[-]` ужимал ячейку (его 💬 к тесту 3 цикла 136). */
+      text = scrolled ? '\u00a0\u00a0-\u00a0\u00a0' : ph
     } else {
       var phStyle = rules.ui && rules.ui.placeholderStyle ? String(rules.ui.placeholderStyle) : 'code'
       if (phStyle === 'plain') text = ph

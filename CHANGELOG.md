@@ -26,11 +26,11 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 3. 🎨 **`Child tag format` is chosen for each tag Field.** It moved from `Writing rules` to the Field's `Behavior` block, above `Prerequisite Field`, and your earlier choice is kept for every tag Field
 4. 🐛 **tagWheel shows the same strip with `Highlight the tagWheel line` off.** The strip no longer showed stray `**` and doubled tags; only the background goes
 5. 🐛 **The Smart Rules condition window shows its help as text, not raw HTML**
-6. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading. A child link Value gets its link even when its parent is not on the line
+6. 🐛 **Auto-MOC with `Under heading` adds the heading in an empty note too.** The link used to land on the first line with no heading. A child link Value gets its link even when its parent is not on the line, and leaves the line like any other Value
 7. 🐛 **`Undo last settings change` brings the note's look back at once.** Undoing `Visual` off used to leave the note plain until you edited it
 8. 🎨 **The Smart Rules condition window is easier to use.** A search box on top, each Field with its own `Any value` button, and flat Values instead of grey boxes
 9. 🎨 **The `?` of a setting now stands right after its name**
-10. 🎨 **tagWheel shows an empty Field by its name again, without `-`.** Once you scroll in it, it shows `[-]`, like the scroller, and the Field you stand on is always bold
+10. 🎨 **tagWheel shows an empty Field by its name again, without `-`.** Once you scroll in it, it shows `[  -  ]`, like the scroller, and the Field you stand on is always bold
 11. 🎨 **The first child Value of a Field turns `Child Field` on as `After parent`.** It used to stay on `Hide`
 
 ## 0.15.0

@@ -243,6 +243,7 @@ const PREPARE = {
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-no-highlight"(vault) { PREPARE["shift-enter"](vault); },
+  "tagwheel-scrolled-cell"(vault) { PREPARE["shift-enter"](vault); },
   "undo-visual-redraw"(vault) { PREPARE["shift-enter"](vault); },
   "separator-rewrite"(vault) { fs.writeFileSync(path.join(vault, "sep.md"), "- #todo || call Anna\n- just text\n"); },
   "move-heading"(vault) { PREPARE["shift-enter"](vault); },
@@ -972,6 +973,44 @@ const SCENARIOS = {
     return true;
   },
 
+  /* Тест 3 цикла 136: пустая активная ячейка — имя, после `↑ ↓` — `[  -  ]`; снимки в IO_SHOT-<шаг>.png. */
+  async "tagwheel-scrolled-cell"(win) {
+    const line = "- Research plan";
+    await win.evaluate(async ({ line }) => {
+      await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+      await new Promise((r) => setTimeout(r, 600));
+      const ed = window.app.workspace.activeEditor.editor;
+      ed.setValue(line);
+      ed.setCursor({ line: 0, ch: line.length });
+      ed.focus();
+      await new Promise((r) => setTimeout(r, 300));
+    }, { line });
+    if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+    const snap = async (step) => {
+      await win.waitForTimeout(500);
+      const got = await win.evaluate(() => {
+        const ed = window.app.workspace.activeEditor.editor;
+        const cm = document.querySelector(".workspace-leaf.mod-active .cm-content .cm-line");
+        const strong = [...(cm ? cm.querySelectorAll("*") : [])].filter((x) => /\[/.test(x.textContent) && !x.children.length)
+          .map((x) => x.textContent + "@" + getComputedStyle(x).fontWeight + "/" + Math.round(x.getBoundingClientRect().width));
+        return { doc: ed.getLine(0), cells: strong };
+      });
+      if (process.env.IO_SHOT) {
+        const n = await win.$(".workspace-leaf.mod-active .cm-content .cm-line");
+        if (n) await n.screenshot({ path: process.env.IO_SHOT.replace(/\.png$/, "-" + step + ".png") });
+      }
+      console.log(step + " | документ " + JSON.stringify(got.doc) + " | ячейки " + JSON.stringify(got.cells));
+      return got;
+    };
+    const first = await snap("open");
+    await win.keyboard.press("ArrowUp");
+    await win.keyboard.press("ArrowDown");
+    const scrolled = await snap("scrolled");
+    await win.keyboard.press("Escape");
+    const ok = !/\[  -/.test(first.doc) && /\[  -  \]/.test(scrolled.doc);
+    console.log(ok ? "ok: имя, затем [  -  ]" : "РАСХОДИТСЯ");
+    return ok;
+  },
   async "tagwheel-caret"(win) {
     const line = "- позвонить в банк, завтра в налоговую";
     const at = line.indexOf(",");

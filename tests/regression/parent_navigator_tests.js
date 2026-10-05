@@ -475,7 +475,7 @@ async function run() {
       return m ? m[1] : "нет активной ячейки";
     };
     assert.equal(await cell([]), "Type", "Field без выбора показывает своё имя, без дефиса");
-    assert.equal(await cell([UP, DOWN]), "-", "после прокрутки к умолчанию — `[-]`, как в скроллере");
+    assert.equal(await cell([UP, DOWN]), "\u00a0\u00a0-\u00a0\u00a0", "после прокрутки к умолчанию — `[  -  ]` неразрывными пробелами, как в скроллере");
     assert.equal(await cell([UP, DOWN, RIGHT, LEFT]), "Type", "вернулись в Field — снова имя, пока не крутили");
     assert.ok(/\bType\b/.test((await drive(config(), "- text", [OPEN, UP, DOWN, RIGHT])).line), "ушли в другой Field — имя у прежнего");
     ok("пустая активная ячейка: имя Field, после прокрутки `[-]`, новый Field — снова имя");

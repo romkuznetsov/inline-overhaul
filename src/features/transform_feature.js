@@ -2418,7 +2418,9 @@ function resolveSourceCleanupFieldIds(i2n, cfg) {
 function planSourceCleanup(line, transformContext, cleanupFieldIds, separators) {
   const src = String(line || "");
   const selected = new Set(Array.isArray(cleanupFieldIds) ? cleanupFieldIds : []);
-  const rows = Array.isArray(transformContext && transformContext.matches) ? transformContext.matches : [];
+  /* Уборка — по всем Values строки: дочерний без родителя тоже снимается (его 💬 к тесту 6 цикла 136). */
+  const all = transformContext && Array.isArray(transformContext.allMatches) ? transformContext.allMatches : null;
+  const rows = all || (Array.isArray(transformContext && transformContext.matches) ? transformContext.matches : []);
   const spans = new Map();
   for (let i = 0; i < rows.length; i++) {
     const row = isObj(rows[i]) ? rows[i] : {};

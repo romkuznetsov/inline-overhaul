@@ -1186,6 +1186,12 @@ function runBacklinkPiecesSuite() {
     "контроль фикстуры: Value ждёт родителя и в заметку не идёт");
   assertEq(JSON.stringify(transform.backlinkTargetsFromContext(kid, kidCfg)), JSON.stringify(["kid"]),
     "дочерний Value без родителя — цель Auto-MOC");
+  /* Его 💬 к тесту 6 цикла 136: неотмеченный в уборке Field снимается со строки и без родителя. */
+  const seps = { separator1: "::", separator2: "::" };
+  assertEq(transform.applySourceCleanupByFieldIds("- #todo [[kid]] :: Отчёт", kid, ["type"], seps).includes("[[kid]]"), false,
+    "дочерний Value без родителя остался на строке");
+  assertEq(transform.applySourceCleanupByFieldIds("- #todo [[kid]] :: Отчёт", kid, ["type", "Project_sub"], seps).includes("[[kid]]"), true,
+    "отрицательный контроль: отмеченный Field остаётся");
 
   /* Повтор одного значения на строке — одна заметка, а не две записи. */
   const twice = transform.buildTransformContext(
