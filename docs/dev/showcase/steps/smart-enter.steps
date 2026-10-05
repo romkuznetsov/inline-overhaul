@@ -3,6 +3,9 @@
 # чтобы Numbered lines only было видно на обоих.
 title Smart Enter | A new line below without splitting the one you are on
 open Smart enter.md
+# Его слово 2026-10-06: «субтитры прыгают» — субтитр у низа окна, запас под строки, которые прибавит Enter.
+room 80
+sub bottom
 caret 1. Buy milk and bread @ and
 stage Default Obsidian
 say Obsidian: Enter splits the line

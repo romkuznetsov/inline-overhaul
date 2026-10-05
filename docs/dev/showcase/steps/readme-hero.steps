@@ -3,6 +3,7 @@
 # tagWheel слева (Status, Priority) → tagWheel справа (Project, Due) → готовая строка.
 # Каркас: Scroller виден, в tagWheel каретки нет, субтитр под текстом, плашка слева от строки.
 # Дата Due — день записи: перезапись в другой день правит последний expect.
+# Его слово 2026-10-06: «верхние две строки мешают, суть на одной строке» — в заметке одна строка.
 # Его ответ 2026-10-05: строка как в README — чекбокс у #todo и Project раньше Due, за кадром.
 preset pkm.prefixRules.checkboxByFieldValue = {"Status":{"todo":"[ ]"}}
 preset pkm.fields.order.right = ["Project","Due"]
@@ -10,6 +11,9 @@ preset visual.tagWheel.scroller.enabled = true
 title tagWheel | Fill a line with status, priority, project and date — from the keyboard
 open Inbox.md
 line-width 620
+# Scroller раскрывается вверх: две пустые строки над строкой, иначе он закрывает заголовок; субтитр прибит снизу.
+room 60
+sub bottom
 caret - call the bank
 stage Left: status and priority
 say A plain line. tagWheel Left opens on Status
@@ -29,7 +33,7 @@ say → steps to Due, ↑ is today
 key ArrowRight
 key ArrowUp
 key Enter
-expect - [ ] #todo #high || call the bank || [[Project A]] 📅2026-10-05
+expect - [ ] #todo #high || call the bank || [[Project A]] 📅2026-10-06
 stage Done
 say Status, priority, project and date — in seconds
 pause 2200

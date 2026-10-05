@@ -1,3 +1,3 @@
-- [x] #done || pay the rent
-- book a table
+
+
 - call the bank

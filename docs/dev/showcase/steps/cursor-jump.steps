@@ -1,0 +1,34 @@
+# cursor-jump — шаги записи (что показывается — cursor-jump.md)
+# Его слово 2026-10-06: круг прыжка — отдельным GIF от настроек каретки (cursor).
+title Cursor jump highlight | A circle marks where the cursor lands
+open Cursor.md
+# Родная каретка: GIF про то, где она оказывается.
+rec-caret off
+caret ## Monday
+stage Default Obsidian
+say Default: Jump down → hard to see where the cursor lands
+cmd jump-next
+cmd jump-next
+expect ## Monday
+
+stage Jump highlight
+say Highlight where you land → on
+settings Visual
+set Highlight where you land = on
+set Highlight size = 40
+set How long it lasts = 1200
+caret ## Monday
+say Jump down → a circle marks where it lands
+cmd jump-next
+cmd jump-next
+expect ## Monday
+
+stage Inside the line
+say Use inside current line → on
+settings Visual
+set Use inside current line = on
+caret - [ ] #todo #low || Buy groceries || 📅2026-10-07 @ Buy groceries
+say Jump right → the circle inside the line too
+cmd move-cursor-right-in-line
+cmd move-cursor-right-in-line
+expect ## Monday

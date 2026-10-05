@@ -10,7 +10,7 @@
 
 | Этап | Субтитры |
 |---|---|
-| Inline to note | `Inline to note → on`, `The line becomes a note, named from its [brackets]`, `The line now links to the note` |
+| Inline to note | `Inline to note → on, and its Floating button →`, `Click → : the line becomes a note, named from its [brackets]`, `The line now links to the note` |
 | Line above: Fixed text | `Line above the text → Fixed text`, `The note starts with the fixed text, not the date` |
 | Note name: Ask | `Note name → Ask`, `Ask → you type the name yourself` |
 

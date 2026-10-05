@@ -6,6 +6,8 @@ preset visual.tagBars.active = true
 preset visual.tagBars.fieldId = "Status"
 open Tag bars.md
 caret ## Garden project
+# Его слово 2026-10-06: «мигающий курсор в начале хедера отвлекает» — в GIF без набора каретки нет.
+rec-caret hide
 stage Default Bars
 say Default Bars: thin, close to the text
 pause 2600

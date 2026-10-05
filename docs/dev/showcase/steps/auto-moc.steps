@@ -5,6 +5,8 @@ title Auto-MOC | A new note links back from the notes it mentions
 # Его замечание 2026-10-05: фокус на Auto-MOC — Inline to note и открытие заметки выставлены заранее.
 preset transform.inline2note.enabled = true
 preset transform.inline2note.openTarget = true
+# Его слово 2026-10-06: Transform — нажатием на плавающую кнопку → в конце строки, а не клавишей.
+preset transform.inline2note.floatingButton = true
 open Book club.md
 caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
 stage Link the notes you mention
@@ -13,7 +15,7 @@ settings Transform
 set Link the notes you mention = on
 caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
 say The line becomes a note that mentions Project B
-cmd transform-inline-to-note
+click →
 expect - [ ] #todo || ask everyone for ideas || [[Project B]]
 say Project B now links back to the new note
 click Project B

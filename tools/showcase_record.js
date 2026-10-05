@@ -59,7 +59,8 @@
  *   drop <Field>             Field и его дочерний убраны за кадром (в панели только нужное GIF)
  *   room <px>                запас высоты окна под заметкой (окно ужимается по заметке)
  *   line-width <px>          колонка текста уже (`--file-line-width`): место под плашку слева от строки
- *   rec-caret off            родная каретка Obsidian вместо фиолетовой каретки записи (GIF про каретку)
+ *   rec-caret off | hide     off — родная каретка Obsidian вместо фиолетовой (GIF про каретку); hide — каретки нет
+ *   sub bottom               субтитр прибит к низу окна под текстом и не ездит (заметка растёт — запас `room`)
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
  *
@@ -138,6 +139,7 @@ body.io-rec-caret .cm-cursor{display:none!important}
  animation:io-rec-blink .8s steps(1) infinite}
 /* Без гало — просто фиолетовая и не мигает (его слово 2026-10-05 к jump-line). */
 #io-rec-caret.is-hot{animation:none}
+body.io-rec-hidecaret #io-rec-caret{display:none!important}
 @keyframes io-rec-blink{50%{opacity:0}}
 #io-rec-ptr{position:fixed;z-index:100002;width:22px;height:22px;pointer-events:none;left:-40px;top:-40px;
  background:no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M2 2l7 18 2.5-7.5L19 10z' fill='%23111' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E")}
@@ -259,7 +261,11 @@ async function stage(win, browser, tab, hotkeys) {
         const left = text.length ? Math.min(...text.map((q) => q.left)) : 24;
         const low = text.length ? Math.max(...text.map((q) => q.bottom)) : 90;
         let x = sub.__x, y = sub.__y;
-        if (y === undefined || sub.__h !== b.height || hit(x, y)) {
+        if (window.__ioRecSubFixed) {
+          if (sub.__h !== b.height) {
+            sub.__h = b.height; sub.style.top = H - 20 - b.height + "px"; sub.style.left = left + "px"; sub.style.right = "auto";
+          }
+        } else if (y === undefined || sub.__h !== b.height || hit(x, y)) {
           x = undefined;
           for (let c = low + 34; c + b.height < H - 12; c += 12) if (!hit(left, c)) { x = left; y = c; break; }
           if (x === undefined) {
@@ -668,9 +674,19 @@ async function run(win, steps, cut, log) {
     } else if (op === "line-width") {
       /* `line-width <px>` — колонка текста уже: слева от коротких строк место под плашку (fields). */
       await win.evaluate((w) => document.body.style.setProperty("--file-line-width", w + "px"), Number(arg));
+    } else if (op === "sub") {
+      /* `sub bottom` — субтитр прибит к низу окна под текстом и не ездит весь GIF (его слово 2026-10-06 к smart-enter:
+         «субтитры постоянно меняют своё расположение»); строкам, которые прибавятся, — `room`. */
+      if (arg !== "bottom") throw new Error("sub: bottom");
+      await win.evaluate(() => { window.__ioRecSubFixed = true; });
     } else if (op === "rec-caret") {
-      /* `rec-caret off` — родная каретка вместо каретки записи: GIF про саму каретку (cursor). */
-      await win.evaluate((on) => document.body.classList.toggle("io-rec-caret", on), arg !== "off");
+      /* `rec-caret off` — родная каретка вместо каретки записи: GIF про саму каретку (cursor).
+         `rec-caret hide` — каретки нет вовсе: GIF без набора, мигание отвлекает (его слово 2026-10-06 к tag-bars-look). */
+      if (!["off", "on", "hide"].includes(arg)) throw new Error("rec-caret: off | on | hide");
+      await win.evaluate((a) => {
+        document.body.classList.toggle("io-rec-caret", a !== "off");
+        document.body.classList.toggle("io-rec-hidecaret", a === "hide");
+      }, arg);
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
@@ -945,7 +961,7 @@ async function main() {
     }
     try {
       /* `open` и первый `caret` — до первого кадра: иначе GIF начинается с каретки в первой строке. */
-      const pre = steps.findIndex(([op]) => !["preset", "drop", "open", "caret", "mark", "rec-caret", "stage", "room", "line-width"].includes(op));
+      const pre = steps.findIndex(([op]) => !["preset", "drop", "open", "caret", "mark", "rec-caret", "stage", "room", "line-width", "sub"].includes(op));
       await run(win, steps.slice(0, pre), cut, log);
       /* Окно — по высоте заметки: без пустоты между текстом и субтитром (его слово 2026-10-05). */
       await win.evaluate(async ([room, minH]) => {

@@ -1,17 +1,19 @@
 # transform — шаги записи (что показывается — transform.md)
 # «Open note after creation» открывает новую вкладку; назад — щелчок по вкладке «Party plans».
+# Его слово 2026-10-06: Transform — нажатием на плавающую кнопку → в конце строки, а не клавишей.
 title Inline to note | Turn a line into its own note and link to it
 preset transform.inline2note.openTarget = true
 open Party plans.md
 caret - [ ] #todo || [Garden party] invite the neighbors
 # Каркас 2026-10-05: включение на камеру; Open note after creation выставлен заранее.
 stage Inline to note
-say Inline to note → on
+say Inline to note → on, and its Floating button →
 settings Transform
 set Inline to note = on
+set Floating button = on
 caret - [ ] #todo || [Garden party] invite the neighbors
-say The line becomes a note, named from its [brackets]
-cmd transform-inline-to-note
+say Click → : the line becomes a note, named from its [brackets]
+click →
 expect - [ ] #todo || invite the neighbors
 say The line now links to the note
 click Party plans
@@ -23,7 +25,7 @@ settings Transform
 set Line above the text = Fixed text
 caret - [ ] #todo || [Bake sale] order the cake
 say The note starts with the fixed text, not the date
-cmd transform-inline-to-note
+click →
 expect ### Captured / - [ ] #todo || order the cake
 click Party plans
 
@@ -33,7 +35,7 @@ settings Transform
 set Note name = Ask
 caret - Find a recipe for a lemon cake with berries
 say Ask → you type the name yourself
-cmd transform-inline-to-note
+click →
 type Lemon cake
 click Create
 pause 1000

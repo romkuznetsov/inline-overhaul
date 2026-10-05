@@ -3,6 +3,7 @@
 # под панелью заметка возвращается к исходной. tagWheel закрывается Escape
 # до входа в настройки: открытым он пишет свою разметку в строку.
 title tagWheel look | Markers and a Scroller with the neighbor Values
+# Его слово 2026-10-06: «оставь одну строку, а то глаза разбегаются» — в заметке одна строка.
 open tagWheel look.md
 caret - [ ] #todo #low || Buy groceries || 📅2026-10-08
 stage Default look

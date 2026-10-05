@@ -1,13 +1,12 @@
 # prefix-cycle — шаги записи (что показывается — prefix-cycle.md)
 # Список Prefix стартового набора: # … #####, 1., (пусто), -. Move right идёт вниз по нему, Move left — вверх.
 # Этап 1 — одна строка туда и обратно (его слово 2026-10-04: «нелогично показано» — прежде прыгали две строки).
-# Подсвечен отступ и Prefix, а не строка (его слово 2026-10-04: «акцент на префикс и отступ»).
+# Подсветки нет (его слово 2026-10-06: «тут подсветка лишняя, она только мешает»).
 title Change the line marker | Move left and right cycle bullet, number and heading, then indent
 # Каркас 2026-10-05: главный переключатель выключен до ролика и включается на камеру.
 preset navigation.moveSelection.prefixCyclerEnabled = false
 open Prefix cycle.md
 caret bread
-mark prefix
 stage Cycle line Prefixes
 say Cycle line Prefixes → on
 settings Navigation

@@ -8,11 +8,13 @@ preset transform.inline2note.templatesFolder = "Templates"
 preset transform.inline2note.defaultTemplate = "Templates/Errand.md"
 # Карточка правила высокая: без запаса окна она в кадре наполовину.
 room 420
+# Его слово 2026-10-06: Transform — нажатием на плавающую кнопку → в конце строки, а не клавишей.
+preset transform.inline2note.floatingButton = true
 open Smart rules.md
 caret - [ ] #todo || [Buy stamps] at the post office
 stage Default template
 say Every line becomes a note from the default template
-cmd transform-inline-to-note
+click →
 expect ### 🧺 Errand
 click Smart rules
 stage A rule for Project A
@@ -26,5 +28,5 @@ pause 1500
 close
 caret - [ ] #todo || [Draft the plan] one page || [[Project A]]
 say A line with [[Project A]] → the Project task template
-cmd transform-inline-to-note
+click →
 expect ### 📁 Project task

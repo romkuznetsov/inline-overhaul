@@ -1,6 +1,8 @@
 # transform-source — шаги записи (что показывается — transform-source.md)
 # Заметка-результат не открывается: весь показ — на исходной строке.
 title Inline to note: the source line | What happens to the line and its sub-items
+# Его слово 2026-10-06: Transform — нажатием на плавающую кнопку → в конце строки, а не клавишей.
+preset transform.inline2note.floatingButton = true
 open Moving day.md
 caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
 stage Inline to note
@@ -9,7 +11,7 @@ settings Transform
 set Inline to note = on
 caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
 say The line becomes a link, its sub-items stay
-cmd transform-inline-to-note
+click →
 expect - [ ] [[Pack the kitchen]] || #processed /     - buy boxes /     - find the tape
 
 stage Sub-lines: Move
@@ -18,7 +20,7 @@ settings Transform
 set Sub-lines (tree) behavior = Move
 caret - [ ] #todo #high || [Pack the kitchen] wrap the plates || 📅2026-10-10
 say Move → the sub-items go into the note too
-cmd transform-inline-to-note
+click →
 expect - [ ] [[Pack the kitchen]] || #processed / - [ ] #todo || [Book the van] call two rental places
 
 stage Keep the text
@@ -27,7 +29,7 @@ settings Transform
 set What happens with current line = Keep
 caret - [ ] #todo || [Book the van] call two rental places
 say Keep → the text stays next to the link
-cmd transform-inline-to-note
+click →
 expect - [ ] [[Book the van]] call two rental places || #processed
 
 stage Dim transformed line
@@ -36,5 +38,5 @@ settings Transform
 set Dim transformed line = on
 caret - [ ] #todo || [Book the van] call two rental places
 say The handled line fades
-cmd transform-inline-to-note
+click →
 expect - [ ] [[Book the van]] call two rental places || #processed

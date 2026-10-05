@@ -1,6 +1,7 @@
 # cursor — шаги записи (что показывается — cursor.md)
 # Каретку двигает `Jump down` / `Jump right`: подсветка идёт за кареткой.
-title Text cursor | A cursor you can see, and a circle where it lands
+# Его слово 2026-10-06: «раздели на разные гифки подсветку прыжка и настройки курсора» — круг прыжка в cursor-jump.
+title Text cursor | Color and width make the cursor easy to see
 open Cursor.md
 # Родная каретка: GIF про саму каретку и её настройки.
 rec-caret off
@@ -29,26 +30,4 @@ set Cursor width = 6
 caret ## Monday
 say Jump down → a thick cursor
 cmd jump-next
-expect ## Monday
-
-stage Jump highlight
-say Highlight where you land → on
-settings Visual
-set Highlight where you land = on
-set Highlight size = 40
-set How long it lasts = 1200
-caret ## Monday
-say Jump down → a circle marks where it lands
-cmd jump-next
-cmd jump-next
-expect ## Monday
-
-stage Inside the line
-say Use inside current line → on
-settings Visual
-set Use inside current line = on
-caret - [ ] #todo #low || Buy groceries || 📅2026-10-07 @ Buy groceries
-say Jump right → the circle inside the line too
-cmd move-cursor-right-in-line
-cmd move-cursor-right-in-line
 expect ## Monday

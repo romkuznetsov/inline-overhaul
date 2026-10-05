@@ -3,8 +3,7 @@
 title Placement modes | Add a bullet and tidy typed tags into their Block
 open Placement.md
 caret call the bank
-# Его замечание 2026-10-05: фокус не на каретке, а на Prefix.
-mark prefix
+# Подсветки нет (его слово 2026-10-06: «убери подсветку вообще, она только отвлекает»).
 stage Default placement
 say Default: Status next → no bullet is added
 cmd status-next
