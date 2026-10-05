@@ -583,7 +583,8 @@ const SCENARIOS = {
     });
     console.log(JSON.stringify(got));
     if (process.env.IO_SHOT) { const n = await host.$(".io-struct"); if (n) await n.screenshot({ path: process.env.IO_SHOT }); }
-    return !!got && got.waits.length === 2 && got.mids.length === 1;
+    /* Свои зависимости у него тоже бывают — спрашиваются только заведённые сценой. */
+    return !!got && got.waits.includes("↱ Type") && got.waits.includes("↱ #todo") && got.mids.length === 1;
   },
   /* Тест 7 цикла 135: окно условия Smart Rules — снимки закрытым, с поиском и с «?» в IO_SHOTS. */
   async "smart-rule-condition"(win, browser) {

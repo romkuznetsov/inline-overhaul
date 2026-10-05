@@ -103,7 +103,7 @@ export const FRAME_TEXTS = {
   PREVIEW_SEPARATOR_2: "Separator 2",
   PREVIEW_EMPTY_VALUE: "empty",
   /* Подпись под зависимым Field в предпросмотре строки: имя Field или Value, которого он ждёт. */
-  PREVIEW_WAITS_FOR: "after {0}",
+  PREVIEW_WAITS_FOR: "↱ {0}",
   PREVIEW_BEFORE: "Before",
   PREVIEW_AFTER: "After",
   /* Подсказки половин `Source line` (2026-09-08): «?» в самой подписи, тело под ней. */
