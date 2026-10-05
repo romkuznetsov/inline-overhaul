@@ -121,7 +121,11 @@ export function yamlExamples(
     const matches = Array.isArray(ctx.matches) ? ctx.matches : [];
     const out: Record<string, string> = {};
     for (const row of rows) {
-      const own = matches.filter(m => String((m as { fieldId?: unknown }).fieldId ?? "").trim() === row.fieldId);
+      /* Половина пары `Nested` — вклад родителя: тег пишется целиком (тест 2 цикла 138). */
+      const own = matches.filter((m) => {
+        const r = m as { fieldId?: unknown; nested?: { parentId?: unknown } };
+        return [r.fieldId, r.nested?.parentId].some(id => String(id ?? "").trim() === row.fieldId);
+      });
       if (!own.length) continue;
       /* Свойства Field — тем же движком по контексту только с его совпадениями;
        * своей арифметики здесь нет (У-4). */

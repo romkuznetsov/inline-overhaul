@@ -1253,7 +1253,15 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         return bare ? "[[" + bare + "]]" : "";
       }
       const prefix = String((def && def.prefix) || "#");
-      return token.startsWith("#") ? token : prefix + token;
+      const tag = token.startsWith("#") ? token : prefix + token;
+      /* Ребёнок `Nested` пишется одним тегом с родителем — пример тоже (тест 2 цикла 138). */
+      const subKey = getSubKeyForParent(k) || "";
+      if (!getSubNested(subKey)) return tag;
+      const child = asArray(defByOrderKey(subKey)?.values).map(asObject).find((v) => {
+        const parents = asArray(v["allowedParentValues"]).map(x => String(x).replace(/^#/, ""));
+        return String(v["token"] || "").trim() && (!parents.length || parents.includes(tag.slice(1)));
+      });
+      return child ? tag + "/" + String(child["token"]).trim().replace(/^#/, "") : tag;
     }
     return "";
   };

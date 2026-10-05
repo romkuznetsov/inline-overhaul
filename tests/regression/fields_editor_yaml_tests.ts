@@ -836,4 +836,30 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}2026-08-31";
   ok("стёртое имя свойства стирается, соседнее и значения целы");
 }
 
+/* ======================================================================
+ * Ребёнок `Nested`: пример — тег пары целиком (его `💬` к тесту 2 цикла 138:
+ * «ожидал #tetet/12313»).
+ * ====================================================================== */
+
+{
+  const nestedBase = (nested: boolean): Any => {
+    const base = baseConfig();
+    const order = base.pkm.fields.order;
+    Object.assign(order.active, { status_sub: "yes" });
+    Object.assign(order.enabled, { status_sub: true });
+    order.subWithoutParent = { status_sub: true };
+    order.subNested = { status_sub: nested };
+    base.pkm.fields.tags.fields.push({ id: "status_sub", prefix: "#", dependsOn: "status",
+      values: [{ token: "review", active: true, allowedParentValues: ["todo"] }] });
+    return base;
+  };
+  const p = makePanel(nestedBase(true), "status");
+  assert.equal(writtenAs(p.host), 'status: "#todo/review"', "Nested — тег пары целиком");
+  p.cleanup();
+  const q = makePanel(nestedBase(false), "status");
+  assert.equal(writtenAs(q.host), 'status: "#todo"', "Separate — как прежде");
+  q.cleanup();
+  ok("пример свойства у родителя ребёнка Nested — тег пары целиком");
+}
+
 console.log("\n" + passed + " проверок пройдено");

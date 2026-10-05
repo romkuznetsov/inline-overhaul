@@ -21,7 +21,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. 🐛 **`Transform inline to note` reads a child Value written in one tag with its parent.** With `Child tag format` = `Nested`, `#note/meeting` gives the note the properties of both Values and is caught by Smart Rules, like `#note #meeting`
+1. 🐛 **`Transform inline to note` reads a child Value written in one tag with its parent.** With `Child tag format` = `Nested`, `#note/meeting` goes to the note property as one tag — `["#note/meeting"]`, not two — and is caught by Smart Rules; the property `Preview` of the parent Field shows the same tag
 
 ## 0.16.0
 

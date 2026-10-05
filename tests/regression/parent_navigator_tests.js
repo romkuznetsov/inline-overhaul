@@ -542,10 +542,22 @@ async function run() {
     const ctx = ctxOf(c, r.line);
     assert.deepEqual(ctx.matches.map((m) => m.fieldId + "=" + m.rawToken), ["Type=#doing", "Type_sub=#review"],
       "оба Value узнаны: " + JSON.stringify(ctx.matches));
-    assert.deepEqual(transform.buildYamlMapFromContext(ctx, c, {}), { type: "#doing", category: "#review" },
-      "свойства родителя и ребёнка");
-    assert.deepEqual(transform.buildYamlMapFromContext(ctxOf(c, "- #doing #review || text"), c, {}),
-      transform.buildYamlMapFromContext(ctx, c, {}), "как у той же пары двумя тегами");
+    /* Его `💬` к тесту 2 цикла 138: в свойстве — тег пары целиком. */
+    assert.deepEqual(transform.buildYamlMapFromContext(ctx, c, {}), { type: "#doing", category: "#doing/review" },
+      "свойства разные: родитель — своё, ребёнок — тег целиком");
+    const same = config({ navigator: false });
+    same.pkm.fields.order.subNested = { Type_sub: true };
+    same.pkm.fields.order.propertiesByField = { Type: "tags" };
+    same.pkm.fields.tags.fields.find((f) => f.id === "Type_sub").values[0].yamlProperty = "tags";
+    const cs = configNormalize.migrateConfig(same);
+    assert.deepEqual(transform.buildYamlMapFromContext(ctxOf(cs, r.line), cs, {}), { tags: ["#doing/review"] },
+      "одно свойство — один тег пары, не два");
+    same.pkm.fields.tags.fields.find((f) => f.id === "Type").yamlValueRule = "clean";
+    const cc = configNormalize.migrateConfig(same);
+    assert.deepEqual(transform.buildYamlMapFromContext(ctxOf(cc, r.line), cc, {}), { tags: ["doing/review"] },
+      "Clean снимает только решётку");
+    assert.deepEqual(transform.buildYamlMapFromContext(ctxOf(cs, "- #doing #review || text"), cs, {}),
+      { tags: ["#doing", "#review"] }, "два тега — два значения, как прежде");
     assert.deepEqual(ctxOf(c, "- #doing/draft || text").matches.map((m) => m.rawToken), ["#doing", "#draft"],
       "второе дочернее Value тоже");
     const rule = (conditions) => [{ id: "r", enabled: true, conditions, targetTemplate: "T.md" }];

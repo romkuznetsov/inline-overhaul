@@ -1096,7 +1096,7 @@ function buildTransformContext(parsed, cfg) {
     ? occurrence.start + ":" + occurrence.end
     : "");
 
-  const pushMatch = (fid, fType, markerOrPrefix, yamlProperty, rawToken, occurrence) => {
+  const pushMatch = (fid, fType, markerOrPrefix, yamlProperty, rawToken, occurrence, nested) => {
     const yp = String(yamlProperty || "").trim();
     const rt = String(rawToken || "").trim();
     if (!rt) return;
@@ -1113,14 +1113,14 @@ function buildTransformContext(parsed, cfg) {
       rawToken: rt,
       span,
     };
-    matches.push({
+    matches.push(Object.assign({
       fieldId: fid,
       fieldType: fType,
       fieldPrefix: String(markerOrPrefix || "").trim(),
       yamlProperty: yp,
       rawToken: rt,
       span,
-    });
+    }, nested ? { nested } : {}));
   };
 
   /* Два захода — своё, потом соседнее: занятый знак второй раз не заявляется. */
@@ -1201,7 +1201,10 @@ function buildTransformContext(parsed, cfg) {
           const panelOk = pair ? isPanelMatch(Object.assign({}, occurrence, { start: null })) : isPanelMatch(occurrence);
           if (token !== candidates[ci].fullToken || !panelOk) continue;
           const yk = resolveYamlProperty(candidates[ci].yamlProperty);
-          pushMatch(fid, fType, String(f.prefix || "").trim(), yk, candidates[ci].fullToken, occurrence);
+          /* Половина пары помнит тег целиком: свойство заметки пишет его (`buildYamlMapFromContext`). */
+          const isChild = !!pair && parentFid in pair;
+          const nested = pair ? { token: occurrence.token, parentId: isChild ? parentFid : fid, child: isChild } : null;
+          pushMatch(fid, fType, String(f.prefix || "").trim(), yk, candidates[ci].fullToken, occurrence, nested);
         }
       }
     }
@@ -1329,9 +1332,9 @@ const YAML_LIST_PROPERTY_TYPES = new Set(["multitext", "tags", "aliases", "list"
 function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
   const out = {};
   const byFieldId = isObj(transformContext && transformContext.byFieldId) ? transformContext.byFieldId : {};
-  const rows = withNavigatorRows(Array.isArray(transformContext && transformContext.matches)
+  const rows = nestedYamlRows(withNavigatorRows(Array.isArray(transformContext && transformContext.matches)
     ? transformContext.matches
-    : Object.keys(byFieldId).map((k) => byFieldId[k]), cfg);
+    : Object.keys(byFieldId).map((k) => byFieldId[k]), cfg));
   const yamlFormat = String(cfg && cfg.transform && cfg.transform.inline2note && cfg.transform.inline2note.yamlNoteFormat || "raw").trim().toLowerCase();
   const order = cfgObject(cfg, "pkm.fields.order", {});
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
@@ -1418,6 +1421,24 @@ function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
       continue;
     }
     if (!out[yamlKey].includes(value)) out[yamlKey].push(value);
+  }
+  return out;
+}
+
+/**
+ * Пара `Nested` в свойстве — тег целиком (`#tetet/12313`, его `💬` к тесту 2
+ * цикла 138): ребёнок пишет весь тег, родитель — своё, только если его свойство
+ * другое.
+ */
+function nestedYamlRows(rows) {
+  const childProps = new Set(rows.filter((r) => r && r.nested && r.nested.child)
+    .map((r) => r.nested.token + "\n" + String(r.yamlProperty || "").trim()));
+  const out = [];
+  for (const row of rows) {
+    const n = row && row.nested;
+    if (!n) { out.push(row); continue; }
+    if (n.child) { out.push(Object.assign({}, row, { rawToken: n.token })); continue; }
+    if (!childProps.has(n.token + "\n" + String(row.yamlProperty || "").trim())) out.push(row);
   }
   return out;
 }
