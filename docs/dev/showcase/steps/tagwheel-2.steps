@@ -1,8 +1,11 @@
 # tagwheel-2 — шаги записи (что показывается — tagwheel.md, вторая часть)
 # Этап 1 — умолчания; этап 2 начинается заходом в настройки.
 title tagWheel: where it opens | Start on the Field you choose
+# Каркас 2026-10-05: Scroller виден, строки ниже двух соседних — Scroller не закрывает заголовок окна.
+preset visual.tagWheel.scroller.enabled = true
 open tagWheel.md
 caret - call the bank
+stage The first Field
 say Default: tagWheel Left opens on the first Field
 cmd open-tagwheel-left
 key ArrowUp
@@ -12,8 +15,9 @@ say Default: tagWheel Right opens on the first Field
 cmd open-tagwheel-right
 key ArrowUp
 key Enter
-expect - #todo || call the bank || 📅2026-10-04
+expect - #todo || call the bank || 📅2026-10-05
 
+stage Chosen Field
 say Active Field on opening → Chosen Field
 settings Tags & PKM
 set Active Field on opening = Chosen Field

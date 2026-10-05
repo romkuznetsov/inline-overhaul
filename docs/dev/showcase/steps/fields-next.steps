@@ -1,0 +1,29 @@
+# fields-next — шаги записи (что показывается — fields-next.md)
+# Его замечание 2026-10-05 к fields-2: команды Field next/previous против tagWheel — отдельный GIF.
+# next/previous меняют Value одной клавишей вслепую; tagWheel показывает все Values в Scroller.
+title Fields: next, previous or tagWheel | Step a Field with one key, or see all its Values first
+drop Priority
+drop Due
+drop Project
+preset visual.tagWheel.scroller.enabled = true
+open Task fields.md
+line-width 480
+caret - call the bank
+stage Status next and previous
+say Status next → the next Value, one key, no panel
+cmd status-next
+expect - #todo || call the bank
+cmd status-next
+expect - #doing || call the bank
+say Status previous → one step back
+cmd status-previous
+expect - #todo || call the bank
+stage tagWheel
+say tagWheel → all Values of Status at once
+cmd open-tagwheel-left
+key ArrowUp
+key ArrowUp
+expect - #todo ==**[#done]**== || call the bank
+say Enter → the one you picked
+key Enter
+expect - book a table / - #done || call the bank

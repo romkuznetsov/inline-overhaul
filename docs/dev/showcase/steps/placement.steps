@@ -3,6 +3,9 @@
 title Placement modes | Add a bullet and tidy typed tags into their Block
 open Placement.md
 caret call the bank
+# Его замечание 2026-10-05: фокус не на каретке, а на Prefix.
+mark prefix
+stage Default placement
 say Default: Status next → no bullet is added
 cmd status-next
 expect #todo || call the bank / - pay the rent #high
@@ -11,6 +14,7 @@ say Default: a typed tag stays in the text
 cmd status-next
 expect #todo || call the bank / - #todo || pay the rent #high
 
+stage Strict: add a bullet
 say Strict: add a bullet → on
 settings Tags & PKM
 set Strict: add a bullet = on
@@ -19,6 +23,7 @@ say Status next → the line gets a bullet
 cmd status-next
 expect - #todo || call the bank / - pay the rent #high
 
+stage Typed tags to their Block
 say Keep typed tags in text → off
 settings Tags & PKM
 set Keep typed tags in text = off

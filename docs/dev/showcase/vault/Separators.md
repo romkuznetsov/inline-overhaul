@@ -1,2 +1,2 @@
+- pay the rent
 - call the bank
-- [ ] book a table

@@ -1,17 +1,22 @@
 # custom-blocks — шаги записи (что показывается — custom-blocks.md)
 # Этап 1 — умолчания; этап 2 начинается заходом в настройки: Add Block и Project в нём.
 title Custom Blocks | Put a Field's Value right at the cursor
+# Каркас 2026-10-05: Scroller виден; строка третьей — Scroller не закрывает заголовок окна.
+preset visual.tagWheel.scroller.enabled = true
 open Custom blocks.md
 caret - call the bank about the card
-say Default: a link goes after the text
+stage Right Block
+say Project sits in the Right Block: the link goes after the text
 cmd open-tagwheel-right
 key ArrowRight
 key ArrowUp
 key Enter
 expect - call the bank about the card || [[Project A]]
 
-say Add Block → Project into Custom block 1
+stage Custom block
+say Add Block → Project moves into Custom block 1
 settings Tags & PKM
+spot Project
 click Add Block
 click ↓
 close

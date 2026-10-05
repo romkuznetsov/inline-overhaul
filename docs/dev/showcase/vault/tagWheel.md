@@ -1,2 +1,4 @@
+- book a table
+- water the plants
 - call the bank
 - #todo || pay the rent || [[Project A]]

@@ -1,38 +1,40 @@
 # fields-2 — шаги записи (что показывается — fields-2.md)
-# Этап 1 — умолчания; каждый следующий начинается заходом в настройки: таблица Values Status.
-title Fields: Values | Add, hide and redraw the Values a Field steps through
+# Его замечание 2026-10-05: этап 1 — новый Field с одним Value; этап 2 — tagWheel, в нём теперь два Fields;
+# Values меняются через tagWheel и Scroller, а не командой next (next против tagWheel — fields-next).
+title Fields: a new Field | Add a Field with one Value — tagWheel shows it next to Status
+drop Priority
+drop Due
+drop Project
+preset visual.tagWheel.scroller.enabled = true
 open Values.md
+line-width 480
+# Окно Add a Field выше двух строк заметки: без запаса оно прокручено и мелко.
+room 420
 caret - #todo || call the bank
-say Default: Status next walks its Values
-cmd status-next
-cmd status-next
-expect - #done || call the bank / - #done || pay the rent
-
-say Add Value → #waiting
+stage New Field
 settings Tags & PKM
-fill #tag / tag = waiting
+spot Status
+say One Field so far — Status
+click Add Field
+fill Field name = Energy
+fill New Value = focus
 click Add Value
+say A new Field: Energy, with one Value #focus
+pause 1200
+click Add Field
+pause 1200
 close
-caret - #done || pay the rent
-say Status next → the new Value comes after #done
-cmd status-next
-expect - #todo || call the bank / - #waiting || pay the rent
-
-say Eye → #doing is hidden
-settings Tags & PKM
-click Hide #doing from next, previous and tagWheel
-close
+stage tagWheel: two Fields
 caret - #todo || call the bank
-say Status next → #doing is skipped
-cmd status-next
-expect - #done || call the bank / - #done || pay the rent
-
-say Show → custom: #todo is drawn as 🎯
-settings Tags & PKM
-pick Show, for #todo = custom
-fill Custom text for #todo = 🎯
-close
-caret - #todo || call the bank
-say Priority next → 🎯 stays in place of #todo
-cmd priority-next
-expect - #todo #low || call the bank / - #done || pay the rent
+say tagWheel Left → Status and the new Energy
+cmd open-tagwheel-left
+say ↑ ↓ pick a Value of Status in the Scroller
+key ArrowUp
+expect - #todo ==**[#doing]** `Energy`== || call the bank
+say → steps to Energy; ↓ picks #focus
+key ArrowRight
+key ArrowDown
+expect - #todo ==#doing **[#focus]**== || call the bank
+say Enter → both Values land in the line
+key Enter
+expect - book a table / - #doing #focus || call the bank

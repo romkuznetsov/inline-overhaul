@@ -1,0 +1,32 @@
+# ticked-line — шаги записи (что показывается — ticked-line.md)
+# Его замечание 2026-10-05: Mark/Dim ticked line — отдельно от Separators. Default Obsidian — галочка только ставится.
+# Strike through не показан: Obsidian и так зачёркивает отмеченный текст, на кадре разницы почти нет.
+title Ticked line | Ticking a box can add a tag and fade the line
+open Ticked line.md
+caret - [ ] book a table
+stage Default Obsidian
+say Obsidian: ticking the box only checks it
+cmd editor:toggle-checklist-status
+expect - [x] book a table
+
+stage Mark ticked line
+say Mark ticked line → #done
+settings Tags & PKM
+set Mark ticked line = #done
+caret - [ ] book a table
+say Tick → #done is added; untick → it goes
+cmd editor:toggle-checklist-status
+expect - [x] #done || book a table
+cmd editor:toggle-checklist-status
+expect - [ ] book a table / - [ ] call the bank
+cmd editor:toggle-checklist-status
+
+stage Dim ticked line
+say Dim ticked line → on
+settings Tags & PKM
+set Dim ticked line = on
+caret - [ ] call the bank
+say Tick → the line fades
+cmd editor:toggle-checklist-status
+expect - [x] #done || call the bank
+

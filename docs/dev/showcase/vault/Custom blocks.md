@@ -1,1 +1,3 @@
+- pay the rent
+- book a table
 - call the bank about the card

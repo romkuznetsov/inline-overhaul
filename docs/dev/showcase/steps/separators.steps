@@ -1,35 +1,40 @@
 # separators — шаги записи (что показывается — separators.md)
-# Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
-title Separators and writing rules | What stands between your text and the tags
+# Его замечание 2026-10-05: подробнее про Left/Right Block; Mark/Dim ticked line — отдельный GIF (ticked-line).
+title Separators | Your text in the middle, tags on the left and right
 open Separators.md
 caret - call the bank
-say Default: Status next → || before the text
+stage Left Block
+say Left Block: tags go before your text
 cmd status-next
-expect - #todo || call the bank / - [ ] book a table
-say Default: Project next → || after the text
-cmd project-next
-expect - #todo || call the bank || [[Project A]] / - [ ] book a table
-caret - [ ] book a table
-say Default: a ticked box gets no tag
-cmd editor:toggle-checklist-status
-expect - #todo || call the bank || [[Project A]] / - [x] book a table
+expect - #todo || call the bank
+cmd priority-next
+expect - #todo #low || call the bank
+say The First Separator || ends the Left Block
+pause 2200
 
-say First and Second Separator → ::
+stage Right Block
+say Right Block: links and dates go after your text
+caret - #todo #low || call the bank
+cmd project-next
+expect - #todo #low || call the bank || [[Project A]]
+say The Second Separator || starts the Right Block
+pause 2200
+
+stage First Separator
+say First Separator → ::
 settings Tags & PKM
 click ▸
 set First Separator = ::
-set Second Separator = ::
 caret - call the bank
-say Status next, Project next → :: on both sides
 cmd status-next
 cmd project-next
-expect - #todo :: call the bank :: [[Project A]] / - [ ] book a table
+expect - #todo :: call the bank || [[Project A]]
 
-say Mark ticked line → #done, Dim ticked line → on
+stage Second Separator
+say Second Separator → ::
 settings Tags & PKM
-set Mark ticked line = #done
-set Dim ticked line = on
-caret - [ ] book a table
-say Tick the box → #done is added, the line fades
-cmd editor:toggle-checklist-status
-expect - call the bank / - [x] #done :: book a table
+set Second Separator = ::
+caret - call the bank
+cmd status-next
+cmd project-next
+expect - #todo :: call the bank :: [[Project A]]

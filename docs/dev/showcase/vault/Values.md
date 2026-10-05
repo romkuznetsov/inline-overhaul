@@ -1,2 +1,3 @@
+- pay the rent
+- book a table
 - #todo || call the bank
-- #done || pay the rent

@@ -1,17 +1,25 @@
 # child-fields — шаги записи (что показывается — child-fields.md)
 # Этап 1 — умолчания; этап 2 заводит дочерний Value #review под #done и Child Field = After parent.
 title Child Fields | A Field that is offered after its parent Value
+# Каркас 2026-10-05: Scroller виден, в панели только нужные Fields, плашка у начала строки (tagWheel).
+drop Due
+drop Project
+preset visual.tagWheel.scroller.enabled = true
 open Child fields.md
+line-width 480
 caret - #done || call the bank
-say Default: tagWheel has Status and Priority
+stage Status and Priority
+say tagWheel has two Fields: Status and Priority
 cmd open-tagwheel-left
 key ArrowRight
 key ArrowRight
 key Escape
 expect - #done || call the bank / - pay the rent
 
-say Add #review under #done, Child Field → After parent
+stage Child Field: After parent
 settings Tags & PKM
+spot Values
+say Add #review under #done, Child Field → After parent
 fill #tag / tag = review
 click Add Value
 click Make #review a child Value
@@ -24,6 +32,7 @@ key ArrowUp
 key Enter
 expect - #done #review || call the bank / - pay the rent
 
+stage Child Field: Always
 say Child Field → Always
 settings Tags & PKM
 set Child Field = Always

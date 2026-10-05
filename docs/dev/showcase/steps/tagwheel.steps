@@ -1,8 +1,11 @@
 # tagwheel — шаги записи (что показывается — tagwheel.md)
 # Этап 1 — умолчания; каждый следующий начинается заходом в настройки.
 title tagWheel navigation | Walk between Blocks and keep the other one in view
+# Каркас 2026-10-05: Scroller виден, строки ниже двух соседних — Scroller не закрывает заголовок окна.
+preset visual.tagWheel.scroller.enabled = true
 open tagWheel.md
 caret - call the bank
+stage Default behavior
 say Default: → stays inside the Block
 cmd open-tagwheel-left
 key ArrowUp
@@ -17,6 +20,7 @@ pause 800
 key Escape
 expect - #todo || call the bank / - #todo || pay the rent || [[Project A]]
 
+stage Next Block
 say tagWheel navigation behavior → Next Block
 settings Tags & PKM
 set tagWheel navigation behavior = Next Block
@@ -27,8 +31,9 @@ key ArrowRight
 key ArrowRight
 key ArrowUp
 key Enter
-expect - call the bank || 📅2026-10-04 / - #todo || pay the rent || [[Project A]]
+expect - call the bank || 📅2026-10-05 / - #todo || pay the rent || [[Project A]]
 
+stage Show the other Block
 say Values in the other Block → Show
 settings Tags & PKM
 set Values in the other Block = Show
