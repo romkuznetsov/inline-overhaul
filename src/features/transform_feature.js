@@ -716,6 +716,10 @@ function selectSmartRule(parsed, smartRules, cfg) {
     wikilinks: new Set(Array.isArray(linksOnLine) ? linksOnLine.map(normalizeRuleWikilink).filter(Boolean) : []),
     emojiMarkers: new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean)),
   };
+  const pairs = nestedTagPairs(getModeFields(cfg));
+  for (const tag of Array.from(present.tags)) {
+    for (const half of Object.values(pairs[tag] || {})) present.tags.add(half);
+  }
   addNavigatorsOfChildren(cfg, present);
   const rules = Array.isArray(smartRules) ? smartRules : [];
   let onLine = null;
@@ -1029,6 +1033,29 @@ function resolveEffectiveFieldType(field, orderTypes, fieldId) {
   return inferFieldType(field);
 }
 
+/**
+ * `Child tag format` = `Nested` пишет пару одним тегом (`#note/meeting`,
+ * 10.13.309): тег пары → `{ id Field: полный токен }` обоих (тест 2 цикла 138).
+ */
+function nestedTagPairs(fields) {
+  const byId = {};
+  for (const f of fields) byId[String(f.id || "").trim()] = f;
+  const out = {};
+  for (const child of fields) {
+    const parent = byId[String(child.dependsOn || "").trim()];
+    if (!parent || !__sharedUtils.isNestedChildField(null, child)) continue;
+    for (const pc of fieldTokenCandidates(parent)) {
+      for (const cc of fieldTokenCandidates(child)) {
+        out[pc.fullToken + "/" + cc.fullToken.replace(/^#/, "")] = {
+          [String(parent.id).trim()]: pc.fullToken,
+          [String(child.id).trim()]: cc.fullToken,
+        };
+      }
+    }
+  }
+  return out;
+}
+
 function buildTransformContext(parsed, cfg) {
   const p = isObj(parsed) ? parsed : { line: "", tags: [], wikilinks: [], emojis: [], payloadText: "" };
   const order = cfgObject(cfg, "pkm.fields.order", {});
@@ -1050,6 +1077,7 @@ function buildTransformContext(parsed, cfg) {
     const fid = String(fields[i] && fields[i].id || "").trim();
     if (fid) fieldById[fid] = fields[i];
   }
+  const nestedPairs = nestedTagPairs(fields);
   const wl = Array.isArray(p.wikilinks) ? p.wikilinks : [];
   const emojis = Array.isArray(p.emojis) ? p.emojis : [];
 
@@ -1167,7 +1195,11 @@ function buildTransformContext(parsed, cfg) {
         const occurrences = Array.isArray(p.tagOccurrences) ? p.tagOccurrences : [];
         for (let oi = 0; oi < occurrences.length; oi++) {
           const occurrence = occurrences[oi];
-          if (occurrence.token !== candidates[ci].fullToken || !isPanelMatch(occurrence)) continue;
+          const pair = nestedPairs[occurrence.token];
+          const token = pair ? pair[fid] : occurrence.token;
+          /* Половины пары делят один знак: вторая не ждёт, свободен ли он. */
+          const panelOk = pair ? isPanelMatch(Object.assign({}, occurrence, { start: null })) : isPanelMatch(occurrence);
+          if (token !== candidates[ci].fullToken || !panelOk) continue;
           const yk = resolveYamlProperty(candidates[ci].yamlProperty);
           pushMatch(fid, fType, String(f.prefix || "").trim(), yk, candidates[ci].fullToken, occurrence);
         }

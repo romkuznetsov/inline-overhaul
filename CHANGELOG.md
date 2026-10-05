@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🐛 **`Transform inline to note` reads a child Value written in one tag with its parent.** With `Child tag format` = `Nested`, `#note/meeting` gives the note the properties of both Values and is caught by Smart Rules, like `#note #meeting`
+
 ## 0.16.0
 
 _2026-10-05 · [all changes since 0.15.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.15.0...0.16.0)_

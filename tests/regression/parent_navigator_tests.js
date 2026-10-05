@@ -527,6 +527,40 @@ async function run() {
     ok("Value ссылки с папкой: пишется с подписью, обе формы узнаются командой, панелью и Inline to note");
   }
 
+  /* ---- Nested: `#doing/review` узнаёт Inline to note (тест 2 цикла 138) -- */
+  {
+    const raw = config({ navigator: false });
+    raw.pkm.fields.order.subNested = { Type_sub: true };
+    raw.pkm.fields.order.propertiesByField = { Type: "type" };
+    raw.pkm.fields.tags.fields.find((f) => f.id === "Type_sub").values[0].yamlProperty = "category";
+    const c = configNormalize.migrateConfig(raw);
+    const r = await drive(c, "- text", [OPEN, UP, RIGHT, UP, ENTER]);
+    assert.ok(r.opened[0], "панель открылась");
+    assert.equal(r.line, "- #doing/review || text", "Nested пишет одним тегом: " + r.line);
+    const transform = require(path.join(root, "src/features/transform_feature.js"));
+    const ctxOf = (cfg, line) => transform.buildTransformContext(transform.parseInlineLine(line, cfg), cfg);
+    const ctx = ctxOf(c, r.line);
+    assert.deepEqual(ctx.matches.map((m) => m.fieldId + "=" + m.rawToken), ["Type=#doing", "Type_sub=#review"],
+      "оба Value узнаны: " + JSON.stringify(ctx.matches));
+    assert.deepEqual(transform.buildYamlMapFromContext(ctx, c, {}), { type: "#doing", category: "#review" },
+      "свойства родителя и ребёнка");
+    assert.deepEqual(transform.buildYamlMapFromContext(ctxOf(c, "- #doing #review || text"), c, {}),
+      transform.buildYamlMapFromContext(ctx, c, {}), "как у той же пары двумя тегами");
+    assert.deepEqual(ctxOf(c, "- #doing/draft || text").matches.map((m) => m.rawToken), ["#doing", "#draft"],
+      "второе дочернее Value тоже");
+    const rule = (conditions) => [{ id: "r", enabled: true, conditions, targetTemplate: "T.md" }];
+    const parsed = transform.parseInlineLine(r.line, c);
+    for (const cond of [{ tags: ["#doing"] }, { tags: ["#review"] }, { fields: ["Type_sub"] }]) {
+      assert.ok(transform.selectSmartRule(parsed, rule(cond), c), "Smart Rule ловит пару: " + JSON.stringify(cond));
+    }
+    assert.equal(transform.selectSmartRule(parsed, rule({ tags: ["#idea"] }), c), null, "чужое Value не ловит");
+    /* Чужая пара или Separate — не наша запись: целиком не узнаётся. */
+    assert.deepEqual(ctxOf(c, "- #doing/other || text").matches, [], "ребёнка нет в списке — пусто");
+    assert.deepEqual(ctxOf(config({ navigator: false }), "- #doing/review || text").matches, [],
+      "Separate: `#doing/review` — не запись плагина");
+    ok("Nested: Inline to note узнаёт родителя и ребёнка в одном теге");
+  }
+
   console.log("\n" + passed + " проверок пройдено");
 }
 
