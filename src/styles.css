@@ -1473,6 +1473,8 @@ body.theme-dark {
   border-radius: var(--radius-m);
   background: var(--background-secondary);
 }
+/* Строка платформы с выбиралкой (`Emoji before the date`): панель переносится под поле. */
+.setting-item:has(> .io-pick) { flex-wrap: wrap; }
 .io-pick__tabs { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
 .io-pick__tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
 .io-pick__search { width: 100%; margin-bottom: 6px; }

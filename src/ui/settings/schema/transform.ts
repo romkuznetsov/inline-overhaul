@@ -274,7 +274,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       tip:"Only Emoji Fields of the Left and Right Blocks are listed. The Value is the one the Field gives on its first step\n- <b>A date Field</b> — <code>🕒</code> with format <code>YYYY-MM-DD HH:mm</code> gives <code>:: 🕒2026-10-05 15:20</code>\n- <b>A list Field</b> — its first shown Value, such as <code>:: 💡</code>\n- <b>None</b> — nothing is added",
       visible: both(on("transform.inline2note.backlink.enabled"), eq("transform.inline2note.backlink.suffix.mode", "field")) },
     { kind:"text", id:"backlink-suffix-emoji", clearable:true, path:"transform.inline2note.backlink.suffix.emoji", default:"",
-      placeholder:"➕", name:"Emoji before the date", desc:"Optional mark in front of the date",
+      picker:"emoji", name:"Emoji before the date", desc:"Optional mark in front of the date",
       tip:"- <b>Empty</b> — <code>- [[call about the price]] - 2026-10-05 15:20</code>\n- <b>➕</b> — <code>- [[call about the price]] - ➕2026-10-05 15:20</code>",
       visible: both(on("transform.inline2note.backlink.enabled"), eq("transform.inline2note.backlink.suffix.mode", "datetime")) },
     { kind:"text", id:"backlink-suffix-format", clearable:true, path:"transform.inline2note.backlink.suffix.format",

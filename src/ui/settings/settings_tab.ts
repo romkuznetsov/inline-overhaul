@@ -11,7 +11,9 @@ import type { ExtraButtonComponent, SettingDefinitionItem } from "obsidian";
 
 import type { ActionId, PlatformBits, SetOpts, SettingDef, SettingsCtx, SettingsGroup, SettingsStore, TabDef, TabId } from "./types.ts";
 import { buildDefaultConfig, getIn, isBound } from "./types.ts";
-import type { El } from "./custom/dom.ts";
+import type { El, ElInput } from "./custom/dom.ts";
+import { attachPicker, escapeScope } from "./custom/char_picker.ts";
+import { sayIn } from "./texts_blocks.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { fieldOptions } from "./custom/preview_data.ts";
 import { themeColorFor, themeVarFor } from "./custom/theme_colors.ts";
@@ -130,6 +132,7 @@ interface ClearableText {
 
 interface ClearableSetting {
   addText: (fn: (text: ClearableText) => unknown) => unknown;
+  settingEl?: unknown;
   controlEl?: {
     createEl?: (tag: string, o: { cls?: string; text?: string; attr?: Record<string, string> }) => El;
   };
@@ -597,6 +600,8 @@ export class SettingsPane {
     const placeholder = String((it as unknown as { placeholder?: string }).placeholder || "");
     const mono = (it as unknown as { mono?: boolean }).mono === true;
     const isFolder = it.kind === "folder";
+    /* `picker: "emoji"` — выбиралка под полем, как у знака Emoji Field (его 💬 к тесту 2 цикла 137). */
+    const emojiPicker = it.kind === "text" && it.picker === "emoji";
     const label = it.name;
     return (settingRaw: unknown) => {
       const setting = settingRaw as ClearableSetting;
@@ -649,6 +654,23 @@ export class SettingsPane {
             sync();
           });
         }
+      }
+      /* `addText` пишет `input` из функции — сужение TS этого не видит. */
+      const field = input as ClearableInput | null;
+      if (emojiPicker && field && setting.settingEl) {
+        const bits = this.deps.platform;
+        const app = bits && (bits.plugin as { app?: { scope?: unknown } } | undefined)?.app;
+        const holdKeys = bits ? escapeScope(bits.Scope, app, app && app.scope) : undefined;
+        attachPicker(field as unknown as ElInput, setting.settingEl as El, {
+          kinds: ["emoji"],
+          say: sayIn("field-editor", this.ctx()),
+          ...(holdKeys ? { holdKeys } : {}),
+          onPick: (char: string) => {
+            field.value = char;
+            void this.setControlValue(path, char);
+            sync();
+          },
+        });
       }
       sync();
     };

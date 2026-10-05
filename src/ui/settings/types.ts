@@ -162,7 +162,7 @@ export type SettingDef =
    */
   | (Bound & { kind: "slider"; min: number; max: number; step: number; unit?: string; invert?: number; default: number })
   | (Bound & { kind: "number"; min?: number; max?: number; default: number })
-  | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string; clearable?: true })
+  | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string; clearable?: true; picker?: "emoji" })
   | (Bound & { kind: "textarea"; placeholder?: string; rows?: number; default: string })
   | (Bound & { kind: "color"; allowReset?: true; default: string })
   /**
