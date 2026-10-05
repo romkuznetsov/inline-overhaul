@@ -1,7 +1,7 @@
 {
   "id": "inline-overhaul",
   "name": "inlineOverhaul",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "minAppVersion": "1.13.0",
   "description": "Turn a raw thought into a structured line without leaving it.",
   "author": "Roman Kuznetsov",

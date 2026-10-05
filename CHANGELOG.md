@@ -19,7 +19,12 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.16.1
+
+_2026-10-05 · [all changes since 0.16.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.16.0...0.16.1)_
+
+> [!NOTE]
+> 🎨 **1** change you can see · 🐛 **1** bug fix
 
 1. 🎨 **The line preview shows which Fields wait for another one.** A Field with a `Prerequisite Field` is drawn paler, with a small `⬑Type` or `⬑#todo` under it
 2. 🐛 **`Transform inline to note` reads a child Value written in one tag with its parent.** With `Child tag format` = `Nested`, `#note/meeting` goes to the note property as one tag — `["#note/meeting"]`, not two — and is caught by Smart Rules; the property `Preview` of the parent Field shows the same tag
