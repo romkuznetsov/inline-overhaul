@@ -315,6 +315,12 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("transform.inline2note.backlink.placement.position"),
   keepV2("transform.inline2note.backlink.placement.targetHeader"),
   keepV2("transform.inline2note.backlink.placement.fallback"),
+  /* `Place in the list` и `Add after the link` (цикл 136): ключи новые. */
+  keepV2("transform.inline2note.backlink.placement.order"),
+  keepV2("transform.inline2note.backlink.suffix.mode"),
+  keepV2("transform.inline2note.backlink.suffix.field"),
+  keepV2("transform.inline2note.backlink.suffix.emoji"),
+  keepV2("transform.inline2note.backlink.suffix.format"),
   keep("transform.inline2note.noteName.mode"),
   keep("transform.inline2note.noteName.preferHeaderTitle"),
   keep("transform.inline2note.nameCollision.mode"),

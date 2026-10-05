@@ -933,7 +933,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (95)
+### Пути, которых не было в описи v1.0 (100)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1027,6 +1027,11 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.targetHeader` | Name of the heading (`backlink-target-header`) | Auto-MOC in your links |
 | `transform.inline2note.backlink.placement.fallback` | If heading not found (`backlink-header-missing`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.suffix.mode` | Add after the link (`backlink-suffix`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.suffix.field` | Field after the link (`backlink-suffix-field`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.suffix.emoji` | Emoji before the date (`backlink-suffix-emoji`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.suffix.format` | Date format (`backlink-suffix-format`) | Auto-MOC in your links |
+| `transform.inline2note.backlink.placement.order` | Place in the list (`backlink-section-order`) | Auto-MOC in your links |
 | `advanced.backups.folder` | Backup folder (`backup-folder`) | Backup |
 | `advanced.backups.autosave` | Autosave (`backup-autosave`) | Backup |
 | `advanced.backups.autosaveKeep` | Autosaves to keep (`backup-autosave-keep`) | Backup |

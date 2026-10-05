@@ -16,7 +16,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 16 | 8 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 28 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 24 | 5 |
-| 5 | Transform | `features.transform.enabled` | 7 | 35 | 5 |
+| 5 | Transform | `features.transform.enabled` | 7 | 40 | 5 |
 | 6 | Visual | `features.visual.enabled` | 7 | 58 | 13 |
 | 7 | Advanced | — | 3 | 10 | 1 |
 
@@ -875,6 +875,29 @@ _Tip:_ A line often links to the notes it belongs to: a project, a person, a pla
   - tip: When a note has no heading by that name, the plugin writes it for you, with the link under it: ⏎ - <b>Beginning</b> — at the top of the note ⏎ - <b>End</b> — at the bottom: <code>## Calls</code>, then <code>- [[call about the price]]</code> ⏎ Later links find that heading and join its section
   - варианты: `beginning` Beginning · `end` End
   - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.placement.position`
+- **Add after the link** — `backlink-suffix`, `dropdown`, path `transform.inline2note.backlink.suffix.mode`, default `none`
+  - desc: What follows the link in that note
+  - tip: Say the line becomes the note <b>call about the price</b>: ⏎ - <b>Nothing</b> — <code>- [[call about the price]]</code> ⏎ - <b>Field Value</b> — the Value of an Emoji Field you pick, as that Field writes it: <code>- [[call about the price]] :: 🕒2026-10-05 15:20</code> ⏎ - <b>Date and time</b> — the moment of Transform in your format, with an emoji if you set one: <code>- [[call about the price]] - ➕2026-10-05 15:20</code>
+  - варианты: `none` Nothing · `field` Field Value · `datetime` Date and time
+  - видна если: `transform.inline2note.backlink.enabled`
+- **Field after the link** — `backlink-suffix-field`, `dropdown`, path `transform.inline2note.backlink.suffix.field`, default `""`
+  - desc: The Emoji Field whose Value follows the link
+  - tip: Only Emoji Fields of the Left and Right Blocks are listed. The Value is the one the Field gives on its first step ⏎ - <b>A date Field</b> — <code>🕒</code> with format <code>YYYY-MM-DD HH:mm</code> gives <code>:: 🕒2026-10-05 15:20</code> ⏎ - <b>A list Field</b> — its first shown Value, such as <code>:: 💡</code> ⏎ - <b>None</b> — nothing is added
+  - варианты: `` None
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.suffix.mode`
+- **Emoji before the date** — `backlink-suffix-emoji`, `text`, path `transform.inline2note.backlink.suffix.emoji`, default `""`
+  - desc: Optional mark in front of the date
+  - tip: - <b>Empty</b> — <code>- [[call about the price]] - 2026-10-05 15:20</code> ⏎ - <b>➕</b> — <code>- [[call about the price]] - ➕2026-10-05 15:20</code>
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.suffix.mode`
+- **Date format** — `backlink-suffix-format`, `text`, path `transform.inline2note.backlink.suffix.format`, default `YYYY-MM-DD HH:mm`
+  - desc: How the date after the link is written
+  - tip: Letters stand for parts of the date, case does not matter for the year, day and hours ⏎ - <code>YYYY-MM-DD HH:mm</code> — <code>2026-10-05 15:20</code> ⏎ - <code>YYYYMMDD HHmm</code> — <code>20261005 1520</code> ⏎ - <code>DD.MM.YY</code> — <code>05.10.26</code>
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.suffix.mode`
+- **Place in the list** — `backlink-section-order`, `dropdown`, path `transform.inline2note.backlink.placement.order`, default `end`
+  - desc: Top or bottom of the links under that heading
+  - tip: Say <code>## Calls</code> already lists <code>- [[old note]]</code>: ⏎ - <b>Top</b> — the new link goes right under the heading, above <code>- [[old note]]</code>, so the newest is first ⏎ - <b>Bottom</b> — it goes below <code>- [[old note]]</code>, so links keep the order you filed them
+  - варианты: `beginning` Top · `end` Bottom
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.placement.position`
 
 #### Smart Rules — `smart-rules` (вкладка `transform`)
 
@@ -1315,8 +1338,13 @@ _Tip:_ Each row is one tag. You set the bubble color, the text color, and whethe
 | `transform.inline2note.backlink.enabled` | toggle | `false` |
 | `transform.inline2note.backlink.navigator` | toggle | `false` |
 | `transform.inline2note.backlink.placement.fallback` | dropdown | `end` |
+| `transform.inline2note.backlink.placement.order` | dropdown | `end` |
 | `transform.inline2note.backlink.placement.position` | dropdown | `end` |
 | `transform.inline2note.backlink.placement.targetHeader` | text | `""` |
+| `transform.inline2note.backlink.suffix.emoji` | text | `""` |
+| `transform.inline2note.backlink.suffix.field` | dropdown | `""` |
+| `transform.inline2note.backlink.suffix.format` | text | `YYYY-MM-DD HH:mm` |
+| `transform.inline2note.backlink.suffix.mode` | dropdown | `none` |
 | `transform.inline2note.defaultTemplate` | dropdown | `""` |
 | `transform.inline2note.enabled` | toggle | `false` |
 | `transform.inline2note.floatingButton` | toggle | `false` |

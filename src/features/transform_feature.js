@@ -78,7 +78,11 @@ const DEFAULT_INLINE2NOTE = {
       position: "end",
       targetHeader: "",
       fallback: "end",
+      /* `Place in the list` (цикл 136): `end` — прежнее, ссылка в конец раздела. */
+      order: "end",
     },
+    /* `Add after the link` (цикл 136): `none` — прежнее, одна ссылка. */
+    suffix: { mode: "none", field: "", emoji: "", format: "YYYY-MM-DD HH:mm" },
   },
   sourceProcessing: {
     cleanupFieldIds: [],
@@ -398,7 +402,9 @@ function normalizeInline2Note(raw) {
       position: backlinkPlacement.position,
       targetHeader: backlinkPlacement.targetHeader,
       fallback: backlinkPlacement.fallback,
+      order: oneOfOrDefault(isObj(backlink.placement) ? backlink.placement.order : "", ["beginning", "end"], "end"),
     },
+    suffix: normalizeBacklinkSuffix(backlink.suffix),
   };
   out.yamlNoteFormat = oneOfOrDefault(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
 
@@ -2071,13 +2077,56 @@ function noteAlreadyLinksTo(body, targetPath) {
   return false;
 }
 
+/** `Add after the link` (цикл 136): пустой формат — умолчание, а не дата без цифр. */
+function normalizeBacklinkSuffix(raw) {
+  const src = isObj(raw) ? raw : {};
+  const def = DEFAULT_INLINE2NOTE.backlink.suffix;
+  return {
+    mode: oneOfOrDefault(src.mode, ["none", "field", "datetime"], def.mode),
+    field: String(src.field || "").trim(),
+    emoji: String(src.emoji || "").trim(),
+    format: String(src.format || "").trim() || def.format,
+  };
+}
+
+/**
+ * Value Emoji Field на первом шаге: список — первый видимый, команда — её
+ * значение, формат даты — сейчас. Числу без даты первого значения нет — пусто.
+ */
+function elementFirstValue(pluginCfg, fieldKey) {
+  const own = __sharedUtils.readCfgPath(pluginCfg, "pkm.fields.elements.byField." + fieldKey);
+  if (!isObj(own)) return "";
+  const inc = isObj(own.increment) ? own.increment : {};
+  const fmt = String(own.format || "").trim();
+  let value = "";
+  if (inc.mode === "list") {
+    const hidden = new Set(Array.isArray(own.listHidden) ? own.listHidden : []);
+    value = String((Array.isArray(own.list) ? own.list : []).find((v) => !hidden.has(v)) || "");
+  } else if (inc.mode === "command") {
+    value = __sharedUtils.renderCommandValueByFormat(fmt, String(inc.command || "now"));
+  } else if (__sharedUtils.hasFormatTokens(fmt)) {
+    value = __sharedUtils.formatNowByMask(fmt);
+  }
+  return value ? String(own.emoji || "") + value : "";
+}
+
+/** Хвост строки за ссылкой; Value Field — за `separator2`, как на строке. */
+function backlinkSuffixFor(cfg, pluginCfg) {
+  const s = normalizeBacklinkSuffix(isObj(cfg) ? cfg.suffix : null);
+  if (s.mode === "datetime") return ` - ${s.emoji}${__sharedUtils.formatNowByMask(s.format)}`;
+  if (s.mode !== "field" || !s.field) return "";
+  const value = elementFirstValue(pluginCfg, s.field);
+  const sep = String(__sharedUtils.readCfgPath(pluginCfg, "pkm.lineFormat.separator2") || "").trim();
+  return value ? ` ${sep} ${value}` : "";
+}
+
 /**
  * Строка в чужую заметку. Знак списка — иначе Obsidian склеит её с соседней в
  * абзац; путь полный (В-135): одноимённые иначе неразличимы.
  */
-function backlinkLineFor(targetPath) {
+function backlinkLineFor(targetPath, suffix = "") {
   const link = deriveSourceWikilinkFromTargetPath(targetPath);
-  return link ? `- [[${link}]]` : "";
+  return link ? `- [[${link}]]${suffix}` : "";
 }
 
 /**
@@ -2088,7 +2137,7 @@ function backlinkLineFor(targetPath) {
 async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n, pluginCfg, sourcePath) {
   const cfg = isObj(i2n && i2n.backlink) ? i2n.backlink : {};
   if (cfg.enabled !== true) return { written: [], skipped: [], failed: [] };
-  const line = backlinkLineFor(targetPath);
+  const line = backlinkLineFor(targetPath, backlinkSuffixFor(cfg, pluginCfg));
   const written = [];
   const skipped = [];
   const failed = [];
@@ -3059,10 +3108,16 @@ function findCustomHeaderInsertAt(lines, spec) {
  * Тело заметки с блоком (З-4) — одна функция для новой заметки и дописывания
  * (У-32). `null` — заголовок не найден, запасное выбирает вызывающий.
  */
-function placeBlockUnderHeader(baseBody, block, spec, nl, spaced = true, headed = false) {
+function placeBlockUnderHeader(baseBody, block, spec, nl, spaced = true, headed = false, top = false) {
   const lines = String(baseBody || "").replace(/\r?\n/g, nl).split(nl);
-  const at = findCustomHeaderInsertAt(lines, spec);
-  if (at === -1) return null;
+  const end = findCustomHeaderInsertAt(lines, spec);
+  if (end === -1) return null;
+  /* `Place in the list` = `Top` (цикл 136): сразу под заголовком, за пустыми строками. */
+  let at = end;
+  if (top) {
+    at = findCustomHeaderLine(lines, spec) + 1;
+    while (at < end && !String(lines[at] || "").trim()) at++;
+  }
   const head = lines.slice(0, at);
   const tail = lines.slice(at);
   const section = readHeadingLine(lines[findCustomHeaderLine(lines, spec)]).level;
@@ -3210,7 +3265,7 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
   /* Первая строка блока — наш заголовок, только если его ставит `Line above
      the text` (`В-254`). */
   const headed = /^#/.test(formatHeaderByMode(i2n));
-  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl, spaced, headed);
+  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl, spaced, headed, placement.order === "beginning");
   if (placed !== null) return `${head}${placed}`;
   /* Заголовка нет — заводится тем же правилом, что у новой заметки (S4, У-32). */
   const own = blockWithOwnHeader(text, spec, nl, headed);

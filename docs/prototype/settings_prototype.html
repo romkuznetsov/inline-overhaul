@@ -3658,6 +3658,35 @@ const SCHEMA = [
       tip:"When a note has no heading by that name, the plugin writes it for you, with the link under it:\n- <b>Beginning</b> — at the top of the note\n- <b>End</b> — at the bottom: <code>## Calls</code>, then <code>- [[call about the price]]</code>\nLater links find that heading and join its section",
       visible:{ deps:["transform.inline2note.backlink.enabled","transform.inline2note.backlink.placement.position"],
                 test: c => Boolean(c.get("transform.inline2note.backlink.enabled"))
+                  && String(c.get("transform.inline2note.backlink.placement.position") || "") === "custom-header" } },
+    /* Его 💬 к тесту 3 цикла 136: что дописать за ссылкой — ничего, Value Emoji Field или дату. */
+    { kind:"dropdown", id:"backlink-suffix", path:"transform.inline2note.backlink.suffix.mode", default:"none",
+      name:"Add after the link", desc:"What follows the link in that note",
+      options:[ {value:"none",label:"Nothing"}, {value:"field",label:"Field Value"},
+                {value:"datetime",label:"Date and time"} ],
+      tip:"Say the line becomes the note <b>call about the price</b>:\n- <b>Nothing</b> — <code>- [[call about the price]]</code>\n- <b>Field Value</b> — the Value of an Emoji Field you pick, as that Field writes it: <code>- [[call about the price]] :: 🕒2026-10-05 15:20</code>\n- <b>Date and time</b> — the moment of Transform in your format, with an emoji if you set one: <code>- [[call about the price]] - ➕2026-10-05 15:20</code>",
+      visible: on("transform.inline2note.backlink.enabled") },
+    { kind:"dropdown", id:"backlink-suffix-field", path:"transform.inline2note.backlink.suffix.field", default:"",
+      name:"Field after the link", desc:"The Emoji Field whose Value follows the link",
+      options:[ {value:"",label:"None"} ], optionsFrom:"element-fields",
+      tip:"Only Emoji Fields of the Left and Right Blocks are listed. The Value is the one the Field gives on its first step\n- <b>A date Field</b> — <code>🕒</code> with format <code>YYYY-MM-DD HH:mm</code> gives <code>:: 🕒2026-10-05 15:20</code>\n- <b>A list Field</b> — its first shown Value, such as <code>:: 💡</code>\n- <b>None</b> — nothing is added",
+      visible: both(on("transform.inline2note.backlink.enabled"), eq("transform.inline2note.backlink.suffix.mode", "field")) },
+    { kind:"text", id:"backlink-suffix-emoji", clearable:true, path:"transform.inline2note.backlink.suffix.emoji", default:"",
+      placeholder:"➕", name:"Emoji before the date", desc:"Optional mark in front of the date",
+      tip:"- <b>Empty</b> — <code>- [[call about the price]] - 2026-10-05 15:20</code>\n- <b>➕</b> — <code>- [[call about the price]] - ➕2026-10-05 15:20</code>",
+      visible: both(on("transform.inline2note.backlink.enabled"), eq("transform.inline2note.backlink.suffix.mode", "datetime")) },
+    { kind:"text", id:"backlink-suffix-format", clearable:true, path:"transform.inline2note.backlink.suffix.format",
+      default:"YYYY-MM-DD HH:mm", mono:true, placeholder:"YYYY-MM-DD HH:mm",
+      name:"Date format", desc:"How the date after the link is written",
+      tip:"Letters stand for parts of the date, case does not matter for the year, day and hours\n- <code>YYYY-MM-DD HH:mm</code> — <code>2026-10-05 15:20</code>\n- <code>YYYYMMDD HHmm</code> — <code>20261005 1520</code>\n- <code>DD.MM.YY</code> — <code>05.10.26</code>",
+      visible: both(on("transform.inline2note.backlink.enabled"), eq("transform.inline2note.backlink.suffix.mode", "datetime")) },
+    /* Его 💬 к тесту 3 цикла 136: новая ссылка — сверху или снизу списка под заголовком; умолчание — прежнее, снизу. */
+    { kind:"dropdown", id:"backlink-section-order", path:"transform.inline2note.backlink.placement.order", default:"end",
+      name:"Place in the list", desc:"Top or bottom of the links under that heading",
+      options:[ {value:"beginning",label:"Top"}, {value:"end",label:"Bottom"} ],
+      tip:"Say <code>## Calls</code> already lists <code>- [[old note]]</code>:\n- <b>Top</b> — the new link goes right under the heading, above <code>- [[old note]]</code>, so the newest is first\n- <b>Bottom</b> — it goes below <code>- [[old note]]</code>, so links keep the order you filed them",
+      visible:{ deps:["transform.inline2note.backlink.enabled","transform.inline2note.backlink.placement.position"],
+                test: c => Boolean(c.get("transform.inline2note.backlink.enabled"))
                   && String(c.get("transform.inline2note.backlink.placement.position") || "") === "custom-header" } }
   ]
 },
@@ -4750,7 +4779,9 @@ const OPTION_SOURCES = {
   "left-block-fields": () => lineFields().filter(f => String(f.position || "").toLowerCase() === "left")
     .map(f => ({ value:f.id, label:f.name })),
   "right-block-fields": () => lineFields().filter(f => String(f.position || "").toLowerCase() === "right")
-    .map(f => ({ value:f.id, label:f.name }))
+    .map(f => ({ value:f.id, label:f.name })),
+  /* Value за ссылкой Auto-MOC — только у Emoji Field (цикл 136). */
+  "element-fields": () => lineFields().filter(f => f.type === "element").map(f => ({ value:f.id, label:f.name }))
 };
 
 /* Один список шаблонов на прототип и на панель: правило «только из папки»

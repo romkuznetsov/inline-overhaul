@@ -417,6 +417,11 @@ See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-se
 | `Where to put the link` | `end` | At the top of that note, or after whatever is already there |
 | `Name of the heading` | unset | The heading the link is filed under |
 | `If heading not found` | `end` | Where the heading is added when that note has none |
+| `Add after the link` | `Nothing` | What follows the link: nothing, the Value of an Emoji Field, or the date and time |
+| `Field after the link` | unset | The Emoji Field whose Value follows the link |
+| `Emoji before the date` | unset | Optional mark in front of the date |
+| `Date format` | `YYYY-MM-DD HH:mm` | How the date after the link is written |
+| `Place in the list` | `Bottom` | Top or bottom of the links under that heading |
 
 ### Smart Rules
 

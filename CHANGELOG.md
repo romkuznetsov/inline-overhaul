@@ -32,6 +32,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 9. 🎨 **The `?` of a setting now stands right after its name**
 10. 🎨 **tagWheel shows an empty Field by its name again, without `-`.** Once you scroll in it, it shows `[  -  ]`, like the scroller, and the Field you stand on is always bold
 11. 🎨 **The first child Value of a Field turns `Child Field` on as `After parent`.** It used to stay on `Hide`
+12. ✨ **Auto-MOC can add a Value or the date after the link.** `Add after the link` writes the Value of an Emoji Field you pick, or the date and time in your format with an optional emoji
+13. ✨ **Auto-MOC under a heading can put the new link on top.** `Place in the list` chooses the top or the bottom of the links under that heading
 
 ## 0.15.0
 

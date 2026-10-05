@@ -1123,6 +1123,52 @@ runElementValueWrittenByPluginIsFoundSuite();
   console.log("  ok Add empty line before wikilink: Off пишет ссылки без пустых строк, On — как было");
 })();
 
+/* Его 💬 к тесту 3 цикла 136: `Place in the list` и `Add after the link`. */
+(async function runBacklinkOrderAndSuffixSuite() {
+  const note = "## AutoMOC\n- [[a]]\n- [[b]]\n\n## Other\nx\n";
+  const head = (order) => transform.normalizeInline2Note({ backlink: { enabled: true, emptyLine: false,
+    placement: { position: "custom-header", targetHeader: "## AutoMOC", order } } }).backlink;
+  assertEq(head(undefined).placement.order, "end", "умолчание — прежнее, снизу");
+  assertEq(transform.appendBlockIntoNote(note, "- [[N]]", head("beginning"), "\n"),
+    "## AutoMOC\n- [[N]]\n- [[a]]\n- [[b]]\n\n## Other\nx\n", "Top: ссылка не первой под заголовком");
+  assertEq(transform.appendBlockIntoNote(note, "- [[N]]", head("end"), "\n"),
+    "## AutoMOC\n- [[a]]\n- [[b]]\n- [[N]]\n\n## Other\nx\n", "отрицательный контроль: Bottom — в конец раздела");
+
+  const now = new Date();
+  const p2 = (n) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())} ${p2(now.getHours())}:${p2(now.getMinutes())}`;
+  const pluginCfg = {
+    pkm: { lineFormat: { separator2: "::" }, fields: { elements: { byField: {
+      Now: { emoji: "🕒", format: "YYYY-MM-DD hh:mm", increment: { mode: "command", command: "now" } },
+      Tech: { emoji: "", format: "", increment: { mode: "list" }, list: ["🤡", "💡"], listHidden: ["🤡"] },
+      Cnt: { emoji: "🔢", format: "000", increment: { mode: "standard" } },
+    } } } },
+  };
+  const written = async (suffix) => {
+    const files = { "Anna.md": { path: "Anna.md" } };
+    const body = { "Anna.md": "" };
+    const plugin = { app: {
+      vault: {
+        getAbstractFileByPath: (p) => files[p] || null,
+        process: async (f, fn) => { body[f.path] = fn(body[f.path]); },
+      },
+      metadataCache: { getFirstLinkpathDest: (t) => files[t + ".md"] || null },
+    } };
+    const i2n = transform.normalizeInline2Note({ backlink: { enabled: true, suffix } });
+    const context = { allMatches: [{ fieldType: "wikilink", fieldId: "People", rawToken: "[[Anna]]" }] };
+    await transform.writeBacklinksIntoReferencedNotes(plugin, context, "call.md", i2n, pluginCfg, "src.md");
+    return body["Anna.md"].trim();
+  };
+  assertEq(await written(undefined), "- [[call]]", "умолчание `Nothing` — одна ссылка, как было");
+  assertEq(await written({ mode: "field", field: "Now" }), `- [[call]] :: 🕒${stamp}`, "Field Value: Now");
+  assertEq(await written({ mode: "field", field: "Tech" }), "- [[call]] :: 💡", "Field Value: список — первый видимый");
+  assertEq(await written({ mode: "field", field: "Cnt" }), "- [[call]]", "число без даты — без хвоста");
+  assertEq(await written({ mode: "datetime" }), `- [[call]] - ${stamp}`, "Date and time без emoji");
+  assertEq(await written({ mode: "datetime", emoji: "➕", format: "yyyymmdd hhmm" }),
+    `- [[call]] - ➕${stamp.replace(/[-:]/g, "")}`, "Date and time с emoji и его форматом");
+  console.log("  ok Place in the list и Add after the link: Top/Bottom под заголовком, хвост ссылки");
+})().catch((e) => { console.error(e); process.exitCode = 1; });
+
 /* Его ответ В-254 (BUGHUNT 2026-09-30, C2): заголовок записи — на уровень ниже
    раздела, и записи идут в том порядке, в каком написаны. */
 (function runEntryUnderSectionSuite() {

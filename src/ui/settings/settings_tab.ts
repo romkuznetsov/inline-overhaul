@@ -151,6 +151,7 @@ const OPTION_SOURCE_DEPS: Record<string, readonly string[]> = {
   /* Block меняется перетаскиванием внутри той же ветки — как у `tag-fields`. */
   "left-block-fields": ["pkm.fields"],
   "right-block-fields": ["pkm.fields"],
+  "element-fields": ["pkm.fields"],
 };
 
 /** Путь выбранного языка — одно объявление (У-32). */
@@ -726,6 +727,8 @@ export class SettingsPane {
     /* Ведущее поле — только Fields этого Block; сторона — у самого Field (10.13.69, Т-1). */
     if (source === "left-block-fields") return fieldOptions(ctx, f => f.side === "left");
     if (source === "right-block-fields") return fieldOptions(ctx, f => f.side === "right");
+    /* Value за ссылкой Auto-MOC — у Emoji Field (цикл 136). */
+    if (source === "element-fields") return fieldOptions(ctx, f => f.kind === "element");
     /* Языки: английский плюс файлы папки плагина; имя языка — из файла. */
     if (source === "languages") return languageOptions(this.deps.texts ? (this.deps.texts() || {}) : {});
     if (source === "templates") {
