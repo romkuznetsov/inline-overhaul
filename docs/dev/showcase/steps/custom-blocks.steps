@@ -1,5 +1,7 @@
 # custom-blocks — шаги записи (что показывается — custom-blocks.md)
 # Этап 1 — умолчания; этап 2 начинается заходом в настройки: Add Block и Project в нём.
+# Его слово 2026-10-06: «во всех gif tagwheel должна быть с заливкой» — цвет заливки выставлен заранее (как его включать — tagwheel-colors).
+preset visual.tagWheel.fillColor = "#fff3bf"
 title Custom Blocks | Put a Field's Value right at the cursor
 # Каркас 2026-10-05: Scroller виден; строка третьей — Scroller не закрывает заголовок окна.
 preset visual.tagWheel.scroller.enabled = true

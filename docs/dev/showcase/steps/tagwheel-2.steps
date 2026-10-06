@@ -1,5 +1,7 @@
 # tagwheel-2 — шаги записи (что показывается — tagwheel.md, вторая часть)
 # Этап 1 — умолчания; этап 2 начинается заходом в настройки.
+# Его слово 2026-10-06: «во всех gif tagwheel должна быть с заливкой» — цвет заливки выставлен заранее (как его включать — tagwheel-colors).
+preset visual.tagWheel.fillColor = "#fff3bf"
 title tagWheel: where it opens | Start on the Field you choose
 # Каркас 2026-10-05: Scroller виден, строки ниже двух соседних — Scroller не закрывает заголовок окна.
 preset visual.tagWheel.scroller.enabled = true
@@ -15,7 +17,7 @@ say Default: tagWheel Right opens on the first Field
 cmd open-tagwheel-right
 key ArrowUp
 key Enter
-expect - #todo || call the bank || 📅2026-10-05
+expect - #todo || call the bank || 📅2026-10-06
 
 stage Chosen Field
 say Active Field on opening → Chosen Field

@@ -121,6 +121,10 @@ GIF `smart-paste` по его сценарию 2026-10-05: две нумеров
 
 **Мелкие находки той же записи** (без вопроса, в работу по вашему слову): уведомление «Note created» при `If the name already taken` = `Add to existing`, хотя текст дописан в существующую заметку; заголовок окна имени — старое «Inline2Note: note title»; `Keep first words` не отличается от `Keep without name`, `Words to keep` ничего не меняет; команда Transform на строке-заголовке превращает заголовок в пункт списка; подсказки `Continue past Separators` и `Cursor position after jumping` приводят пример с `::`, а в стартовом наборе `||`; Smart Enter `Text only` среди тегов режет строку на `- [ ] #todo` и `- [ ] #high || …`.
 
+### В-296. В стартовом наборе на Obsidian 1.13 у открытого tagWheel нет заливки — **находка GIF-сессии 2026-10-06, для сессии кода**
+
+Его замечание к четырём GIF: «нет жёлтой заливки tagWheel». `Highlight the tagWheel line` включён по умолчанию, но без своего `Background color` строка панели прозрачна: плагин ставит `--io-twfill: var(--text-highlight-bg)` (`src/core/editor_visuals_config.js`, умолчание `fillColor`; запасной цвет в `src/styles.css`), а в Obsidian 1.13 такой переменной нет — у него `--highlight-background`. Мерено в настоящем Obsidian: стартовый набор — фон `rgba(0, 0, 0, 0)`; его конфиг со своим цветом — `rgb(255, 225, 0)`. Его ответ 2026-10-06 про GIF: первый GIF tagWheel показывает панель без заливки и включение `Background color`, дальше во всех GIF заливка выставлена заранее (`tagwheel-colors`). Сам дефект плагина не тронут — дело сессии кода: запасной `var(--highlight-background)` за старым именем, у трёх мест с `--text-highlight-bg` (ещё `src/ui/settings/custom/theme_colors.ts`).
+
 **Цикл 126, 2026-10-03, ночь** — Command Field, этап 2 (отчёт `431у`)
 
 ### В-284. Чекбокс без Prefix при «раздел → дерево» — **отвечено 2026-10-03: «оставить, задам Prefix»**, правки нет

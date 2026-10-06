@@ -1,6 +1,8 @@
 # fields — шаги записи (что показывается — fields.md)
 # Его сценарий 2026-10-05: в настройках один Field и его Values → tagWheel ставит Value в строку →
 # tagWheel ещё раз, Value назад на пустое — тег уходит из строки. Команды next/previous — отдельный GIF.
+# Его слово 2026-10-06: «во всех gif tagwheel должна быть с заливкой» — цвет заливки выставлен заранее (как его включать — tagwheel-colors).
+preset visual.tagWheel.fillColor = "#fff3bf"
 title Fields | A Field is a list of Values that tagWheel puts in your line
 drop Priority
 drop Due

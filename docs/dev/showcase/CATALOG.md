@@ -23,15 +23,15 @@
 | 9 | `smart-paste` | Keyboard → Smart paste | Default Obsidian и Smart paste: две строки в два раздела | принят 2026-10-06 |
 | 10 | `binder` | Keyboard → Binder, Smart bracket | новая команда →, её клавиша в строке, Smart bracket | принят 2026-10-06 |
 | 11 | `hotkeys` | Keyboard → Commands & Hotkeys | Hotkey settings, Obsidian's Hotkeys | принят 2026-10-06 |
-| 12 | `fields` | Tags & PKM → Fields | один Field, его Values и tagWheel (его сценарий) | принят 2026-10-05 (образец) |
-| 12 | `fields-2` | Tags & PKM → Fields: новый Field | Add Field с одним Value, tagWheel с двумя Fields | ждёт починки заливки tagWheel в стартовом наборе (Obsidian 1.13), затем перезапись |
-| 12 | `fields-next` | Tags & PKM → Fields: next/previous | Status next и previous против tagWheel | принят 2026-10-06 |
-| 13 | `child-fields` | Tags & PKM → Fields: дети | Child Field: After parent, Always | принят 2026-10-06 |
-| 14 | `custom-blocks` | Tags & PKM → Fields: Add Block | Right Block, Custom block | ждёт починки заливки tagWheel в стартовом наборе (Obsidian 1.13), затем перезапись |
+| 12 | `fields` | Tags & PKM → Fields | один Field, его Values и tagWheel (его сценарий) | принят 2026-10-05 (образец); перезаписан 2026-10-06 с заливкой tagWheel |
+| 12 | `fields-2` | Tags & PKM → Fields: новый Field | Add Field с одним Value, tagWheel с двумя Fields | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
+| 12 | `fields-next` | Tags & PKM → Fields: next/previous | Status next и previous против tagWheel | принят 2026-10-06; перезаписан 2026-10-06 с заливкой tagWheel |
+| 13 | `child-fields` | Tags & PKM → Fields: дети | Child Field: After parent, Always | принят 2026-10-06; перезаписан 2026-10-06 с заливкой tagWheel |
+| 14 | `custom-blocks` | Tags & PKM → Fields: Add Block | Right Block, Custom block | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 15 | `separators` | Tags & PKM → Separators | Left Block, Right Block, First и Second Separator | принят 2026-10-06 |
 | 15 | `ticked-line` | Tags & PKM → Writing rules: ticked line | Default Obsidian, Mark ticked line, Dim ticked line | принят 2026-10-06 |
-| 16 | `tagwheel` | Tags & PKM → tagWheel behavior | navigation behavior, Values in the other Block | ждёт починки заливки tagWheel в стартовом наборе (Obsidian 1.13), затем перезапись |
-| 16 | `tagwheel-2` | Tags & PKM → tagWheel behavior, вторая часть | Active Field on opening | ждёт починки заливки tagWheel в стартовом наборе (Obsidian 1.13), затем перезапись |
+| 16 | `tagwheel` | Tags & PKM → tagWheel behavior | navigation behavior, Values in the other Block | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
+| 16 | `tagwheel-2` | Tags & PKM → tagWheel behavior, вторая часть | Active Field on opening | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 17 | `placement` | Tags & PKM → Placement modes | Strict: add a bullet, Keep typed tags in text | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 18 | `transform` | Transform → Inline to note, New note naming, Note content | Inline to note, Line above the text, Note name: Ask | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 19 | `transform-source` | Transform → Source line | Sub-lines, What happens with current line, Dim transformed line | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
@@ -41,6 +41,7 @@
 | 23 | `link-view` | Visual → Link view | цвета ссылок и скобок | принят 2026-10-06 |
 | 24 | `tag-bars` | Visual → Tag Bars | Tag Bars, Number of Bars, Hide the tag, Bars for the whole tree, Join Bars | принят 2026-10-06 |
 | 24 | `tag-bars-look` | Visual → Tag Bars: вид | Bar thickness, Distance from the text, Space between Bars, Vertical gap | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 25 | `tagwheel-colors` | Visual → tagWheel (Panel): цвета | без заливки, Background color, цвета Field и Value | записан впервые 2026-10-06, ждёт приёмки |
 | 25 | `tagwheel-look` | Visual → tagWheel (Panel, Scroller) | Show tag markers, Scroller | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 26 | `cursor` | Visual → Text cursor | цвет и ширина каретки | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 26 | `cursor-jump` | Visual → Cursor jump highlight | Default Obsidian, круг прыжка, внутри строки | записан впервые 2026-10-06, ждёт приёмки |

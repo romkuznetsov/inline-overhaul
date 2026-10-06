@@ -1,0 +1,52 @@
+# tagwheel-colors — шаги записи (что показывается — tagwheel-colors.md)
+# Его слово 2026-10-06: первый GIF про tagWheel — сперва панель без заливки, затем в настройках цвет заливки
+# и другие цвета панели, «чтобы пользователь понял суть»; после него во всех GIF tagWheel — с заливкой.
+title tagWheel colors | Make the open picker stand out from the page
+preset visual.tagWheel.scroller.enabled = true
+open tagWheel colors.md
+caret - #todo || call the bank
+stage No background
+say Default: the open tagWheel has no background
+cmd open-tagwheel-left
+expect - #todo ==**[#todo]** `Priority`== || call the bank
+key Escape
+
+stage Background color
+say Background color → yellow
+settings Visual
+set Background color = #fff3bf
+caret - #todo || call the bank
+say The open line stands out
+cmd open-tagwheel-left
+key Escape
+
+stage Active Field text color
+say Active Field text color → red
+settings Visual
+set Active Field text color = #e03131
+caret - #todo || call the bank
+say The Field you are on is red
+cmd open-tagwheel-left
+key ArrowRight
+key Escape
+
+stage Inactive Field text color
+say Inactive Field text color → gray
+settings Visual
+set Inactive Field text color = #868e96
+caret - #todo || call the bank
+say The other Fields fade to gray
+cmd open-tagwheel-left
+key ArrowRight
+key Escape
+
+stage Chosen Value text color
+say Chosen Value text color → green
+settings Visual
+set Chosen Value text color = #2f9e44
+caret - #todo || call the bank
+say A Field that already has a Value is green
+cmd open-tagwheel-left
+key ArrowRight
+key Escape
+expect - book a table / - water the plants / - #todo || call the bank

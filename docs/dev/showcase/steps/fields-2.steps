@@ -1,6 +1,8 @@
 # fields-2 — шаги записи (что показывается — fields-2.md)
 # Его замечание 2026-10-05: этап 1 — новый Field с одним Value; этап 2 — tagWheel, в нём теперь два Fields;
 # Values меняются через tagWheel и Scroller, а не командой next (next против tagWheel — fields-next).
+# Его слово 2026-10-06: «во всех gif tagwheel должна быть с заливкой» — цвет заливки выставлен заранее (как его включать — tagwheel-colors).
+preset visual.tagWheel.fillColor = "#fff3bf"
 title Fields: a new Field | Add a Field with one Value — tagWheel shows it next to Status
 drop Priority
 drop Due
