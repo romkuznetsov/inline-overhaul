@@ -61,6 +61,8 @@
  *   line-width <px>          колонка текста уже (`--file-line-width`): место под плашку слева от строки
  *   rec-caret off | hide     off — родная каретка Obsidian вместо фиолетовой (GIF про каретку); hide — каретки нет
  *   sub bottom               субтитр прибит к низу окна под текстом и не ездит (заметка растёт — запас `room`)
+ *   pane <файл>              вторая заметка справа, работа остаётся в левой (auto-moc: куда легла ссылка)
+ *   split                    заметка слева, панель справа и не закрывается между `set`: правка видна сразу
  *   expect <строки>          порядок строк заметки через « / »; не сошлось — запись падает;
  *                            `expect ?` — напечатать заметку (черновик сценария)
  *
@@ -162,7 +164,17 @@ body.io-rec-hidecaret #io-rec-caret{display:none!important}
 .modal-container:has(.mod-settings) .modal-bg{opacity:1!important}
 .modal.mod-settings{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border-radius:0!important}
 .mod-settings .vertical-tab-header{display:none!important}
-.mod-settings .vertical-tab-content-container{zoom:1.35}`;
+.mod-settings .vertical-tab-content-container{zoom:1.35}
+/* \`split\`: заметка слева, панель справа, без затемнения — правка видна в заметке сразу (его слово 2026-10-06 к tag-bars). */
+body.io-rec-split .modal-container:has(.mod-settings){left:auto!important;right:0!important;width:54vw!important}
+body.io-rec-split .modal-container:has(.mod-settings) .modal-bg{opacity:0!important}
+body.io-rec-split .modal.mod-settings{width:54vw!important;border-left:2px solid #ddd!important}
+body.io-rec-split .mod-settings .vertical-tab-content-container{zoom:1}
+body.io-rec-split .workspace{width:46vw!important;flex:none!important}
+body.io-rec-split .workspace-leaf.mod-active .view-content{padding-left:44px}
+/* \`pane\`: кнопка Transform — только в заметке, где работа (её строка каретки), не в соседней. */
+.workspace-leaf:not(.mod-active) .io-flybtn{display:none!important}
+body.io-rec-split #io-rec-sub.is-wide{left:23vw!important;max-width:42vw}`;
 
 /** Демо-хранилище: английский интерфейс, окно без лишнего, свои заметки и клавиши, панель выбрана за кадром. */
 async function stage(win, browser, tab, hotkeys) {
@@ -460,7 +472,8 @@ const markRow = (win, name, nth) => win.evaluate(([name, nth]) => {
     const row = [...document.querySelectorAll(".setting-item:not(.setting-item-heading)")].filter((r) => {
       const n = r.querySelector(".setting-item-name");
       const c = r.querySelector(".setting-item-control");
-      return n && n.textContent.trim() === name && c && c.querySelector(ctl);
+      /* Видимая: у скрытой строки бывает тёзка (`Name of the heading` в двух группах Transform). */
+      return n && n.textContent.trim() === name && c && c.querySelector(ctl) && r.getBoundingClientRect().height > 0;
     })[nth - 1]
       /* Строка редактора Fields (`Child Field`, `Active`…) — свой узел `.io-item`, не `.setting-item`. */
       || [...document.querySelectorAll(".io-item")].filter((r) => {
@@ -687,15 +700,32 @@ async function run(win, steps, cut, log) {
         document.body.classList.toggle("io-rec-caret", a !== "off");
         document.body.classList.toggle("io-rec-hidecaret", a === "hide");
       }, arg);
+    } else if (op === "pane") {
+      /* `pane <файл>` — вторая заметка справа (auto-moc: куда легла ссылка видно сразу); работа остаётся в левой. */
+      await win.evaluate(async (f) => {
+        const a = window.app, main = a.workspace.getMostRecentLeaf();
+        const leaf = a.workspace.getLeaf("split", "vertical");
+        await leaf.openFile(a.vault.getAbstractFileByPath(f), { state: { mode: "source", source: false } });
+        /* Левая шире: строка под кареткой с кнопкой → в конце не переносится. */
+        main.parent.containerEl.style.flexGrow = "62"; leaf.parent.containerEl.style.flexGrow = "38";
+        a.workspace.setActiveLeaf(main, { focus: true });
+      }, arg);
+      await win.waitForTimeout(500);
+    } else if (op === "split") {
+      /* `split` — заметка слева, панель справа и не закрывается: правка видна в заметке сразу (его слово 2026-10-06 к tag-bars). */
+      run.split = true;
+      await win.evaluate(() => document.body.classList.add("io-rec-split"));
     } else if (op === "pause") {
       await win.waitForTimeout(Number(arg));
     } else if (op === "settings") {
       if (run.autoStages) run.stages.push({ t: Date.now() / 1000, label: run.autoStages.shift() });
+      /* В `split` панель уже открыта рядом с заметкой: не переоткрывать и заметку не сбрасывать. */
+      const open = run.split && await win.evaluate(() => !!document.querySelector(".modal.mod-settings"));
       /* Панель открывается невидимой и показывается уже на нужном контроле — без прокрутки на камеру (его слово 2026-10-05). */
-      await win.evaluate(() => document.body.classList.add("io-rec-hidemodal"));
+      if (!open) await win.evaluate(() => document.body.classList.add("io-rec-hidemodal"));
       /* Без плашки: Ctrl+, к фиче не относится (его слово 2026-10-04). */
-      await win.keyboard.press("Control+Comma");
-      await win.waitForTimeout(700);
+      if (!open) await win.keyboard.press("Control+Comma");
+      await win.waitForTimeout(open ? 0 : 700);
       if (!await win.evaluate(() => !!document.querySelector(".modal.mod-settings .io-tabstrip, .modal.mod-settings [class*=io-tab]"))) {
         const b = await find(win, "inlineOverhaul");
         await point(win, b);
@@ -713,7 +743,13 @@ async function run(win, steps, cut, log) {
       /* Только в пределах этого этапа: каретка следующего этапа встанет под его панелью. */
       const rest = steps.slice(si + 1), end = rest.findIndex(([o]) => o === "settings");
       const nc = rest.slice(0, end < 0 ? rest.length : end).find(([o]) => o === "caret" || o === "select");
-      await win.evaluate(async ([files, at]) => {
+      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover", "spot", "tip"].includes(o));
+      if (aim) await aimAt(win, aim).catch(() => { /* не нашёлся — упадёт сам шаг, с понятной ошибкой */ });
+      await win.waitForTimeout(150);
+      await win.evaluate(() => document.body.classList.remove("io-rec-hidemodal"));
+      await win.waitForTimeout(350);
+      /* Сброс — когда панель уже закрыла заметку: под невидимой панелью откат был на камере (2026-10-06, prefix-behavior). */
+      if (!run.split) await win.evaluate(async ([files, at]) => {
         const [line, part] = at.split(" @ ");
         const a = window.app;
         /* Открытую заметку — через редактор: несохранённая правка редактора перебивает запись в файл. */
@@ -729,11 +765,6 @@ async function run(win, steps, cut, log) {
         const ch = part === undefined ? line.length : line.indexOf(part);
         if (k >= 0 && ch >= 0) e.setCursor({ line: k, ch });
       }, [notes(), nc ? nc[1] : ""]);
-      const aim = rest.find(([o]) => ["set", "click", "fill", "pick", "hover", "spot", "tip"].includes(o));
-      if (aim) await aimAt(win, aim).catch(() => { /* не нашёлся — упадёт сам шаг, с понятной ошибкой */ });
-      await win.waitForTimeout(150);
-      await win.evaluate(() => document.body.classList.remove("io-rec-hidemodal"));
-      await win.waitForTimeout(350);
     } else if (op === "fill") {
       /* Поле своего блока без имени строки — по подсказке внутри поля. */
       const [ph, text] = arg.split(" = ");
@@ -847,13 +878,16 @@ async function run(win, steps, cut, log) {
       await setControl(win, name.trim(), value.trim());
       /* Панель закрывается сама сразу после контрола: GIF про поведение в заметке (его слово 2026-10-04).
          Следующий шаг тоже в панели (галочки, окно, подсказка) — панель остаётся, закроет `close`. */
-      if (!["set", "click", "fill", "pick", "pause", "close", "spot", "tip"].includes(next)) {
+      if (!run.split && !["set", "click", "fill", "pick", "pause", "close", "spot", "tip"].includes(next)) {
         await closeSettings(win);
         await win.waitForTimeout(450);
       }
     } else if (op === "expect" && arg === "?") {
       /* Черновик сценария: напечатать заметку, чтобы выписать ожидание с неё, а не по памяти. */
       console.log("--- заметка после шага " + log.length + ":\n" + (await editorState(win)).lines.join("\n"));
+      /* Заметки остальных панелей (`pane`) — тоже. */
+      console.log(await win.evaluate(() => window.app.workspace.getLeavesOfType("markdown").filter((l) => l !== window.app.workspace.getMostRecentLeaf())
+        .map((l) => "--- " + l.view.file.path + ":\n" + l.view.editor.getValue()).join("\n")));
     } else if (op === "expect") {
       const want = arg.split(" / ");
       const got = (await editorState(win)).lines;
@@ -893,15 +927,20 @@ async function renderBars(win, labels, widths, tmp) {
     Под кадром — полоса этапов (\`bars\`: картинки и начала этапов в секундах GIF) и полоска просмотра под ней (его слово 2026-10-05). */
 function encode(frames, cut, end, tmp, out, bars) {
   const keep = frames.filter((f) => !cut.some(([a, b]) => f.t >= a && f.t <= b));
-  const lines = [];
-  keep.forEach((f, i) => {
-    let next = i + 1 < keep.length ? keep[i + 1].t : end;
-    for (const [a, b] of cut) if (a >= f.t && b <= next) next -= b - a;
-    /* Длительность — точная: прежний пол 0,02 с растягивал частые кадры анимаций, и видео к концу
-       отставало от полосы этапов на секунды (его слово 2026-10-05 к jump-line). */
-    lines.push("file '" + f.file.replace(/\\/g, "/") + "'", "duration " + Math.max(0.001, next - f.t).toFixed(3));
-  });
-  lines.push("file '" + keep[keep.length - 1].file.replace(/\\/g, "/") + "'");
+  const t0 = keep[0].t, shift = (t) => t - t0 - cut.filter(([, b]) => b <= t).reduce((s, [a, b]) => s + b - a, 0);
+  /* Кадры — на сетку 1/FPS здесь, а не в ffmpeg: склейка округляла кадры короче ~0,02 с, и GIF выходил
+     длиннее записи (39,8 с при 36 с) — полоска отставала от этапов (его слово 2026-10-05 к jump-line). */
+  const len = shift(end), step = 1 / FPS, runs = [];
+  for (let k = 0, j = 0; k * step < len; k++) {
+    while (j + 1 < keep.length && shift(keep[j + 1].t) <= k * step) j++;
+    if (runs.length && runs[runs.length - 1].f === keep[j].file) runs[runs.length - 1].n++;
+    else runs.push({ f: keep[j].file, n: 1 });
+  }
+  const lines = runs.flatMap((r) => ["file '" + r.f.replace(/\\/g, "/") + "'", "duration " + (r.n * step).toFixed(4)]);
+  /* Последний кадр ffmpeg держит столько, сколько длился промежуток перед ним: короткий хвост вместо
+     паузы конца, иначе GIF длиннее полоски на 2–4 с. */
+  const last = "file '" + runs[runs.length - 1].f.replace(/\\/g, "/") + "'";
+  lines.push(last, "duration " + step.toFixed(4), last);
   const list = path.join(tmp, "frames.txt");
   fs.writeFileSync(list, lines.join("\n"));
   const { files, starts, total } = bars;
@@ -939,6 +978,7 @@ async function main() {
     const first = steps.find(([op]) => op === "settings");
     run.stages = [];
     run.autoStages = null;
+    run.split = false;
     if (!steps.some(([op]) => op === "stage")) {
       /* Без шагов \`stage\` — прежние подписи: последний субтитр перед заходом в настройки (\`Moving behavior → Whole tree\`). */
       const labels = [first ? "Default" : title[0] || "Default"];
@@ -961,7 +1001,7 @@ async function main() {
     }
     try {
       /* `open` и первый `caret` — до первого кадра: иначе GIF начинается с каретки в первой строке. */
-      const pre = steps.findIndex(([op]) => !["preset", "drop", "open", "caret", "mark", "rec-caret", "stage", "room", "line-width", "sub"].includes(op));
+      const pre = steps.findIndex(([op]) => !["preset", "drop", "open", "caret", "mark", "rec-caret", "stage", "room", "line-width", "sub", "split", "pane"].includes(op));
       await run(win, steps.slice(0, pre), cut, log);
       /* Окно — по высоте заметки: без пустоты между текстом и субтитром (его слово 2026-10-05). */
       await win.evaluate(async ([room, minH]) => {
@@ -1020,7 +1060,7 @@ async function main() {
     await new Promise((r) => setTimeout(r, 1500));
     /* Уборка: папку держит выходящий Obsidian (EPERM) — готовый GIF от этого не хуже, код выхода не портим. */
     try { fs.rmSync(env.work, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }); } catch (_e) { console.error("временный vault не убран: " + env.work); }
-    if (ok) fs.rmSync(tmp, { recursive: true, force: true }); else console.error("кадры оставлены: " + tmp);
+    if (ok && !process.env.IO_KEEP) fs.rmSync(tmp, { recursive: true, force: true }); else console.error("кадры оставлены: " + tmp);
   }
   process.exit(ok ? 0 : 1);
 }

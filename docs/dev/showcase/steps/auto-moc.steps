@@ -1,25 +1,60 @@
 # auto-moc — шаги записи (что показывается — auto-moc.md)
-# Project B — общая пустая заметка vault; ссылку в неё пишет плагин, щелчок по [[Project B]]
-# в новой заметке открывает её, назад — щелчок по вкладке «Book club».
+# Его слово 2026-10-06: показать остальные контролы Auto-MOC, «возможно сделать 2 gif». Этот — куда ставится
+# ссылка (Where to put the link, Name of the heading, If heading not found); auto-moc-2 — что пишется рядом.
+# Project B открыта справа (`pane`): ссылка появляется в ней в момент Transform.
 title Auto-MOC | A new note links back from the notes it mentions
-# Его замечание 2026-10-05: фокус на Auto-MOC — Inline to note и открытие заметки выставлены заранее.
+# Его замечание 2026-10-05: фокус на Auto-MOC — Inline to note выставлен заранее; новая заметка не открывается,
+# чтобы Project B справа оставалась в кадре.
 preset transform.inline2note.enabled = true
-preset transform.inline2note.openTarget = true
+preset transform.inline2note.openTarget = false
 # Его слово 2026-10-06: Transform — нажатием на плавающую кнопку → в конце строки, а не клавишей.
 preset transform.inline2note.floatingButton = true
 open Book club.md
-caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
+pane Project B.md
+caret - [ ] #todo || [Pick a book] ideas || [[Project B]]
 stage Link the notes you mention
 say Link the notes you mention → on
 settings Transform
 set Link the notes you mention = on
-caret - [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
-say The line becomes a note that mentions Project B
-click →
-expect - [ ] #todo || ask everyone for ideas || [[Project B]]
-say Project B now links back to the new note
-click Project B
-expect - [[Pick the next book]]
-pause 1500
-# Третьего этапа нет: Project B пустая, а в пустую заметку ссылка пишется без заголовка
-# и в начало, и в конец одинаково — `Where to put the link` не видно (находка в отчёте).
+caret - [ ] #todo || [Pick a book] ideas || [[Project B]]
+say Transform: the line becomes a note that mentions Project B
+click → #1
+expect - [ ] [[Pick a book]] || #processed
+say Project B gets a link to it, at the end
+pause 2200
+
+stage Where to put the link
+say Where to put the link → Beginning
+settings Transform
+set Where to put the link = Beginning
+caret - [ ] #todo || [Bring snacks] tea || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Bring snacks]] || #processed
+say The link goes to the top of Project B
+pause 2200
+
+stage Under heading
+say Where to put the link → Under heading ## Meetings
+settings Transform
+set Where to put the link = Under heading
+pause 800
+set Name of the heading = ## Meetings
+caret - [ ] #todo || [Book a room] Fri || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Book a room]] || #processed
+say The link joins the Meetings section
+pause 2200
+
+stage If heading not found
+say No ## Plans heading → If heading not found: Beginning
+settings Transform
+set Name of the heading = ## Plans
+set If heading not found = Beginning
+caret - [ ] #todo || [Remind all] chat || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Remind all]] || #processed
+say The heading is added at the top, the link under it
+pause 2200

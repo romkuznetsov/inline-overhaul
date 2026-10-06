@@ -1,16 +1,19 @@
 # tag-bars — шаги записи (что показывается — tag-bars.md)
 # Его замечание 2026-10-05: два GIF — поведение (этот) и вид (tag-bars-look: толщина, расстояния).
-# Нажатий нет: этап — заход в настройки и смена контрола, после выхода — заметка в новом виде.
+# Его слово 2026-10-06: заметка и настройки на экране одновременно — `split`, панель не закрывается,
+# каждая смена контрола сразу видна в заметке слева. Каретки нет — мигание у заголовка отвлекало.
 title Tag Bars | A colored bar down each tree shows its status
 open Tag bars.md
 caret ## Garden project
+rec-caret hide
+split
+settings Visual
 stage Default look
 say Default: no Bars, only the tags
 pause 2600
 
 stage Tag Bars
 say Tag Bars → on, drawn by Status
-settings Visual
 set Tag Bars = on
 set Which Field draws Bars = Status
 say A Bar in the tag's color runs down each tree
@@ -18,14 +21,12 @@ pause 2800
 
 stage Number of Bars
 say Number of Bars → 3
-settings Visual
 set Number of Bars = 3
 say The third level gets its own Bar
 pause 2600
 
 stage Hide the tag
 say Show the Field’s tag → off
-settings Visual
 set Show the Field’s tag = off
 set Hide the leftover marker = on
 say The Bar speaks for the tag, the lonely || goes too
@@ -33,14 +34,12 @@ pause 2800
 
 stage Not the whole tree
 say Bars for the whole tree → off
-settings Visual
 set Bars for the whole tree = off
 say Each Bar covers only its own line
 pause 2800
 
 stage Separate Bars
 say Bars for the whole tree → on, Join Bars in a tree → off
-settings Visual
 set Bars for the whole tree = on
 set Join Bars in a tree = off
 say Parent and child Bars break apart

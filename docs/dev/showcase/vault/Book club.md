@@ -1,3 +1,5 @@
 ## Next meeting
-- [ ] #todo || [Pick the next book] ask everyone for ideas || [[Project B]]
-- [ ] #todo || [Bring snacks] cookies and tea || [[Project B]]
+- [ ] #todo || [Pick a book] ideas || [[Project B]]
+- [ ] #todo || [Bring snacks] tea || [[Project B]]
+- [ ] #todo || [Book a room] Fri || [[Project B]]
+- [ ] #todo || [Remind all] chat || [[Project B]]

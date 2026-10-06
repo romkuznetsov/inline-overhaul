@@ -1,10 +1,10 @@
 # tag-bars — Visual → Tag Bars
 
-**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-06 по его слову: заметка и настройки на экране одновременно — каждая смена контрола сразу видна в заметке; каретки нет; ждёт приёмки.**
 
-Группа `Visual → Tag Bars` в `docs/SETTINGS.md`. Показаны: `Tag Bars` с `Which Field draws Bars`, `Bar thickness`, `Show the Field’s tag`, `Hide the leftover marker`, `Number of Bars`. Не показаны: `Bar arrangement`, промежутки и отступы, `Bars for the whole tree`, `Join Bars in a tree` — оттенки того же вида.
+Группа `Visual → Tag Bars` в `docs/SETTINGS.md`. Показаны: `Tag Bars` с `Which Field draws Bars`, `Number of Bars`, `Show the Field’s tag` с `Hide the leftover marker`, `Bars for the whole tree`, `Join Bars in a tree`. Не показан `Bar arrangement`; промежутки и отступы — в `tag-bars-look`.
 
-Заметка — `vault/Tag bars.md`: дерево задач с тегами Status в три уровня. Нажатий нет. Старт — стартовый набор, светлая тема, английский интерфейс.
+Заметка — `vault/Tag bars.md`: дерево задач с тегами Status в три уровня. Нажатий нет: заметка слева, панель `Visual` справа и не закрывается (шаг `split`). Старт — стартовый набор, светлая тема, английский интерфейс.
 
 ## Что на экране
 

@@ -2,7 +2,7 @@
 
 **Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
 
-Группа `Tags & PKM → Placement modes` в `docs/SETTINGS.md`. Два контрола: `Strict: add a bullet`, `Keep typed tags in text`. `Insert only: use Field Prefix` и группа `Prefix priority` не показаны: у Values стартового набора нет своего Prefix, и в заметке они ничего не меняют.
+Группа `Tags & PKM → Placement modes` в `docs/SETTINGS.md`. Два контрола: `Strict: add a bullet`, `Keep typed tags in text`. `Insert only: use Field Prefix` и группа `Prefix priority` не показаны: у Values стартового набора нет своего Prefix, и в заметке они ничего не меняют. Где живёт `Prefix behavior` и чем Strict отличается от Insert only — отдельный GIF `prefix-behavior` (его слово 2026-10-06).
 
 Заметка — `vault/Placement.md`. Старт — стартовый набор, светлая тема, английский интерфейс.
 

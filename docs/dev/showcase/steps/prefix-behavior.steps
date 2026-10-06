@@ -1,0 +1,55 @@
+# prefix-behavior — шаги записи (что показывается — prefix-behavior.md)
+# Его слово 2026-10-06 к placement: «нужно добавить этап, где показывается, где меняется Prefix behavior
+# и чем они различаются, возможно нужна отдельная gif». Отдельный GIF: место контрола в Fields, затем
+# Strict, Insert only и Insert only без Field Prefix на простой строке и на строке списка. Подсветки нет.
+title Prefix behavior | Does a Value change the start of the line?
+open Prefix behavior.md
+caret call the bank
+stage Where it is
+say Prefix behavior lives in each Field, under Behavior
+settings Tags & PKM
+spot Status
+say This is the Status Field
+pause 1600
+spot Behavior
+say Prefix behavior: Strict or Insert only
+pause 2000
+say #todo brings the checkbox [ ] as its Prefix
+fill Prefix for #todo = [ ]
+pause 1200
+close
+
+stage Strict
+caret call the bank
+say Strict: Status next on a plain line
+cmd status-next
+expect - [ ] #todo || call the bank
+say Even a plain line gets the checkbox
+pause 2200
+
+stage Insert only
+say Prefix behavior → Insert only
+settings Tags & PKM
+set Prefix behavior = Insert only
+caret water the plants
+say Insert only: Status next on a plain line
+cmd status-next
+expect #todo || water the plants
+say A plain line stays plain
+caret - fix the shelf
+say Status next on a list line
+cmd status-next
+expect - [ ] #todo || fix the shelf
+say A list line still gets the checkbox
+pause 2200
+
+stage Without Field Prefix
+say Insert only: use Field Prefix → off
+settings Tags & PKM
+set Insert only: use Field Prefix = off
+caret - read the brief
+say Status next on a list line
+cmd status-next
+expect - #todo || read the brief
+say The bullet stays, no checkbox
+pause 2200

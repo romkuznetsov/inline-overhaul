@@ -1,0 +1,69 @@
+# auto-moc-2 — шаги записи (что показывается — auto-moc-2.md)
+# Его слово 2026-10-06: показать остальные контролы Auto-MOC, «возможно сделать 2 gif». Этот — что пишется
+# вместе со ссылкой; куда она ставится — auto-moc. Project B открыта справа (`pane`).
+title Auto-MOC: the link itself | What goes with the link in the note you mention
+preset transform.inline2note.enabled = true
+preset transform.inline2note.openTarget = false
+preset transform.inline2note.floatingButton = true
+# Включение и место ссылки показаны в auto-moc: здесь заранее, ссылки идут в раздел Meetings.
+preset transform.inline2note.backlink.enabled = true
+preset transform.inline2note.backlink.placement.position = "custom-header"
+preset transform.inline2note.backlink.placement.targetHeader = "## Meetings"
+open Garden club.md
+pane Project B.md
+caret - [ ] #todo || [Water seeds] tray || [[Project B]]
+stage Add empty line before wikilink
+say Add empty line before wikilink → off
+settings Transform
+set Add empty line before wikilink = off
+caret - [ ] #todo || [Water seeds] tray || [[Project B]]
+say Transform: Meetings gets the link with no blank line
+click → #1
+expect - [ ] [[Water seeds]] || #processed
+pause 2200
+
+stage Field Value
+say Add after the link → Field Value of Due
+settings Transform
+set Add after the link = Field Value
+pause 800
+set Field after the link = Due
+caret - [ ] #todo || [Buy soil] two bags || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Buy soil]] || #processed
+say The link carries the Due date
+pause 2200
+
+stage Date and time
+say Add after the link → Date and time
+settings Transform
+set Add after the link = Date and time
+caret - [ ] #todo || [Fix the gate] hinge || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Fix the gate]] || #processed
+say The link carries the moment of Transform
+pause 2200
+
+stage Emoji before the date
+say Emoji before the date → ➕
+settings Transform
+set Emoji before the date = ➕
+caret - [ ] #todo || [Plant beans] row 2 || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Plant beans]] || #processed
+say The date gets its mark
+pause 2200
+
+stage Place in the list
+say Place in the list → Top
+settings Transform
+set Place in the list = Top
+caret - [ ] #todo || [Mulch beds] straw || [[Project B]]
+say Transform another line
+click → #1
+expect - [ ] [[Mulch beds]] || #processed
+say The newest link goes first, right under Meetings
+pause 2200

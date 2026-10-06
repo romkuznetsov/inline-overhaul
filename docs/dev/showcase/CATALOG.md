@@ -33,14 +33,16 @@
 | 16 | `tagwheel` | Tags & PKM → tagWheel behavior | navigation behavior, Values in the other Block | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 16 | `tagwheel-2` | Tags & PKM → tagWheel behavior, вторая часть | Active Field on opening | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 17 | `placement` | Tags & PKM → Placement modes | Strict: add a bullet, Keep typed tags in text | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 17 | `prefix-behavior` | Tags & PKM → Fields: Prefix behavior | где контрол, Strict, Insert only, Insert only без Field Prefix | записан впервые 2026-10-06 по его замечанию к placement, ждёт приёмки |
 | 18 | `transform` | Transform → Inline to note, New note naming, Note content | Inline to note, Line above the text, Note name: Ask | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 19 | `transform-source` | Transform → Source line | Sub-lines, What happens with current line, Dim transformed line | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
-| 20 | `auto-moc` | Transform → Auto-MOC in your links | Link the notes you mention | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 20 | `auto-moc` | Transform → Auto-MOC in your links | Link the notes you mention, Where to put the link, Under heading, If heading not found; Project B открыта рядом | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 20 | `auto-moc-2` | Transform → Auto-MOC in your links, вторая часть | Add empty line before wikilink, Field Value, Date and time, Emoji before the date, Place in the list | записан впервые 2026-10-06 по его замечанию, ждёт приёмки |
 | 21 | `smart-rules` | Transform → Smart Rules | шаблон по умолчанию, правило для Project A | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 22 | `line-view` | Visual → Line view, Tag view | Tag bubble corners, Block text size, Block opacity, Stripe, Stripe opacity | принят 2026-10-06 |
 | 23 | `link-view` | Visual → Link view | цвета ссылок и скобок | принят 2026-10-06 |
-| 24 | `tag-bars` | Visual → Tag Bars | Tag Bars, Number of Bars, Hide the tag, Bars for the whole tree, Join Bars | принят 2026-10-06 |
-| 24 | `tag-bars-look` | Visual → Tag Bars: вид | Bar thickness, Distance from the text, Space between Bars, Vertical gap | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 24 | `tag-bars` | Visual → Tag Bars | Tag Bars, Number of Bars, Hide the tag, Bars for the whole tree, Join Bars; заметка и панель рядом | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
+| 24 | `tag-bars-look` | Visual → Tag Bars: вид | Bar thickness, Distance from the text, Space between Bars, Vertical gap; заметка и панель рядом | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 25 | `tagwheel-colors` | Visual → tagWheel (Panel): цвета | без заливки, Background color, цвета Field и Value | записан впервые 2026-10-06, ждёт приёмки |
 | 25 | `tagwheel-look` | Visual → tagWheel (Panel, Scroller) | Show tag markers, Scroller | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 26 | `cursor` | Visual → Text cursor | цвет и ширина каретки | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
