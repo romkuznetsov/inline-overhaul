@@ -905,7 +905,7 @@ const TAGWHEEL_FILL_STYLE_CSS = [
   ".markdown-source-view.mod-cm6 .inline-overhaul-tw-token {",
   "  font: inherit;",
   "  color: var(--io-tw-token-color, inherit);",
-  "  background-color: var(--io-twfill, var(--text-highlight-bg));",
+  "  background-color: var(--io-twfill, var(--io-tw-fill-theme));",
   "}",
 ].join("\n");
 
@@ -1716,13 +1716,13 @@ const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, chosen: 2, name: 2, active: 3, r
 /**
  * Переменные темы для панели TagWheel без заданного цвета (PRD 10.13.23 Ц2, H4).
  * То же объявление — в `src/ui/settings/custom/theme_colors.ts`; совпадение держит
- * пин `tag_visual_render_tests.ts` (У-32). `--text-highlight-bg` — фон `==…==`
- * Obsidian. Цвета текста — свои переменные `styles.css` (контраст тёмной темы, H1.5).
+ * пин `tag_visual_render_tests.ts` (У-32). `--io-tw-fill-theme` — фон `==…==`
+ * Obsidian: у стандартной темы 1.14 он `--highlight-background` (В-296). Цвета текста — свои переменные `styles.css` (контраст тёмной темы, H1.5).
  */
 const TAGWHEEL_THEME_COLOR_VARS = {
   defaultTextColor: "--io-tw-text",
   activeTextColor: "--io-tw-active",
-  fillColor: "--text-highlight-bg",
+  fillColor: "--io-tw-fill-theme",
 }
 
 /**

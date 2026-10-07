@@ -1436,6 +1436,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 body {
   --io-tw-text: var(--text-muted);
   --io-tw-active: var(--text-accent);
+  --io-tw-fill-theme: var(--text-highlight-bg, var(--highlight-background));
 }
 body.theme-dark {
   --io-tw-text: var(--text-normal);
@@ -1455,7 +1456,7 @@ body.theme-dark {
 .io-wheelline--lit {
   border-radius: var(--radius-s);
   padding: 0 2px;
-  background: var(--io-wheel-lit, var(--text-highlight-bg));
+  background: var(--io-wheel-lit, var(--io-tw-fill-theme));
 }
 .io-wheelpanel--up { bottom: calc(100% + 5px); }
 .io-wheelpanel--down { top: calc(100% + 5px); }

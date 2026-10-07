@@ -15,7 +15,7 @@ export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
   "visual.tagWheel.textColor": "--io-tw-text",
   "visual.tagWheel.activeTextColor": "--io-tw-active",
   "visual.tagWheel.chosenValueColor": "--io-tw-text",
-  "visual.tagWheel.fillColor": "--text-highlight-bg",
+  "visual.tagWheel.fillColor": "--io-tw-fill-theme",
   "visual.tagWheel.scroller.fillColor": "--background-primary",
   "visual.tagWheel.scroller.textColor": "--text-normal",
   /* Каждая пара — у того, кто рисует при незаданном цвете (2026-09-22, тест 6). */

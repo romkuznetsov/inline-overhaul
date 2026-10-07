@@ -1259,8 +1259,8 @@ const filled = (el: Any): boolean =>
   /* 1. Пусто — красится переменной темы, а не ничем и не чёрным. */
   const themed = I.resolveTagwheelPaintColors(
     I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: {} } }));
-  assert.equal(themed.fillColor, "var(--text-highlight-bg)",
-    "заливка панели берётся у темы: " + themed.fillColor);
+  assert.equal(themed.fillColor, "var(--io-tw-fill-theme)",
+    "заливка панели — своей переменной с запасом на имя Obsidian 1.14 (В-296): " + themed.fillColor);
   assert.equal(themed.defaultTextColor, "var(--io-tw-text)",
     "неактивные Fields — своей переменной, у неё пара по теме (H1.5): " + themed.defaultTextColor);
   assert.equal(themed.activeTextColor, "var(--io-tw-active)",

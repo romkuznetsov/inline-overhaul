@@ -252,6 +252,7 @@ const PREPARE = {
   "use-shift-enter"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-caret"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-no-highlight"(vault) { PREPARE["shift-enter"](vault); },
+  "tagwheel-default-fill"(vault) { PREPARE["shift-enter"](vault); },
   "tagwheel-scrolled-cell"(vault) { PREPARE["shift-enter"](vault); },
   "undo-visual-redraw"(vault) { PREPARE["shift-enter"](vault); },
   "separator-rewrite"(vault) { fs.writeFileSync(path.join(vault, "sep.md"), "- #todo || call Anna\n- just text\n"); },
@@ -973,6 +974,43 @@ const SCENARIOS = {
   },
 
   /* В-287: полоса tagWheel при выключенной подсветке строки — что видно на экране, а не что в документе. */
+  /* В-296: без своего цвета строка tagWheel залита цветом темы — и стандартной, и Minimal. */
+  async "tagwheel-default-fill"(win) {
+    const line = "- [ ] #todo #high :: Buy groceries";
+    const fillFor = async (theme) => {
+      await win.evaluate(async ({ line, theme }) => {
+        window.app.customCss.setTheme(theme);
+        const p = window.app.plugins.plugins["inline-overhaul"];
+        p.setConfigPatch({ visual: { tagWheel: { highlightLine: true, fillColor: "" } } }, "bench:tagwheel-default-fill");
+        await window.app.workspace.getLeaf(false).openFile(window.app.vault.getAbstractFileByPath("enter.md"), { state: { mode: "source", source: false } });
+        await new Promise((r) => setTimeout(r, 800));
+        const ed = window.app.workspace.activeEditor.editor;
+        ed.setValue(line);
+        ed.setCursor({ line: 0, ch: line.length });
+        ed.focus();
+        await new Promise((r) => setTimeout(r, 300));
+      }, { line, theme });
+      if (!(await runCommand(win, "open-tagwheel-left"))) throw new Error("команда tagWheel Left не выполнилась");
+      await win.waitForTimeout(800);
+      const bg = await win.evaluate(() => {
+        const n = document.querySelector(".workspace-leaf.mod-active .cm-line.io-twline span.cm-highlight");
+        return n ? getComputedStyle(n).backgroundColor : "НЕТ УЗЛА";
+      });
+      await win.keyboard.press("Escape");
+      await win.waitForTimeout(300);
+      return bg;
+    };
+    const was = await win.evaluate(() => window.app.customCss.theme);
+    const plain = await fillFor("");
+    const themed = was ? await fillFor(was) : "";
+    await win.evaluate((t) => window.app.customCss.setTheme(t), was);
+    console.log("стандартная тема: " + plain + (was ? " | " + was + ": " + themed : ""));
+    const empty = (c) => !c || c === "НЕТ УЗЛА" || /rgba\(0, 0, 0, 0\)|transparent/.test(c);
+    const ok = !empty(plain) && (!was || !empty(themed));
+    console.log(ok ? "ok: строка tagWheel залита цветом темы" : "РАСХОДИТСЯ: строка tagWheel без заливки");
+    return ok;
+  },
+
   async "tagwheel-no-highlight"(win) {
     const line = "- [ ] #todo #high :: Buy groceries";
     const run = async (hl) => {

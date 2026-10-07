@@ -952,6 +952,7 @@
 body {
   --io-tw-text: var(--text-muted);
   --io-tw-active: var(--text-accent);
+  --io-tw-fill-theme: var(--text-highlight-bg, var(--highlight-background));
 }
 body.theme-dark {
   --io-tw-text: var(--text-normal);
@@ -972,7 +973,7 @@ body.theme-dark {
 .io-wheelline--lit {
   border-radius: var(--radius-s);
   padding: 0 2px;
-  background: var(--io-wheel-lit, var(--text-highlight-bg));
+  background: var(--io-wheel-lit, var(--io-tw-fill-theme));
 }
 /* Прозрачность блока гасит ячейки наравне с пузырями, но не коробку (B2). */
 .io-line--wheel .io-line__side--left > .io-wheelcol > .io-wheelcell {
@@ -1844,7 +1845,7 @@ body.theme-dark {
 .markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-formatting-highlight,
 .markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-hashtag.cm-highlight,
 .markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-inline-code.cm-highlight {
-  background-color: var(--io-twfill, var(--text-highlight-bg));
+  background-color: var(--io-twfill, var(--io-tw-fill-theme));
   border: none;
   border-radius: 0;
   padding: 0;
