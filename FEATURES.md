@@ -40,15 +40,15 @@ A **Field** is one slot a line can carry: a status, a priority, a project, a due
 | `Tag` | a tag | `#todo` |
 | `Link` | a link to a note | `[[Project A]]` |
 | `Element` | an emoji marker plus a format | `📅2026-09-15` |
-| `Command` | nothing: it edits the line | wraps the line in a callout |
+| `Action` | nothing: it edits the line | wraps the line in a callout |
 
-The `Add a Field` window uses these four names. The list of Fields labels the last two `Emoji` and `Action`.
+In the list of Fields each type is marked by a small tile: `#`, `[[`, `☺`, `/`.
 
 - **Element**
   - steps a date, a time, a counter or a random id
   - a date written with a space, `📅 2026-09-15`, is read too
   - can be a list of your own Values, each with its own emoji: `🙂‍↕️yes`, `🙂‍↔️no`, or an emoji alone, such as `💡`
-- **Command**
+- **Action**
   - holds categories instead of Values: `Insert callout`, `Cleanup`, `Insert codeblock`, `Tree ↔ section`
   - each category comes with ready-made presets you can rename, hide or clone
   - each category gets its own `next` and `previous` commands
@@ -166,7 +166,7 @@ Eight commands that know a line has structure.
 - **Smart paste.** A pasted numbered list is counted from one, or carries on the count of a list right above it.
 - **Binder.** Your own insert commands: each row is a snippet with a command of its own.
   - `Smart bracket` ships with it and cycles brackets around the cursor or selection
-  - a row of type `Command` runs one category of a Command Field with its own preset: one press applies it, the next takes it off
+  - a row of type `Action` runs one category of an Action Field with its own preset: one press applies it, the next takes it off
 - **Commands & Hotkeys.** Every command with the key bound to it, and a `to hotkeys` button that opens Obsidian's `Hotkeys` filtered to that group.
 
 *Where:* **Keyboard**: `Global hotkeys`, `Binder`, `Commands & Hotkeys`.
@@ -258,7 +258,7 @@ Commands that come from your setup:
 | You add | You get |
 |---|---|
 | a Field | `<Field> next`, `<Field> previous` |
-| a category of a Command Field | `<Field> · <category> next`, `… previous` |
+| a category of an Action Field | `<Field> · <category> next`, `… previous` |
 | a custom block | `tagWheel <block>` |
 | a Binder row | a command named after the row |
 

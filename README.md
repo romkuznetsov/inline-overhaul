@@ -76,7 +76,7 @@ Section names match the tabs of the settings panel, so what you read here is whe
   - Tags: `#todo`
   - wikilinks: `[[Project A]]`
   - emoji-elements, such as `📅2026-09-15`, which step by a day, by a counter of your own, or through a list you write
-  - Command Fields, which edit the line itself: wrap it in a callout, clean it up, turn a tree into a section
+  - Action Fields, which edit the line itself: wrap it in a callout, clean it up, turn a tree into a section
 
 See it in motion: [Fields and Values](docs/SHOWCASE.md#fields-and-values).
 

@@ -3791,7 +3791,7 @@ const SCHEMA = [
 /* Подпись типа. `Emoji` вместо `Element`: чип шириной в слово `Element`
    съедал имя Field в узкой левой колонке — «444» превращалось в «4...»
    (замечание заказчика 2026-08-27). В конфиге тип остаётся `element` (З1). */
-const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji", command: "Action" };
+const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Element", command: "Action" };
 /* Знак типа в плитке списка Fields — то, что тип пишет в строку (его 💬 к тесту 1 цикла 128). */
 const TYPE_GLYPH = { tag: "#", link: "[[", element: "☺︎", command: "/" };
 /* `Free` снят (PRD 10.13.260, `В-203`): вставка у каретки уехала в custom
@@ -4599,7 +4599,7 @@ function fieldsListLegend(tip) {
   fields(glyph("↑ ↓"), "Move one place; at the edge of a Block, into the next Block. Works from the keyboard");
   fields(tile("tag"), "<b>Tag</b> writes a tag, such as <code>#todo</code>");
   fields(tile("link"), "<b>Link</b> writes a link to a note, such as <code>[[John]]</code>");
-  fields(tile("element"), "<b>Emoji</b> writes an emoji, such as <code>💡</code>");
+  fields(tile("element"), "<b>Element</b> writes an emoji, such as <code>💡</code>");
   fields(tile("command"), "<b>Action</b> edits the line, such as wrapping it in a callout; it writes no Value");
   return tip;
 }
@@ -8365,7 +8365,7 @@ function renderAddFieldDialog() {
     [["tag", "#todo", "Tag", "Your own #tags, each in its own colors"],
      ["wikilink", "[[Project]]", "Link", "A link to one of your notes"],
      ["element", "📅" + fmtDate(now, "YYYY-MM-DD"), "Element", "An emoji with a date, a time, a count or a random id"],
-     ["command", "> [!note]", "Command", "Edits of the line, such as a callout or a cleanup, one hotkey each"]].forEach(([k, sample, name, desc]) => {
+     ["command", "> [!note]", "Action", "Edits of the line, such as a callout or a cleanup, one hotkey each"]].forEach(([k, sample, name, desc]) => {
       const c = el("button", "io-nf__type" + (d.type === k ? " io-nf__type--on" : ""), types);
       c.type = "button"; c.setAttribute("role", "radio"); c.setAttribute("aria-checked", String(d.type === k));
       el("span", "io-nf__sample", c, sample);

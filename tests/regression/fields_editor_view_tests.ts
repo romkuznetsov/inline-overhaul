@@ -459,8 +459,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
     text: String(c.getAttribute("aria-label") || ""),
     bg: c.style.getPropertyValue("--io-chip-bg"),
   }));
-  assert.deepEqual(dots.map(c => c.text), ["Tag", "Emoji"],
-    "тип назван подсказкой точки коротким словом: Emoji, хотя в конфиге element");
+  assert.deepEqual(dots.map(c => c.text), ["Tag", "Element"],
+    "тип назван подсказкой точки тем же словом, что в окне Add a Field (его ответ 2026-10-07)");
   assert.equal(dots[0]?.bg, "var(--io-type-tag)", "цвет типа приходит переменной, а не литералом");
   assert.equal(dots[1]?.bg, "var(--io-type-element)", "у element свой цвет типа");
   /* Бренд-бук (`В-198`): тег — янтарь, и белый на нём не читается. Текст чипа
@@ -907,7 +907,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.deepEqual(headText(), ["Fields", "Values"],
     "шапка правой колонки одна на все типы Field");
   const chips = all(v.host, "io-chip--typed").map(n => String(n.textContent || "").trim());
-  assert.ok(chips.includes("Emoji"),
+  assert.ok(chips.includes("Element"),
     "контроль: тип Field обязан остаться виден чипом — " + JSON.stringify(chips));
   ok("Ф6: шапка правой колонки одна на все типы, тип виден чипом");
 }

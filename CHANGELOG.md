@@ -21,7 +21,8 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
-1. 🐛 **A new Field opens right away.** After `Add Field` the new Field is picked in the list, and its settings show on the right
+1. 🎨 **A Field type has one name everywhere.** The `Add a Field` window and Binder call the fourth type `Action`, as the list of Fields does, and the list calls an emoji Field `Element`, as the window does
+2. 🐛 **A new Field opens right away.** After `Add Field` the new Field is picked in the list, and its settings show on the right
 
 ## 0.16.1
 

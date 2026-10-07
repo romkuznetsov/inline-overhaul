@@ -121,8 +121,8 @@ For text you type over and over: each row of this table is a command that drops 
 - **`Add command`** opens a small window.
   - `Inserts`: type the text, or pick it below from `Emoji`, `Symbol` or `Kaomoji`, with a search by name.
   - `Command name`: fills itself in from what you pick, and you can change it.
-  - `Type`: `Text` inserts your text. `Command` runs one category of a `Command` Field (`Insert callout`, `Cleanup`, `Insert codeblock`, `Tree ↔ section`) with a preset of its own.
-- **A `Command` row** shows its category in `Inserts` and its preset in a line under the row; the triangle at its name opens it. The preset can change any time.
+  - `Type`: `Text` inserts your text. `Action` runs one category of an `Action` Field (`Insert callout`, `Cleanup`, `Insert codeblock`, `Tree ↔ section`) with a preset of its own.
+- **An `Action` row** shows its category in `Inserts` and its preset in a line under the row; the triangle at its name opens it. The preset can change any time.
   - One press applies the preset, the next press on its result takes it off. `Cleanup` only applies.
 - **After a row is made**, only `Description` can change. To change its text, delete the row and add it again; its command goes with it.
 - **`Hotkey`** opens Obsidian's `Hotkeys` screen at that command.
@@ -251,9 +251,9 @@ A Field is one thing a line can have: a tag, a link to a note, an emoji item suc
 | `Tag` | a tag | `#todo` |
 | `Link` | a link to a note | `[[Project A]]` |
 | `Element` | an emoji with a date, a time, a count, a random id, or a Value from your own list | `📅2026-09-15`, `🙂‍↕️yes` |
-| `Command` | nothing: it edits the line, such as wrapping it in a callout | — |
+| `Action` | nothing: it edits the line, such as wrapping it in a callout | — |
 
-The list of Fields labels `Element` as `Emoji` and `Command` as `Action`.
+In the list of Fields each type is marked by a small tile: `#`, `[[`, `☺`, `/`; its name shows on hover.
 
 **Right column: the Field picked on the left**, top to bottom:
 
@@ -263,9 +263,9 @@ The list of Fields labels `Element` as `Emoji` and `Command` as `Action`.
 | `Child name in tagWheel` | Shown once the Field has child Values: the name of its child Field in tagWheel, `sub` when empty |
 | `Values` | `Tag` and `Link`: the ordered list `next` and `previous` walk (see below) |
 | `Value` | `Element`: `Emoji prefix`, `Value format`, `Steps by`, and the row that `Steps by` asks for |
-| `Categories` | `Command`: the kinds of edit and their presets (see below) |
+| `Categories` | `Action`: the kinds of edit and their presets (see below) |
 | `Behavior` | How the Field acts on a line (see below) |
-| `YAML property` | Which property of a transformed note the Field becomes (see below). Not for `Command` |
+| `YAML property` | Which property of a transformed note the Field becomes (see below). Not for `Action` |
 | `Commands` | The Field's own commands and the key each one is on |
 
 `Values`, `Value`, `Categories`, `Behavior`, `YAML property` and `Commands` are sections that fold.
@@ -288,7 +288,7 @@ The list of Fields labels `Element` as `Emoji` and `Command` as `Action`.
 | `Custom step` | `Steps` | Walks steps you write, one per line; `END` removes the Value |
 | `List of Values` | `Values` | Walks your own list, each Value with its emoji: `🙂‍↕️yes`, `🙂‍↔️no`, or an emoji alone such as `💡` |
 
-**`Categories`** of a `Command` Field: `Insert callout`, `Cleanup`, `Insert codeblock` and `Tree ↔ section`.
+**`Categories`** of an `Action` Field: `Insert callout`, `Cleanup`, `Insert codeblock` and `Tree ↔ section`.
 
 - Each category has ready-made presets you can rename, hide, clone and reorder, and its own `next` and `previous` commands.
 - The settings of a preset sit in the row under its category.
@@ -305,7 +305,7 @@ The list of Fields labels `Element` as `Emoji` and `Command` as `Action`.
 | `Child tag format` | `Tag` Fields with child Values: `Separate (#doing #review)` or `Nested (#doing/review)`. Each Field keeps its own choice | `Separate (#doing #review)` |
 | `Prerequisite Field` | `Yes` makes the Field wait until another Field has a Value. Then `Choose prerequisite Field` and `Prerequisite Value` (`Any Value`, or one Value) appear. Not for a child Field or a `Command` Field | `No` |
 
-A `Command` Field has only `Active` here.
+An `Action` Field has only `Active` here.
 
 **`YAML property`**
 

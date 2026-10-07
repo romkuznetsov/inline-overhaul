@@ -1643,7 +1643,7 @@ const SCENARIOS = {
     await clickIn(host, "Add Field");
     await host.waitForSelector(".io-nf", { timeout: 5000 });
     const cards = await host.evaluate(() => [...document.querySelectorAll(".io-nf__type .io-nf__typename")].map((n) => n.textContent));
-    if (!cards.includes("Command")) { console.log("карточки:", cards.join(), "| РАСХОДИТСЯ: типа Command нет"); return false; }
+    if (!cards.includes("Action")) { console.log("карточки:", cards.join(), "| РАСХОДИТСЯ: типа Action нет"); return false; }
     await host.click(".io-nf__type:nth-child(4)");
     await host.waitForTimeout(200);
     await host.fill("input[aria-label=\"Name of the new Field\"]", "Format");

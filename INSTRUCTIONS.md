@@ -12,7 +12,7 @@ Step-by-step instructions for people who have already installed the plugin, one 
 | Start | [Install, update or uninstall](#install-update-or-uninstall-with-brat) · [Set up the plugin on first run](#set-up-the-plugin-on-first-run) · [Give commands a hotkey](#give-commands-a-hotkey) · [Turn a module on or off](#turn-a-module-on-or-off) · [Change the panel language](#change-the-panel-language) |
 | Navigation | [Move lines and trees up or down](#move-lines-and-trees-up-or-down) · [Change the line Prefix or indent](#change-the-line-prefix-or-indent) · [Move selected text along a line](#move-selected-text-along-a-line) · [Jump between headings](#jump-between-headings) · [Move the cursor inside a line](#move-the-cursor-inside-a-line) |
 | Keyboard | [Choose what Ctrl+A selects](#choose-what-ctrla-selects) · [Join lines cleanly with Del and Backspace](#join-lines-cleanly-with-del-and-backspace) · [Add a line with Enter without splitting yours](#add-a-line-with-enter-without-splitting-yours) · [Paste numbered lists cleanly](#paste-numbered-lists-cleanly) · [Make your own insert commands with Binder](#make-your-own-insert-commands-with-binder) |
-| Tags & PKM | [Add and arrange Fields](#add-and-arrange-fields) · [Set up tag Values and child tags](#set-up-tag-values-and-child-tags) · [Set up link Values](#set-up-link-values) · [Set up a date, time or counter](#set-up-a-date-time-or-counter) · [Edit the line with a Command Field](#edit-the-line-with-a-command-field) · [Write Values where the cursor is](#write-values-where-the-cursor-is) · [Change the Separators](#change-the-separators) · [Choose what is left after a cycle](#choose-what-is-left-after-a-cycle) · [Mark a ticked line](#mark-a-ticked-line) · [Pick Values with tagWheel](#pick-values-with-tagwheel) · [Decide which Prefix wins](#decide-which-prefix-wins) · [Copy Fields into note properties](#copy-fields-into-note-properties) |
+| Tags & PKM | [Add and arrange Fields](#add-and-arrange-fields) · [Set up tag Values and child tags](#set-up-tag-values-and-child-tags) · [Set up link Values](#set-up-link-values) · [Set up a date, time or counter](#set-up-a-date-time-or-counter) · [Edit the line with an Action Field](#edit-the-line-with-an-action-field) · [Write Values where the cursor is](#write-values-where-the-cursor-is) · [Change the Separators](#change-the-separators) · [Choose what is left after a cycle](#choose-what-is-left-after-a-cycle) · [Mark a ticked line](#mark-a-ticked-line) · [Pick Values with tagWheel](#pick-values-with-tagwheel) · [Decide which Prefix wins](#decide-which-prefix-wins) · [Copy Fields into note properties](#copy-fields-into-note-properties) |
 | Transform | [Turn a line into a note](#turn-a-line-into-a-note) · [Link new notes from the notes you mention](#link-new-notes-from-the-notes-you-mention) · [Pick a template by the kind of line](#pick-a-template-by-the-kind-of-line) |
 | Visual | [Change how tagged lines look](#change-how-tagged-lines-look) · [Draw Tag Bars in the margin](#draw-tag-bars-in-the-margin) · [Change the look of tagWheel](#change-the-look-of-tagwheel) · [Color and shape the text cursor](#color-and-shape-the-text-cursor) · [Show where the cursor lands](#show-where-the-cursor-lands) · [Color tags that are not Values](#color-tags-that-are-not-values) |
 | Advanced | [Save, restore or move your settings](#save-restore-or-move-your-settings) · [Undo a settings change](#undo-a-settings-change) · [Collect a log for a bug report](#collect-a-log-for-a-bug-report) |
@@ -104,7 +104,7 @@ Other commands come from your setup, and they follow it at once: add, rename or 
 |---|---|
 | Each Tag, Link or Element Field | `<Field> next` and `<Field> previous`, such as `Status next` |
 | A child Field | its own pair, the parent name with `-sub`, such as `Status-sub next` |
-| Each category of a Command Field | `<Field> · <category> next` and `<Field> · <category> previous` |
+| Each category of an Action Field | `<Field> · <category> next` and `<Field> · <category> previous` |
 | Each custom block | `tagWheel <block name>` |
 | Each Binder row | one command named after the row |
 
@@ -291,11 +291,11 @@ Binder turns text you type often into commands.
 1. Open **Keyboard → Binder (custom insert commands)** and press `Add command`.
 2. Pick the `Type`:
    - `Text` puts your text in at the cursor, or over the selection.
-   - `Command` runs a category of a Command Field with a preset of its own (see [Edit the line with a Command Field](#edit-the-line-with-a-command-field)).
+   - `Action` runs a category of an Action Field with a preset of its own (see [Edit the line with an Action Field](#edit-the-line-with-an-action-field)).
 3. Fill `Inserts` and, if you like, `Command name` and `Description`.
 4. Click the row's `Hotkey` cell and set a key in Obsidian's `Hotkeys` screen.
 
-You cannot change a row's text afterwards: delete the row and add it again. Deleting a row deletes its command at once. `Description` stays editable, and so does the preset of a `Command` row.
+You cannot change a row's text afterwards: delete the row and add it again. Deleting a row deletes its command at once. `Description` stays editable, and so does the preset of an `Action` row.
 
 The built-in row `Smart bracket` cycles brackets around a selection: `text` → `[text]` → `[[text]]` → `text`. With the cursor inside `[[Note]]` it takes the link brackets off; inside `[Note]` it makes a link.
 
@@ -318,9 +318,9 @@ The line has three parts: the Left Block before the First Separator, your text, 
 - `Element` writes an emoji with a Value after it: `📅2026-09-15`
   - a date written with a space, `📅 2026-09-15`, is read too
   - an Element can also walk a list of emoji Values, such as `💡`
-- `Command` writes nothing; it edits the line, such as wrapping it in a callout
+- `Action` writes nothing; it edits the line, such as wrapping it in a callout
 
-The list of Fields labels an Element as `Emoji` and a Command Field as `Action`.
+In the list of Fields each type is marked by a small tile: `#`, `[[`, `☺`, `/`.
 
 **Arrange Fields.** Drag a Field by its handle to reorder it, or across the dotted line into the other Block. The arrows move it one place, and at the edge of a Block into the next one. The order in the list is the order on the line.
 
@@ -397,9 +397,9 @@ In the right column of **Tags & PKM → Fields**, set:
 
 `Custom step` example: `1 (2)`, `5`, `END` makes `next` write `🔢1`, `🔢2`, `🔢3`, `🔢8`, then remove the Value. A number in brackets repeats a step; `END` removes the Value.
 
-## Edit the line with a Command Field
+## Edit the line with an Action Field
 
-A Command Field edits the line instead of writing a Value. Add a Field of type `Command`, then add categories to it under `Categories`.
+An Action Field edits the line instead of writing a Value. Add a Field of type `Action`, then add categories to it under `Categories`.
 
 | Category | What it does |
 |---|---|
@@ -879,7 +879,7 @@ The plugin renamed several of its mechanisms so that the panel says what a thing
 | You may have seen | Now called | What it is |
 |---|---|---|
 | Order | **Fields** | The list of what a line can carry; position is set by dragging in the list |
-| — | **Field** | One thing a line carries. Four types: `Tag`, `Link`, `Element`, `Command`; the list shows the last two as `Emoji` and `Action` |
+| — | **Field** | One thing a line carries. Four types: `Tag`, `Link`, `Element`, `Action` |
 | — | **Value** | One choice inside a Field |
 | zone, segment | **Left Block** / **Right Block** | Fields before your text and Fields after it |
 | — | **Block** | The Left Block, the Right Block, or a custom block made with `Add Block` |

@@ -37,7 +37,7 @@ export const BLOCK_TEXTS = {
     LEGEND_ARROWS: "Move one place; at the edge of a Block, into the next Block. Works from the keyboard",
     LEGEND_TAG: "<b>Tag</b> writes a tag, such as <code>#todo</code>",
     LEGEND_LINK: "<b>Link</b> writes a link to a note, such as <code>[[John]]</code>",
-    LEGEND_EMOJI: "<b>Emoji</b> writes an emoji, such as <code>💡</code>",
+    LEGEND_EMOJI: "<b>Element</b> writes an emoji, such as <code>💡</code>",
     LEGEND_ACTION: "<b>Action</b> edits the line, such as wrapping it in a callout; it writes no Value",
     EMPTY_SIDE: "nothing on this side",
     SIDE_LEFT: "Left Block",
@@ -47,8 +47,8 @@ export const BLOCK_TEXTS = {
     SIDE_RIGHT_ABOUT: "Everything in Right Block is written after your text on the line",
     TYPE_TAG: "Tag",
     TYPE_LINK: "Link",
-    TYPE_ELEMENT: "Emoji",
-    /* Короче `Command`: чип не съедает имя Field (его пункт «Новое» 2026-10-03). */
+    TYPE_ELEMENT: "Element",
+    /* Одно имя типа на окно и список: в списке тип рисует значок (его ответ 2026-10-07). */
     TYPE_COMMAND: "Action",
     /* Command Field: категории и пресеты вместо Values (постановка command-field.md, 4.1). */
     CATS_HEAD: "Categories",
@@ -391,7 +391,7 @@ export const BLOCK_TEXTS = {
     NF_TYPE_TAG_DESC: "Your own #tags, each in its own colors",
     NF_TYPE_LINK_DESC: "A link to one of your notes",
     NF_TYPE_ELEMENT_DESC: "An emoji with a date, a time, a count or a random id",
-    NEW_FIELD_TYPE_COMMAND: "Command",
+    NEW_FIELD_TYPE_COMMAND: "Action",
     NF_TYPE_COMMAND_DESC: "Edits of the line, such as a callout or a cleanup, one hotkey each",
     NF_CATEGORIES_HEAD: "Categories",
     NF_PREVIEW_NO_CATEGORIES: "No categories yet",
@@ -626,9 +626,9 @@ export const BLOCK_TEXTS = {
     NEW_TITLE: "Add a Binder command",
     /* Строка типа `Command` (постановка command-field.md, 4.6). */
     NEW_TYPE_LABEL: "Type",
-    NEW_TYPE_DESC: "Insert your text, or run a Command Field category with one preset of its own",
+    NEW_TYPE_DESC: "Insert your text, or run an Action Field category with one preset of its own",
     TYPE_TEXT: "Text",
-    TYPE_COMMAND: "Command",
+    TYPE_COMMAND: "Action",
     NEW_CATEGORY_LABEL: "Category",
     NEW_CATEGORY_DESC: "What the command does to the line; set its preset below",
     NEW_CATEGORY_ARIA: "Category of the new command",
