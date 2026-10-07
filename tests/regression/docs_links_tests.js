@@ -90,7 +90,7 @@ function linksOf(text) {
     '<img src="docs/brand/io-wordmark-light.svg" width="560" alt="знак">',
     '<source media="(prefers-color-scheme: dark)" srcset="docs/brand/io-wordmark-dark.svg">',
     "[внешняя](https://obsidian.md)",
-    "[якорь](docs/SHOWCASE.md#header-jumps)",
+    "[якорь](docs/SHOWCASE.md#jump-inside-a-note)",
   ].join("\n");
   const found = linksOf(sample);
   assert.equal(found.length, 6, "обход нашёл " + found.length + " адресов из шести");
@@ -161,7 +161,7 @@ function linksOf(text) {
     "контроль: выдуманный файл внезапно существует");
   assert.ok(!anchorsOf("docs/SHOWCASE.md").has("zagolovka-takogo-net"),
     "контроль: выдуманный якорь считается живым");
-  assert.ok(anchorsOf("docs/SHOWCASE.md").has("header-jumps"),
+  assert.ok(anchorsOf("docs/SHOWCASE.md").has("jump-inside-a-note"),
     "контроль: настоящий якорь showcase не найден — разбор заголовков сломан");
   assert.ok(anchorsOf("docs/SHOWCASE.md").size >= 10,
     "контроль: заголовков в showcase найдено " + anchorsOf("docs/SHOWCASE.md").size);

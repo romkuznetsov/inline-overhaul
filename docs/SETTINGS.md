@@ -80,7 +80,7 @@ Three keys Obsidian already gives you, your own insert commands, and the command
 
 This is the one place where the plugin takes over a key Obsidian already owns.
 
-See it in motion: [Smart Ctrl+A](SHOWCASE.md#enhanced-ctrla).
+See it in motion: [Smart Ctrl+A](SHOWCASE.md#smart-ctrla).
 
 ### Global hotkeys → Smart Delete\Backspace
 
@@ -134,7 +134,7 @@ preset of its own, set with the same controls as in the Field. Its key works as 
 press applies the preset, the next press on its result takes it off; `Cleanup` only applies. The
 preset sits in a line under the row and can be changed any time.
 
-See it in motion: [Smart bracket](SHOWCASE.md#smart-bracket).
+See it in motion: [Binder and Smart bracket](SHOWCASE.md#binder-your-own-insert-commands).
 
 ### Commands & Hotkeys
 
@@ -167,7 +167,7 @@ Moving lines, text and the cursor without reaching for the mouse.
 
 Commands: `Move up`, `Move down`.
 
-See it in motion: [Move lines and trees](SHOWCASE.md#move-linestrees).
+See it in motion: [Move a line with its tree](SHOWCASE.md#move-a-line-with-its-tree).
 
 ### Move lines (left/right)
 
@@ -189,8 +189,8 @@ top of the group.
 
 Commands: `Move left`, `Move right`.
 
-See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-text) and
-[Prefix cycle and indent fallback](SHOWCASE.md#prefix-cycleindent-fallback).
+See it in motion: [Move selected text](SHOWCASE.md#move-selected-text) and
+[Cycle the line marker](SHOWCASE.md#cycle-the-line-marker).
 
 ### Jump inside a line (left/right)
 
@@ -203,7 +203,7 @@ See it in motion: [Move selected inline text](SHOWCASE.md#move-selected-inline-t
 
 Commands: `Jump left`, `Jump right`.
 
-See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigation).
+See it in motion: [Jump inside a line](SHOWCASE.md#jump-inside-a-line).
 
 ### Jump inside a note (up/down)
 
@@ -218,7 +218,7 @@ See it in motion: [Inline zone navigation](SHOWCASE.md#inline-pkm-zone-navigatio
 
 Commands: `Jump up`, `Jump down`.
 
-See it in motion: [Header jumps](SHOWCASE.md#header-jumps).
+See it in motion: [Jump inside a note](SHOWCASE.md#jump-inside-a-note).
 
 ## Tags & PKM
 
@@ -282,8 +282,8 @@ with a message.
 The chevron at the right edge of the group header switches the table between its full
 height, where every control is on screen at once, and a fixed height that scrolls.
 
-See it in motion: [Cycle a Field from the keyboard](SHOWCASE.md#direct-taglink-field-cycle-increasedecrease)
-and [Step an element up or down](SHOWCASE.md#element-incrementdecrement).
+See it in motion: [next and previous](SHOWCASE.md#next-and-previous)
+and [One Field and its Values](SHOWCASE.md#one-field-and-its-values).
 
 ### Separators
 
@@ -387,7 +387,7 @@ Command: `Transform inline to note`.
 Each Field’s `YAML property` row decides which property of the new note it becomes, and
 each Value carries the rule for how it is written.
 
-See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping).
+See it in motion: [A line becomes a note](SHOWCASE.md#a-line-becomes-a-note).
 
 ### Source line
 
@@ -405,7 +405,7 @@ See it in motion: [YAML Raw and Clean mapping](SHOWCASE.md#yaml-rawclean-mapping
 | `Opacity of transformed line` | `65` | Zero leaves the line as it is, eighty makes it barely readable |
 | `Color of transformed line` | unset | Unset keeps the color your theme gives the text |
 
-See it in motion: [Current root or selected tree](SHOWCASE.md#current-root-or-selected-tree).
+See it in motion: [What stays behind](SHOWCASE.md#what-stays-behind).
 
 ### Auto-MOC in your links
 
@@ -544,8 +544,8 @@ triangle beside it, so the preview at the top stays in view while you work.
 
 Commands: `tagWheel Left`, `tagWheel Right`.
 
-See it in motion: [tagWheel](SHOWCASE.md#tagwheel-leftrightnavigationapplycancel) and
-[tagWheel panel and scroller](SHOWCASE.md#tagwheel-panelscroller).
+See it in motion: [How tagWheel moves](SHOWCASE.md#how-it-moves) and
+[its look](SHOWCASE.md#its-look).
 
 ### Text cursor
 
@@ -622,5 +622,5 @@ command, not a button: saving is automatic and there is no manual flush.
 | [**Tutorial**](TUTORIAL.md) | Fifteen minutes from install to a line that works |
 | [**Setup and user guide**](../INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
 | [**Feature list**](../FEATURES.md) | Everything the plugin can do, in full |
-| [**Visual showcase**](SHOWCASE.md) | Thirty animations, grouped by workflow |
+| [**Visual showcase**](SHOWCASE.md) | Every feature in motion, section by section |
 | [**README**](../README.md) | What this plugin is, and how to install it |

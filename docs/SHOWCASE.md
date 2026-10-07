@@ -1,183 +1,522 @@
-# inlineOverhaul Showcase
+# Showcase
 
-This showcase covers part of the public feature surface as grouped user workflows; the complete surface is listed in [`FEATURES.md`](../FEATURES.md). `move-lines.gif`, `prefix-cycle.gif`, `pkm-cycle.gif`, and `tagwheel.gif` are live Obsidian captures; the other GIFs are animated behavior diagrams grounded in the runtime. Command hotkeys in captions are configurable; Enhanced Mod+A uses fixed `Ctrl/Cmd+A`.
+Every feature of inlineOverhaul in motion, recorded in a real Obsidian vault. Each clip starts with what Obsidian does on its own, then switches the plugin's control on camera, so you see exactly what changes.
 
-See the [full setup and user guide](../INSTRUCTIONS.md) for installation, configuration, Transform safety, copyable examples, and troubleshooting.
+New here? Start with the [README](../README.md) or the [tutorial](TUTORIAL.md). The full list of features is in [FEATURES.md](../FEATURES.md), every control in the [settings reference](SETTINGS.md).
 
-## What is here and what is not
+The sections go from the core idea to the finishing touches. Read them in order the first time; later, jump straight to the one you need.
 
-> [!IMPORTANT]
-> **Seventeen entries were removed on 2026-09-11**, by the author's decision.
-> Their animations showed the settings pane as it was before the rebuild: seven
-> areas instead of tabs with sub-tabs, no visibility toggles, one Fields editor
-> instead of the Order board and its Deep Editor. A picture of a pane that no
-> longer exists misleads exactly the reader this file is written for — someone
-> who has not installed the plugin yet.
->
-> **The GIF files themselves were not deleted.** They are the author's material
-> and stay in `media/showcase/`; when the pane is re-recorded, the entries come
-> back with them.
->
-> **The features did not go anywhere.** What each removed entry showed is
-> described in words in [`README.md`](../README.md) and in the
-> [user guide](../INSTRUCTIONS.md); the links that pointed at the removed entries
-> are now plain headings there, not dead anchors.
+| | Section | What you will see |
+|---|---|---|
+| 1 | [A line in seconds](#a-line-in-seconds) | One plain line becomes a task with a status, a priority, a project and a date |
+| 2 | [Fields and Values](#fields-and-values) | The slots a line can carry, and how Values are picked |
+| 3 | [tagWheel](#tagwheel) | The picker over the line: how it moves and how it looks |
+| 4 | [Moving and jumping](#moving-and-jumping) | Lines, trees, words and the cursor, moved with structure in mind |
+| 5 | [Keyboard](#keyboard) | `Ctrl+A`, `Delete`, `Enter`, paste and your own insert commands |
+| 6 | [Transform](#transform) | A line becomes a note, and the notes it mentions link back |
+| 7 | [Visual](#visual) | How tags, links, Bars and the cursor are drawn |
+| 8 | [Settings and safety](#settings-and-safety) | Modules, backups and undo for the settings themselves |
 
-**Runtime behavior did not change** — moving lines, cycling Values, tagWheel.
-What changed is the settings pane and the names of commands.
+## A line in seconds
 
-### Headings are link targets
+### A task line, start to finish
 
-Headings here are link targets from `README.md`. Renaming one breaks a link, so
-nothing is renamed in place: an entry either stays as it is or goes, and when it
-goes, the `README.md` link becomes plain text in the same commit. A pin in
-`tests/regression/docs_terms_tests.ts` checks this in both directions.
+tagWheel fills both sides of a plain line without leaving the keyboard.
 
-## Table of contents
+<img src="media/showcase/readme-hero.gif" width="720" alt="tagWheel Left and Right fill a plain line with a status, a priority, a project and a date">
 
-- [General](#general)
-  - [Enhanced Ctrl+A](#enhanced-ctrla)
-- [Navigation](#navigation)
-  - [Move lines/trees](#move-linestrees)
-  - [Move selected inline text](#move-selected-inline-text)
-  - [Prefix cycle/indent fallback](#prefix-cycleindent-fallback)
-  - [Header jumps](#header-jumps)
-  - [Inline PKM zone navigation](#inline-pkm-zone-navigation)
-- [Binder](#binder)
-  - [Smart bracket](#smart-bracket)
-- [PKM design/config](#pkm-designconfig)
-- [PKM runtime](#pkm-runtime)
-  - [Direct tag/link field cycle increase/decrease](#direct-taglink-field-cycle-increasedecrease)
-  - [Element increment/decrement](#element-incrementdecrement)
-  - [tagWheel left/right/navigation/apply/cancel](#tagwheel-leftrightnavigationapplycancel)
-- [Visual](#visual)
-  - [tagWheel panel/scroller](#tagwheel-panelscroller)
-- [Transform Inline2Note](#transform-inline2note)
-  - [Current root or selected tree](#current-root-or-selected-tree)
-  - [YAML Raw/Clean mapping](#yaml-rawclean-mapping)
+| Step | What you see |
+|---|---|
+| Left Block | `tagWheel Left` opens on Status: `↑` picks `#todo`, `→` steps to Priority, `↓` picks `#high` |
+| Right Block | `tagWheel Right`: `↑` picks `Project A`, `→` steps to Due, `↑` is today |
+| Done | Status, priority, project and date are in the line, as plain markdown |
 
-## General
+## Fields and Values
 
-### Enhanced Ctrl+A
+A Field is one slot a line can carry, such as a status or a project. Its Values are what can fill it. Everything here is set in **Tags & PKM → Fields**.
 
-Expand selection from the current line to its indentation tree and then the whole note.
+### One Field and its Values
 
-![Expand selection with enhanced Ctrl+A](media/showcase/selection-enhanced-ctrl-a.gif)
+<img src="media/showcase/fields.gif" width="720" alt="The Status Field with three Values, picked in tagWheel and cleared again">
 
-*Typical hotkey: press `Ctrl+A` repeatedly in the editor.*
+| Step | What you see |
+|---|---|
+| The Field | The panel opens on one Field, Status, with the Values `#todo`, `#doing`, `#done` |
+| Pick a Value | `tagWheel Left` on `- call the bank`: `↑` `↑` `Enter` writes `- #doing \|\| call the bank` |
+| Back to empty | `tagWheel Left` opens on `#doing`; the empty slot and `Enter` take the tag off the line |
 
-## Navigation
+### next and previous
 
-### Move lines/trees
+Each Field gets two commands of its own. They change the Value with one key, without opening a panel.
 
-Move the active line or its indentation tree without cutting and pasting.
+<img src="media/showcase/fields-next.gif" width="720" alt="Status next and Status previous step through the Values; tagWheel shows them all at once">
 
-![Move lines and indentation trees](media/showcase/move-lines.gif)
+| Step | What you see |
+|---|---|
+| `Status next`, `Status previous` | The next Value with one key, then one step back |
+| tagWheel | All Values of Status at once; `Enter` writes the one you picked |
 
-*Typical hotkeys: `Ctrl+Shift+Up` and `Ctrl+Shift+Down`.*
+### Add a Field
 
-### Move selected inline text
+<img src="media/showcase/fields-2.gif" width="720" alt="A new Field Energy is added and appears in tagWheel next to Status">
 
-Shift selected text left or right while keeping the rest of the line intact.
+| Step | What you see |
+|---|---|
+| New Field | `Add Field`: Energy, with one Value `#focus` |
+| Two Fields | `tagWheel Left` shows Status and Energy; `→` steps between them, `Enter` writes both Values |
 
-![Move selected inline text](media/showcase/navigation-inline-move.gif)
+### Child Fields
 
-*Typical action: select inline text, then run **Navigation: Move Left** or **Navigation: Move Right**.*
+A Field can depend on a Value of another one. **Tags & PKM → Fields → Child Field**.
 
-### Prefix cycle/indent fallback
+<img src="media/showcase/child-fields.gif" width="720" alt="A child Value review is offered after done, then on any line">
 
-Cycle configured structural prefixes and apply the configured cycle-end or indentation fallback.
+| Step | What you see |
+|---|---|
+| Two Fields | tagWheel has Status and Priority |
+| `After parent` | `#review` added under `#done` is offered once the line has `#done` |
+| `Always` | The child is offered on any line, with or without its parent |
 
-![Cycle prefixes and fall back to indentation](media/showcase/prefix-cycle.gif)
+### Blocks and Separators
 
-*Typical hotkeys: `Ctrl+Shift+Left` and `Ctrl+Shift+Right`.*
+A line has a Left Block before your text and a Right Block after it, each closed off by a Separator. **Tags & PKM → Separators**.
 
-### Header jumps
+<img src="media/showcase/separators.gif" width="720" alt="Tags before the text, links and dates after it, and both Separators changed to ::">
 
-Jump to the previous or next Markdown header without leaving the editor.
+| Step | What you see |
+|---|---|
+| Left Block | Tags go before your text; the First Separator `\|\|` ends the block |
+| Right Block | Links and dates go after your text; the Second Separator `\|\|` starts the block |
+| Separators | Both changed to `::`, and the line follows |
 
-![Jump between Markdown headers](media/showcase/navigation-header-jump.gif)
+### A Block at the cursor
 
-*Typical action: run **Navigation: Jump Header Up** or **Navigation: Jump Header Down**.*
+`Add Block` makes a Block of your own that writes where the cursor is, inside your text.
 
-### Inline PKM zone navigation
+<img src="media/showcase/custom-blocks.gif" width="720" alt="The Project Field moves into a custom block and its link is written at the cursor">
 
-Move the cursor between configured inline PKM zones on the active line.
+| Step | What you see |
+|---|---|
+| Right Block | Project sits in the Right Block, so the link goes after the text |
+| Custom block | Project moves into `Custom block 1`; `tagWheel Custom block 1` writes the link at the cursor, and again on the link puts the next Value in its place |
 
-![Navigate inline PKM zones](media/showcase/navigation-inline-zones.gif)
+### Where Values land
 
-*Typical action: run **Navigation: Inline Left** or **Navigation: Inline Right**.*
+**Tags & PKM → Placement modes**.
 
-## Binder
+<img src="media/showcase/placement.gif" width="720" alt="Strict adds a bullet to the line; a typed tag moves into its Block">
 
-### Smart bracket
+| Step | What you see |
+|---|---|
+| Default | `Status next` adds no bullet, and a tag you typed stays in your text |
+| `Strict: add a bullet` | The line gets a bullet |
+| `Keep typed tags in text` off | A typed `#high` moves into its Block |
 
-Insert or cycle context-aware bracket forms around the cursor or selected text.
+### A Value that brings a checkbox
 
-![Insert and cycle Smart brackets](media/showcase/binder-smart-bracket.gif)
+A Value can carry a line Prefix, such as `[ ]`. **Tags & PKM → Fields → Behavior → Prefix behavior**.
 
-*Typical action: run **Binder: Smart bracket** from a configured hotkey.*
+<img src="media/showcase/prefix-behavior.gif" width="720" alt="todo brings a checkbox on every line with Strict, and only on list lines with Insert only">
 
-## PKM design/config
+| Step | What you see |
+|---|---|
+| Where it is | `Prefix behavior` lives in each Field; `#todo` brings `[ ]` as its Prefix |
+| `Strict` | Even a plain line gets the checkbox |
+| `Insert only` | A plain line stays plain, a list line gets the checkbox |
+| Without Field Prefix | `Insert only` with `use Field Prefix` off: the bullet stays, no checkbox |
 
-## PKM runtime
+### A mark for a ticked line
 
-### Direct tag/link field cycle increase/decrease
+**Tags & PKM → Writing rules**.
 
-Cycle the active tag or link field forward or backward through its configured values.
+<img src="media/showcase/ticked-line.gif" width="720" alt="Ticking a checkbox adds done to the line and fades it">
 
-![Cycle a tag or link field](media/showcase/pkm-cycle.gif)
+| Step | What you see |
+|---|---|
+| Default Obsidian | Ticking the box only checks it |
+| `Mark ticked line` | Tick adds `#done`, untick takes it off |
+| `Dim ticked line` | A ticked line fades |
 
-*Typical action: run generated **PKM: `<name_strict>` increase/decrease** commands. The demo vault uses `Alt+Up` for one increase command; bindings are configurable.*
+## tagWheel
 
-### Element increment/decrement
+tagWheel opens over the line you are on. Arrow keys move between Fields and their Values, `Enter` writes the line back as plain markdown.
 
-Increase or decrease supported generic, date, time, and number elements in place.
+### How it moves
 
-![Increment and decrement inline elements](media/showcase/pkm-element-cycle.gif)
+**Tags & PKM → tagWheel behavior**.
 
-*Typical action: place the cursor on an element, then run its increase or decrease command from configured hotkeys.*
+<img src="media/showcase/tagwheel.gif" width="720" alt="The arrow key walks on into the Right Block, and the other Block stays in view">
 
-### tagWheel left/right/navigation/apply/cancel
+| Step | What you see |
+|---|---|
+| Default | `→` stays inside the Block; the other Block is hidden while you choose |
+| `Next Block` | `→` walks on into the Right Block |
+| `Values in the other Block` → `Show` | The other Block stays in view |
 
-Open tagWheel, move across fields and values, apply a choice, or cancel without changes.
+### The Field it opens on
 
-![Navigate and apply values with tagWheel](media/showcase/tagwheel.gif)
+<img src="media/showcase/tagwheel-2.gif" width="720" alt="tagWheel opens on the first Field, then on a chosen Field">
 
-*Typical action: open with `Alt+Down`, navigate with arrow keys, apply with `Enter`, or cancel with `Escape`.*
+| Step | What you see |
+|---|---|
+| Default | Both `tagWheel Left` and `tagWheel Right` open on the first Field |
+| `Active Field on opening` → `Chosen Field` | Left opens on Priority, Right on Project |
+
+### Its look
+
+**Visual → tagWheel → Panel** and **Scroller**.
+
+<img src="media/showcase/tagwheel-look.gif" width="720" alt="Values without the hash sign, then the Scroller with neighbor Values above and below">
+
+| Step | What you see |
+|---|---|
+| Default | The picker opens on the line; `Escape` puts the line back as it was |
+| `Show tag markers` off | Values without the `#` |
+| `Scroller` | Neighbor Values above and below; `↓` rolls to the next one |
+
+### Its colors
+
+<img src="media/showcase/tagwheel-colors.gif" width="720" alt="A yellow background for the open line and three text colors for Fields and Values">
+
+| Step | What you see |
+|---|---|
+| Default | The open tagWheel has no background |
+| `Background color` | The open line stands out |
+| Text colors | The Field you are on, the other Fields, and a Field that already has a Value, each in its own color |
+
+## Moving and jumping
+
+Eight commands that know a line has structure. **Navigation**.
+
+### Move a line with its tree
+
+**Navigation → Move lines (up/down)**.
+
+<img src="media/showcase/move-lines.gif" width="720" alt="A line moves up with its sub-items, jumps over a neighbor tree, a whole section moves, and a line stops at its heading">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `Move line up` moves one line; its sub-items stay behind and the list breaks |
+| `Whole tree` | The line takes its sub-items along |
+| `Jump over neighbor trees` | It jumps over the whole neighbor |
+| `Moving headings` → `Whole section` | The whole section moves |
+| `Cross heading boundaries` off | It stops at its heading |
+
+### Where the moved line ends up
+
+<img src="media/showcase/move-lines-2.gif" width="720" alt="The moved line stays highlighted, is kept at the top of the screen, or the note stays put">
+
+| Step | What you see |
+|---|---|
+| Default | The note scrolls to follow the moved line |
+| `Highlight after moving` | The moved line stays highlighted |
+| `Where the line lands` → `Top` | The line is kept at the top of the screen |
+| `Follow the moved line` off | The note stays put |
+
+### Move selected text
+
+**Navigation → Move lines (left/right)**.
+
+<img src="media/showcase/move-inline.gif" width="720" alt="A selected word moves word by word, a part of a word by letter, and stops at the Separators">
+
+| Step | What you see |
+|---|---|
+| `Move selected text` | A selected word moves word by word, part of a word by letter, and can jump past the Separator |
+| `Step out of the word` | The letter leaves its word |
+| `Continue past Separators` off | The text stays between the Separators |
+
+### Cycle the line marker
+
+`Move left` and `Move right` on a line with no selection change its Prefix, then its indent.
+
+<img src="media/showcase/prefix-cycle.gif" width="720" alt="Plain text becomes a bullet, then indents, and back again">
+
+| Step | What you see |
+|---|---|
+| `Cycle line Prefixes` | Plain text becomes a bullet; with no marker left, it indents; `Move left` walks back |
+| `After the last one` → `Start over` | After the bullet it starts over |
+| `Cycle in both directions` off | Only `Move left` changes the marker |
+
+### Jump inside a line
+
+**Navigation → Jump inside a line (left/right)**.
+
+<img src="media/showcase/jump-line.gif" width="720" alt="The cursor hops word by word, by sentence, stops at the end, and walks into the tags">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `Ctrl+→` walks on into the Separator and the date |
+| `Jump right` | Word by word; at the end of your text it wraps back to its start |
+| `Step size` → `Sentence` | To the end of each sentence |
+| `What to do at the end` → `Stop` | The cursor stays put |
+| `Continue past Separators` | `Jump left` walks into the tags |
+
+### Jump inside a note
+
+**Navigation → Jump inside a note (up/down)**.
+
+<img src="media/showcase/jump-note.gif" width="720" alt="The cursor jumps between sections, to their first lines only, and line by line">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `↓` walks through every line |
+| `Jump between headings` | `Jump down` stops at the end of a section, then at the start of the next |
+| `Where in the section` → `Start only` | Only the first line of each section |
+| `Jump target` → `Lines` | Line by line, headings included |
+
+## Keyboard
+
+Familiar keys that do a little more. **Keyboard**.
+
+### Smart Ctrl+A
+
+<img src="media/showcase/ctrl-a.gif" width="720" alt="Each press of Ctrl+A widens the selection: word, line, tree, section, note">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `Ctrl+A` selects the whole note |
+| `Smart Ctrl+A` | The line first, then the whole note |
+| `Selection steps` | Word, line, tree, section, note |
+
+<img src="media/showcase/ctrl-a-2.gif" width="720" alt="Custom steps for Ctrl+A, and one last press that lets go">
+
+| Step | What you see |
+|---|---|
+| `Custom` | Tick the steps a press stops at: word, line, section, note |
+| `Last press clears highlighting` | After the note, one more press lets go |
+
+### Smart Delete and Backspace
+
+<img src="media/showcase/smart-delete.gif" width="720" alt="Delete at the end of a line pulls up only the words of the next one">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `Delete` pulls up the indent and the bullet too |
+| `Smart Delete` | Only the indent goes |
+| `Drop the line Prefix` | The bullet goes too |
+| `Join with a space` | The words join with a space |
+| `Smart Backspace` | `Backspace` at the start pulls the words up the same way |
+
+### Smart Enter
+
+<img src="media/showcase/smart-enter.gif" width="720" alt="Enter adds a new line below and keeps the current one whole">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | `Enter` splits the line |
+| `Smart Enter` | A new line below, this one stays whole, the new line takes the same marker |
+| `Prefix on the new line` | `None`: the new line starts bare. `Numbered lines only`: the next number, but no bullet |
+| `Use Shift+Enter instead` | `Enter` splits as usual, `Shift+Enter` adds the line below |
+
+### Smart paste
+
+<img src="media/showcase/smart-paste.gif" width="720" alt="Pasted numbered lines continue the list above or start from one">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | Pasted on its own, a numbered list keeps its old numbers |
+| `Smart paste` | Under a list the count carries on; on its own it starts from one |
+
+### Binder: your own insert commands
+
+**Keyboard → Binder**.
+
+<img src="media/showcase/binder.gif" width="720" alt="A new Binder command inserts an arrow; Smart bracket cycles brackets around a word">
+
+| Step | What you see |
+|---|---|
+| New command | A row inserts `→`; the name fills itself in |
+| Use it | Its key drops `→` in at the cursor |
+| `Smart bracket` | `[text]`, then `[[text]]`, then back; works on a selection too |
+
+### Commands and hotkeys
+
+**Keyboard → Commands & Hotkeys**.
+
+<img src="media/showcase/hotkeys.gif" width="720" alt="Every command of the plugin with its hotkey, and the button that opens Obsidian's Hotkeys">
+
+| Step | What you see |
+|---|---|
+| The list | Every command of the plugin with its hotkey; a command with no key shows an empty slot |
+| `to hotkeys` | Opens Obsidian's `Hotkeys` filtered to that group |
+
+## Transform
+
+`Transform inline to note` turns the line you are on into a note. **Transform**. It writes real files, so try it on notes you can afford to lose.
+
+### A line becomes a note
+
+<img src="media/showcase/transform.gif" width="720" alt="The floating button turns a line into a note named from its brackets">
+
+| Step | What you see |
+|---|---|
+| `Inline to note` | The floating button turns the line into a note named from its `[brackets]`; the line now links to it |
+| `Line above the text` → `Fixed text` | The note starts with your fixed text, not the date |
+| `Note name` → `Ask` | You type the name yourself |
+
+### What stays behind
+
+**Transform → Source line**.
+
+<img src="media/showcase/transform-source.gif" width="720" alt="The sub-items move into the note, the text stays next to the link, and the line fades">
+
+| Step | What you see |
+|---|---|
+| Default | The line becomes a link, its sub-items stay |
+| `Sub-lines (tree) behavior` → `Move` | The sub-items go into the note too |
+| `What happens with current line` → `Keep` | The text stays next to the link |
+| `Dim transformed line` | The handled line fades |
+
+### A template per line
+
+**Transform → Smart Rules**.
+
+<img src="media/showcase/smart-rules.gif" width="720" alt="A rule sends lines with Project A to their own template">
+
+| Step | What you see |
+|---|---|
+| Default | Every line becomes a note from the default template |
+| A rule | A line with `[[Project A]]` gets the `Project task` template |
+
+### Links back to the notes you mention
+
+**Transform → Auto-MOC in your links**.
+
+<img src="media/showcase/auto-moc.gif" width="720" alt="Project B receives a link to the new note, at the top, under a heading, or under a heading it creates">
+
+| Step | What you see |
+|---|---|
+| `Link the notes you mention` | The new note mentions Project B, and Project B gets a link to it at the end |
+| `Where to put the link` → `Beginning` | The link goes to the top of Project B |
+| `Under heading` | The link joins the `## Meetings` section |
+| `If heading not found` | The heading is added at the top, the link under it |
+
+<img src="media/showcase/auto-moc-2.gif" width="720" alt="The link back carries a date, a mark, and goes first in the list">
+
+| Step | What you see |
+|---|---|
+| `Add empty line before wikilink` off | The link comes with no blank line |
+| `Add after the link` → `Field Value` | The link carries the Due date |
+| `Add after the link` → `Date and time` | The link carries the moment of the Transform |
+| `Emoji before the date` | The date gets its mark, such as `➕` |
+| `Place in the list` → `Top` | The newest link goes first |
 
 ## Visual
 
-### tagWheel panel/scroller
+Drawing only: the file on disk stays the same. **Visual**.
 
-Display tagWheel fields and values in a panel with scrolling for larger configurations.
+### Tags, Blocks and the Stripe
 
-![Use the tagWheel panel and scroller](media/showcase/visual-tagwheel-scroller.gif)
+**Visual → Line view** and **Tag view**.
 
-*Typical action: open tagWheel from its configured hotkey and scroll through available entries.*
+<img src="media/showcase/line-view.gif" width="720" alt="Square tag bubbles, smaller and fainter Blocks, and a Stripe behind each Block">
 
-## Transform Inline2Note
+| Step | What you see |
+|---|---|
+| `Tag bubble corners` | Tag bubbles turn square |
+| `Block text size` | Both Blocks get smaller, your text stays |
+| `Block opacity` | Both Blocks fade, your text stands out |
+| `Color the Block with Stripe` | A faint Stripe runs behind each Block |
+| `Stripe opacity` | The Stripe gets stronger |
 
-The Transform module defaults on, but the separate Inline2Note execution gate defaults off. Read the [full Transform instructions](../INSTRUCTIONS.md) before enabling execution.
+### Link colors
 
-### Current root or selected tree
+**Visual → Link view**.
 
-> [!CAUTION]
-> Test in a sandbox vault or back up affected notes before transforming a root or selected tree.
+<img src="media/showcase/link-view.gif" width="720" alt="Separate colors for the note name, the brackets, the text of a Markdown link and web addresses">
 
-Choose the current root tree or an explicit editor selection as the transform source.
+| Step | What you see |
+|---|---|
+| Wikilinks | `Link target color` paints the note name, `Link brackets color` the `[[ ]]` on the cursor line |
+| Markdown links | `Hyperlink target color` paints the text, `Hyperlink brackets color` the `[ ] ( )` |
+| Addresses | `Hyperlink address color` paints every web address |
 
-![Transform the current root or selected tree](media/showcase/transform-root-selection.gif)
+### Tag Bars
 
-*Typical action: place the cursor in a root or select a tree, then run `Transform: inline2note` from a configured hotkey.*
+A Bar in the margin, in the color of a tag, down a line and everything nested under it. **Visual → Tag Bars**.
 
-### YAML Raw/Clean mapping
+<img src="media/showcase/tag-bars.gif" width="720" alt="Colored Bars run down each tree; a third level gets its own Bar; the Bar replaces the tag">
 
-> [!CAUTION]
-> Test in a sandbox vault or back up affected notes before writing mapped values into target frontmatter.
+| Step | What you see |
+|---|---|
+| `Tag Bars`, drawn by Status | A Bar in the tag's color runs down each tree |
+| `Number of Bars` | The third level gets its own Bar |
+| `Show the Field's tag` off | The Bar speaks for the tag |
+| `Bars for the whole tree` off | Each Bar covers only its own line |
+| `Join Bars in a tree` off | Parent and child Bars break apart |
 
-Map recognized inline fields into template/target frontmatter using Raw or Clean values.
+<img src="media/showcase/tag-bars-look.gif" width="720" alt="Wider Bars, further from the text, spread apart, with gaps between them">
 
-![Map inline fields into YAML with Raw or Clean values](media/showcase/transform-yaml.gif)
+| Step | What you see |
+|---|---|
+| `Bar thickness` | The Bars get wider |
+| `Distance from the text` | The Bars move away from the lines |
+| `Space between Bars` | The levels spread apart |
+| `Vertical gap between Bars` | Each Bar gets a gap above and below |
 
-*Typical action: choose **YAML note format → Raw/Clean**, then run `Transform: inline2note`; its hotkey is configurable.*
+### Colors for your own tags
+
+For tags that are not a Value of any Field. **Visual → Color custom tags**.
+
+<img src="media/showcase/custom-tags.gif" width="720" alt="errand in a red bubble, home in a green one, and errand with its word hidden">
+
+| Step | What you see |
+|---|---|
+| A color per tag | Every `#errand` gets a red bubble, every `#home` a green one |
+| `Show` empty | `#errand` keeps its color, the word is hidden |
+
+### The text cursor
+
+**Visual → Text cursor** and **Cursor jump highlight**.
+
+<img src="media/showcase/cursor.gif" width="720" alt="A red cursor, then a thick one">
+
+| Step | What you see |
+|---|---|
+| `Color the text cursor` | The cursor is red |
+| `Shape the text cursor` | A 6 px cursor, hard to lose |
+
+<img src="media/showcase/cursor-jump.gif" width="720" alt="A circle marks where the cursor lands after a jump">
+
+| Step | What you see |
+|---|---|
+| Default Obsidian | After `Jump down` it is hard to see where the cursor landed |
+| `Highlight where you land` | A circle marks the spot |
+| `Use inside current line` | The circle shows on jumps inside the line too |
+
+## Settings and safety
+
+### Modules
+
+Each area of the plugin switches off on its own. **General → Modules**.
+
+<img src="media/showcase/modules.gif" width="720" alt="Visual off brings back the theme's look; Navigation off stops Move up">
+
+| Step | What you see |
+|---|---|
+| Default | All four modules on |
+| `Visual` off | The note goes back to the look of your theme |
+| `Navigation` off | `Move up` moves nothing, and the plugin says the module is off |
+
+### Backup
+
+**Advanced → Backup**.
+
+<img src="media/showcase/backup.gif" width="720" alt="Saving a backup note, the list of backups, and Autosave">
+
+| Step | What you see |
+|---|---|
+| `Save a backup` | Your settings as a note in your vault; pick the tabs to keep |
+| `Restore a backup` | Backups listed newest first |
+| `Autosave` | A fresh copy whenever your settings change |
+
+### Undo a settings change
+
+**Advanced → Diagnostics**.
+
+<img src="media/showcase/diagnostics.gif" width="720" alt="Navigation switched off by mistake and brought back with one button">
+
+| Step | What you see |
+|---|---|
+| `Undo last settings change` | Navigation switched off by mistake comes back, and `Move up` works again |
+| `Show option IDs in tips` | Each tip ends with the identifier of its setting |

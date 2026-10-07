@@ -122,7 +122,7 @@ Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the
 | ------------------------------------------- | ------------------------------------------------- |
 | [**Tutorial**](docs/TUTORIAL.md)            | Fifteen minutes from install to a line that works |
 | [**Feature list**](FEATURES.md)             | Everything the plugin can do, in full             |
-| [**Visual showcase**](docs/SHOWCASE.md)     | Thirty animations, grouped by workflow            |
+| [**Visual showcase**](docs/SHOWCASE.md)     | Every feature in motion, section by section            |
 | [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting  |
 | [**Settings reference**](docs/SETTINGS.md)  | The panel, tab by tab                             |
 | [**Changelog**](CHANGELOG.md)               | What changed in every release                     |

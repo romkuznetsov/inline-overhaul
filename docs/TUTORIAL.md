@@ -137,7 +137,7 @@ What to read next, in the order it becomes useful:
 | [**Setup and user guide**](../INSTRUCTIONS.md) | Separators, Transform safety, recovery |
 | [**Settings reference**](SETTINGS.md) | The panel, tab by tab |
 | [**Feature list**](../FEATURES.md) | Everything else the plugin does |
-| [**Visual showcase**](SHOWCASE.md) | Thirty animations, grouped by workflow |
+| [**Visual showcase**](SHOWCASE.md) | Every feature in motion, section by section |
 
 One thing deliberately left out: **Transform**, which turns a line into a whole note.
 It is powerful and it edits your files, so it stays off until you have read

@@ -240,7 +240,7 @@ And these appear from what you configure:
 | [**Tutorial**](docs/TUTORIAL.md) | Fifteen minutes from install to a line that works |
 | [**Settings reference**](docs/SETTINGS.md) | The panel, tab by tab |
 | [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
-| [**Visual showcase**](docs/SHOWCASE.md) | Thirty animations, grouped by workflow |
+| [**Visual showcase**](docs/SHOWCASE.md) | Every feature in motion, section by section |
 | [**Changelog**](CHANGELOG.md) | What changed in every release |
 
 ---
