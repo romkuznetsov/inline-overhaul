@@ -171,7 +171,7 @@ body.io-rec-split .modal-container:has(.mod-settings) .modal-bg{opacity:0!import
 body.io-rec-split .modal.mod-settings{width:54vw!important;border-left:2px solid #ddd!important}
 body.io-rec-split .mod-settings .vertical-tab-content-container{zoom:1}
 body.io-rec-split .workspace{width:46vw!important;flex:none!important}
-body.io-rec-split .workspace-leaf.mod-active .view-content{padding-left:44px}
+body.io-rec-split .workspace-leaf.mod-active .cm-scroller{padding-left:80px!important}
 /* \`pane\`: кнопка Transform — только в заметке, где работа (её строка каретки), не в соседней. */
 .workspace-leaf:not(.mod-active) .io-flybtn{display:none!important}
 body.io-rec-split #io-rec-sub.is-wide{left:23vw!important;max-width:42vw}`;
