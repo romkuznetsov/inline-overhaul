@@ -636,8 +636,15 @@ function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
     if (!o.enabled) return;
     o.askNewField(answer => {
       if (!answer) return;
+      /*
+       * Выбор ставится до записи: запись будит панель, и блок перерисовывается
+       * внутри `addField` — выбор, поставленный после, доставался снятой копии.
+       */
+      const prev = o.state.selected;
+      o.state.selected = answer.name.replace(/\s+/g, " ").trim();
       const res = o.model.addField(answer.name, answer.kind, answer.marker);
       if (!res.ok) {
+        o.state.selected = prev;
         o.notice(res.error || say("NEW_FIELD_FAILED"));
         return;
       }

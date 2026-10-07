@@ -19,6 +19,10 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. 🐛 **A new Field opens right away.** After `Add Field` the new Field is picked in the list, and its settings show on the right
+
 ## 0.16.1
 
 _2026-10-05 · [all changes since 0.16.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.16.0...0.16.1)_

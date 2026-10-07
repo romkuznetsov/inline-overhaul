@@ -2186,6 +2186,37 @@ const SCENARIOS = {
     return false;
   },
 
+  /* Новый Field сразу выбран в списке и открыт справа (его пункт «Новое» 2026-10-07). */
+  async "new-field-selected"(win, browser) {
+    await win.evaluate(async () => {
+      window.app.setting.open();
+      window.app.setting.openTabById("inline-overhaul");
+      await new Promise((r) => setTimeout(r, 1500));
+    });
+    const host = await settingsHost(win, browser);
+    await clickIn(host, "Tags & PKM");
+    const current = () => host.evaluate(() => ({
+      item: ((document.querySelector(".io-fields__list .io-fields__item[aria-current=\"true\"] .io-fields__name") || {}).textContent || "").trim(),
+      title: ((document.querySelector(".io-fields__detail .io-fields__title") || {}).textContent || "").trim(),
+      listed: [...document.querySelectorAll(".io-fields__list .io-fields__name")].some((n) => n.textContent.trim() === "zzmood"),
+      blocks: document.querySelectorAll(".io-fieldsblock").length,
+    }));
+    const before = await current();
+    await clickIn(host, "Add Field");
+    await host.waitForSelector(".io-nf", { timeout: 5000 });
+    await host.fill("input[aria-label=\"Name of the new Field\"]", "zzmood");
+    await host.waitForTimeout(150);
+    await host.click(".io-nf .io-nf__foot .io-btn--cta");
+    await host.waitForTimeout(1200);
+    const after = await current();
+    console.log(JSON.stringify({ before, after }));
+    /* Контроль: до добавления выбран не новый Field — иначе мерить нечего. */
+    if (before.item === "zzmood") { console.log("КОНТРОЛЬ: zzmood выбран до добавления"); return false; }
+    const ok = after.item === "zzmood" && after.title.includes("zzmood");
+    console.log(ok ? "ok: новый Field выбран" : "РАСХОДИТСЯ: новый Field не выбран");
+    return ok;
+  },
+
   async "new-field"(win, browser) {
     await win.evaluate(async () => {
       window.app.setting.open();
