@@ -701,3 +701,48 @@
 *Old Separators in your notes*: смена Separator, Replace in all notes, итог в двух заметках
 
 ![[showcase-gif/separator-rewrite.gif|720]]
+
+
+## Приёмка 2026-10-07, третий круг (переделанные по замечаниям) — все приняты
+
+# Showcase GIF
+
+> [!info] Как отвечать
+> Под каждым GIF отметьте `ок` или напишите замечание в строке `💬`. Замечание ко всем сразу пишите в «Ко всем GIF».
+
+## Ко всем GIF
+- 💬 
+
+## Переделаны по вашим замечаниям 2026-10-07
+
+### 1. fields-2
+- [x] #done :: ок
+- 💬 странность - ты добавил value при создании field, однако его не было в правой колонке values у этого field. Я протестировал - оно повляется только при обновлении владки (т.е. мне нужно щелкнуть на другой field, а затем вернуться к предыдущему - исправь)
+- ✏️ исправлено в плагине: после Add Field справа сразу видна таблица Values с #focus. Ролик переснят, субтитр «Energy is picked at once — its Values on the right»
+- 💬 
+
+![[showcase-gif/fields-2.gif|720]]
+
+### 2. value-eye
+- [x] #done :: ок
+- 💬 нет, это надо показывать не через команду field-next, а через tagwheel scroller
+- ✏️ сделано: все три этапа через tagWheel и Scroller. До глаза Scroller проходит #todo → #doing → #done, после — #todo → #done, строка с #doing переходит на #done
+- 💬 
+
+![[showcase-gif/value-eye.gif|720]]
+
+### 3. action-field
+- [x] #done :: ок
+- 💬 покажи активацию команд не через field-next, а через tagwheel
+- ✏️ сделано: tagWheel Right → Insert callout → Note оборачивает строку, затем Tip, затем пустое значение снимает коллаут, Cleanup — тоже из tagWheel. Ролик 59 с, у предела 60 с
+- 💬 
+
+![[showcase-gif/action-field.gif|720]]
+
+### 4. nested-tags
+- [x] #done :: ок
+- 💬 inline2note сделано неудачно - ты должен его активировать нажатием на floating button.
+- ✏️ сделано: строка уходит в заметку щелчком по плавающей кнопке →, в конце видна новая заметка со свойством tags: done/review
+- 💬 
+
+![[showcase-gif/nested-tags.gif|720]]
