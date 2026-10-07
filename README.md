@@ -72,15 +72,19 @@ Section names match the tabs of the settings panel, so what you read here is whe
 
 - **Fields you design.** A status, a priority, a project, a due date: each is a Field (e.g. `Priority`) with its own Values (e.g. `high`, `low`). The plugin ships no methodology of its own, so GTD, PARA or a system you invented would all fit.
 - **A command for every Field.** `Status next` walks `#todo → #doing → #done` in place, without touching the words around it.
-- **Three kinds of Value.** Tags (`#todo`), wikilinks (`[[Project A]]`) and emoji-elements such as `📅2026-09-15`, which step the way you want: by a day, by a counter of your own, or through a list you write.
+- **Four types of Field.**
+  - Tags: `#todo`
+  - wikilinks: `[[Project A]]`
+  - emoji-elements, such as `📅2026-09-15`, which step by a day, by a counter of your own, or through a list you write
+  - Command Fields, which edit the line itself: wrap it in a callout, clean it up, turn a tree into a section
 
-<!-- GIF: cycling a Field on a line -->
+See it in motion: [Fields and Values](docs/SHOWCASE.md#fields-and-values).
 
 ### tagWheel — choose instead of typing
 
 You do not have to remember every Value or every command: one command holds them all. The tagWheel panel shows every Field of the line with its Values — walk them with the arrow keys, press `Enter`, and the Values you picked land in the line where they belong.
 
-<!-- GIF: picking Values with tagWheel -->
+See it in motion: [tagWheel](docs/SHOWCASE.md#tagwheel).
 
 ### Transform (inline2note) — turn a line into a note in one click
 
@@ -88,7 +92,7 @@ The inline2note floating button takes the line with its Values and the template 
 
 Because the properties are real frontmatter, a transformed note shows up in Bases and Dataview.
 
-<!-- GIF: turning a line into a note with inline2note -->
+See it in motion: [Transform](docs/SHOWCASE.md#transform).
 
 ### Navigation — move a line with everything it carries
 
@@ -96,19 +100,21 @@ Because the properties are real frontmatter, a transformed note shows up in Base
 - **Move left and right** cycles the Prefix (bullet, checkbox, quote, heading), so restructuring a note does not mean retyping it.
 - **Jump** the cursor between headings, and through the parts of one line.
 
-<!-- GIF: moving lines and trees -->
+See it in motion: [Moving and jumping](docs/SHOWCASE.md#moving-and-jumping).
 
 ### Keyboard — the keys you press all day, made smarter
 
-- **Smart `Ctrl+A`** widens the selection a step at a time: word, line, block, note.
+- **Smart `Ctrl+A`** widens the selection a step at a time: word, line, tree, section, note.
 - **Smart Enter** adds a line below instead of splitting yours; **Delete** and **Backspace** step over the indent and the Prefix.
 - **Binder** puts any snippet on a hotkey, and `Smart bracket` ships with it.
+
+See it in motion: [Keyboard](docs/SHOWCASE.md#keyboard).
 
 ### Visual — see the PKM structure of a line at a glance
 
 Tags drawn as bubbles in your colors, a Stripe behind a Block, Tag Bars down the margin, and a caret you can restyle. This is drawing only: the file on disk stays untouched.
 
-<!-- GIF: the Visual tab — bubbles, Stripe, Tag Bars, caret -->
+See it in motion: [Visual](docs/SHOWCASE.md#visual).
 
 ## First steps
 

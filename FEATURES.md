@@ -1,98 +1,145 @@
 # Feature list
 
-Everything inlineOverhaul does, in full. This page lists; it does not teach.
+Everything inlineOverhaul does, in one list. This page lists; it does not teach.
 New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md).
 
-For the settings panel control by control, see the
-[settings reference](docs/SETTINGS.md). For installation, configuration and recovery,
-see the [setup and user guide](INSTRUCTIONS.md).
+| You want | Go to |
+|---|---|
+| Every control of the panel | [Settings reference](docs/SETTINGS.md) |
+| Step-by-step tasks, install, recovery | [Setup and user guide](INSTRUCTIONS.md) |
+| Each feature in motion | [Showcase](docs/SHOWCASE.md) |
+
+A line written with the plugin:
 
 ```markdown
 - [ ] #todo #/1 || call the bank || [[Project A]] 📅2026-09-15
 ```
 
-Everything in that line is ordinary markdown in the file. The tags are searchable by
-Obsidian, the link is a real link, the date is text your other plugins can read.
+Every part of it is ordinary markdown. Obsidian finds the tags, the link is a real link, and the date is text other plugins can read.
 
-## Fields
+## Contents
 
-A **Field** is one slot a line can carry: a status, a priority, a type, a due date, a
-project link, an estimate. You define them; the plugin ships no methodology.
+- [Tags & PKM](#tags--pkm): Fields, Values, Blocks
+- [tagWheel](#tagwheel): the picker over the line
+- [Navigation](#navigation): moving lines and the cursor
+- [Keyboard](#keyboard): smarter everyday keys and Binder
+- [Transform](#transform): a line becomes a note
+- [Visual](#visual): how the line is drawn
+- [General and Advanced](#general-and-advanced): modules, language, backups
+- [The full command list](#the-full-command-list)
+- [What it does not do](#what-it-does-not-do)
 
-- **Three types of Field**: `Tag` (`#todo`), `Link` (`[[Project A]]`) and `Element` —
-  a marker plus a format, such as `📅2026-09-15`; a date written with a space, `📅 2026-09-15`, is read too.
-  An `Element` can also be a list: Values you write, each with its own emoji, such as `🙂‍↕️yes` and `🙂‍↔️no`,
-  or an emoji alone, such as `💡`, cycled like the Values of a tag.
-- **Values.** Each Field holds an ordered list of Values, and each Value carries its own
-  writing rule, so one Field cycles `#todo → #doing → #done` and another `#/1 → #/2 → #/3`.
-  The eye in front of a Value hides it from `next`, `previous` and the tagWheel list; a line
-  that already has it still reads it.
-- **Child Fields.** A Field can depend on another one: `After parent` offers it once the
-  parent has a Value, `Always` offers it on any line, `On Alt` keeps it
-  out of tagWheel until you press `Alt` on the parent, `Hide` keeps it out. A press of `Alt`
-  also opens an `After parent` child before the parent has a Value. Tags and links both have
-  child Fields. With `Parent is Navigator` the parent Values become groups: they narrow the
-  child list in tagWheel and are never written to the line; a child on the line stands for its
-  parent in a prerequisite and in Smart Rules.
-- **Prerequisites.** A Field can stay out of the line until another Field has a Value —
-  any Value, or one you name.
-- **Blocks.** Fields sit in the `Left Block`, before your text, or the `Right Block`,
-  after it. The side is set by dragging a Field across the line in the editor.
-- **Custom blocks.** `Add Block` makes a Block of your own that writes where the cursor
-  is, inside your text. It has its own command, `tagWheel <block>`, and its Fields' `next`
-  and `previous` work on the Value under the cursor.
-- **One spelling, one Field.** A Value written the same way as another Field’s Value is
-  refused, so a line never leaves the plugin guessing whose `#todo` it is.
-- **A pair of commands per Field**, created on the spot: `<Field> next` and
-  `<Field> previous`.
-- **A Value shown as your own text.** The `Show` column draws a Value as an emoji, as
-  anything you type, or as nothing. A shown link still opens the note when clicked.
-- **YAML property.** Each Field says which property of a transformed note it becomes.
-- **A mark for a ticked line.** Tick `- [ ]` into `- [x]` and a tag or emoji of your choice,
-  such as `#done` or `✅`, lands on the line; untick it and the mark comes off. A mark that is
-  a Value of one of your Fields goes where that Field stands, and a ticked line can be faded.
-- **Live preview** of the line you are building, above the editor.
-- **Two heights for the editor**, switched by the chevron in the group header.
+## Tags & PKM
 
-*Where:* **Tags & PKM → Fields**, `Separators`, `Writing rules`, `Placement modes`,
-`Prefix priority`.
+A **Field** is one slot a line can carry: a status, a priority, a project, a due date. You define the Fields; the plugin ships no methodology.
+
+### Four types of Field
+
+| Type | Writes | Example |
+|---|---|---|
+| `Tag` | a tag | `#todo` |
+| `Link` | a link to a note | `[[Project A]]` |
+| `Element` | an emoji marker plus a format | `📅2026-09-15` |
+| `Command` | nothing: it edits the line | wraps the line in a callout |
+
+The `Add a Field` window uses these four names. The list of Fields labels the last two `Emoji` and `Action`.
+
+- **Element**
+  - steps a date, a time, a counter or a random id
+  - a date written with a space, `📅 2026-09-15`, is read too
+  - can be a list of your own Values, each with its own emoji: `🙂‍↕️yes`, `🙂‍↔️no`, or an emoji alone, such as `💡`
+- **Command**
+  - holds categories instead of Values: `Insert callout`, `Cleanup`, `Insert codeblock`, `Tree ↔ section`
+  - each category comes with ready-made presets you can rename, hide or clone
+  - each category gets its own `next` and `previous` commands
+
+### Values
+
+- Each Field holds an ordered list of Values, and each Value has its own writing rule.
+  - one Field cycles `#todo → #doing → #done`, another `#/1 → #/2 → #/3`
+- **The eye** in front of a Value hides it from `next`, `previous` and tagWheel.
+  - a line that already has the Value still reads it
+  - works for tags, links and the list Values of an Element
+- **One spelling, one Field.** A Value written the same way as a Value of another Field is refused, so the plugin never has to guess whose `#todo` it is.
+- **A Value shown as your own text.** The `Show` column draws a Value as an emoji, as text you type, or as nothing. A shown link still opens its note on click.
+- **Link Values follow their notes.**
+  - renaming a note updates the Value
+  - renaming the Value can rename the note and every link to it
+- **A Prefix per Value.** A Value can bring a checkbox or another line marker with it, such as `[ ]` with `#todo`.
+
+### Child Fields and prerequisites
+
+- **Child Field** depends on its parent:
+
+  | Setting | The child is offered |
+  |---|---|
+  | `After parent` | once the parent has a Value |
+  | `Always` | on any line |
+  | `On Alt` | in tagWheel after you press `Alt` on the parent |
+  | `Hide` | never |
+
+- **`Child tag format`**, per tag Field: `Separate` writes `#note #meeting`, `Nested` writes `#note/meeting`.
+- **`Parent is Navigator`** turns parent Values into groups: they narrow the child list in tagWheel and are never written.
+- **Prerequisites.** A Field can stay out of the line until another Field has a Value: any Value, or one you name.
+  - the line preview draws such a Field paler, with `⬑Type` or `⬑#todo` under it
+
+### Blocks and Separators
+
+- **`Left Block`** is written before your text, **`Right Block`** after it.
+- **Separators** close the Blocks off: `#todo || call the bank || [[Project A]]`.
+  - after you change a Separator, `Old Separators in your notes` replaces the old one in every note
+- **Custom blocks.** `Add Block` makes a Block of your own that writes where the cursor is, inside your text.
+  - its own command, `tagWheel <block>`
+  - `next` and `previous` of its Fields work on the Value under the cursor
+
+### Writing rules
+
+- **Commands per Field**, created as soon as the Field exists: `<Field> next` and `<Field> previous`.
+- **Placement modes.** Whether a list bullet is added, and whether a tag you typed in your text moves into its Block.
+- **Prefix priority.** Which Value decides the line marker when several bring one.
+- **A ticked line**
+  - `Mark ticked line` adds a tag or emoji, such as `#done` or `✅`, when you tick `- [ ]` into `- [x]`, and takes it off when you untick
+  - `Dim ticked line` fades the line, `Strike through ticked line` crosses it out
+- **YAML property.** Each Field names the property it becomes in a transformed note.
+
+### The Fields editor
+
+- A live preview of the line you are building, above the editor.
+- Two heights for the editor, switched by the chevron in the group header.
+- A new Field is picked as soon as you add it, with its settings on the right.
+
+*Where:* **Tags & PKM**: `Fields`, `Separators`, `Writing rules`, `tagWheel behavior`, `Placement modes`, `Prefix priority`.
 
 ## tagWheel
 
-tagWheel lays your Fields out over the line you are standing on. Arrow keys move between
-Fields and their Values; on exit the line is written back as plain markdown.
+tagWheel opens over the line you are on. Arrow keys move between Fields and their Values; `Enter` writes the line back as plain markdown.
 
-- **Two commands, two sides.** `tagWheel Left` starts on the Fields before
-  your text, `tagWheel Right` on those after it.
-- **A custom block at the cursor.** `tagWheel <block>` opens its Fields where the cursor
-  is and splits the text there; `Enter` writes the picked Values between your words. On a
-  Value of the block it opens on that Value and replaces it. With
-  `Switch custom blocks on Tab` on, `Tab` moves to the next custom block.
-- **The other Block.** While the picker is open it takes the place of the Block it stands
-  in. The other one either leaves the line for as long as you are choosing, or stays
-  written where it belongs.
+| Command | Opens on |
+|---|---|
+| `tagWheel Left` | the Fields before your text |
+| `tagWheel Right` | the Fields after your text |
+| `tagWheel <block>` | the Fields of a custom block, at the cursor |
+
 - **Only what applies.** A Field whose prerequisite is not met is not offered.
-- **Write-back by difference.** The panel writes only what actually changed, checked
-  against Obsidian’s own undo history in the test suite, keystroke by keystroke.
-- **Appearance**: colors per role, an optional scroller box of neighboring Values, and
-  a highlight for the line being edited.
+- **The other Block** either leaves the line while you choose, or stays in view.
+- **Moving between Blocks.** `→` at the edge of a Block stays or walks on into the next one; with `Switch custom blocks on Tab`, `Tab` moves to the next custom block.
+- **Where it opens.** The first Field, or a Field you choose for each side.
+- **A selection.** Start it with lines selected and the selection stays; `Line for a selection` picks the top line, the bottom one, or where you finished selecting.
+- **Write-back by difference.** Only what changed is written, checked against Obsidian's own undo history in the test suite, keystroke by keystroke.
+- **Look.** Colors for the panel and its Fields, tag markers on or off, and a Scroller of neighbor Values.
 
-**One known limit.** While the panel is open it holds its strip in the text of the note,
-which takes the Values it stands on out of the line for that moment. Undo steps that
-wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can
-land on a line that never existed. Keeping the other Block in sight removes the case
-where only that Block was filled; the case where the Block under the panel was filled too
-is open.
+> [!NOTE]
+> While tagWheel is open it holds its strip in the text of the note. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Keeping the other Block in sight removes the case where only that Block was filled.
 
-*Where:* **Visual → tagWheel**, split into `Panel` and `Scroller`; how it moves — the Field it opens on, the other Block, the edge of a Block, `Tab` between custom blocks — under **Tags & PKM → tagWheel behavior**. Every subheading in the settings folds with the triangle beside it.
+*Where:* behavior in **Tags & PKM → tagWheel behavior**; look in **Visual → tagWheel**, split into `Panel` and `Scroller`.
 
 ## Navigation
 
-Eight commands, each aware that a line has structure.
+Eight commands that know a line has structure.
 
 | Command | What it does |
 |---|---|
-| `Move up` | Move the line you are on, or its whole tree, up |
+| `Move up` | Move the line, or its whole tree, up |
 | `Move down` | The same, downwards |
 | `Move left` | Move selected text, cycle the line Prefix, or unindent |
 | `Move right` | Move selected text, cycle the line Prefix, or indent |
@@ -101,95 +148,91 @@ Eight commands, each aware that a line has structure.
 | `Jump left` | Step the cursor back through the parts of the line |
 | `Jump right` | Step the cursor on through the parts of the line |
 
-A move can carry the indented tree with the line, cross a heading boundary or stop at it,
-highlight what landed, and scroll the note so the line is at the centre, the top or the
-bottom of the screen. A jump does the same for its target.
+- **A move** can
+  - carry the indented tree with the line, or jump over a neighbor tree
+  - move a heading alone or with its whole section
+  - cross a heading boundary or stop at it
+  - highlight what landed, in a color you pick
+  - keep the line at the centre, the top or the bottom of the screen, or leave the note where it is
+- **A jump** steps by word, by sentence, or to the start and end; at the end of the line it stops, wraps around, or goes on to the next line.
 
 *Where:* **Navigation**, four groups.
 
-## Visual
+## Keyboard
 
-Drawing only: the file on disk is untouched.
+- **Smart `Ctrl+A`.** Each press widens the selection: word, line, tree, section, note. `Custom` picks where a press stops.
+- **Smart Delete\Backspace.** `Delete` at the end of a line and `Backspace` at the start pull up the words without the indent and the Prefix, and merge the Fields of the two lines.
+- **Smart Enter.** `Enter` adds a line below instead of splitting the one you are on. `Shift+Enter` can be the usual `Enter`, or Smart Enter itself.
+- **Smart paste.** A pasted numbered list is counted from one, or carries on the count of a list right above it.
+- **Binder.** Your own insert commands: each row is a snippet with a command of its own.
+  - `Smart bracket` ships with it and cycles brackets around the cursor or selection
+  - a row of type `Command` runs one category of a Command Field with its own preset: one press applies it, the next takes it off
+- **Commands & Hotkeys.** Every command with the key bound to it, and a `to hotkeys` button that opens Obsidian's `Hotkeys` filtered to that group.
 
-- **Inline appearance** — size and opacity of each Block, bubble width, height and
-  corners for tags, and a colored Stripe behind one Block or both.
-- **Link view** — the page preview on hover and dragging, for a Value shown as your own
-  text; and colors for links: two for a wikilink (the name and the brackets) and three for
-  a hyperlink (the text of a Markdown link, its brackets, and every address).
-- **Tag Bars** — a Bar in the margin drawn from the Values of one tag Field, down a line
-  and everything nested under it.
-- **Text cursor** — the caret's color, width and blink speed.
-- **Cursor jump highlight** — a fading circle where the cursor lands after a jump.
-- **Color custom tags** — a color per tag for tags that are not a Value of any Field in
-  `Tags & PKM → Fields`.
-
-*Where:* **Visual**, eight groups.
+*Where:* **Keyboard**: `Global hotkeys`, `Binder`, `Commands & Hotkeys`.
 
 ## Transform
 
-`Transform inline to note` takes the line you are on and makes a note of it, or appends
-it to one that already exists. Off out of the box.
+`Transform inline to note` turns the line you are on into a note, or appends it to a note that exists. Off out of the box.
 
-- **Templates.** A template folder and a default template, listed from the folder itself.
-- **Smart Rules.** A rule matches the Values a line carries and picks the template for
-  it, so a `#meeting` line and a `#bug` line become different notes.
-- **Naming.** Where the name comes from, and what happens when it is taken.
-- **Note content.** A header line from a date format or fixed text, the Values carried in
-  as YAML properties, and a rule for the lines indented under it.
-- **Source line.** What stays behind: the whole line, a few words, a link to the new
-  note, a `#processed` mark, the tree carried across.
-- **Links back.** The notes of the link Values on the line can receive a link to the new note; a Value note that does not exist yet is not created.
-- **Floating button** at the end of the line you are on, as an alternative to the key.
+| Part | What you set |
+|---|---|
+| Inline to note | the command and a floating button at the end of the line |
+| New note naming | where the name comes from, and what happens when it is taken |
+| Note content | templates, a line above the text, the Values carried in as YAML properties |
+| Source line | what stays behind: the text, a link, a mark, the sub-lines |
+| Auto-MOC in your links | a link back from the notes the line mentions |
+| Smart Rules | a template picked by the Values of the line |
 
-*Where:* **Transform**, seven groups.
+- **Smart Rules.** A `#meeting` line and a `#bug` line become different notes. The condition window has a search box and an `Any value` choice for each Field.
+- **Auto-MOC**
+  - the notes of the link Values on the line get a link to the new note; a missing note is not created
+  - the link goes to the beginning, the end, or under a heading, at the top or the bottom of its list
+  - after the link it can carry the Value of an Element or the date and time
+  - `Use as MOC` turns this off for one link Field
 
-## Keyboard
+*Where:* **Transform**, six groups.
 
-- **Smart `Ctrl+A`** — successive presses widen the selection in steps: the word, the
-  line, the line with its tree, the heading, the note. `Custom` picks which steps a press
-  stops at.
-- **Smart Delete\Backspace** — `Del` at the end of a line and `Backspace` at the start
-  bring up the words without the indent and the Prefix. The two switch on separately.
-- **Smart Enter** — `Enter` adds a line below instead of splitting the one you are on; `Shift+Enter` can be the usual `Enter`, or the Smart Enter key itself.
-- **Smart paste** — a pasted numbered list is counted from one, unless it lands under a
-  list you already have, and then that count carries on. A pasted `1. text` dropped into a
-  line that already starts with a number loses its marker.
-- **Binder** — your own insert commands: a row defines a snippet and gets a command.
-  `Smart bracket` ships with the plugin and cycles the brackets around the cursor or
-  selection. A row of type `Command` runs an `Action` category with one preset of its own
-  instead: one press applies it, the next press on its result takes it off.
-- **Commands & Hotkeys** — every command with the key bound to it now, and a `to hotkeys`
-  button on each heading that opens Obsidian’s `Hotkeys` screen filtered to it.
+## Visual
 
-*Where:* **Keyboard**, four groups.
+Drawing only: the file on disk stays the same.
+
+| Group | What it draws |
+|---|---|
+| Inline appearance | text size and opacity of each Block, tag bubbles, a Stripe behind a Block, link colors |
+| Tag Bars | a Bar in the margin, in a tag's color, down a line and its tree |
+| tagWheel | the colors and the Scroller of the picker |
+| Text cursor | the caret's color, width and blink |
+| Cursor jump highlight | a fading circle where the cursor lands after a jump |
+| Color custom tags | a color for each tag that is not a Value of a Field |
+
+- **Link colors:** two for a wikilink (the name and the brackets), three for a Markdown link (the text, the brackets, the address).
+- **Link view:** the page preview on hover for a Value shown as your own text.
+
+*Where:* **Visual**, six groups.
 
 ## General and Advanced
 
-- **Four module toggles** — `Navigation`, `Tags & PKM`, `Transform`, `Visual`. Each has a
-  command of its own.
-- **Language.** Every visible line of the panel has a key, and the words sit in one text
-  file per language inside the plugin folder. Copy `default.js` under a new name and the
-  panel speaks your language. Command names stay English: Obsidian takes those from its
-  own registry.
-- **Guide note.** `General → Help → Guide → Read` writes the guide into your vault.
-- **Backup.** `Save a backup` writes your setup into a note; `Autosave` keeps a copy
-  each time Obsidian starts with settings that differ from the last copy; `Start over` returns to defaults
-  and writes a backup first.
-- **Diagnostics.** `Show option IDs in tips` puts each setting's identifier into its tip, a
-  developer log records what the plugin did, and `Undo last settings change` rolls back the
-  most recent change made in the panel.
-- **What changed, after an update.** The first time you open a vault on a new version, a
-  window shows that version's section of the changelog — once per version, and never on a
-  fresh install.
+- **Modules.** `Navigation`, `Tags & PKM`, `Transform`, `Visual` switch on and off separately, each with a command of its own.
+- **Language.** Every visible line of the panel has a key, and the words live in one text file per language in the plugin folder. Copy `default.js` under a new name and the panel speaks your language. Command names stay English: Obsidian reads them from its own registry.
+- **Guide note.** **General → Help → Guide → Read** writes the guide into your vault.
+- **Backup**
+  - `Save a backup` writes your setup into a note, all tabs or the ones you pick
+  - `Autosave` keeps a copy whenever Obsidian starts with changed settings, in its own folder, as many as you choose
+  - `Start over` returns to defaults and saves a backup first
+- **Diagnostics.** `Show option IDs in tips` puts each setting's id and value into its tip; a developer log records what the plugin did.
+- **Undo for settings.** `Undo last settings change` takes back the last change made in the panel.
+- **What changed, after an update.** The first time you open a vault on a new version, a window shows what changed in each release since your last one, up to five releases at a time. It opens once per version and never on a fresh install.
 
-*Where:* **General**, four groups; **Advanced**, four groups.
+*Where:* **General**: `Help`, `Modules`. **Advanced**: `Backup`, `Diagnostics`.
 
 ## The full command list
 
-Commands are named after the area they belong to — `Navigation: Move up`,
-`Tags & PKM: Category next` — so Obsidian’s `Hotkeys` screen can be filtered to one area.
+Each command is named after its area, such as `Navigation: Move up`, so Obsidian's `Hotkeys` screen can be filtered to one area.
 
-Thirteen commands exist always:
+<details>
+
+<summary>Commands that always exist</summary>
 
 | Command | Area |
 |---|---|
@@ -206,31 +249,32 @@ Thirteen commands exist always:
 | `Transform inline to note` | Transform |
 | `Smart bracket` | Binder |
 | `Undo last settings change` | General |
+| `Toggle Navigation module`, `Toggle Tags & PKM module`, `Toggle Transform module`, `Toggle Visual module` | General |
 
-And these appear from what you configure:
+</details>
 
-- a pair per Field — next Value and previous Value;
-- one per custom block, `tagWheel <block>`;
-- one per Binder row;
-- one per module, to toggle it.
+Commands that come from your setup:
+
+| You add | You get |
+|---|---|
+| a Field | `<Field> next`, `<Field> previous` |
+| a category of a Command Field | `<Field> · <category> next`, `… previous` |
+| a custom block | `tagWheel <block>` |
+| a Binder row | a command named after the row |
 
 **No hotkey is assigned by default.** Every command arrives unbound.
 
 ## What it does not do
 
 - **Desktop only.** Mobile is not supported, and the manifest says so.
-- **It ships no translation.** The language folder holds one file, `default.js`, and that
-  one belongs to the plugin. A language appears when you put a file next to it.
-- **It is a public beta.** Back up your vault before installing or updating, and try
-  Transform on notes you can afford to lose: it writes real files.
+- **No translation ships.** The language folder holds one file, `default.js`. A language appears when you put a file next to it.
+- **It is a public beta.** Back up your vault before installing or updating, and try Transform on notes you can afford to lose: it writes real files.
 - **It syncs nothing.** No account, no server, no telemetry, no network requests.
-- **It hides none of your markdown.** Everything it writes is text you could have typed
-  yourself — which is also the limit: a line is as readable as the Fields you designed.
+- **It hides none of your markdown.** Everything it writes is text you could have typed yourself.
 
 ## Requirements
 
-- Obsidian desktop **1.13.0** or newer — the settings panel is built on the declarative
-  settings API that arrived in 1.13.
+- Obsidian desktop **1.13.0** or newer: the settings panel uses the settings API that arrived in 1.13.
 - Installed through BRAT while the plugin is in beta: `romkuznetsov/inline-overhaul`.
 
 ## Where to go next
@@ -242,9 +286,3 @@ And these appear from what you configure:
 | [**Setup and user guide**](INSTRUCTIONS.md) | Configuration, Transform safety, troubleshooting |
 | [**Visual showcase**](docs/SHOWCASE.md) | Every feature in motion, section by section |
 | [**Changelog**](CHANGELOG.md) | What changed in every release |
-
----
-
-*This list is checked against the product, not written from memory:
-`tests/regression/docs_terms_tests.ts` asserts that every command named here exists, that
-every settings area is named, and that no control removed from the panel is still listed.*

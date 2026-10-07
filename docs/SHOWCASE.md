@@ -407,21 +407,21 @@ Drawing only: the file on disk stays the same. **Visual**.
 
 ### Tags, Blocks and the Stripe
 
-**Visual → Line view** and **Tag view**.
+**Visual → Inline appearance**, its `Line view` and `Tag view` parts.
 
 <img src="media/showcase/line-view.gif" width="720" alt="Square tag bubbles, smaller and fainter Blocks, and a Stripe behind each Block">
 
 | Step | What you see |
 |---|---|
 | `Tag bubble corners` | Tag bubbles turn square |
-| `Block text size` | Both Blocks get smaller, your text stays |
-| `Block opacity` | Both Blocks fade, your text stands out |
+| `Left Block text size`, `Right Block text size` | Both Blocks get smaller, your text stays |
+| `Opacity of the Left Block`, `Opacity of the Right Block` | Both Blocks fade, your text stands out |
 | `Color the Block with Stripe` | A faint Stripe runs behind each Block |
 | `Stripe opacity` | The Stripe gets stronger |
 
 ### Link colors
 
-**Visual → Link view**.
+**Visual → Inline appearance**, its `Link view` part.
 
 <img src="media/showcase/link-view.gif" width="720" alt="Separate colors for the note name, the brackets, the text of a Markdown link and web addresses">
 
@@ -508,11 +508,11 @@ Each area of the plugin switches off on its own. **General → Modules**.
 |---|---|
 | `Save a backup` | Your settings as a note in your vault; pick the tabs to keep |
 | `Restore a backup` | Backups listed newest first |
-| `Autosave` | A fresh copy whenever your settings change |
+| `Autosave` | A fresh copy each time Obsidian starts with changed settings |
 
 ### Undo a settings change
 
-**Advanced → Diagnostics**.
+The command `Undo last settings change`, and the tips of **Advanced → Diagnostics**.
 
 <img src="media/showcase/diagnostics.gif" width="720" alt="Navigation switched off by mistake and brought back with one button">
 

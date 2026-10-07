@@ -107,11 +107,11 @@ that Field’s Values, `Tab` jumps to the Fields on the other side of your text,
 
 Back to **Tags & PKM → Fields**.
 
-1. Press **Add Field**.
-2. Name it `Area` and set `Type` to `Tag`.
-3. Press **Add**. The new Field lands in the list on the left.
-4. Drag it across the line into `Left Block`, so it is written before your text.
-5. Press **Add Value** three times and fill in `work`, `home`, `errand`.
+1. Press **Add Field**. The `Add a Field` window opens on the `Tag` type.
+2. Name it `Area`.
+3. Leave `Block` on `Left`, so the Field is written before your text.
+4. Under `Values`, type `work` and press `Enter`; do the same for `home` and `errand`.
+5. Press **Add Field** at the bottom of the window. The new Field is picked in the list, with its Values on the right.
 6. Close settings.
 
 Two commands appeared in the palette on their own: **Tags & PKM: Area next** and
@@ -141,4 +141,4 @@ What to read next, in the order it becomes useful:
 
 One thing deliberately left out: **Transform**, which turns a line into a whole note.
 It is powerful and it edits your files, so it stays off until you have read
-[its section in the guide](../INSTRUCTIONS.md#transform-a-line-becomes-a-note).
+[its section in the guide](../INSTRUCTIONS.md#turn-a-line-into-a-note).

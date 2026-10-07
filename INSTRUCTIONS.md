@@ -1,155 +1,167 @@
 # inlineOverhaul: Setup and User Guide
 
-Step-by-step instructions for people who have already installed the plugin. New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md); for the panel control by control, see the [settings reference](docs/SETTINGS.md).
-
-inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, tagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
+Step-by-step instructions for people who have already installed the plugin, one task per section. New here? Start with the [tutorial](docs/TUTORIAL.md) or the [README](README.md). For every control of the panel, see the [settings reference](docs/SETTINGS.md).
 
 > [!WARNING]
-> This is beta software. Back up the entire vault, including its `.obsidian` folder, before installation, updates, configuration imports, or Transform use. Test important workflows on disposable notes first. **Transform inline to note** can create, append to, overwrite, and edit notes.
+> inlineOverhaul is a beta plugin. Back up the whole vault, its `.obsidian` folder included, before you install, update, restore settings or use Transform. `Transform inline to note` creates notes, adds to them and can overwrite them.
 
-## Requirements
+## Contents
 
-- Obsidian desktop 1.13.0 or newer (the settings pane uses the declarative settings API added in 1.13)
-- Desktop vault; mobile is not supported
-- BRAT community plugin for beta installation and updates
-- A current vault backup
+| Area | Tasks |
+|---|---|
+| Start | [Install, update or uninstall](#install-update-or-uninstall-with-brat) · [Set up the plugin on first run](#set-up-the-plugin-on-first-run) · [Give commands a hotkey](#give-commands-a-hotkey) · [Turn a module on or off](#turn-a-module-on-or-off) · [Change the panel language](#change-the-panel-language) |
+| Navigation | [Move lines and trees up or down](#move-lines-and-trees-up-or-down) · [Change the line Prefix or indent](#change-the-line-prefix-or-indent) · [Move selected text along a line](#move-selected-text-along-a-line) · [Jump between headings](#jump-between-headings) · [Move the cursor inside a line](#move-the-cursor-inside-a-line) |
+| Keyboard | [Choose what Ctrl+A selects](#choose-what-ctrla-selects) · [Join lines cleanly with Del and Backspace](#join-lines-cleanly-with-del-and-backspace) · [Add a line with Enter without splitting yours](#add-a-line-with-enter-without-splitting-yours) · [Paste numbered lists cleanly](#paste-numbered-lists-cleanly) · [Make your own insert commands with Binder](#make-your-own-insert-commands-with-binder) |
+| Tags & PKM | [Add and arrange Fields](#add-and-arrange-fields) · [Set up tag Values and child tags](#set-up-tag-values-and-child-tags) · [Set up link Values](#set-up-link-values) · [Set up a date, time or counter](#set-up-a-date-time-or-counter) · [Edit the line with a Command Field](#edit-the-line-with-a-command-field) · [Write Values where the cursor is](#write-values-where-the-cursor-is) · [Change the Separators](#change-the-separators) · [Choose what is left after a cycle](#choose-what-is-left-after-a-cycle) · [Mark a ticked line](#mark-a-ticked-line) · [Pick Values with tagWheel](#pick-values-with-tagwheel) · [Decide which Prefix wins](#decide-which-prefix-wins) · [Copy Fields into note properties](#copy-fields-into-note-properties) |
+| Transform | [Turn a line into a note](#turn-a-line-into-a-note) · [Link new notes from the notes you mention](#link-new-notes-from-the-notes-you-mention) · [Pick a template by the kind of line](#pick-a-template-by-the-kind-of-line) |
+| Visual | [Change how tagged lines look](#change-how-tagged-lines-look) · [Draw Tag Bars in the margin](#draw-tag-bars-in-the-margin) · [Change the look of tagWheel](#change-the-look-of-tagwheel) · [Color and shape the text cursor](#color-and-shape-the-text-cursor) · [Show where the cursor lands](#show-where-the-cursor-lands) · [Color tags that are not Values](#color-tags-that-are-not-values) |
+| Advanced | [Save, restore or move your settings](#save-restore-or-move-your-settings) · [Undo a settings change](#undo-a-settings-change) · [Collect a log for a bug report](#collect-a-log-for-a-bug-report) |
+| Help | [Fix a problem](#fix-a-problem) · [Beta limitations](#beta-limitations) · [Try it on a safe test note](#try-it-on-a-safe-test-note) · [Glossary](#glossary) |
 
-## Install, update, or uninstall with BRAT
+## Install, update or uninstall with BRAT
+
+You need:
+
+- Obsidian desktop 1.13.0 or newer; mobile is not supported
+- the BRAT community plugin, which installs and updates beta plugins
+- a current backup of your vault
 
 ### Install
 
-1. In Obsidian, open **Settings → Community plugins**.
-2. Install and enable **BRAT**.
-3. Open BRAT and choose **Add Beta plugin**.
-4. Enter `romkuznetsov/inline-overhaul`.
-5. After BRAT downloads the release, open **Settings → Community plugins** and enable **inlineOverhaul**.
+1. Open **Settings → Community plugins**, install **BRAT** and enable it.
+2. In BRAT, choose `Add Beta plugin` and enter `romkuznetsov/inline-overhaul`.
+3. When BRAT has downloaded the release, enable **inlineOverhaul** under **Settings → Community plugins**.
 
 ### Update
 
 1. Back up the vault.
-2. Use BRAT's update check for beta plugins, or wait for its configured update check.
-3. Confirm that **inlineOverhaul** remains enabled after the reload.
-4. Open a disposable note and run one familiar Navigation or PKM command before using production notes.
-5. A window opens once after the update and lists what changed, every release you skipped included. The same text lives in `CHANGELOG.md` of the repository, and `General -> Help -> Changelog -> Open` opens it in your browser at any time.
+2. Run BRAT's update check, or wait for its scheduled one.
+3. Confirm **inlineOverhaul** is still enabled after the reload.
+4. Run one familiar command on a disposable note before you touch real notes.
+
+After an update, a window lists what changed in every release since your last one. The same text is in `CHANGELOG.md`; **General → Help → Changelog** → `Open` shows it in your browser at any time.
 
 ### Uninstall
 
 1. Disable **inlineOverhaul** under **Settings → Community plugins**.
-2. Remove inlineOverhaul from BRAT's tracked beta-plugin list so BRAT does not reinstall it.
-3. Remove the plugin from Obsidian’s installed community plugins.
-4. Delete the note the plugin generated for itself, and any settings backups you no longer want. Uninstalling the plugin does not require deleting notes you wrote yourself.
+2. Remove it from BRAT's list of beta plugins, so BRAT does not install it again.
+3. Uninstall it from Obsidian's installed community plugins.
+4. Delete the backups and the guide note you no longer want. Your own notes stay as they are.
 
-## First run
+## Set up the plugin on first run
 
-1. Enable the plugin.
-2. Open **Settings → inlineOverhaul**.
-3. In **General**, leave only modules you intend to test enabled.
-4. Open **Tags & PKM → Fields**. A fresh install already has four: `Status` and
-   `Priority` before your text, `Due` and `Project` after it. Change them, delete what
-   you do not need, or add your own. They come with a fresh install only, and
-   **Advanced → Backup → Start over** does not bring them back.
-5. Choose Separators and confirm the live preview.
-6. Assign hotkeys in Obsidian’s standard **Settings → Hotkeys** screen. **Keyboard → Commands & Hotkeys** lists every command with the key it has now and takes you there.
-7. Leave **Transform inline to note** off until its output, naming, template, collision, and source-cleanup settings are reviewed.
-8. Once the setup works, save it: **Advanced → Backup → Save a backup** writes everything you have set up into a note in your vault.
+1. Open **Settings → inlineOverhaul**.
+2. On **General**, under `Modules`, leave on only the parts you want to try.
+3. Open **Tags & PKM → Fields**. A fresh install has four Fields:
 
-On load, the plugin migrates your saved settings to the current form. The rules the PKM engines and inline navigation work from are built from those settings as the plugin loads — there is no rules note in your vault to edit, and an older version that left one behind has it cleaned up on the next load.
+   | Field | Values | Block |
+   |---|---|---|
+   | `Status` | `#todo`, `#doing`, `#done` | Left Block, before your text |
+   | `Priority` | `#low`, `#med`, `#high` | Left Block |
+   | `Due` | 📅 and a date | Right Block, after your text |
+   | `Project` | `[[Project A]]`, `[[Project B]]` | Right Block |
 
-## Settings model
+   Change them, delete them or add your own. They come with a fresh install only: `Delete all my settings` does not bring them back.
+4. Check the line preview at the top of `Fields`, and the Separators under `Separators`.
+5. Give the commands you use a hotkey: see [Give commands a hotkey](#give-commands-a-hotkey).
+6. Leave `Inline to note` on the **Transform** tab off until you have read [Turn a line into a note](#turn-a-line-into-a-note).
+7. Once the setup works, save it: **Advanced → Backup** → `Save a backup`.
 
-Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Transform**, **Visual**, and **Advanced**. There are no sub-tabs and no visibility toggles: every setting of an area is on one page, and Obsidian’s own settings search finds it by name.
+The panel has seven tabs: **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **Transform**, **Visual** and **Advanced**. Every setting of a tab is on one page, settings save on their own, and Obsidian's settings search finds a setting by its name.
 
-- Changes normally save automatically after a short debounce.
-- **Undo last settings change** rolls back one saved-settings step. It is a command only: run it from the command palette or give it a key. Undo history is session-local and limited.
-- A disabled module makes its area read-only and guards its commands.
-- **Advanced → Diagnostics** shows schema version, enabled modules, and last save time.
-- **Developer mode** can write troubleshooting logs to a vault-relative path. Keep it off unless diagnosing a problem; logs may contain note text involved in commands.
+**General → Help** also has `Guide` → `Read`: it writes the note `inlineOverhaul Guide.md` into your vault with worked examples. The note is yours to edit, and the plugin never writes over it.
 
-### The words the panel uses
+## Give commands a hotkey
 
-**General → Help → Language** decides what language the panel speaks. Every visible line has a key of its own, and the words behind those keys live in plain text files inside the plugin folder, one file per language:
+The plugin assigns no keys to any command. Two ways to give one:
 
-```
-<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js
-```
+- **Keyboard → Commands & Hotkeys** lists every command with its key. Click a cell in the `Hotkey` column, and Obsidian's `Hotkeys` screen opens at that command. The `to hotkeys` button in a heading opens it filtered by that heading.
+- In Obsidian's **Settings → Hotkeys**, search for `inlineOverhaul` to see the whole set.
 
-That is the only file the plugin puts there. Every other file in that folder is one you
-made, and the plugin never touches it.
+In the palette every name starts with the plugin and its area, such as `inlineOverhaul: Navigation: Move up`. The table below drops that start.
 
-Left of the colon is the key, right of it is what you see on screen. Edit a line, reload the plugin, and the panel says what you wrote — the English wording included, so rewording a setting is no longer something you have to ask for.
+<details>
 
-- **`default.js` belongs to the plugin and is always current.** Every update rewrites it, so a new setting, a new window and a reworded line show up there on their own. Do not edit it: copy it instead. There is no English file of your own unless you make one — an English snapshot that is never rewritten would freeze every later rewording, because a file on disk is read before the wording built into the panel.
-- **Your file is never overwritten.** The plugin writes a language file only when there is none, so your edits survive an update. A file it wrote and nobody changed is kept in step; the moment you change one line in it, it becomes yours and the plugin stops touching it.
-- **A line you leave out falls back.** A key that is missing, or left empty, keeps the wording the plugin ships with, and so does a whole file that fails to load. You never see a key instead of a text.
-- **The file is read as JSON**, so keep it plain: no comments between the braces, and no comma after the last line. A file the plugin cannot read is named in a notice, and the panel opens in English.
-- **To add a language**, copy one of the files under a new name and change its first line, `"$language"`, to the name of that language. It appears in the list on its own; nothing has to be registered anywhere.
-- **Command names stay in English.** Obsidian takes those from its own command registry, so translating them here would leave the command palette and the reference table disagreeing.
+<summary>Every command that comes with the plugin</summary>
 
-### Module toggles
-
-Four global modules exist:
-
-| Module | Purpose | Default |
+| Area | Command | What it does |
 |---|---|---|
-| Navigation | Move lines/selections, cycle prefixes, jump through sections, navigate inline text | On |
-| Tags & PKM | Field cycles, tagWheel, Fields and Values | On |
-| Visual | Tag bubbles, Tag Bars, tagWheel panel and scroller appearance | On |
-| Transform | Hosts Transform commands/settings | On |
+| Navigation | `Move up`, `Move down` | Move the line or the selected lines |
+| Navigation | `Move left`, `Move right` | Move selected text, change the line Prefix or the indent |
+| Navigation | `Jump up`, `Jump down` | Jump between headings or lines of a note |
+| Navigation | `Jump left`, `Jump right` | Move the cursor between the parts of a line |
+| Tags & PKM | `tagWheel Left`, `tagWheel Right` | Open tagWheel on the Left Block or the Right Block |
+| Transform | `Transform inline to note` | Turn the line into a note |
+| Binder | `Smart bracket` | Cycle brackets around a selection |
+| General | `Undo last settings change` | Take back the last settings change |
+| General | `Toggle Navigation module`, `Toggle Tags & PKM module`, `Toggle Transform module`, `Toggle Visual module` | Turn a module on or off |
 
-Transform has a second safety gate: **Transform inline to note** defaults to **Off**. Both the Transform module and that setting must be on before transformation runs.
+</details>
 
-Each module also has an exact command-palette toggle:
+Other commands come from your setup, and they follow it at once: add, rename or delete a Field, a custom block or a Binder row, or restore a backup, and the palette and `Hotkeys` change without a reload.
 
-- **Toggle Navigation module**
-- **Toggle PKM module**
-- **Toggle Visual module**
-- **Toggle Transform module**
+| Made from | Commands |
+|---|---|
+| Each Tag, Link or Element Field | `<Field> next` and `<Field> previous`, such as `Status next` |
+| A child Field | its own pair, the parent name with `-sub`, such as `Status-sub next` |
+| Each category of a Command Field | `<Field> · <category> next` and `<Field> · <category> previous` |
+| Each custom block | `tagWheel <block name>` |
+| Each Binder row | one command named after the row |
 
-## Commands & Hotkeys
+Renaming a Field keeps its hotkeys: the command keeps its identifier and changes only its name.
 
-The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian’s Hotkeys screen with that command already found, and the `to hotkeys` button in any heading of that table takes you there with the whole heading filtered. That works because **each command is named after its area** — in Obsidian you will see `inlineOverhaul: Navigation: Move up`. The list below repeats it for reading offline, by the part that says what the command does.
+Suggested keys: paired keys for each Field, one key for each side of tagWheel, mnemonic keys for Binder rows. Give `Transform inline to note` a deliberate combination of keys, never a single key that is easy to hit by accident.
 
-### Navigation
+See it in motion: [Commands and hotkeys](docs/SHOWCASE.md#commands-and-hotkeys)
 
-- **Move up**
-- **Move down**
-- **Move left**
-- **Move right**
-- **Jump up**
-- **Jump down**
-- **Jump left**
-- **Jump right**
+## Turn a module on or off
 
-### Tags & PKM
+The plugin has four modules, all on by default. Turn them on or off under **General → Modules**, or with the commands `Toggle Navigation module`, `Toggle Tags & PKM module`, `Toggle Transform module` and `Toggle Visual module`.
 
-- **tagWheel Left**
-- **tagWheel Right**
-- Two commands per configured Field, named after it: **`<Field>` next** and **`<Field>` previous**
-- A child Field uses its parent's name with `-sub` appended.
+| Module | What it does |
+|---|---|
+| Navigation | Moves lines, text and the cursor |
+| Tags & PKM | Writes Fields on the line: tagWheel and the Field commands |
+| Transform | Turns a line into a note; also needs `Inline to note` on the Transform tab |
+| Visual | Tag colors, the Stripe, Tag Bars, the text cursor |
 
-Because Field commands are generated from your current Fields, their names are not a fixed built-in list. Adding a Field in settings registers its pair of commands immediately. Field renames and deletions, and restoring a settings backup, require a plugin reload to refresh the command registry. Until reload, obsolete commands may remain visible.
+A module that is off keeps its settings. Its commands only show a message such as `Navigation is switched off`, and its tab shows just the switch. Turn it back on, and everything is as it was.
 
-### Transform
+See it in motion: [Modules](docs/SHOWCASE.md#modules)
 
-- **Transform inline to note**
+## Change the panel language
 
-### Binder
+**General → Help → Language** picks the language of the panel and of the plugin messages. English is always in the list.
 
-- **Smart bracket**
-- One command per row you add under **Keyboard → Binder**, named after the row
+Every line of the panel has a key, and the words behind the keys live in one text file per language. To add a language:
 
-### General
+1. Open `<your vault>/.obsidian/plugins/inline-overhaul/texts/`.
+2. Copy `default.js` under a new name, such as `de.js`.
+3. Change its first line, `"$language"`, to the name you want to see in the list.
+4. Translate the right-hand side of the lines you want, and reload the plugin.
 
-- **Undo last settings change**
-- Four module-toggle commands listed above
+- Do not edit `default.js` itself: the plugin rewrites it on every update. Your copy is never overwritten.
+- A line you leave out or empty keeps its English text, so a half-finished translation works.
+- The file is read as JSON: no comments and no comma after the last line. A file the plugin cannot read is named in a message, and the panel opens in English.
+- Command names stay English: Obsidian takes them from its own command list.
 
-## Navigation features
+The guide note works the same way. Copy `guide/default.md` in the plugin folder under a language name and change `language:` in its property block. `Read` then writes `inlineOverhaul Guide (<language>).md` next to the English one.
 
-### Move lines and trees
+## Move lines and trees up or down
 
-**Move up** and **Move down** move selected full lines. With no selection, **No-selection mode** chooses between only the current line and the current line plus indentation-based children. Header handling can move only the heading line or its entire section. **Cross-section allowed** controls whether movement crosses headers. **Highlight moved lines** selects normalized moved lines afterward.
+`Move up` and `Move down` move the line you are on, or every line you selected. Set them under **Navigation → Move lines (up/down)**.
 
-Copyable example:
+| Control | What it decides | Choices |
+|---|---|---|
+| `Moving behavior` | Whether the lines indented under the line travel with it | `Line only` (default), `Whole tree` |
+| `Jump over neighbor trees` | With `Whole tree`: hop over the whole tree next to it | off by default |
+| `Moving headings` | A heading moves alone, or with its section | `Heading only` (default), `Whole section` |
+| `Cross heading boundaries` | Whether a line can travel past a heading | on by default |
+| `Highlight after moving` | Keep the moved lines selected; `Moved lines color` sets the color | off by default |
+| `Follow the moved line` | Scroll the note to the moved line | on by default |
+| `Where the line lands` | Where on screen the line ends up | `Center` (default), `Top`, `Bottom` |
+
+With the cursor on `- Parent` and `Whole tree`, `Move down` moves the parent and both children:
 
 ```markdown
 ## Planning
@@ -159,614 +171,419 @@ Copyable example:
 - Sibling
 ```
 
-With the cursor on `- Parent` and **with-children**, Move Down moves the parent and both children as one tree.
+See it in motion: [Move a line with its tree](docs/SHOWCASE.md#move-a-line-with-its-tree), [Where the moved line ends up](docs/SHOWCASE.md#where-the-moved-line-ends-up)
 
-### Move inline text, cycle prefixes, and indent
+## Change the line Prefix or indent
 
-**Move left** and **Move right** have two roles:
+With nothing selected, `Move left` and `Move right` change the Prefix of the line (its marker, such as `#`, `-` or `1.`) or its indent. Set them under **Navigation → Move lines (left/right)**; the tables at the top of that group show which press does what.
 
-- With a partial single-line selection, move text by character or token according to **Inline move mode**.
-- At line level, cycle configured prefixes at indentation level 0; when no cycle applies, optionally fall back to indentation using Obsidian’s global **Tab width**.
+- `Cycle line Prefixes` turns a line into a heading, a bullet, a numbered item or plain text, one press at a time. The list under it sets the order.
+- `Cycle in both directions` lets `Move right` change the marker too, on a line with no indent.
+- `After the last one` decides what happens at the end of the list: `Indent` (default) or `Start over`.
+- `Change the indent` makes `Move right` indent a list item one step and `Move left` take one step off. `Indent the whole tree` takes the lines under it along.
 
-Default prefix cycle (list markers include their normal following space):
+With `Cycle line Prefixes` off, the keys only change the indent.
 
-```markdown
-#
-##
-###
-####
-#####
-1.
+See it in motion: [Cycle the line marker](docs/SHOWCASE.md#cycle-the-line-marker)
 
--
-```
+## Move selected text along a line
 
-The blank entry represents a plain line. Right follows the list; Left mirrors it. At the final entry, **On cycle end** either increases indentation or wraps to the first prefix.
+Select part of one line, and `Move left` and `Move right` slide it along. The settings sit under **Navigation → Move lines (left/right)**, in the `Move text` part.
 
-### Jump between headers
+| Control | Choices |
+|---|---|
+| `Move selected text` | on by default |
+| `Movement step` | `Auto` (default), `Character`, `Word`, `Off` |
+| `Step out of the word` | with `Auto`: let a part of a word carry on past it; off by default |
+| `Continue past Separators` | let the text move into the Fields at either end; on by default |
 
-**Jump up** and **Jump down** can:
+See it in motion: [Move selected text](docs/SHOWCASE.md#move-selected-text)
 
-- jump between section edges or move line-by-line;
-- use start/end, start-only, or end-only edge behavior;
-- place the cursor at line start, line end, or active text end before the separator zone;
-- center the target in the viewport.
+## Jump between headings
 
-The line-start target is immediately after the structural prefix, such as indentation, list marker, or checkbox, and not column 0.
+`Jump up` and `Jump down` skip through a note by its headings. Set them under **Navigation → Jump inside a note (up/down)**.
 
-### Navigate within inline text
+| Control | Choices |
+|---|---|
+| `Jump target` | `Headings` (default) or `Lines`, one written line at a time |
+| `Where in the section` | `Start and end` (default), `Start only`, `End only` |
+| `Cursor position after jumping` | `Line start`, `Line end`, `Text start`, `Text end` (default) |
+| `Follow the jump target` | scroll the note to the line; on by default |
+| `Where the target lands` | `Center` (default), `Top`, `Bottom` |
 
-**Jump left** and **Jump right** use the active generated PKM rules and Separators. Step mode can move by word, sentence, or directly between zone boundaries. Separator crossing can be strict or allowed. At a boundary, navigation can stay, wrap, or continue on the next/previous line.
+`Text start` puts the cursor after the line's Prefix (indent, marker, checkbox). `Text end` stops before the Second Separator.
 
-Inline navigation is currently reliable when both boundaries use the same separator. A distinct **Separator 2** is supported by the line model but may produce incorrect inline boundary navigation; test that configuration on disposable text before relying on it.
+See it in motion: [Jump inside a note](docs/SHOWCASE.md#jump-inside-a-note)
 
-### Smart SelectAll (Ctrl+A)
+## Move the cursor inside a line
 
-Under **Keyboard → Smart SelectAll (Ctrl+A)**, this setting replaces ordinary selection expansion with one of these repeated-press sequences:
+`Jump left` and `Jump right` move the cursor between the parts of a line: the Left Block, your text, the Right Block. Set them under **Navigation → Jump inside a line (left/right)**.
 
-- line → whole note;
-- line → indentation tree → whole note;
-- line → indentation tree → current header section → whole note;
-- word → line → indentation tree → current header section → whole note;
-- `Custom`: the steps you tick, in the order above.
+| Control | Choices |
+|---|---|
+| `Step size` | `Word` (default), `Sentence`, `Start or end` |
+| `Continue past Separators` | let the cursor walk into the Fields at either end; off by default |
+| `What to do at the end` | `Stop`, `Wrap around` (default), `Next line` |
 
-**Word** is the word nearest the cursor: the one it stands in or beside, and otherwise the closest, with the left one taken when both are equally far. A line with no word in it skips the step rather than selecting nothing.
+See it in motion: [Jump inside a line](docs/SHOWCASE.md#jump-inside-a-line)
 
-Picking `Custom` opens a list of five tick boxes — `word`, `line`, `tree`, `heading`, `note` — under the sequence. The ticks choose which steps a press stops at; the order is always the one shown above. Tick nothing and the key belongs to Obsidian again: one press, the whole note.
+## Choose what Ctrl+A selects
 
-It can infer the next scope from the current selection or use a 250–2000 ms multi-press timer. Optional final press clears the selection and restores the cycle-origin cursor.
+Turn on `Smart Ctrl+A` under **Keyboard → Smart SelectAll (Ctrl+A)**, and each press of `Ctrl/Cmd + A` selects a bit more.
 
-### Smart Delete\Backspace
+1. Pick `Selection steps`: `Line, note` (default), `Line, tree, note`, `Line, tree, heading, note`, `Word, line, tree, heading, note`, or `Custom`.
+2. With `Custom`, tick the steps a press stops at: `word`, `line`, `tree`, `heading`, `note`. The order is always that one. Tick nothing, and one press selects the whole note again.
+3. Optional: `Count presses by timer` starts over after a pause longer than `Time between presses` (250 to 2000 ms, 700 by default).
+4. Optional: `Last press clears highlighting` drops the selection after the last step and puts the cursor back.
 
-Under **Keyboard → Smart Delete\Backspace**, `Del` at the end of a line stops dragging the next line up as it is written. The indent goes, and so do the bullet, the checkbox, the number, the quote mark and the heading marks, so what lands after your cursor is the text. A line that holds nothing but a Prefix is removed whole, which is how a run of empty bullets clears one press at a time.
+`word` takes the word the cursor is in or next to, otherwise the nearest one. A line without words skips that step.
 
-`Smart Backspace` is the same thing from the other side: `Backspace` at the start of a line sends that line up to the one above without its own indent and Prefix, while the line above keeps the way it is written. It has a switch of its own and answers to nobody — `Smart Delete` can stay off while this one works, and the other way round.
+See it in motion: [Smart Ctrl+A](docs/SHOWCASE.md#smart-ctrla)
 
-Two more toggles belong to both keys. `Drop the line Prefix` off leaves the Prefix and removes only the indent. `Join with a space` puts one space at the joint, and only when both sides have something on them.
+## Join lines cleanly with Del and Backspace
 
-Both keys are **off** by default: `Del` and `Backspace` belong to Obsidian, and until you turn one on the key does exactly what it always did. Everywhere except the end of a line for `Del` and the start of one for `Backspace` — with a selection, or with more than one cursor — the keys are untouched.
+Under **Keyboard → Smart Delete\Backspace**, two switches change what happens when two lines join. Both are off by default.
 
-### Smart Enter
+| Switch | Key and place | Result with it on |
+|---|---|---|
+| `Smart Delete` | `Del` at the end of a line | the next line comes up without its indent and Prefix |
+| `Smart Backspace` | `Backspace` at the start of a line | the line goes up without its indent and Prefix |
 
-Under **Keyboard → Smart Enter**, `Enter` stops cutting one of your lines in two. A line
-carrying Fields is a record, not a paragraph: split it in half and the Block after your
-text is torn away from the Block before it, and neither half is a record any more. With
-the toggle on, `Enter` adds an empty line underneath and leaves the line you are on
-exactly as it was.
+Each switch works without the other. Two more apply to both keys:
 
-`Where it works` decides how much of the line counts as one record. `Anywhere in the
-line` keeps the whole line together: wherever the cursor stands — in a Block, on a
-Separator or in your text — the key adds a line below. `Text only` narrows it to
-the text slot, the part between your Separators, so `Enter` inside a Block goes back to
-being Obsidian’s own. If a line carries only one Separator, the text slot is whatever
-lies after the first or before the second, and a line with none is text from end to end.
+- `Drop the line Prefix` (on): off, only the indent goes.
+- `Join with a space` (on): one space between the two texts. Off, they join directly, handy for a split word.
 
-`Shift+Enter as usual Enter` makes `Shift+Enter` the usual `Enter` of Obsidian: it splits the line and continues the list. Off, `Shift+Enter` stays Obsidian’s own.
+A line that holds only a Prefix, such as an empty bullet, disappears in one press. With a selection, with several cursors, or anywhere else in a line, both keys work as usual.
 
-`Use Shift+Enter instead` swaps the keys: `Shift+Enter` adds the line below and `Enter` splits the line as usual. With it on, `Shift+Enter as usual Enter` is hidden — there is nothing left for it to do.
-In code, in a table, on an empty line and on an empty list item `Enter` stays Obsidian’s
-own, so it still takes you out of a list.
+See it in motion: [Smart Delete and Backspace](docs/SHOWCASE.md#smart-delete-and-backspace)
 
-`Prefix on the new line` decides what the new line starts with, and it has three
-settings. `Same as above` repeats the marker exactly as Obsidian does it on its
-own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox
-arrives empty, because a line you have not written yet is not a task you have done.
-`None` starts the new line bare. `Numbered lines only` does the same but
-keeps the count going, so a numbered list does not lose its place; a checkbox still goes,
-because there the answer is no to everything except the numbering. The indent is kept by
-all three.
+## Add a line with Enter without splitting yours
 
-The key is **off** by default and stays Obsidian’s own everywhere else: in any line that
-carries no Separator of yours, outside your text when `Where it works` says so, with a
-selection, or with more than one cursor.
+Turn on `Smart Enter` under **Keyboard → Smart Enter**. `Enter` then adds a line below and leaves the line you are on as it is, so its Fields stay together.
 
-### Smart Paste (Ctrl+V)
+| Control | Choices |
+|---|---|
+| `Where it works` | `Whole line` (default) or `Text only`, between your Separators |
+| `Prefix on the new line` | `Same as above` (default), `None`, `Numbered lines only` |
+| `Use Shift+Enter instead` | `Shift+Enter` adds the line, `Enter` splits as usual |
+| `Shift+Enter as usual Enter` | `Shift+Enter` splits the line as Obsidian's `Enter` does |
 
-Under **Keyboard → Smart Paste (Ctrl+V)**, `Ctrl/Cmd + V` learns two things about lists.
+- `Same as above` repeats the marker: the next number, a bullet, an empty checkbox. All three choices keep the indent.
+- In code, in a table, on an empty line or an empty list item, `Enter` works as usual, so it still takes you out of a list.
 
-Cut a numbered list out of one note and paste it into another, and it arrives carrying the
-numbers it had where it came from: a list that started at nine goes on starting at nine.
-With the toggle on it is counted from one instead. Paste it directly under a list you
-already have and it does the opposite — the count of that list carries on through it,
-which is what Obsidian does by itself and what the toggle leaves alone.
+See it in motion: [Smart Enter](docs/SHOWCASE.md#smart-enter)
 
-The other half is the single item. Paste `1. text` into a line that already starts with a
-number and you get `2. 1. text`, two markers in a row, and the second one stops being a
-marker at all. With the toggle on the pasted marker is dropped: `2. ` becomes `2. text`,
-and `2. aaa` becomes `2. aaa text`.
+## Paste numbered lists cleanly
 
-The key is **off** by default. With it on, a paste that neither starts a numbered list nor
-lands on a line that already carries a marker is not touched at all — plain text, a link
-or a table arrives exactly as it always did.
+Turn on `Smart paste` under **Keyboard → Smart Paste (Ctrl+V)**.
 
-### Where the view goes when a line moves
+- A pasted numbered list starts from one. Pasted right under a list, it keeps that list's count.
+- A pasted marker is dropped where the line already has one: `1. milk` pasted after `2. ` gives `2. milk`.
+- Plain text, links and tables paste as usual.
 
-Under **Navigation → Moving lines**, `Follow the moved line` decides whether the note scrolls after a move at all, and `Where the line lands` decides where the line ends up: the center, the top or the bottom of the screen. Before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Turn the toggle off and the view does not move at all, which also means a line pushed past the edge goes on moving out of sight.
+See it in motion: [Smart paste](docs/SHOWCASE.md#smart-paste)
 
-### Where the view goes when you jump to a heading
+## Make your own insert commands with Binder
 
-Under **Navigation → Jump inside a note (up/down)**, `Follow the jump target` decides whether the note scrolls after a jump at all, and `Where the target lands` decides where the line you jumped to ends up: the center, the top or the bottom of the screen. It is the same pair `Move lines (up/down)` has, and it works the same way.
+Binder turns text you type often into commands.
 
-### The edge of a Block in tagWheel
+1. Open **Keyboard → Binder (custom insert commands)** and press `Add command`.
+2. Pick the `Type`:
+   - `Text` puts your text in at the cursor, or over the selection.
+   - `Command` runs a category of a Command Field with a preset of its own (see [Edit the line with a Command Field](#edit-the-line-with-a-command-field)).
+3. Fill `Inserts` and, if you like, `Command name` and `Description`.
+4. Click the row's `Hotkey` cell and set a key in Obsidian's `Hotkeys` screen.
 
-Under **Tags & PKM → tagWheel behavior**, `tagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in Block` is the way it has always worked: past the last Field you land back on the first. `Next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
+You cannot change a row's text afterwards: delete the row and add it again. Deleting a row deletes its command at once. `Description` stays editable, and so does the preset of a `Command` row.
 
-### The other Block while tagWheel is open
+The built-in row `Smart bracket` cycles brackets around a selection: `text` → `[text]` → `[[text]]` → `text`. With the cursor inside `[[Note]]` it takes the link brackets off; inside `[Note]` it makes a link.
 
-The picker takes the place of the Block it is standing in, and what happens to the other
-one is set under **Tags & PKM → tagWheel behavior**, `Values in the other Block`. `Hide them while the
-picker is open` is how it has always worked: the other Block leaves the line for as long
-as you are choosing. `Show` leaves it written where it belongs, on its own
-side of your text, so you can see what the line already carries.
+See it in motion: [Binder: your own insert commands](docs/SHOWCASE.md#binder-your-own-insert-commands)
 
-Either way nothing is written or removed: what you pick lands on the line when the picker
-closes, and `Escape` puts the line back exactly as it was.
+## Add and arrange Fields
 
-### The shape of the text cursor
-
-Under **Visual → Text cursor**, `Color the text cursor` gives the caret a color of its own, and `Shape the text cursor` sets how thick it is and how fast it blinks. The two are separate switches and neither needs the other. `Blink speed` runs from `0`, where the caret stops blinking and simply stays put, to `10`; `5` is the speed Obsidian uses on its own. A live preview under them shows all three at once and follows the sliders as you drag.
-
-With `Shape the text cursor` on the plugin draws the caret itself. It has to: on a line with nothing selected the editor draws no caret of its own — what you see there is the browser's, and a browser caret takes a color from CSS but not a width and not a blink rate. That is why the color worked on its own and the other two only showed up while text was selected.
-
-## Tags & PKM
-
-### Inline line model
-
-PKM lines can contain a left panel, text payload, and right panel:
+A Field is one thing a line can carry. You set Fields up under **Tags & PKM → Fields**: the list on the left, the settings of the selected Field on the right.
 
 ```markdown
-- [ ] #priority-high #task :: Draft release notes :: [[Project Atlas]] 📅2026-09-15
+- [ ] #todo #high || call the bank || [[Project A]] 📅2026-09-15
 ```
 
-- **Separator 1** divides left fields from text.
-- **Separator 2** divides text from right fields.
-- Both separators are configurable and may be identical.
-- Order determines token placement and sorting inside each panel.
+The line has three parts: the Left Block before the First Separator, your text, and the Right Block after the Second Separator.
 
-When a panel is empty, runtime normalization may omit its separator. Use the live preview in settings to check the exact shape produced by current configuration.
+**Add a Field.** Press `Add a Field`, name it and pick one of four types:
 
-### Two heights for the Fields editor
+- `Tag` writes a tag: `#todo`
+- `Link` writes a link to a note: `[[Project A]]`
+- `Element` writes an emoji with a Value after it: `📅2026-09-15`
+  - a date written with a space, `📅 2026-09-15`, is read too
+  - an Element can also walk a list of emoji Values, such as `💡`
+- `Command` writes nothing; it edits the line, such as wrapping it in a callout
 
-The Fields editor grows until every control is on screen, and on a long Field that makes
-the panel scroll a long way. The chevron at the right edge of the `Fields` header, past
-the `Values` heading, switches to a fixed height with a scrollbar instead. The column
-headings stay put while the rest scrolls, so the chevron is always within reach, and the
-scrollbar itself stays out of sight until you scroll or bring the pointer to the right
-edge of the table. Which height you picked is remembered.
+The list of Fields labels an Element as `Emoji` and a Command Field as `Action`.
 
-### Order and panels
+**Arrange Fields.** Drag a Field by its handle to reorder it, or across the dotted line into the other Block. The arrows move it one place, and at the edge of a Block into the next one. The order in the list is the order on the line.
 
-**Tags & PKM → Fields** is the primary Field editor. The list on the left holds Fields split into Left Block and Right Block by a dotted line; the column on the right holds everything about the Field you selected.
+**The `Behavior` block** of each Field holds:
 
-- Add a field as `tag`, `link`, or `element`.
-- Drag a field within or between Left and Right panels.
-- Tag parent/subtag rows move together.
-- `name_strict` is the stable runtime/config key; `name_display` is only the UI label.
-- Assign a vault YAML property to each field.
-- Set **Active** to `yes`, `no`, or `hotkey_only`.
-- Set the placement mode per Field to `Strict` or `Insert only` (stored as `off` and `minimal`). A Field that writes where the cursor is goes into a custom block: `Add Block` under the Fields list.
-- Enable a generated subtag lane for tag fields.
-- Delete removes the field and related configuration after confirmation.
+| Control | Choices |
+|---|---|
+| `Active` | `Yes`: everywhere; `No`: off everywhere; `Commands only`: commands work, tagWheel hides it |
+| `Prefix behavior` | `Strict`: a Value may set the start of the line, such as its checkbox; `Insert only`: a plain line stays plain |
+| `Child Field` | when a child Field comes into play: `After parent`, `Always`, `On Alt`, `Hide` |
+| `Prerequisite Field` | `Yes`: the Field waits until another Field has a Value; pick it and, if you like, one Value of it |
 
-`name_strict` accepts letters, numbers, underscores, hyphens, and spaces. Names ending in `_sub` are reserved for generated child fields.
+Fine-tune both `Prefix behavior` modes under **Tags & PKM → Placement modes**: `Strict: add a bullet`, `Insert only: use Field Prefix`, `Keep typed tags in text`.
 
-The right column of the Fields editor exposes Values and detailed behavior. It supports local undo/redo history and validates the draft. Its changes are already live in plugin settings while it is open. If markdown config Apply detects a conflict with it, **Discard** and **Cancel** do not roll settings back to their earlier state. Use the undo command or restore a backup if you must recover earlier settings.
+The line preview draws a Field that waits for another one paler, with a small `⬑Type` or `⬑#todo` under it.
 
-### Tag fields and subtags
+**Hide a Value.** The eye in front of a Value hides it from `next`, `previous` and tagWheel. The Value stays in the Field, and a line that already has it still reads it.
 
-Tag fields cycle through configured values. Example values:
+**Delete or rename a Field** from its heading in the right column. Its commands follow at once.
 
-```markdown
-#task
-#idea
-#reference
-```
+The chevron at the right of the `Fields` header switches the editor to a fixed height with its own scrollbar; the choice is remembered.
 
-Subtags may depend on a parent and may be allowed only for selected parent values. Output format is global:
+See it in motion: [One Field and its Values](docs/SHOWCASE.md#one-field-and-its-values), [Add a Field](docs/SHOWCASE.md#add-a-field), [Blocks and Separators](docs/SHOWCASE.md#blocks-and-separators), [Where Values land](docs/SHOWCASE.md#where-values-land)
 
-```markdown
-#task #research
-```
+## Set up tag Values and child tags
 
-or:
+A Tag Field cycles through its Values in order: `next` on `#idea` gives `#mem`, and one step past the last Value takes the tag off.
 
-```markdown
-#task/research
-```
+1. Select the Field under **Tags & PKM → Fields** and type a Value under `Values`: `#todo` and `todo` are the same Value.
+2. Set its colors, its `Show` (`default`, `empty`, `custom` with `Custom text`) and, if it should set a checkbox, its Prefix.
+3. Mark a Value as a child of another one, such as `#work/report` under `#work`, to make a child Field.
 
-Choose **Subtag format → separate** or **combined**. Hotkey cycles and tagWheel share this setting.
+Each Tag Field picks how a child Value is written, with `Child tag format` in its `Behavior` block:
 
-### Wikilink fields
+| Choice | Result |
+|---|---|
+| `Separate` | `- #doing #review :: fix bug` |
+| `Nested` | `- #doing/review :: fix bug` |
 
-Wikilink fields cycle configured note names and render them as links:
+`Parent is Navigator` turns the parent Values into groups: in tagWheel a parent only narrows the child list, and only the child is written.
 
-```markdown
-[[Project Atlas]]
-[[Project Borealis]]
-```
+See it in motion: [Child Fields](docs/SHOWCASE.md#child-fields), [A Value that brings a checkbox](docs/SHOWCASE.md#a-value-that-brings-a-checkbox)
 
-They use the same Fields list, Block, Active, placement-mode, hotkey, and YAML workflows as other Fields. Link Fields do not receive tag-only token visuals or Tag Bars.
+## Set up link Values
 
-### Elements, date, and time
+A Link Field cycles through notes and writes them as links: `[[Project Atlas]]`. Adding a Value suggests your notes as you type. Link Fields get no tag bubbles and no Tag Bars.
 
-An element is a generic marker-plus-value field. Date and time are configurations of this generic field type, not separate hardcoded field classes.
+- **Rename a Value** and, if the Value has its own note, a window offers `Rename note and links` or `Only the Value`. It counts the links Obsidian would rewrite.
+- **Rename a note** in Obsidian, and the link Value that points to it follows the new name.
+- **`Use as MOC`** decides whether `Link the notes you mention` files new notes into the notes of these Values (see [Link new notes from the notes you mention](#link-new-notes-from-the-notes-you-mention)).
 
-Copyable examples:
+## Set up a date, time or counter
+
+An Element writes an emoji followed by a Value:
 
 ```markdown
 📅2026-09-15
-🕒14:30
-⏳45
+🕒1430
+🔢007
 ```
 
-In the right column, configure:
+In the right column of **Tags & PKM → Fields**, set:
 
-- one marker/emoji per field;
-- output **Format**, such as `YYYY-MM-DD`, `HH:mm`, or `000-000`;
-- **Increment by X** for numeric/date-time stepping;
-- **Command Y**: `now`, `randomN`, or `randomE`;
-- **Custom increment** sequence.
+- `Emoji prefix`: one emoji per Field; the plugin finds the Field by it
+- `Value format`, such as `YYYY-MM-DD`, `HHmm`, `001`
+- `Steps by`, what `next` and `previous` do:
 
-`now` renders current date/time through the configured format. `randomN` fills numeric format positions with digits. `randomE` fills format positions with random characters/elements. Custom increment rows accept a step and optional repeat count; `END` removes the element at cycle end.
+| Choice | What a press does |
+|---|---|
+| `Fixed step` | adds or takes away `Amount`, in the smallest unit of the format: `📅2026-12-10` → `📅2026-12-11` |
+| `Command` | `next` writes a fresh Value: `Current date and time`, `Random numbers` or `Random characters`; `previous` removes it |
+| `Custom step` | walks the `Steps` you write, one per line |
+| `List of Values` | walks your own emoji Values, then removes the Value |
 
-Example custom sequence entered one row per line:
+`Custom step` example: `1 (2)`, `5`, `END` makes `next` write `🔢1`, `🔢2`, `🔢3`, `🔢8`, then remove the Value. A number in brackets repeats a step; `END` removes the Value.
+
+## Edit the line with a Command Field
+
+A Command Field edits the line instead of writing a Value. Add a Field of type `Command`, then add categories to it under `Categories`.
+
+| Category | What it does |
+|---|---|
+| `Insert callout` | wraps the line and its tree, or the selected lines, in a callout; inside one, steps through the presets, then takes the callout off |
+| `Cleanup` | takes the Values of your Fields off the line, except the Fields you keep |
+| `Insert codeblock` | on an empty line, inserts your text, such as a code block of another plugin, as it is, under a heading or in a callout |
+| `Tree ↔ section` | turns a list item and its tree into a section under a heading, and back |
+
+Each category has ready-made presets, such as a `Note`, `Tip` or `Warning` callout, and you can add your own. Each category gets its own pair of commands:
 
 ```text
-1 (3)
-5
-END
+<Field> · <category> next
+<Field> · <category> previous
 ```
 
-This applies `1` for three presses, then `5`; `END` marks cycle removal.
+Outside the result of a category, `next` applies the first preset and `previous` the last. Inside it, they step through the presets.
 
-### Active and placement-mode behavior
+## Write Values where the cursor is
 
-- `yes`: field participates normally.
-- `no`: field is excluded from PKM cycle and tagWheel behavior. Transform can still recognize its exact configured tokens for mapping and cleanup.
-- `hotkey_only`: field remains available through its generated command without normal tagWheel participation.
-- `off`: normal configured prefix/placement rules apply.
-- `minimal`: insert according to Order with optional separators and optional tag-specific prefix replacement.
-- `full`: allows insertion away from the normal prefix zone; placement inside text can be Smart, Left, or Right.
+A custom block holds Fields that are written where the cursor is, instead of in the Left Block or Right Block.
 
-Global behavior settings control whether minimal mode inserts separators, whether minimal/off modes rewrite prefixes, and where full mode places an element.
+1. Press `Add Block` under the Fields list and drag Fields into it.
+2. Give the block's command, `tagWheel <block name>`, a hotkey.
+3. Optional: `Switch custom blocks on Tab` under **Tags & PKM → tagWheel behavior** lets `Tab` move to the next custom block.
 
-### Cycle behavior and cursor
+Renaming a block renames its command; deleting it deletes its Fields too.
 
-Every active field has increase/decrease commands. Cycling can add a value, replace it with the next/previous value, or remove it at the terminal state.
+See it in motion: [A Block at the cursor](docs/SHOWCASE.md#a-block-at-the-cursor)
 
-**Line prefix after end of cycle**:
+## Change the Separators
 
-- **Keep bullet** preserves `- ` on an otherwise empty result.
-- **Clear line** removes the empty prefix-only line.
+The two Separators fence your text off from the Fields. Both are `||` by default and may be the same.
 
-**Cursor behavior**:
+1. Open **Tags & PKM → Separators**.
+2. Change `First Separator` and `Second Separator`.
+3. Lines written earlier keep the old ones. `Old Separators in your notes` then appears: press `Replace in all notes`. It shows how many lines will change and touches only the Separators.
 
-- `text_end`: end of text slot before the right separator; recommended.
-- `current_position`: remap near the pre-command cursor.
-- `line_end`: end of final line.
+When a Block is empty, its Separator may be left out. The line preview shows the exact shape.
 
-### tagWheel
+## Choose what is left after a cycle
 
-Run **tagWheel Left** or **tagWheel Right** to start in a Block. Runtime Field order and dependencies come from the Fields list. Default interaction keys are:
+Two controls under **Tags & PKM → Writing rules** decide what happens after a Field command or tagWheel.
+
+| Control | Choices |
+|---|---|
+| `When a line empties out` | `Keep bullet` (default): `- #done ::` → `- `; `Clear line`: a blank line |
+| `Cursor after an action` | `Text end` (default), `Don't move`, `Line end` |
+
+Your own text always stays: `- #done :: call Anna` → `- call Anna`.
+
+## Mark a ticked line
+
+`Mark ticked line` under **Tags & PKM → Writing rules** adds a tag or emoji when you tick a checkbox, and takes it off when you untick it.
+
+1. Type the mark, such as `✅` or `#done`. A Value of one of your Fields takes that Field's place.
+2. `Where the tick mark goes`: `Left Block` or `Right Block` (default).
+3. Optional: `Strike through ticked line` crosses the line out.
+4. Optional: `Dim ticked line` fades it; `Opacity of ticked line` and `Color of ticked line` set how.
+
+See it in motion: [A mark for a ticked line](docs/SHOWCASE.md#a-mark-for-a-ticked-line)
+
+## Pick Values with tagWheel
+
+tagWheel is a picker that opens over the line: Fields run across it, Values of the current Field run down. Run `tagWheel Left` or `tagWheel Right`, then steer with keys:
 
 | Key | Action |
 |---|---|
-| Left/Right arrow | Previous/next field |
-| Up/Down arrow | Previous/next value |
-| Tab | Switch panel/mode |
-| Enter | Apply |
-| Escape | Cancel |
+| `Left` / `Right` arrow | previous or next Field |
+| `Up` / `Down` arrow | step through the Values of the Field |
+| `Tab` | switch to the other Block; in a custom block, see `Switch custom blocks on Tab` |
+| `Alt` | show a child Field set to `On Alt` |
+| `Enter` | apply |
+| `Escape` | cancel and put the line back as it was |
 
-tagWheel and direct increase/decrease commands use the same field, ordering, prefix, separator, subtag, cycle-end, and cursor rules.
+Typing a character or clicking another line applies the choice too. tagWheel follows the same Fields, order, Prefix and cursor rules as the Field commands.
 
-Optional **Visual → tagWheel → tagWheel Scroller** shows nearby values above editor text. Set direction to `up`, `down`, or `full`, and visible size from 1 to 20 items per side.
+Set its behavior under **Tags & PKM → tagWheel behavior**:
 
-One known limit, measured rather than guessed: while the panel is open it holds its strip in the text of the note, which takes the Values it stands on out of the line for that moment. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Setting `Values in the other Block` to `Show` removes the case where only that Block was filled; the case where the Block under the panel was filled too is still open, and the fix for it is structural.
+| Control | Choices |
+|---|---|
+| `Active Field on opening` | `First Field` (default), `Middle Field`, `Chosen Field` with `Left Block active Field` and `Right Block active Field` |
+| `Values in the other Block` | `Hide` (default) or `Show` while the picker is open |
+| `Line for a selection` | `Top line` (default), `Bottom line`, `Where selecting ended` |
+| `tagWheel navigation behavior` | past the last Field: `Stay in Block` (default) or `Next Block` |
 
-### Prefix priority
+See it in motion: [How it moves](docs/SHOWCASE.md#how-it-moves), [The Field it opens on](docs/SHOWCASE.md#the-field-it-opens-on)
 
-Prefix priority chooses a line checkbox or Prefix when several configured Values could supply one.
+## Decide which Prefix wins
 
-- **Main checkbox priority**: resolve by field order or explicit checkbox order.
-- **Field order mode**: automatic or manual when field priority is selected.
-- **Tag/Subtag priority**: parent tag wins or subtag wins.
-- Drag field and checkbox rows to set priority.
+Some Values change the start of the line, such as a checkbox from `Status`. When two want it at once, **Tags & PKM → Prefix priority** picks the winner.
 
-Example configured outcomes:
+| Control | Choices |
+|---|---|
+| `Decide by` | `Field order` (default) or `Prefix order`, a list you rank |
+| `Field order source` | `Field order`, as in the Fields list, or `Manual` (default), a list you drag |
+| `Parent or child wins` | `Parent tag` or `Child tag` (default) |
 
-```markdown
-- [ ] #task :: Write draft
-- [I] #idea :: Explore alternate layout
-- [R] #research #source-a :: Verify claim
-```
+## Copy Fields into note properties
 
-Actual checkbox tokens are user configuration; these examples are synthetic.
+`Inline to note` can copy each Field into a property of the new note. In the right column of **Tags & PKM → Fields**, under `YAML property`:
 
-### YAML mapping
+1. `Property`: the property name. The box suggests names your vault already uses. Empty means the Field is not copied.
+2. `Property type`: `Auto`, `Single Value` or `List`.
+3. `How to show Value in YAML`, for the whole Field and all its Values:
+   - `Raw` copies the Value as it is in the line: `#todo`, `[[Anna]]`, `📅2026-10-10`
+   - `Clean` copies it bare: `todo`, `Anna`, `2026-10-10`
 
-Each Field can map to a YAML property. The right column can override the property for individual Values. Child Values can use their own property, then the Field property, then the parent property. YAML property suggestions are discovered from frontmatter already present in the vault.
+`Preview` shows what this Field writes. A numeric tag such as `#/1` stays text under `Clean` and is written as `"1"`.
 
-Transform uses these mappings. Example template frontmatter:
+When Transform writes a new note, or overwrites one, it:
 
-```markdown
----
-status: draft
-projects: []
-due: ""
----
+1. reads the template's frontmatter;
+2. replaces the values of matching top-level keys and keeps the other keys and their order;
+3. adds missing mapped keys in Field order, without repeating a value in a shared list property;
+4. stops, without writing, when the template has invalid or duplicate top-level keys.
 
-# Note body
-```
+The merge is not a full YAML parser. Quoted values, inline arrays and multiline values may be rewritten rather than kept as typed, so check complex frontmatter on a disposable note.
 
-For a matching inline line, Transform updates mapped top-level keys, preserves unrelated template keys and ordering, and appends missing mapped keys in Order sequence. Repeated values for a list-capable/shared property are deduplicated. Invalid or duplicate top-level YAML keys stop the transform rather than silently rewriting ambiguous data.
+## Turn a line into a note
 
-Preservation is intentionally limited. JSON-quoted scalars and inline arrays receive only limited handling; do not assume exact lexical preservation after replacement. Mapped multiline values and their comments may be replaced rather than preserved. Missing token-only keys are appended after keys produced from field Order. This merger is not a full YAML parser or validator; verify complex frontmatter on disposable notes.
-
-Each Field carries its own `Raw` or `Clean` rule, set in the right column of the Fields editor. It controls what reaches YAML:
-
-- `Raw`: retain tag, wikilink or Element syntax, for example `#task`, `[[Project Atlas]]` or `📅2026-10-02`.
-- `Clean`: store normalized values, for example `task`, `Project Atlas` or `2026-10-02`.
-
-A new Element with a marker starts with `Clean`, as `Due` does. A numeric tag such as `#/1` stays text under `Clean`: it is written as `"1"`, which the `tags` property accepts.
-
-### Carrying your setup to another vault
-
-Everything you set up here lives in one place, and one button writes it out:
-
-1. Open **Advanced → Backup**.
-2. Select **Save a backup**. The plugin writes a note into the backup folder. It is
-   an ordinary note, so it syncs with the vault and can be copied anywhere.
-3. In the destination vault, install and enable the same plugin version.
-4. Copy the backup note into that vault's backup folder.
-5. Select **Restore a backup**, pick the note, and confirm. What you had there is
-   saved as a backup first, so a wrong pick is recoverable.
-6. Restart Obsidian so every part of the plugin picks the settings up.
-
-A backup holds every tab, not a part of one: Fields and Values, colors, Bars,
-tagWheel, Navigation, Binder and Transform. Two things stay behind on purpose:
-
-- window state: which tab was open, which Fields were expanded, which one-time
-  notices you have already seen;
-- hotkeys: Obsidian owns those, and they are assigned per vault.
-
-#### Paths and templates
-
-- Every path the plugin stores is vault-relative.
-- Copy the Transform templates a rule refers to separately, keeping their
-  vault-relative paths.
-- Review YAML property names against the destination vault before Transform use.
-- The plugin also keeps a compiled copy of your Field setup inside the vault for
-  its own use. Do not copy that one: the destination vault writes its own from
-  the settings you restored.
-
-## Binder
-
-Binder turns small text snippets into Obsidian commands.
-
-1. Open **Settings → inlineOverhaul → Keyboard → Binder**.
-2. Enter an insert token, optional command name, and optional description.
-3. Select **Add row**.
-4. Open Obsidian **Settings → Hotkeys** and bind the new command, named after the row. **Keyboard → Commands & Hotkeys** takes you straight to it.
-
-Running a normal Binder command replaces the current selection or inserts at the cursor, then places the cursor after inserted text. Rows can be reordered or deleted. After creation, insert text and command name are read-only; delete and recreate a row to change them. Description remains editable.
-
-Reload the plugin after deleting or recreating Binder rows. Commands are not unregistered during the session, so stale Binder commands may remain visible until reload.
-
-### Smart bracket
-
-**Smart bracket** cycles bracket forms around a selection:
-
-```markdown
-text
-[text]
-[[text]]
-text
-```
-
-Without a selection, it inserts or transforms bracket pairs around the cursor so you can continue typing inside them. Unmatched `[` or `[[` input is a known limitation and may transform unexpectedly; test Smart bracket on disposable text before using it near important content.
-
-## Visual features
-
-General Visual functionality is implemented and separate from Transform's disabled Processed-marker styling.
-
-### Tags
-
-- Independent left/right panel opacity
-- A colored Stripe behind each Block (`Color the Block with Stripe`), with its own color, opacity, height, width and direction. It runs from the first Value of a Block to its last one, never touches your text between the Separators, and does not appear for a Block with nothing in it. The Stripe is drawn behind the writing, so everything on the line stays selectable and clickable.
-- `Stripe direction` chooses which of the two Blocks gets one: `Both` is the default, `Left` and `Right` leave the Stripe on one side only. A Block with nothing in it gets none whatever is chosen here.
-- `Stripe height` is how far the Stripe reaches above and below the writing, as a share of the room the line has left. It matters more than it sounds: a tag bubble carries its own color, so at 0 a Block of one tag would hide the Stripe completely. The scale has two landmarks: at 0 the Stripe is exactly as tall as the writing, and at 100 it fills the line it belongs to — so the Stripes of two neighboring lines meet and never overlap. The share is used rather than points because how much room a line has left depends on the line spacing of your theme: in points the upper half of the scale was dead on some themes and alive on others. Its height is the same on every line whatever the Block holds, while the Stripe centers itself on the line it sits on — a line holding a link or an emoji is taller than the rest, and the Stripe follows it.
-- `Stripe width` is how far the Stripe reaches past the Block, and it reaches equally on both sides. The scale has three landmarks: at 0 the Stripe starts on the first Value and ends on the last one; at 50 it touches the Separator on the inner side and steps out by the same distance on the other; at 100 it takes the Separator in as well. The Left Block is the one exception — it never reaches onto the bullet or the checkbox, whatever the number says. When a Block wraps onto the next line the Stripe wraps with it, ending on the last Value of each line rather than running to the edge of the window.
-- Tag text size
-- Tag bubble width and `Tag bubble height`
-- Empty-bubble size
-- Rounded-to-square shape
-- Per-Field and per-Value fill color, text color, visibility, and optional custom display text in the right column of the Fields editor
-- Separator text colors
-
-These are editor decorations: they change display, not stored markdown tokens.
-
-### Tag Bars
-
-Tag Bars draw up to three colored bars in the editor margin for a selected tag Field’s parent and child hierarchy. Configure the Field, tag visibility, optional Separator hiding when a hidden Bar token is the only technical token, default or crossing mode, bar count, thickness, child offset, and distance to the text. Tag Bars are **off** by default: on a fresh install lines look as they always did until you turn them on.
-
-### tagWheel panel and scroller
-
-- Show/hide token prefixes visually
-- Default placeholder text color
-- Panel fill color
-- Optional nearby-value scroller with direction and size controls
-
-### Text cursor
-
-Under **Visual → Text cursor**, the blinking caret can take a color of its own instead of the color of your text. Turn on `Color the text cursor` and pick one in `Cursor color`; an empty color means the color your theme gives it. This paints the caret in your notes only, and leaves the caret in the settings window and in the search box alone. It is **off** by default.
-
-## Transform: a line becomes a note
+`Transform inline to note` turns the line you are on into a note of its own, or adds it to a note you already have. It is off until you turn it on.
 
 > [!CAUTION]
-> Transform is explicit opt-in and defaults to Off. Enable it only after backing up the vault and reviewing every setting below.
+> Transform writes files. Back up the vault and try every setting on disposable text before you use it on real notes.
 
-### Destructive defaults on first enable
+### Turn it on
 
-Before first use, review these initial defaults:
+1. Keep the `Transform` module on under **General → Modules**.
+2. Open **Transform → Inline to note** and turn on `Inline to note`.
+3. Set `Templates folder` and `Default template`, or leave the template empty.
+4. Set `New notes folder`, or leave it empty to put new notes next to the current one.
+5. Read the defaults below and the preview under `Source line`.
+6. Run `Transform inline to note` on a disposable line.
 
-- **Replace payload with note link:** on (`true`)
-- **Source cleanup keep-list:** empty; all recognized fields are removed from source
-- **Processed token:** `#processed`, placed in the Right panel
-- **Sublines behavior:** Stay
-- **Name collision:** `new_note` (create a new note, adding a suffix when needed)
-- **Value YAML rule:** Raw
-- **Template body placement:** end (`Under heading` is off until you pick it)
-- **Inserted block header:** current datetime
-- **Open transformed note:** off; target does not auto-open
+<details>
 
-These defaults can rewrite the source line and create a target note. Use disposable text until preview and output match your workflow.
+<summary>What happens with the defaults</summary>
 
-### Enable and prepare
+| Control | Default | Effect |
+|---|---|---|
+| `Note name` | `From line` | the name comes from the line |
+| `If the name already taken` | `New note` | a second note gets `-01`, `-02` and so on |
+| `Where to put the text` | `End` | your text goes after the template body |
+| `Line above the text` | `Date and time` | a heading with the date above your text |
+| `What happens with current line` | `Remove` | the line keeps only the link |
+| `Insert wikilink in current line` | on | the line gets a link to the new note |
+| `Fields to keep` | none ticked | every Field is taken off the line |
+| `Mark transformed line` | `#processed` | added to the Right Block |
+| `Sub-lines (tree) behavior` | `Keep` | the lines under it stay where they are |
+| `Open note after creation` | off | the new note does not open |
+| `Floating button` | off | no button at the end of the line |
 
-1. Keep the global **Transform module** enabled.
-2. Open **Settings → inlineOverhaul → Transform**.
-3. Turn on **Transform inline to note**.
-4. Set a templates folder if using templates.
-5. Set an output folder, or leave it empty to use the current note's folder.
-6. Select a default template or leave it blank.
-7. Review naming, collisions, placement, YAML, source cleanup, Processed marker, sublines, and open-note settings.
-8. Use the live Before/After preview.
-9. Test **Transform inline to note** on a disposable line.
+</details>
 
-### Templates and body placement
+### Name the new note
 
-Templates are markdown files found inside the configured vault folder. A template may contain frontmatter and body text.
+`Note name` is `From line` or `Ask`. With `From line`, the name is:
 
-```markdown
----
-kind: transformed
-status: inbox
----
+1. the text between `Name brackets` (`[]` by default): `- call [Anna] today` → note `Anna`;
+2. otherwise the heading text, when the line is a heading;
+3. otherwise the first `Words to use instead` words (6 by default).
 
-# Working note
+With `Ask`, a window asks for the name; `Escape` leaves both notes as they were. Characters a file name cannot hold become spaces.
 
-## Context
-```
+`If the name already taken`:
 
-For new/overwrite operations, transformed source content is inserted at the beginning of the template body, at its end, or at the end of a section you name.
+| Choice | Result |
+|---|---|
+| `New note` | keeps the old note and makes `call Anna-01`, then `call Anna-02` |
+| `Add to existing` | adds your text to the note, where `Where to put the text` says |
+| `Overwrite` | replaces everything in the note; the old text cannot be brought back |
 
-**Under heading** asks for two more things. **Name of the heading** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If heading not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
+### Choose what goes into the note
 
-The inserted block header can be:
+Under **Transform → Note content**:
 
-- custom text;
-- current datetime formatted with `YYYY`, `MM`, `DD`, `HH`, `mm`, and `ss`;
-- none.
+- `Where to put the text`: `Beginning`, `End` (default) or `Under heading`.
+  - With `Under heading`, write `Name of the heading`, such as `## Log`. With the hashes, only a heading of that level counts; without them, any level does.
+  - `If heading not found`: `Beginning` or `End`. The plugin adds the heading there and files the text under it.
+  - The text goes to the end of the section, so entries stay in the order you wrote them.
+- `Line above the text`: `Fixed text` (`Text of the line above`), `Date and time` (`Date format`, `YYYY-MM-DD HH:mm` by default) or `None`.
+- `Line above is a heading`: `Plain text` or a heading level, `3` by default.
 
-Source indentation common to the root block is removed in the target note while internal parent/child indentation is preserved.
-
-### SmartTransform rules
-
-A smart rule routes a source line to a template based on tags, element markers, and wikilinks.
-
-- Values within one condition group use OR matching.
-- Non-empty groups on the same rule all must match.
-- **Advanced settings** on a rule decides where the text lands for that rule alone. `Default` follows **Note content**; `Custom` opens the same rows and keeps them with the rule. Switching back to `Default` does not erase what you set.
-- Rules fold. The mark in the card header collapses a rule to two lines — its name and one summary line with the conditions, the template and the folder — and the controls stay in the header. The panel opens with rules folded; a rule you have just added stays open until you fold it. Folding is a view, not a setting: it is not written into your configuration.
-- Rules are checked in order; first matching enabled rule with a target template wins.
-- If no rule matches, the default template is used.
-- A rule with no conditions is disabled.
-- Rules whose conditions can overlap are marked conflicting and auto-disabled.
-
-Synthetic source:
-
-```markdown
-- [ ] #meeting :: Review roadmap :: [[Project Atlas]] 📅2026-09-15
-```
-
-Possible rule:
-
-```text
-Tags: #meeting
-Wikilinks: [[Project Atlas]]
-Target template: Templates/Meeting.md
-```
-
-### Note naming
-
-**Auto** naming priority:
-
-1. First non-empty text inside configured explicit delimiters, excluding wikilinks and checkbox syntax.
-2. The heading text, when the line is a Markdown heading.
-3. First configured number of payload words.
-
-Example:
-
-```markdown
-- [ ] #task :: [Release checklist] Verify package and notes
-```
-
-With delimiters `[]`, title becomes `Release checklist`.
-
-**Manual** mode opens a **note title** dialog. Cancel or Escape leaves source and target unchanged. File-system-invalid title characters are replaced with spaces before path creation.
-
-### Name collisions
-
-- **New note (+suffix)**: create a new note; if the base name exists, try `-01`, `-02`, and so on.
-- **Add to note**: append the selected/root block to the existing note under a generated datetime header. Existing template body/frontmatter is not regenerated for this append.
-- **Overwrite**: replace the existing target with newly composed template, merged YAML, and transformed body.
-
-### YAML merge
-
-For new notes and overwrite mode, Transform:
-
-1. reads template frontmatter;
-2. maps recognized inline fields through Order YAML settings;
-3. replaces matching top-level values while preserving unrelated keys;
-4. appends missing mapped keys in Order sequence;
-5. writes merged frontmatter before the body.
-
-Transform recognizes exact configured values in their configured panel. Tokens in the wrong panel or transferred-text zone, and aliased or heading wikilinks such as `[[Note|Alias]]` or `[[Note#Heading]]`, may be ignored. A dependent child is included only when its parent is also recognized. In **Add to note** mode, existing note frontmatter is left unchanged because content is appended rather than recomposed.
-
-### Source cleanup and link replacement
-
-Source editing occurs only after target creation/update succeeds.
-
-- In **Source cleanup fields**, checked fields are **kept** in source.
-- Unchecked recognized fields are removed from source.
-- Indentation is preserved.
-- Empty technical zones and dangling separators are normalized.
-- **Replace payload with note link** replaces the first payload segment with a link to the actual created target path.
-- If replacement is off, original payload remains.
-
-Before:
-
-```markdown
-- [ ] #task #research :: Draft release checklist :: [[Project Atlas]] 📅2026-09-15
-```
-
-Possible result when `#task` is kept, other recognized fields are removed, link replacement is on, and Processed marker is placed right:
-
-```markdown
-- [ ] #task :: [[Notes/Release checklist]] :: #processed
-```
-
-Exact output follows configured field recognition, panels, prefix resolver, separators, and output folder.
-
-### Processed token
-
-After a successful transform, an optional token is inserted in the configured Left or Right panel. Empty value disables insertion. Existing identical token is not duplicated.
-
-```markdown
-#processed
-```
-
-Token insertion is implemented, and so is the fading of a line that carries the token: `Dim transformed line` under it, with `Opacity of transformed line` deciding how far it fades. Both rows appear only once a token is set, because without a mark there is nothing to fade. The token itself stays ordinary markdown and still receives normal tag visuals.
-
-### Selection and parent/child behavior
-
-- No selection: current line is root; following more-indented descendants and intervening blank lines form its block.
-- Selection: partial selections expand to full lines; the first nonblank selected line becomes root; descendants after the selected end are included until indentation returns to root level.
-- Target note receives the full derived block.
-- **Sublines behavior → Stay** edits only the source root; descendants remain in source.
-- **Sublines behavior → Remove** replaces the full source block with the processed root, moving descendants into the target note.
-
-Example tree:
+The note gets the whole tree: the line and the more-indented lines after it. With a selection, it gets the selected lines, widened to full lines, plus the children of the last one. The indent common to the block is removed; the nesting inside it stays.
 
 ```markdown
 - Parent task
@@ -775,195 +592,273 @@ Example tree:
 - Next task
 ```
 
-Running Transform on `Parent task` includes both children but not `Next task`.
+Transform on `Parent task` takes both children, but not `Next task`.
 
-### Transaction and recovery semantics
+### Choose what stays on the line
 
-Transform verifies that the active editor and source block did not change before writing. If target mutation succeeds but source editing fails, it attempts to roll back only the target mutation. It cannot guarantee restoration of source text after a partial editor mutation. If source editing and target rollback both fail, the error notice reports both failures. Always keep a real vault backup; transactional rollback is not a substitute for one.
+Under **Transform → Source line**, the preview shows the line before and after.
 
-### Open transformed note
-
-When enabled, the plugin makes a best-effort attempt to open the created or updated target in a new leaf after the transaction completes. Failure to open the note does not roll back the completed transform; open the target manually and verify both notes.
-
-## Glossary
-
-The plugin renamed several of its own mechanisms so that the interface says what a
-thing is rather than how it was built. Older notes, videos and issue threads may
-still use the left column.
-
-| You may have seen | Now called | What it is |
-|---|---|---|
-| Order | **Fields** | The list of slots a line can carry. There is no separate idea of "order": position is set by dragging in the list |
-| — | **Field** | One slot: a tag, a link, or an element such as a date. Three types, no others |
-| — | **Value** | One of the choices inside a Field. Values are stored without the Field name |
-| zone, segment | **Left Block** / **Right Block** | Fields before your text and Fields after it. The side is set by dragging a Field across the dotted line |
-| — | **Block** | A Field together with its child Fields: they stay on one side and move together |
-| Strip, rails, stripes | **Tag Bars**, **Bar** | The colored bar in the editor margin showing a line's Value and everything nested under it |
-| Deep Editor | the right column of the Fields editor | Has no separate name of its own |
-| free roam (`off` / `minimal`) | placement modes **Strict** / **Insert only** | Stored values are unchanged; the former `full` (**Free**) reads as `off` — its work moved to custom blocks |
-| Prefix Resolver | **Prefix priority** | Which Field’s checkbox wins when two carry one |
-| subtag | **child Value** | Stored values `separate` and `combined` are unchanged |
-| separator1, separator2 | **First Separator**, **Second Separator** | The two markers that fence your text off from the Fields |
-| payload | **transferred text** | The part of the line Transform carries into the new note |
-| processed token | **Processed marker** | What Transform leaves on the source line |
-| Flying button | **Floating button** | A small arrow at the end of the line you are on; `Distance from the text` sets how far from it |
-| Inline2Note | **Transform**, **Transform inline to note** | Turning a line into a note of its own |
-| Active Rules Path | — | Removed from the interface; the path stays internal |
-| YAML note format | — | Removed; replaced by a `Raw` or `Clean` rule on each Value |
-| Execution Backend, Flush Settings Now | — | Removed. Settings save on their own |
-| Undo last settings change (a button in settings) | **Undo last settings change** (a command) | The button is gone; the command keeps the name |
-| — | **tagWheel** | The panel with all Fields above the line, steered with the arrow keys |
-| — | **Binder** | Your own text-insertion commands |
-| — | **Prefix** | The start of a line: list marker, checkbox, heading hashes |
-| — | **Smart Rules** | Rules that pick a Transform template by the look of a line |
-
-## Hotkeys
-
-inlineOverhaul assigns **no** default keys to any of its commands. Two ways to give them one:
-
-- **Keyboard → Commands & Hotkeys** in the plugin’s settings: every command with the key it has now, and a click takes you to Obsidian’s Hotkeys screen with that command already found;
-- Obsidian’s own **Settings → Hotkeys**: type `inlineOverhaul` in its search box to bring up the whole set at once.
-
-tagWheel is the exception worth knowing: once it is open you steer it with the arrow keys, so it needs only the one command that opens it.
-
-Recommended setup pattern:
-
-| Workflow | Suggested binding strategy |
+| Control | Choices |
 |---|---|
-| Navigation | Arrow-like combinations that do not conflict with editor defaults |
-| Field next/previous | Paired keys per Field |
-| tagWheel | One key for the Left Block and one for the right |
-| Binder | Mnemonic keys for frequently inserted tokens |
-| Transform | Deliberate multi-key binding to avoid accidental execution |
+| `Sub-lines (tree) behavior` | `Keep` (default): children stay; `Move`: children go into the note |
+| `What happens with current line` | `Remove` (default), `Keep`, `Keep without name`, `Keep first words` with `Words to keep` |
+| `Fields to keep` | ticked Fields stay on the line; `Keep sub-fields` keeps their child Values too |
+| `Insert wikilink in current line` | a link to the new note; on by default |
+| `Mark transformed line` | a word or tag added to the line, `#processed` by default; empty adds nothing |
+| `Where the mark goes` | `Left Block` or `Right Block` (default) |
+| `Dim transformed line` | fade a line that carries the mark; `Opacity of transformed line` and `Color of transformed line` set how |
 
-Do not bind Transform to a single easy-to-press key during beta testing.
+Before and after, with `#task` kept and the defaults otherwise:
 
-## Backup
+```markdown
+- [ ] #task #research :: Draft release checklist :: [[Project Atlas]] 📅2026-09-15
+- [ ] #task :: [[Notes/Release checklist]] :: #processed
+```
 
-Everything you set up here lives in one file inside your vault, and the plugin can
-write a copy of it as an ordinary note. Open **Advanced → Backup**.
+The exact result depends on your Fields, Separators and output folder.
 
-- **Backup folder**: where in your vault the copies go. The folder is made when
-  you save the first backup, not before.
-- **Save a backup**: writes a new note. It never overwrites an earlier one, so
-  saving twice gives you two copies; delete the ones you no longer want the way
-  you delete any note.
-- **Autosave**: off by default. Turn it on and on every start of Obsidian the plugin
-  compares your settings file with the last autosave it made; when the two differ it
-  writes a new copy, named with `_autosave` at the end, into the `autosave` folder inside
-  the backup folder, apart from the backups you save yourself. That is the way back from a
-  settings file that arrived from another device, from your sync, or from a copy of
-  another vault. The copy is full — every tab and the hotkeys of this plugin — and under
-  the heading `What changed` in it is the list of settings that differ from the previous
-  autosave. `Autosaves to keep` says how many stay, 10 when left empty; older ones go to the vault trash, and copies
-  you saved yourself are never touched. Each new copy says so with a notice naming the
-  note. What counts as a change is the settings themselves: the tab you left open in the
-  panel is not one of them and never makes a copy. This is not undo: to step one change back inside
-  the panel, use the command `Undo last settings change`.
-- **Save a backup before restoring**: on by default. Restoring replaces
-  everything, so the plugin writes what you have at that moment into the folder
-  above first, and names that copy with `Autogenerated` at the end so you can
-  tell it from the ones you saved yourself. Turn it off if you restore often and
-  would rather not collect copies you never asked for.
-- **Restore a backup**: lists the copies it finds, newest first, with the date
-  each was saved and what is inside. Picking one asks you to confirm, and the
-  question says whether what you have now is being saved first.
+### Open the note and use the button
 
-**What a backup holds.** Fields and their Values, Prefixes, Separators, Tag Bars,
-tag colors, Binder rows, Transform with its Smart Rules, navigation modes: every
-setting on every tab. What it deliberately leaves out is the state of this
-computer: which tab you had open, which Fields you had expanded, and notices you
-have already been shown once. Those stay as they are on each device.
+- `Open note after creation` opens the note in a new tab once it is written. If it fails to open, the transform still counts; open the note yourself.
+- `Floating button` puts a small button at the end of the line you are on; `Distance from the text` sets the gap (12 px by default).
 
-**Carrying your setup to another vault or computer.** A backup is a note, so it
-travels the way notes travel: it syncs with the vault, it is visible in the file
-explorer, and you can send it to yourself. Open the other vault, put the note in
-its backup folder, then press **Restore a backup** there.
+### What Transform does when something fails
 
-**Restoring replaces, it does not merge.** Everything you have set up is replaced
-by what the backup says. After restoring, restart Obsidian: several parts of the
-plugin read the settings once when they load.
+- The source line changes only after the note is written.
+- Before writing, Transform checks that the note and the line did not change under it.
+- If the note is written but the line cannot be changed, it tries to undo the note change. It cannot promise to restore the line.
+- It stops before writing when the template cannot be read or the line has no text.
 
-**A backup written by an older version still works.** It goes through the same
-upgrade path as your own settings file, so old names inside it are translated
-rather than dropped. The copy the plugin kept when it upgraded your settings shows
-up in the same list, as **Before the update to this version**.
+None of this replaces a backup.
 
-## Troubleshooting and recovery
+See it in motion: [A line becomes a note](docs/SHOWCASE.md#a-line-becomes-a-note), [What stays behind](docs/SHOWCASE.md#what-stays-behind)
 
-### Command says module is disabled
+## Link new notes from the notes you mention
 
-Open **General** and enable the named module. For Transform, also turn on **Transform → Transform inline to note**.
+Auto-MOC writes a link to the new note into the notes of the link Values on the line. `- call Anna [[Project X]]` turns into a note, and note `Project X` gets `- [[call Anna]]`.
 
-### PKM command is missing
+1. Open **Transform → Auto-MOC in your links** and turn on `Link the notes you mention`.
+2. `Where to put the link`: `Beginning`, `End` (default) or `Under heading`.
+   - With `Under heading`: `Name of the heading`, `If heading not found` (`Beginning` or `End`) and `Place in the list` (`Top` or `Bottom`).
+3. `Add after the link`: `Nothing`, `Field Value` (pick an Emoji Field) or `Date and time` (an optional emoji and a `Date format`).
+4. `Add empty line before wikilink` (on) keeps a blank line between the links.
+5. `Link to Navigator` also writes the link into the navigator note of a child link.
 
-1. Confirm the Field exists in the Fields list and has a valid unique system name.
-2. Confirm the PKM module is enabled.
-3. Open **Keyboard → Commands & Hotkeys** and look for the Field’s name, or search Obsidian Hotkeys for `inlineOverhaul`.
-4. If the Field was renamed or deleted, or you restored a settings backup, disable and re-enable inlineOverhaul or reload Obsidian to refresh the command registry.
+Set `Use as MOC` to `No` on a link Field whose notes should stay untouched, such as people.
 
-Adding a Field directly in settings registers its commands immediately. Registry changes from a Field rename or delete, a restored backup, or a Binder delete and recreate need plugin disable/re-enable or an Obsidian reload. Stale commands may remain until that reload.
+See it in motion: [Links back to the notes you mention](docs/SHOWCASE.md#links-back-to-the-notes-you-mention)
 
-### tagWheel or inline navigation uses stale values
+## Pick a template by the kind of line
 
-1. Change any setting on **Tags & PKM**, anything at all. The plugin rewrites the
-   compiled copy of your setup on every change, and that is what the commands read.
-2. Disable and re-enable inlineOverhaul.
+Smart Rules pick a template by the Values a line carries, so a `#meeting` line and a `#bug` line become different notes.
 
-Do not edit that compiled note by hand: it is rewritten from your settings, and
-your edits do not survive.
+1. Open **Transform → Smart Rules** and press `Add rule`.
+2. Add conditions: a Tag, Element, Link or Field. The window has a search box, and each Field has an `Any value` button.
+3. Pick `Use template` and `Move to folder`: `Default`, `Next to note` or `Other folder…`.
+4. Optional: `Advanced settings` → `Custom` gives the rule its own `Note content` rows. Back on `Default`, your custom rows are kept.
 
-### Settings look wrong after an update or an experiment
+How rules match:
 
-Open **Advanced → Backup** and press **Restore a backup**. If you have
-never saved one, the list still offers the copy the plugin kept when it upgraded
-your settings. With **Save a backup before restoring** on, restoring saves what you
-have now first, so you can go back either way.
+- Within one kind, any one Value is enough; every kind you filled in must be on the line.
+- Rules are checked in order, and the first enabled match wins. Drag rules to reorder them.
+- No rule matches: the default template is used.
+- A rule without conditions is not used.
+- Two rules that share a Value conflict, and neither is used until you fix one.
 
-### Settings changed unexpectedly
+Rules fold to two lines: the name, then one summary line with conditions, template and folder.
 
-- Immediately run **Undo last settings change**.
-- Settings save on their own shortly after a change; there is no manual flush.
-- If that is not enough, restore a backup: **Advanced → Backup → Restore a backup**.
+```text
+Tags: #meeting
+Links: [[Project Atlas]]
+Template: Templates/Meeting.md
+```
 
-### Transform created the wrong result
+See it in motion: [A template per line](docs/SHOWCASE.md#a-template-per-line)
+
+## Change how tagged lines look
+
+Everything on the **Visual** tab changes the look only; the text of your notes stays the same. Start with **Visual → Inline appearance**.
+
+**Line view**
+
+- `Opacity of the Left Block`, `Opacity of the Right Block`
+- `Left Block text size`, `Right Block text size`
+- `Color the Block with Stripe`: a Stripe behind each Block that has Values, with `Stripe direction` (`Left`, `Right`, `Both`), `Stripe color`, `Stripe opacity`, `Stripe height` and `Stripe width`
+
+**Tag view**: `Tag bubble width`, `Tag bubble height`, `Tag bubble corners`, `Empty tag bubble width`. The colors and `Show` of each Value are set under **Tags & PKM → Fields**.
+
+**Link view**, for links in your notes and link Values:
+
+- `Link target color`, `Link brackets color`
+- `Hyperlink target color`, `Hyperlink brackets color`, `Hyperlink address color`
+- for link Values shown as your own text: `Preview on hover` (hold `Ctrl`) and `Drag to move`
+
+See it in motion: [Tags, Blocks and the Stripe](docs/SHOWCASE.md#tags-blocks-and-the-stripe), [Link colors](docs/SHOWCASE.md#link-colors)
+
+## Draw Tag Bars in the margin
+
+Tag Bars draw a colored Bar in the margin for a line and the lines nested under it. They are off by default.
+
+1. Open **Visual → Tag Bars** and turn on `Tag Bars`.
+2. Pick `Which Field draws Bars` (tag Fields only). The Bar colors are the Value colors.
+3. Adjust `Number of Bars`, `Show the Field’s tag`, `Hide the leftover marker`, `Bar arrangement` (`Parent outside` or `Rotate`), `Bar thickness`, `Space between Bars`, `Distance from the text`, `Vertical gap between Bars`, `Bars for the whole tree` and `Join Bars in a tree`.
+
+See it in motion: [Tag Bars](docs/SHOWCASE.md#tag-bars)
+
+## Change the look of tagWheel
+
+Under **Visual → tagWheel**:
+
+- `Show tag markers`: the hash and emoji, or just the words
+- `tagWheel Value names`: `Default`, `Custom` or `Custom + default`
+- `Highlight the tagWheel line`, then its colors: `Inactive Field text color`, `Active Field text color`, `Chosen Value text color`, `Background color`, and `Bold Field names`
+- `Scroller`: a box of neighboring Values, with `Scroller opening direction` (`Up`, `Down`, `Both`), `Scroller Value names`, `Scroller background color`, `Scroller text color` and `Scroller size` (1 to 20 Values on each side)
+
+See it in motion: [Its look](docs/SHOWCASE.md#its-look), [Its colors](docs/SHOWCASE.md#its-colors)
+
+## Color and shape the text cursor
+
+Under **Visual → Text cursor**, both switches are off by default and work apart.
+
+- `Color the text cursor` with `Cursor color`. An empty color is your theme's.
+- `Shape the text cursor` with `Cursor width` and `Blink speed`, from `0` (no blinking) to `10`; `5` is Obsidian's own speed.
+
+The preview below them follows the sliders. Only the cursor in your notes changes; the settings window and the search box keep theirs.
+
+See it in motion: [The text cursor](docs/SHOWCASE.md#the-text-cursor)
+
+## Show where the cursor lands
+
+Turn on `Highlight where you land` under **Visual → Cursor jump highlight**. After `Jump up`, `Jump down` and the other jumps, a circle shows where the cursor landed and shrinks away.
+
+- `Highlight color`, `Highlight size`, `How long it lasts`
+- `Minimum time between jumps`: jumps closer together get no circle
+- `Use inside current line`: also mark hops between the parts of one line
+
+Typing and the arrow keys never show it.
+
+## Color tags that are not Values
+
+Tags you type yourself, or that other plugins add, still get a bubble. Give them colors under **Visual → Color custom tags**: one row per tag, with its bubble color, text color, side color and `Show`. Leave a color empty to follow your theme.
+
+See it in motion: [Colors for your own tags](docs/SHOWCASE.md#colors-for-your-own-tags)
+
+## Save, restore or move your settings
+
+A backup is an ordinary note that holds all your settings. Everything is under **Advanced → Backup**.
+
+| Control | What it does |
+|---|---|
+| `Backup folder` | where backups go, `inlineOverhaul/Backups` by default; made on the first save |
+| `Save a backup` | writes a new note each time, never over an old one |
+| `Autosave` | off by default; when Obsidian starts and your settings changed, writes a copy into the `autosave` subfolder |
+| `Autosaves to keep` | how many autosaves stay, 10 when empty; older ones go to the vault trash |
+| `Save a backup before restoring` | on by default: a restore first saves what you have, ending in `Autogenerated` |
+| `Restore a backup` | lists backups, newest first; replaces everything, then asks you to restart |
+| `Delete all my settings` | back to the plugin's defaults; a copy is always saved first |
+
+**What a backup holds.** Every tab: Fields and Values, Prefixes, Separators, colors, Tag Bars, tagWheel, Navigation, Binder, Transform with its Smart Rules. It leaves out which tab was open, which Fields were expanded and the notices you have seen. Hotkeys are Obsidian's and stay per vault; an autosave holds this plugin's hotkeys too, and lists `What changed`.
+
+**Restoring replaces, it does not merge.** A backup from an older version still restores: it goes through the same upgrade as your settings file.
+
+### Move your setup to another vault or computer
+
+1. Save a backup.
+2. In the other vault, install the same plugin version.
+3. Copy the backup note into that vault's backup folder, or let your sync carry it.
+4. Press `Restore a backup` there, pick the note and confirm.
+5. Copy the templates your Transform settings use, keeping their paths, and check the YAML property names.
+
+See it in motion: [Backup](docs/SHOWCASE.md#backup)
+
+## Undo a settings change
+
+Run `Undo last settings change` from the command palette, or give it a key. It takes back one settings change at a time, and its history lasts for the session. For anything older, restore a backup.
+
+See it in motion: [Undo a settings change](docs/SHOWCASE.md#undo-a-settings-change)
+
+## Collect a log for a bug report
+
+**Advanced → Diagnostics** has four controls:
+
+| Control | What it does |
+|---|---|
+| `Show option IDs in tips` | adds the id of each setting to its tip, to name it in a report |
+| `Developer logging` | writes a log note of what the plugin did, with the text of the lines you edit |
+| `Machine-readable log` | with logging on: a second, denser log for tools; off by default |
+| `Log folder` | where the logs go |
+
+Turn `Developer logging` on, repeat the problem once, turn it off, and read the log for private text before you share it.
+
+## Fix a problem
+
+<details>
+
+<summary>A command says its module is switched off</summary>
+
+Turn the module on under **General → Modules**. For Transform, also turn on `Inline to note` on the **Transform** tab.
+
+</details>
+
+<details>
+
+<summary>A Field command is missing</summary>
+
+1. Check that the Field is in the Fields list and its `Active` is `Yes` or `Commands only`.
+2. Check that the `Tags & PKM` module is on.
+3. Look for the Field's name in **Keyboard → Commands & Hotkeys**, or search `inlineOverhaul` in Obsidian's `Hotkeys`.
+4. If it is still missing, disable and enable the plugin.
+
+</details>
+
+<details>
+
+<summary>Settings look wrong after an update or an experiment</summary>
+
+Run `Undo last settings change` for the last step. For more, press `Restore a backup` under **Advanced → Backup**. With `Save a backup before restoring` on, what you have now is saved first, so you can go back either way.
+
+</details>
+
+<details>
+
+<summary>Transform made the wrong note</summary>
 
 1. Stop transforming further lines.
-2. Use Obsidian undo for the source edit when still available.
-3. Restore affected source/target notes from backup or version history.
-4. Check collision mode, source cleanup checkboxes, transferred-text link replacement, sublines behavior, YAML format, separators, and template.
-5. Reproduce on a disposable synthetic line before retrying production content.
+2. Undo the source edit with `Ctrl+Z` while you still can.
+3. Restore the affected notes from your backup or version history.
+4. Check `If the name already taken`, `Fields to keep`, `Insert wikilink in current line`, `Sub-lines (tree) behavior`, `How to show Value in YAML`, the Separators and the template.
+5. Try again on a disposable line.
 
-### Missing template or empty transferred text
+</details>
 
-Transform stops before target mutation when a selected template cannot be read or transferred text is empty. Correct the vault-relative template path or use a line with text in the configured transferred-text zone.
+<details>
 
-### Startup or runtime failure
+<summary>Transform stops with a missing template or empty text</summary>
 
-1. Disable inlineOverhaul.
-2. Restart Obsidian.
-3. Update through BRAT.
-4. Re-enable the plugin and test a disposable note.
-5. If failure persists, enable Developer Mode only long enough to reproduce it, then review logs for private note content before sharing them.
+Transform stops before writing when the template cannot be read or the line has no text between its Separators. Fix the template path, relative to the vault, or use a line with text.
+
+</details>
+
+<details>
+
+<summary>The plugin fails to start or breaks while you work</summary>
+
+1. Disable inlineOverhaul and restart Obsidian.
+2. Update through BRAT.
+3. Enable the plugin and test on a disposable note.
+4. If it still fails, collect a log: see [Collect a log for a bug report](#collect-a-log-for-a-bug-report).
+
+</details>
 
 ## Beta limitations
 
-### Disabled, not implemented for use
+- Transform writes real notes. It is covered by automated tests, but check it with your own templates, YAML and Fields.
+- The first start on a clean vault and the upgrade of an older settings file are checked by hand only.
+- No translation ships with the plugin: the `texts` folder holds `default.js` alone, for you to copy.
 
-- Nothing is disabled at the moment. **Floating button** and the styling of a transformed line both work: the button is switched on under `Transform`, and `Distance from the text` under it decides how far from your last character it sits.
+## Try it on a safe test note
 
-### Implemented but still beta
-
-- The one-off cases still need checking by hand on a real Obsidian: the first start on a clean vault and the move of an older config to the new form.
-- Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
-- General Visual features are implemented: tag bubbles, the Stripe behind each Block, Tag Bars, Separator colors, and the tagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
-- The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbors, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
-- **No translation ships with the plugin, and that is deliberate.** The `texts` folder holds one file, `default.js`, and it belongs to the plugin: it is rewritten whenever the panel gains a line or a line is reworded, so what you copy is never out of date. To add a language, copy it under a name of your own, change the first line `"$language"` to the name you want to see in the list, and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is worth using. English is always in the list and has no file at all: it lives in the code, which is the only way it stays current.
-- **This guide note has a translation mechanism of its own.** The `guide` folder holds `default.md` — this same guide, with a small property block at the top. Copy it under a language name, change `language:` in that block, translate the prose, and the `Read` button writes your version into the vault instead of the English one. Two things are worth knowing. Your copy is yours from the moment it appears: the plugin never rewrites it and never reads it back, because there is no way to tell a translated paragraph from an untranslated one. And each language gets its own note — `inlineOverhaul Guide (Русский).md` sits beside the English one rather than replacing it, so switching language never costs you the notes you wrote in the margins.
-
-## Safe copyable test
-
-Use synthetic notes, tags, links, and dates:
+Use made-up notes, tags, links and dates:
 
 ```markdown
 ## inlineOverhaul sandbox
@@ -975,4 +870,47 @@ Use synthetic notes, tags, links, and dates:
 - [I] #idea || Compare two fictional layouts || [[Project Borealis]]
 ```
 
-Test one feature at a time, compare stored markdown before/after, then restore the sandbox from backup before testing the next destructive configuration.
+Test one feature at a time and compare the text before and after. Restore the sandbox before you try the next setting that writes files.
+
+## Glossary
+
+The plugin renamed several of its mechanisms so that the panel says what a thing is. Older notes, videos and issues may use the left column.
+
+| You may have seen | Now called | What it is |
+|---|---|---|
+| Order | **Fields** | The list of what a line can carry; position is set by dragging in the list |
+| — | **Field** | One thing a line carries. Four types: `Tag`, `Link`, `Element`, `Command`; the list shows the last two as `Emoji` and `Action` |
+| — | **Value** | One choice inside a Field |
+| zone, segment | **Left Block** / **Right Block** | Fields before your text and Fields after it |
+| — | **Block** | The Left Block, the Right Block, or a custom block made with `Add Block` |
+| Strip, rails, stripes | **Tag Bars**, **Bar** | The colored bar in the margin for a line and its nested lines |
+| Deep Editor | the right column of the Fields editor | It has no name of its own |
+| free roam (`off` / `minimal`) | `Prefix behavior`: `Strict` / `Insert only` | Stored values are unchanged; the former `full` mode was replaced by custom blocks |
+| hotkey_only | `Active`: `Commands only` | Commands work, tagWheel hides the Field |
+| Prefix Resolver | **Prefix priority** | Which Value's Prefix wins when two carry one |
+| subtag, Subtag format `separate` / `combined` | **child Value**, `Child tag format`: `Separate` / `Nested` | Now set per tag Field, in its `Behavior` block |
+| separator1, separator2 | **First Separator**, **Second Separator** | The two markers that fence your text off from the Fields |
+| payload | transferred text | The part of the line Transform carries into the new note |
+| processed token, Processed marker | `Mark transformed line` | What Transform leaves on the source line |
+| Replace payload with note link | `Insert wikilink in current line` | The link Transform leaves on the line |
+| Source cleanup fields | `Fields to keep` | Fields that stay on the line after Transform |
+| Sublines behavior: Stay / Remove | `Sub-lines (tree) behavior`: `Keep` / `Move` | What happens to the lines under the source line |
+| SmartTransform rules | **Smart Rules** | Rules that pick a Transform template by the look of a line |
+| Flying button | **Floating button** | A small button at the end of the line you are on |
+| Inline2Note | **Transform**, `Transform inline to note` | Turning a line into a note of its own |
+| No-selection mode: with-children | `Moving behavior`: `Whole tree` | Move a line with the lines under it |
+| Cross-section allowed | `Cross heading boundaries` | Let a moved line pass a heading |
+| Inline move mode | `Movement step` | How far selected text moves per press |
+| On cycle end | `After the last one`: `Indent` / `Start over` | The end of the Prefix list |
+| Line prefix after end of cycle | `When a line empties out` | What is left when the last Value goes |
+| Cursor behavior | `Cursor after an action` | Where the cursor waits after a Field command |
+| tagWheel Scroller | `Scroller` | The box of neighboring Values in tagWheel |
+| Developer mode | `Developer logging` | The troubleshooting log |
+| Toggle PKM module | `Toggle Tags & PKM module` | The command that turns Tags & PKM on or off |
+| Active Rules Path | — | Removed; the path stays internal |
+| YAML note format | — | Removed; replaced by `Raw` or `Clean` on each Field |
+| Execution Backend, Flush Settings Now | — | Removed; settings save on their own |
+| Undo last settings change (a button) | `Undo last settings change` (a command) | The button is gone; the command keeps the name |
+| — | **tagWheel** | The picker above the line, steered with the arrow keys |
+| — | **Binder** | Your own insert commands |
+| — | **Prefix** | The start of a line: list marker, checkbox, heading hashes |
