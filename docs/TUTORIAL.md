@@ -76,7 +76,7 @@ Cursor still on the line. Press `Alt+S`.
 That is the core of the plugin. The value under your cursor walks its own list, in
 place, without a dialog and without your hands moving.
 
-<img src="media/showcase/pkm-cycle.gif" width="720" alt="A status tag cycling through its values in place">
+<img src="media/showcase/fields-next.gif" width="720" alt="Status next and Status previous step a status tag through its Values in place">
 
 ## 5. Move the line without losing its structure
 
@@ -101,7 +101,7 @@ The wheel appears over the line. Left and right move between Fields, up and down
 that Field’s Values, `Tab` jumps to the Fields on the other side of your text, and
 `Esc` closes it without changing anything.
 
-<img src="media/showcase/tagwheel.gif" width="720" alt="The tagWheel opening at the cursor and a value being chosen">
+<img src="media/showcase/fields.gif" width="720" alt="tagWheel opens on the line and a Value of Status is picked">
 
 ## 7. Make a Field of your own
 
