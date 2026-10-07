@@ -386,6 +386,12 @@ function askRenameModal(
 /* ---- блок --------------------------------------------------------------- */
 
 const VIEW_STATE = new WeakMap<object, FieldsViewState>();
+/*
+ * Перерисовка живой копии блока: запись, сменившая список Fields, пересобирает
+ * вкладку посреди действия, и `redraw` снятой копии рисовал в никуда — Values
+ * нового Field не показывались до перевыбора (В-297).
+ */
+const LIVE_DRAW = new WeakMap<object, () => void>();
 
 export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
   const p = ctx.platform;
@@ -442,7 +448,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         enabled: Boolean(ctx.get("features.pkm.enabled")),
         showTips: Boolean(ctx.get("general.help.showTips")),
         showIds: Boolean(ctx.get("advanced.showSettingIds")),
-        redraw: () => { draw(); },
+        redraw: () => { (LIVE_DRAW.get(p) || draw)(); },
         ...(() => {
           /* Над окном настроек — область приложения: там живут хоткеи. */
           const holdKeys = escapeScope(p.Scope, app, app && (app as { scope?: unknown }).scope);
@@ -485,10 +491,12 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
     keep.restore();
   };
 
+  LIVE_DRAW.set(p, draw);
   draw();
   const unwatch = ctx.watch(EDITOR_PATHS, draw);
   return () => {
     unwatch();
+    if (LIVE_DRAW.get(p) === draw) LIVE_DRAW.delete(p);
     if (closeMounted) closeMounted();
     closeMounted = null;
     mounted = null;

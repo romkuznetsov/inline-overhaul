@@ -21,21 +21,21 @@
 | 7 | `smart-delete` | Keyboard → Smart Delete\Backspace | Default Obsidian, Smart Delete, Drop the line Prefix, Join with a space, Smart Backspace | принят 2026-10-05 (образец) |
 | 8 | `smart-enter` | Keyboard → Smart Enter | Default Obsidian, Smart Enter, все три Prefix on the new line, Use Shift+Enter instead | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 9 | `smart-paste` | Keyboard → Smart paste | Default Obsidian и Smart paste: две строки в два раздела | принят 2026-10-06 |
-| 10 | `binder` | Keyboard → Binder, Smart bracket | новая команда →, её клавиша в строке, Smart bracket | принят 2026-10-06; перезаписан 2026-10-07 после ревизии документации (цикл 140), ждёт приёмки |
+| 10 | `binder` | Keyboard → Binder, Smart bracket | новая команда →, её клавиша в строке, Smart bracket | принят 2026-10-07 |
 | 11 | `hotkeys` | Keyboard → Commands & Hotkeys | Hotkey settings, Obsidian's Hotkeys | принят 2026-10-06 |
 | 12 | `fields` | Tags & PKM → Fields | один Field, его Values и tagWheel (его сценарий) | принят 2026-10-05 (образец); перезаписан 2026-10-06 с заливкой tagWheel |
-| 12 | `fields-2` | Tags & PKM → Fields: новый Field | окно Add a Field (Tag, Link, Element, Action), Field выбран сразу, tagWheel с двумя Fields | перезаписан 2026-10-07 после ревизии документации (цикл 140), ждёт приёмки; таблица Values нового Field пуста — В-297 |
+| 12 | `fields-2` | Tags & PKM → Fields: новый Field | окно Add a Field (Tag, Link, Element, Action), Field выбран сразу, tagWheel с двумя Fields | перезаписан 2026-10-07 по его замечанию, ждёт приёмки |
 | 12 | `fields-next` | Tags & PKM → Fields: next/previous | Status next и previous против tagWheel | принят 2026-10-06; перезаписан 2026-10-06 с заливкой tagWheel |
-| 12 | `value-eye` | Tags & PKM → Fields: глаз у Value | Default, глаз на #doing, строка с ним | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
-| 12 | `element-steps` | Tags & PKM → Fields: Element | дата, Value format → 001, Steps by → List of Values | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
-| 12 | `action-field` | Tags & PKM → Fields: Action Field | Add Field → Action, Insert callout next, Cleanup | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
-| 12 | `link-rename` | Tags & PKM → Fields: переименование link Value | Value в таблице, окно Rename the note too?, итог; Project A открыта рядом | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
+| 12 | `value-eye` | Tags & PKM → Fields: глаз у Value | через tagWheel и Scroller: Default, глаз на #doing, строка с ним | перезаписан 2026-10-07 по его замечанию, ждёт приёмки |
+| 12 | `element-steps` | Tags & PKM → Fields: Element | дата, Value format → 001, Steps by → List of Values | принят 2026-10-07 |
+| 12 | `action-field` | Tags & PKM → Fields: Action Field | Add Field → Action, через tagWheel: коллаут Note, Tip, снять, Cleanup | перезаписан 2026-10-07 по его замечанию, ждёт приёмки |
+| 12 | `link-rename` | Tags & PKM → Fields: переименование link Value | Value в таблице, окно Rename the note too?, итог; Project A открыта рядом | принят 2026-10-07 |
 | 13 | `child-fields` | Tags & PKM → Fields: дети | Child Field: After parent, Always | принят 2026-10-06; перезаписан 2026-10-06 с заливкой tagWheel |
-| 13 | `nested-tags` | Tags & PKM → Fields: Child tag format | дочерний Value, Separate, Nested, Inline to note | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
-| 13 | `prerequisite` | Tags & PKM → Fields: Prerequisite Field | Prerequisite Field и ⬑Status, до и после | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
+| 13 | `nested-tags` | Tags & PKM → Fields: Child tag format | дочерний Value, Separate, Nested, Inline to note плавающей кнопкой | перезаписан 2026-10-07 по его замечанию, ждёт приёмки |
+| 13 | `prerequisite` | Tags & PKM → Fields: Prerequisite Field | Prerequisite Field и ⬑Status, до и после | принят 2026-10-07 |
 | 14 | `custom-blocks` | Tags & PKM → Fields: Add Block | Right Block, Custom block | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 15 | `separators` | Tags & PKM → Separators | Left Block, Right Block, First и Second Separator | принят 2026-10-06 |
-| 15 | `separator-rewrite` | Tags & PKM → Separators: Old Separators in your notes | смена Separator, Replace in all notes, итог; вторая заметка рядом | записан впервые 2026-10-07 по заказу после ревизии документации, ждёт приёмки |
+| 15 | `separator-rewrite` | Tags & PKM → Separators: Old Separators in your notes | смена Separator, Replace in all notes, итог; вторая заметка рядом | принят 2026-10-07 |
 | 15 | `ticked-line` | Tags & PKM → Writing rules: ticked line | Default Obsidian, Mark ticked line, Dim ticked line | принят 2026-10-06 |
 | 16 | `tagwheel` | Tags & PKM → tagWheel behavior | navigation behavior, Values in the other Block | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
 | 16 | `tagwheel-2` | Tags & PKM → tagWheel behavior, вторая часть | Active Field on opening | перезаписан 2026-10-06 с заливкой tagWheel, ждёт приёмки |
@@ -50,7 +50,7 @@
 | 23 | `link-view` | Visual → Link view | цвета ссылок и скобок | принят 2026-10-06 |
 | 24 | `tag-bars` | Visual → Tag Bars | Tag Bars, Number of Bars, Hide the tag, Bars for the whole tree, Join Bars; заметка и панель рядом | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 24 | `tag-bars-look` | Visual → Tag Bars: вид | Bar thickness, Distance from the text, Space between Bars, Vertical gap; заметка и панель рядом | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
-| 25 | `tagwheel-colors` | Visual → tagWheel (Panel): цвета | цвет темы, Background color, цвета Field и Value | перезаписан 2026-10-07 после ревизии документации (цикл 140), ждёт приёмки |
+| 25 | `tagwheel-colors` | Visual → tagWheel (Panel): цвета | цвет темы, Background color, цвета Field и Value | принят 2026-10-07 |
 | 25 | `tagwheel-look` | Visual → tagWheel (Panel, Scroller) | Show tag markers, Scroller | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 26 | `cursor` | Visual → Text cursor | цвет и ширина каретки | перезаписан 2026-10-06 по его замечаниям, ждёт приёмки |
 | 26 | `cursor-jump` | Visual → Cursor jump highlight | Default Obsidian, круг прыжка, внутри строки | записан впервые 2026-10-06, ждёт приёмки |

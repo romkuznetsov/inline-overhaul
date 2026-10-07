@@ -1,6 +1,6 @@
 # value-eye — шаги записи (что показывается — value-eye.md)
 # Заказ 2026-10-07 после ревизии документации: глаз у Value — скрытый Value пропускается next и tagWheel;
-# строка, где он уже стоит, его держит. Сценарий — таблица PENDING GIF value-eye в docs/SHOWCASE.md.
+# строка, где он уже стоит, его держит. Его 💬 2026-10-07: показывать tagWheel и Scroller, а не Status next. Сценарий — таблица PENDING GIF value-eye в docs/SHOWCASE.md.
 preset visual.tagWheel.fillColor = "#fff3bf"
 title Hide a Value | The eye takes a Value out of next, previous and tagWheel
 drop Priority
@@ -11,13 +11,13 @@ open Value eye.md
 line-width 480
 caret - call the bank
 stage Default
-say Default: Status next walks #todo → #doing → #done
-cmd status-next
-expect - #todo || call the bank
-cmd status-next
-expect - #doing || call the bank
-cmd status-next
-expect - #done || call the bank
+say Default: tagWheel walks #todo → #doing → #done
+cmd open-tagwheel-left
+key ArrowUp
+key ArrowUp
+expect - pay the rent / - ==**[#doing]**== || call the bank
+key ArrowUp
+key Escape
 stage The eye on #doing
 say The eye in front of a Value hides it
 settings Tags & PKM
@@ -27,19 +27,16 @@ click Hide #doing from next, previous and tagWheel
 pause 1200
 close
 caret - call the bank
-say Status next → from #todo straight to #done
-cmd status-next
-expect - #todo || call the bank
-cmd status-next
-expect - #done || call the bank
-say tagWheel no longer lists #doing
+say tagWheel goes from #todo straight to #done
 cmd open-tagwheel-left
 key ArrowUp
+key ArrowUp
+expect - pay the rent / - ==**[#done]**== || call the bank
 key Escape
 stage A line that has it
 caret - #doing || book a table
-say A line with #doing keeps it
-pause 1200
-say Status next goes on to #done
-cmd status-next
-expect - #done || book a table
+say A line with #doing keeps it; the next step is #done
+cmd open-tagwheel-left
+key ArrowUp
+key Enter
+expect - call the bank / - #done || book a table

@@ -186,4 +186,53 @@ const modelOf = (w: { plugin: Any }): Any => createFieldsModel({
   ok("выбранный Field переживает пересборку вкладки");
 }
 
+/* ---- 3: перерисовка из снятой копии идёт в живую (В-297) --------------- */
+/*
+ * `Add Field` пишет Field — платформа пересобирает вкладку, — и только потом
+ * его Values; последний `redraw` зовёт копия, которую пересборка уже сняла.
+ */
+
+{
+  const w = makeWorld();
+  const ctx = {
+    get: (p: string) => (p === "features.pkm.enabled"),
+    set: async () => {},
+    run: async () => {},
+    watch: () => () => {},
+    platform: w.platform,
+  } as unknown as SettingsCtx;
+  const draw = (): { box: StubNode; close: () => void } => {
+    const box = makeNode("div");
+    return { box, close: fieldsEditor(box as unknown as El, ctx) };
+  };
+  const hasValue = (box: StubNode, token: string): boolean => {
+    let found = false;
+    const walk = (n: StubNode): void => {
+      if (String(n.getAttribute("aria-label") || "").includes(token)) found = true;
+      n.children.forEach(walk);
+    };
+    walk(box);
+    return found;
+  };
+
+  const stale = draw();
+  const live = draw();
+  const model = modelOf(w);
+  const row = model.listFields().find((r: Any) => !r.parent && r.kind === "tag");
+  assert.ok(row, "в фикстуре нет Field типа tag — проверять нечего");
+  /* Выбор — у живой копии, запись — после пересборки, как у `configureNewField`. */
+  const pick = all(live.box, "io-fields__pick").find(n => n.getAttribute("aria-label")?.endsWith(" " + row.label)
+    || String(n.textContent || "").includes(row.label));
+  assert.ok(pick, "в списке нет строки Field " + row.label);
+  (pick as StubNode).click();
+  assert.ok(model.valuesEditor(row.key).addToken("#iolive").ok, "модель не добавила Value");
+  /* Контроль шага: живая копия без перерисовки Value не знает. */
+  assert.ok(!hasValue(live.box, "#iolive"), "живая копия увидела Value без перерисовки — проверка ничего не ловит");
+  (all(stale.box, "io-fields__pick")[0] as StubNode).click();
+  assert.ok(hasValue(live.box, "#iolive"), "перерисовка снятой копии не дошла до живой: Values нового Field не видны");
+  live.close();
+  stale.close();
+  ok("перерисовка из снятой копии блока рисует живую");
+}
+
 console.log("\n" + passed + " проверок пройдено");

@@ -1,8 +1,9 @@
 # nested-tags — шаги записи (что показывается — nested-tags.md)
 # Заказ 2026-10-07 после ревизии документации: Child tag format → Nested — родитель и ребёнок одним тегом,
-# в строке и в свойстве заметки. Ребёнок #review под #done заводится на камеру, как в child-fields.
+# в строке и в свойстве заметки. Его 💬 2026-10-07: Inline to note — щелчком по плавающей кнопке →. Ребёнок #review под #done заводится на камеру, как в child-fields.
 preset visual.tagWheel.fillColor = "#fff3bf"
 preset transform.inline2note.enabled = true
+preset transform.inline2note.floatingButton = true
 preset transform.inline2note.openTarget = true
 preset pkm.fields.order.propertiesByField = {"Status":"tags"}
 title A child tag in one piece | Child tag format: two tags, or one nested tag
@@ -41,6 +42,8 @@ key ArrowUp
 key Enter
 expect - water the plants / - #done/review || call the bank
 stage Into a note
-say Inline to note → the property gets one tag
-cmd transform-inline-to-note
+say Click → : Inline to note, the property gets one tag
+click →
+say The new note: tags → done/review, one tag
+pause 2500
 expect tags: "#done/review" / - #done/review || call the bank

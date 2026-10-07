@@ -2,7 +2,6 @@
 # Его замечание 2026-10-05: этап 1 — новый Field с одним Value; этап 2 — tagWheel, в нём теперь два Fields;
 # Values меняются через tagWheel и Scroller, а не командой next (next против tagWheel — fields-next).
 # Цикл 140: окно предлагает Tag, Link, Element, Action; новый Field выбран в списке сразу — свой этап.
-# Таблица Values нового Field пуста до перевыбора (дефект, OPEN_QUESTIONS 2026-10-07) — субтитр о ней молчит; после починки вернуть «its Values on the right».
 # Его слово 2026-10-06: «во всех gif tagwheel должна быть с заливкой» — цвет заливки выставлен заранее (как его включать — tagwheel-colors).
 preset visual.tagWheel.fillColor = "#fff3bf"
 title Fields: a new Field | Add a Field with one Value — tagWheel shows it next to Status
@@ -30,7 +29,7 @@ pause 1200
 click Add Field
 pause 1800
 stage Picked at once
-say Energy is picked in the list at once
+say Energy is picked at once — its Values on the right
 spot Energy
 pause 2500
 close

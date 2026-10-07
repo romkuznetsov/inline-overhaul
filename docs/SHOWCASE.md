@@ -60,12 +60,12 @@ Each Field gets two commands of its own. They change the Value with one key, wit
 
 The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a line that already has it keeps it. **Tags & PKM → Fields → Values**.
 
-<img src="media/showcase/value-eye.gif" width="720" alt="The eye hides doing from Status next and from tagWheel">
+<img src="media/showcase/value-eye.gif" width="720" alt="The eye hides doing from the tagWheel Scroller">
 
 | Step | What you see |
 |---|---|
-| Default | `Status next` walks `#todo → #doing → #done` |
-| The eye on `#doing` | `Status next` goes from `#todo` straight to `#done`; tagWheel no longer lists `#doing` |
+| Default | tagWheel walks `#todo → #doing → #done` |
+| The eye on `#doing` | tagWheel goes from `#todo` straight to `#done` |
 | A line that has it | A line with `#doing` keeps it, and the next step goes on to `#done` |
 
 ### Add a Field
@@ -75,7 +75,7 @@ The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a l
 | Step | What you see |
 |---|---|
 | New Field | `Add Field`: the window offers `Tag`, `Link`, `Element`, `Action`; Energy, with one Value `#focus` |
-| Picked at once | Energy is picked in the list at once |
+| Picked at once | Energy is picked in the list, its Values on the right |
 | Two Fields | `tagWheel Left` shows Status and Energy; `→` steps between them, `Enter` writes both Values |
 
 ### Dates, counters and your own lists
@@ -94,13 +94,14 @@ An Element writes an emoji marker with a Value after it, and `next` and `previou
 
 An Action Field writes no Value: each of its categories is an edit of the line, with its own `next` and `previous`. **Tags & PKM → Fields → Add Field → Action**.
 
-<img src="media/showcase/action-field.gif" width="720" alt="An Action Field wraps a line in a callout, steps through callout types and takes the callout off">
+<img src="media/showcase/action-field.gif" width="720" alt="An Action Field picked in tagWheel wraps a line in a callout, changes its type and takes it off">
 
 | Step | What you see |
 |---|---|
 | New Action Field | `Add Field` → `Action`, category `Insert callout` with its presets |
-| `next` | The line goes into a `> [!note]` callout |
-| `next` again | `[!note]` → `[!tip]` → `[!warning]`; one step past the last preset takes the callout off |
+| tagWheel | `tagWheel Right` → `Insert callout` → `Note`: the line goes into a `> [!note]` callout |
+| Tip | tagWheel opens on `Note`; `↑` picks `Tip` |
+| Take it off | The empty slot takes the callout off |
 | `Cleanup` | Another category: the Values leave the line, your text stays |
 
 ### Rename a link Value with its note
@@ -138,7 +139,7 @@ A Field can depend on a Value of another one. **Tags & PKM → Fields → Child 
 | A child Value | `#review` goes under `#done` |
 | `Separate` | Parent and child as two tags: `#done #review` |
 | `Nested` | One tag: `#done/review` |
-| Into a note | `Transform inline to note` writes `#done/review` to the property as one tag |
+| Into a note | The floating button `→` turns the line into a note and writes `#done/review` to the property as one tag |
 
 ### A Field that waits for another
 

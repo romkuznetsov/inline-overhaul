@@ -24,6 +24,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 1. 🎨 **A Field type has one name everywhere.** The `Add a Field` window and Binder call the fourth type `Action`, as the list of Fields does, and the list calls an emoji Field `Element`, as the window does
 2. 🐛 **tagWheel highlights its line in the default theme again.** With no `Background color` of your own, the open line takes the highlight color of your theme; in Obsidian 1.14 the default theme left it transparent
 3. 🐛 **A new Field opens right away.** After `Add Field` the new Field is picked in the list, and its settings show on the right
+4. 🐛 **A new Field shows the Values you gave it.** The Values typed in `Add a Field` appear in its table at once; before, they showed only after you picked another Field and came back
 
 ## 0.16.1
 

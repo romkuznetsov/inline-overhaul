@@ -609,3 +609,95 @@
 *Advanced → Diagnostics* — Undo last settings change, Show option IDs in tips
 
 ![[showcase-gif/diagnostics.gif|720]]
+
+
+## Приёмка 2026-10-07, второй круг (новые и переснятые)
+
+# Showcase GIF
+
+> [!info] Как отвечать
+> Под каждым GIF отметьте `ок` или напишите замечание в строке `💬`. Замечание ко всем сразу пишите в «Ко всем GIF».
+
+## Ко всем GIF
+- 💬 
+
+## Переснятые
+
+### 1. tagwheel-colors
+- [x] #done :: ок
+- ✏️ первый этап теперь «Theme color»: без своего цвета строка залита цветом темы. Свой цвет в ролике голубой, потому что жёлтый на кадре почти не отличался от цвета темы
+- 💬 
+
+![[showcase-gif/tagwheel-colors.gif|720]]
+
+### 2. fields-2
+- [ ] #done :: ок
+- ✏️ окно Add a Field показывает Tag, Link, Element, Action; новый этап «Picked at once»: Energy выбран в списке сразу. Таблица Values у нового Field пуста, пока не выбрать другой Field и вернуться. Это дефект плагина (В-297)
+- 💬 странность - ты добавил value при создании field, однако его не было в правой колонке values у этого field. Я протестировал - оно повляется только при обновлении владки (т.е. мне нужно щелкнуть на другой field, а затем вернуться к предыдущему - исправь)
+
+![[showcase-gif/fields-2.gif|720]]
+
+### 3. binder
+- [x] #done :: ок
+- ✏️ в окне Add a Binder command строка Type теперь Text / Action, этапы прежние
+- 💬 
+
+![[showcase-gif/binder.gif|720]]
+
+## Новые
+
+### 4. value-eye
+- [ ] #done :: ок
+- 💬 нет, это надо показывать не через команду field-next, а через tagwheel scroller
+
+*Глаз у Value*: Default, глаз на #doing, строка, где #doing уже стоит
+
+![[showcase-gif/value-eye.gif|720]]
+
+### 5. element-steps
+- [x] #done :: ок
+- 💬 
+
+*Element*: дата шагает на день, Value format → 001, Steps by → List of Values
+
+![[showcase-gif/element-steps.gif|720]]
+
+### 6. action-field
+- [ ] #done :: ок
+- 💬 покажи активацию команд не через field-next, а через tagwheel 
+
+*Action Field*: Add Field → Action с двумя категориями, Insert callout next по кругу, Cleanup
+
+![[showcase-gif/action-field.gif|720]]
+
+### 7. link-rename
+- [x] #done :: ок
+- 💬 
+
+*Переименование link Value*: Project A → Project Atlas, окно с ценой, итог; заметка Project A открыта справа. Obsidian переспрашивает, потому что в вашем .obsidian выключено автообновление ссылок
+
+![[showcase-gif/link-rename.gif|720]]
+
+### 8. nested-tags
+- [ ] ок
+- 💬 inline2note сделано неудачно - ты должен его активировать нажатием на floating button.
+
+*Child tag format*: дочерний #review под #done, Separate, Nested, Inline to note пишет один тег в свойство
+
+![[showcase-gif/nested-tags.gif|720]]
+
+### 9. prerequisite
+- [x] #done :: ок
+- 💬 
+
+*Prerequisite Field*: Priority ждёт Status, подпись ⬑Status в предпросмотре, tagWheel до и после
+
+![[showcase-gif/prerequisite.gif|720]]
+
+### 10. separator-rewrite
+- [x] #done :: ок
+- 💬 
+
+*Old Separators in your notes*: смена Separator, Replace in all notes, итог в двух заметках
+
+![[showcase-gif/separator-rewrite.gif|720]]
