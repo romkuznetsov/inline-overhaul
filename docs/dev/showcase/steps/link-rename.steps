@@ -1,0 +1,29 @@
+# link-rename — шаги записи (что показывается — link-rename.md)
+# Заказ 2026-10-07 после ревизии документации: переименование link Value вместе с заметкой и ссылками.
+# Заметка Project A лежит в vault стенда; Project A открыта справа (pane): видно, как меняется её имя.
+title Rename a link Value | The Value, its note and every link keep one name
+drop Status
+drop Priority
+drop Due
+open Link rename.md
+pane Project A.md
+caret - pay the rent
+stage Rename the Value
+say Project A → Project Atlas in the Values table
+settings Tags & PKM
+# Набор идёт в конец поля; с первой буквы открывается окно, набор продолжается в нём.
+fill Value [[Project A]] of Project = tlas
+stage Rename the note too?
+say The window counts the links in your notes
+pause 2500
+click Rename note and links
+# Automatically update internal links выключен в его .obsidian — Obsidian спрашивает сам.
+say Obsidian asks first → Just once
+pause 1500
+click Just once
+pause 1200
+close
+stage The result
+say The note is Project Atlas, and every link follows
+pause 2500
+expect - pay the rent / - call the bank || [[Project Atlas]] / - book the flight || [[Project Atlas]]

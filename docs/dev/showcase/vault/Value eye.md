@@ -1,0 +1,4 @@
+- water the plants
+- pay the rent
+- call the bank
+- #doing || book a table

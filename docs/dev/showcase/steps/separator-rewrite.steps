@@ -1,0 +1,32 @@
+# separator-rewrite — шаги записи (что показывается — separator-rewrite.md)
+# Заказ 2026-10-07 после ревизии документации: сменить Separator и заменить старый во всех заметках.
+# Вторая заметка открыта справа (pane): видно, что замена идёт во всех заметках, а не в открытой.
+title Change a Separator in every note | Old lines keep the old Separator until you replace it
+open Separator rewrite.md
+pane Home tasks.md
+room 400
+caret - water the plants
+stage Change a Separator
+say Both Separators || → ::
+settings Tags & PKM
+click ▸
+set First Separator = ::
+set Second Separator = ::
+caret - water the plants
+say Lines written before still read ||
+pause 2500
+stage Old Separators in your notes
+say A new row: Old Separators in your notes
+settings Tags & PKM
+spot Old Separators in your notes
+pause 2000
+click Replace in all notes
+say The window counts the lines and notes
+pause 2500
+click Replace
+pause 1200
+close
+stage The result
+say Every old line now reads ::
+pause 2500
+expect - water the plants / - #todo :: call Anna / - #high :: book a table :: [[Project A]]

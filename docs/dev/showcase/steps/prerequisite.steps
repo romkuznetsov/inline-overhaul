@@ -1,0 +1,36 @@
+# prerequisite — шаги записи (что показывается — prerequisite.md)
+# Заказ 2026-10-07 после ревизии документации: Prerequisite Field и подпись ⬑Status в предпросмотре строки.
+preset visual.tagWheel.fillColor = "#fff3bf"
+title A Field that waits for another | Priority stays out of the line until Status has a Value
+drop Due
+drop Project
+preset visual.tagWheel.scroller.enabled = true
+open Prerequisite.md
+line-width 480
+caret - call the bank
+stage Prerequisite Field
+say Priority: Prerequisite Field → Yes, waits for Status
+settings Tags & PKM
+click Priority #2
+set Prerequisite Field = Yes
+set Choose prerequisite Field = Status
+pause 1500
+spot Live preview
+say Preview: Priority is pale, ⬑Status under it
+pause 2500
+close
+stage Before
+caret - call the bank
+say A plain line: tagWheel offers Status only
+cmd open-tagwheel-left
+key ArrowRight
+key Escape
+expect - pay the rent / - call the bank / - #todo || book a table
+stage After
+caret - #todo || book a table
+say The line has a Status → Priority is offered too
+cmd open-tagwheel-left
+key ArrowRight
+key ArrowUp
+key Enter
+expect - call the bank / - #todo #low || book a table

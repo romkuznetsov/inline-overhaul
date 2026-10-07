@@ -1,0 +1,48 @@
+# element-steps — шаги записи (что показывается — element-steps.md)
+# Заказ 2026-10-07 после ревизии документации: Element — шаг даты и счётчика, список своих Values.
+# Счётчик Count и список Mood заведены за кадром (как их заводит окно Add a Field, показывает action-field / fields-2);
+# на камеру — только Value format и Steps by. Дата в expect — день записи: перезапись в другой день их правит.
+preset pkm.fields.order = {"right":["Due","Count","Mood","Project"],"labels":{"Count":"Count","Mood":"Mood"},"strictNames":{"Count":"Count","Mood":"Mood"},"types":{"Count":"element","Mood":"element"},"active":{"Count":"yes","Mood":"yes"},"freeRoam":{"Count":"off","Mood":"off"},"enabled":{"Count":true,"Mood":true}}
+preset pkm.fields.links.fields = [{"id":"Due","kind":"genericElement","marker":"📅","placeholder":"Due","values":[""],"yamlValueRule":"clean"},{"id":"Count","kind":"genericElement","marker":"🔢","placeholder":"Count","values":[""],"yamlValueRule":"clean"},{"id":"Mood","kind":"genericElement","marker":"🙂","placeholder":"Mood","values":[""],"yamlValueRule":"raw"},{"id":"Project","prefix":"#","source":"wikilinks:Project","placeholder":"Project","values":[{"token":"Project A","allowedParentValues":[],"__ioParentBinding":"","__ioParentFieldId":"","active":true},{"token":"Project B","allowedParentValues":[],"__ioParentBinding":"","__ioParentFieldId":"","active":true}],"yamlValueRule":"raw"}]
+preset pkm.fields.elements = {"fields":["Due","Count","Mood"],"byField":{"Count":{"emoji":"🔢","format":"1","increment":{"mode":"standard","incrementBy":1,"command":"now","customRaw":[],"custom":[]}},"Mood":{"emoji":"🙂","format":"1","increment":{"mode":"standard","incrementBy":1,"command":"now","customRaw":[],"custom":[]},"list":["🙂‍↕️yes","🙂‍↔️no"],"listHidden":[]}}}
+drop Status
+drop Priority
+drop Project
+title Elements: dates, counters, your own lists | next and previous step the Value after the emoji
+open Task fields.md
+line-width 480
+caret - call the bank
+stage A date
+say Due next → today
+cmd due-next
+expect - book a table / - call the bank || 📅2026-10-07
+say Due next again → one day later
+cmd due-next
+expect - book a table / - call the bank || 📅2026-10-08
+stage A counter
+say Count: Value format → 001
+settings Tags & PKM
+click Count #2
+set Value format = 001
+caret - call the bank
+say Count next → 🔢001, then 🔢002
+cmd count-next
+expect - book a table / - call the bank || 🔢001
+cmd count-next
+expect - book a table / - call the bank || 🔢002
+stage Steps by → List of Values
+say Mood: Steps by → List of Values
+settings Tags & PKM
+click Mood #2
+set Steps by = List of Values
+pause 1500
+close
+caret - call the bank
+say Mood next walks your own list
+cmd mood-next
+expect - book a table / - call the bank || 🙂‍↕️yes
+cmd mood-next
+expect - book a table / - call the bank || 🙂‍↔️no
+say Mood previous → one step back
+cmd mood-previous
+expect - book a table / - call the bank || 🙂‍↕️yes

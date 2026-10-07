@@ -1,0 +1,48 @@
+# action-field — шаги записи (что показывается — action-field.md)
+# Заказ 2026-10-07 после ревизии документации: Action Field — категории; next/previous оборачивают строку
+# в коллаут и снимают обёртку; Cleanup убирает Values. Сценарий — таблица PENDING GIF action-field в docs/SHOWCASE.md.
+title Action Field | Edits of the line, one key each
+drop Due
+drop Project
+open Action field.md
+line-width 480
+room 400
+caret - call the bank
+stage New Action Field
+say Add Field → Action: edits of the line
+settings Tags & PKM
+click Add Field
+click Action
+fill Field name = Edit
+click Category to add to Field name
+click Insert callout
+click Add category
+say Insert callout comes with Note, Tip and Warning
+pause 1500
+click Category to add to Edit
+click Cleanup
+click Add category
+say A second category: Cleanup
+pause 1500
+click Add Field
+pause 1200
+close
+stage next
+caret - call the bank
+say Edit · Insert callout next → the line goes into a callout
+cmd edit-callouts-next
+expect - book a table / > [!note] / > - call the bank
+stage next again
+say next again → Tip, then Warning
+cmd edit-callouts-next
+expect - book a table / > [!tip] / > - call the bank
+cmd edit-callouts-next
+expect - book a table / > [!warning] / > - call the bank
+say One step past the last preset → the callout is gone
+cmd edit-callouts-next
+expect - book a table / - call the bank / - #todo #high || book the flight
+stage Cleanup
+caret - #todo #high || book the flight
+say Edit · Cleanup next → the Values leave, your text stays
+cmd edit-cleanup-next
+expect - book a table / - call the bank / - book the flight

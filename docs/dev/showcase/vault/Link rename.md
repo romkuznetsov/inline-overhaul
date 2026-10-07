@@ -1,0 +1,4 @@
+- pay the rent
+- call the bank || [[Project A]]
+- book the flight || [[Project A]]
+- water the plants || [[Project B]]

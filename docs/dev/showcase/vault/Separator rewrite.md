@@ -1,0 +1,3 @@
+- water the plants
+- #todo || call Anna
+- #high || book a table || [[Project A]]

@@ -1,6 +1,6 @@
 # binder — Binder: Smart bracket и своя строка
 
-**Состояние: перезаписан 2026-10-05 по каркасу после приёмки образцов; ждёт приёмки.**
+**Состояние: перезаписан 2026-10-07 по заказу после ревизии документации (цикл 140): строка `Type` окна `Add a Binder command` теперь `Text` / `Action`; этапы прежние; ждёт приёмки.**
 
 Группа `Keyboard → Binder (custom insert commands)` в `docs/SETTINGS.md`. Контролы в записи: строка `Smart bracket`, которая приходит с плагином, и `Add command` → окно `Add a Binder command` → `Inserts` → `Add`.
 

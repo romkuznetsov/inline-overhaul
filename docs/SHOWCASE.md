@@ -56,19 +56,17 @@ Each Field gets two commands of its own. They change the Value with one key, wit
 | `Status next`, `Status previous` | The next Value with one key, then one step back |
 | tagWheel | All Values of Status at once; `Enter` writes the one you picked |
 
-<!-- PENDING GIF value-eye: after recording, delete this line and the END line, and turn data-gif="value-eye" into src="media/showcase/value-eye.gif"
 ### Hide a Value
 
 The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a line that already has it keeps it. **Tags & PKM → Fields → Values**.
 
-<img data-gif="value-eye" width="720" alt="The eye hides doing from Status next and from tagWheel">
+<img src="media/showcase/value-eye.gif" width="720" alt="The eye hides doing from Status next and from tagWheel">
 
 | Step | What you see |
 |---|---|
 | Default | `Status next` walks `#todo → #doing → #done` |
 | The eye on `#doing` | `Status next` goes from `#todo` straight to `#done`; tagWheel no longer lists `#doing` |
 | A line that has it | A line with `#doing` keeps it, and the next step goes on to `#done` |
-END PENDING GIF value-eye -->
 
 ### Add a Field
 
@@ -76,59 +74,46 @@ END PENDING GIF value-eye -->
 
 | Step | What you see |
 |---|---|
-| New Field | `Add Field`: Energy, with one Value `#focus` |
-| Two Fields | `tagWheel Left` shows Status and Energy; `→` steps between them, `Enter` writes both Values |
-
-<!-- PENDING GIF fields-2 (re-record): after recording, replace the table above with this one and delete this comment
-| Step | What you see |
-|---|---|
 | New Field | `Add Field`: the window offers `Tag`, `Link`, `Element`, `Action`; Energy, with one Value `#focus` |
-| Picked at once | Energy is picked in the list, its Values on the right |
+| Picked at once | Energy is picked in the list at once |
 | Two Fields | `tagWheel Left` shows Status and Energy; `→` steps between them, `Enter` writes both Values |
-END PENDING GIF fields-2 -->
 
-<!-- PENDING GIF element-steps: after recording, delete this line and the END line, and turn data-gif="element-steps" into src="media/showcase/element-steps.gif"
 ### Dates, counters and your own lists
 
 An Element writes an emoji marker with a Value after it, and `next` and `previous` step that Value. **Tags & PKM → Fields → Steps by**.
 
-<img data-gif="element-steps" width="720" alt="A due date steps by a day, a counter counts up, and a list Element walks its emoji Values">
+<img src="media/showcase/element-steps.gif" width="720" alt="A due date steps by a day, a counter counts up, and a list Element walks its emoji Values">
 
 | Step | What you see |
 |---|---|
 | A date | `Due next` writes today, then steps `📅2026-10-07 → 📅2026-10-08` |
 | A counter | `Value format` → `001`: `🔢001 → 🔢002` |
 | `Steps by` → `List of Values` | `🙂‍↕️yes → 🙂‍↔️no` and back, each Value with its own emoji |
-END PENDING GIF element-steps -->
 
-<!-- PENDING GIF action-field: after recording, delete this line and the END line, and turn data-gif="action-field" into src="media/showcase/action-field.gif"
 ### Edit the line with an Action Field
 
 An Action Field writes no Value: each of its categories is an edit of the line, with its own `next` and `previous`. **Tags & PKM → Fields → Add Field → Action**.
 
-<img data-gif="action-field" width="720" alt="An Action Field wraps a line in a callout, steps through callout types and takes the callout off">
+<img src="media/showcase/action-field.gif" width="720" alt="An Action Field wraps a line in a callout, steps through callout types and takes the callout off">
 
 | Step | What you see |
 |---|---|
 | New Action Field | `Add Field` → `Action`, category `Insert callout` with its presets |
 | `next` | The line goes into a `> [!note]` callout |
-| `next` again | `[!note]` → `[!tip]`; one step past the last preset takes the callout off |
+| `next` again | `[!note]` → `[!tip]` → `[!warning]`; one step past the last preset takes the callout off |
 | `Cleanup` | Another category: the Values leave the line, your text stays |
-END PENDING GIF action-field -->
 
-<!-- PENDING GIF link-rename: after recording, delete this line and the END line, and turn data-gif="link-rename" into src="media/showcase/link-rename.gif"
 ### Rename a link Value with its note
 
 A link Value and its note keep one name. **Tags & PKM → Fields → Values**.
 
-<img data-gif="link-rename" width="720" alt="Renaming the Value Project A renames its note and every link to it">
+<img src="media/showcase/link-rename.gif" width="720" alt="Renaming the Value Project A renames its note and every link to it">
 
 | Step | What you see |
 |---|---|
 | Rename the Value | `Project A` → `Project Atlas` in the Values table |
-| `Rename the note too?` | The window counts the links in your notes; `Rename note and links` |
+| `Rename the note too?` | The window counts the links in your notes; `Rename note and links`, and Obsidian may ask once more |
 | The result | The note is `Project Atlas`, and every line that linked to it now says `[[Project Atlas]]` |
-END PENDING GIF link-rename -->
 
 ### Child Fields
 
@@ -142,33 +127,30 @@ A Field can depend on a Value of another one. **Tags & PKM → Fields → Child 
 | `After parent` | `#review` added under `#done` is offered once the line has `#done` |
 | `Always` | The child is offered on any line, with or without its parent |
 
-<!-- PENDING GIF nested-tags: after recording, delete this line and the END line, and turn data-gif="nested-tags" into src="media/showcase/nested-tags.gif"
 ### A child tag in one piece
 
 `Child tag format` decides how a child Value is written next to its parent. **Tags & PKM → Fields → Behavior**.
 
-<img data-gif="nested-tags" width="720" alt="Separate writes two tags, Nested writes one tag note/meeting, in the line and in the note property">
+<img src="media/showcase/nested-tags.gif" width="720" alt="Separate writes two tags, Nested writes one tag done/review, in the line and in the note property">
 
 | Step | What you see |
 |---|---|
-| `Separate` | Parent and child as two tags: `#note #meeting` |
-| `Nested` | One tag: `#note/meeting` |
-| Into a note | `Transform inline to note` writes `#note/meeting` to the property as one tag |
-END PENDING GIF nested-tags -->
+| A child Value | `#review` goes under `#done` |
+| `Separate` | Parent and child as two tags: `#done #review` |
+| `Nested` | One tag: `#done/review` |
+| Into a note | `Transform inline to note` writes `#done/review` to the property as one tag |
 
-<!-- PENDING GIF prerequisite: after recording, delete this line and the END line, and turn data-gif="prerequisite" into src="media/showcase/prerequisite.gif"
 ### A Field that waits for another
 
 With `Prerequisite Field` a Field stays out of the line until another Field has a Value. **Tags & PKM → Fields → Behavior**.
 
-<img data-gif="prerequisite" width="720" alt="Priority waits for Status: paler in the preview with a label, and offered in tagWheel only after Status is set">
+<img src="media/showcase/prerequisite.gif" width="720" alt="Priority waits for Status: paler in the preview with a label, and offered in tagWheel only after Status is set">
 
 | Step | What you see |
 |---|---|
 | `Prerequisite Field` → `Yes`, waits for `Status` | In the line preview `Priority` turns pale, with `⬑Status` under it |
 | Before | On a plain line tagWheel offers Status only |
 | After | Once the line has a Status, tagWheel offers Priority too |
-END PENDING GIF prerequisite -->
 
 ### Blocks and Separators
 
@@ -182,19 +164,17 @@ A line has a Left Block before your text and a Right Block after it, each closed
 | Right Block | Links and dates go after your text; the Second Separator `\|\|` starts the block |
 | Separators | Both changed to `::`, and the line follows |
 
-<!-- PENDING GIF separator-rewrite: after recording, delete this line and the END line, and turn data-gif="separator-rewrite" into src="media/showcase/separator-rewrite.gif"
 ### Change a Separator in every note
 
 Lines written before a Separator change keep the old one. One button replaces it everywhere. **Tags & PKM → Separators**.
 
-<img data-gif="separator-rewrite" width="720" alt="After the Separator changes, Replace in all notes rewrites the old Separator in every note">
+<img src="media/showcase/separator-rewrite.gif" width="720" alt="After the Separator changes, Replace in all notes rewrites the old Separator in every note">
 
 | Step | What you see |
 |---|---|
 | Change a Separator | `\|\|` → `::`; old lines still read `- #todo \|\| call Anna` |
-| `Old Separators in your notes` | The row shows how many lines will change; `Replace in all notes` |
+| `Old Separators in your notes` | `Replace in all notes`: the window counts the lines and notes first |
 | The result | Every old line now reads `- #todo :: call Anna`; the row goes away |
-END PENDING GIF separator-rewrite -->
 
 ### A Block at the cursor
 
@@ -283,21 +263,13 @@ tagWheel opens over the line you are on. Arrow keys move between Fields and thei
 
 ### Its colors
 
-<img src="media/showcase/tagwheel-colors.gif" width="720" alt="A yellow background for the open line and three text colors for Fields and Values">
+<img src="media/showcase/tagwheel-colors.gif" width="720" alt="The theme color behind the open line, then a blue one, and three text colors for Fields and Values">
 
-| Step | What you see |
-|---|---|
-| Default | The open tagWheel has no background |
-| `Background color` | The open line stands out |
-| Text colors | The Field you are on, the other Fields, and a Field that already has a Value, each in its own color |
-
-<!-- PENDING GIF tagwheel-colors (re-record): after recording, replace the table above with this one and delete this comment
 | Step | What you see |
 |---|---|
 | Default | The open line takes the highlight color of your theme |
 | `Background color` | Your own color for the open line |
 | Text colors | The Field you are on, the other Fields, and a Field that already has a Value, each in its own color |
-END PENDING GIF tagwheel-colors -->
 
 ## Moving and jumping
 
@@ -444,8 +416,6 @@ Familiar keys that do a little more. **Keyboard**.
 | Use it | Its key drops `→` in at the cursor |
 | `Smart bracket` | `[text]`, then `[[text]]`, then back; works on a selection too |
 
-<!-- PENDING GIF binder (re-record only if the Type row is in the frame): the row types are now Text and Action; the table above stays
-END PENDING GIF binder -->
 
 ### Commands and hotkeys
 
