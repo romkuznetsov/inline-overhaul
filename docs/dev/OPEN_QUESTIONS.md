@@ -27,6 +27,7 @@
   6. `Old Separators in your notes` — сменить Separator и заменить старый во всех заметках;
   7. переименование link Value вместе с заметкой и ссылками.
 - `value-prefix` записан, но в SHOWCASE.md не вошёл (его заменил `prefix-behavior`); ставить ли отдельно — спросить его.
+- **SHOWCASE.md подготовлен:** у каждого ролика списка стоит HTML-комментарий `<!-- PENDING GIF <id> … END PENDING GIF <id> -->` с готовым разделом: заголовок, строка смысла, путь в панели, таблица этапов — она же сценарий ролика. Id новых: `value-eye`, `element-steps`, `action-field`, `link-rename`, `nested-tags`, `prerequisite`, `separator-rewrite`. Вставка: снять обёртку комментария и заменить `data-gif="<id>"` на `src="media/showcase/<id>.gif"` (`src` в комментарии роняет `docs_links_tests.js` — файла ещё нет). У переснятых `fields-2` и `tagwheel-colors` комментарий содержит новую таблицу — заменить ею таблицу над ним; у `binder` — пометка. Если этапы ролика вышли другими — таблицу править под ролик. Проверка: `grep -c "PENDING GIF" docs/SHOWCASE.md` → 0, `npm test -- docs` зелёный.
 
 **GIF для Showcase, 2026-10-04** — запись всего каталога (`docs/dev/showcase/CATALOG.md`). Найдено на стенде при записи; в GIF ни одна из находок не показана.
 
