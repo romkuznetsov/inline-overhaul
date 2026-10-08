@@ -6,6 +6,8 @@ New here? Start with the [README](../README.md) or the [tutorial](TUTORIAL.md). 
 
 The sections go from the core idea to the finishing touches. Read them in order the first time; later, jump straight to the one you need.
 
+Each clip is folded so the page opens fast: press **Show the clip** under a section to play it.
+
 | | Section | What you will see |
 |---|---|---|
 | 1 | [A line in seconds](#a-line-in-seconds) | One plain line becomes a task with a status, a priority, a project and a date |
@@ -23,7 +25,12 @@ The sections go from the core idea to the finishing touches. Read them in order 
 
 tagWheel fills both sides of a plain line without leaving the keyboard.
 
-<img src="media/showcase/readme-hero.gif" width="720" alt="tagWheel Left and Right fill a plain line with a status, a priority, a project and a date">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/readme-hero.gif" width="720" loading="lazy" alt="tagWheel Left and Right fill a plain line with a status, a priority, a project and a date">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -37,7 +44,12 @@ A Field is one slot a line can carry, such as a status or a project. Its Values 
 
 ### One Field and its Values
 
-<img src="media/showcase/fields.gif" width="720" alt="The Status Field with three Values, picked in tagWheel and cleared again">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/fields.gif" width="720" loading="lazy" alt="The Status Field with three Values, picked in tagWheel and cleared again">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -49,7 +61,12 @@ A Field is one slot a line can carry, such as a status or a project. Its Values 
 
 Each Field gets two commands of its own. They change the Value with one key, without opening a panel.
 
-<img src="media/showcase/fields-next.gif" width="720" alt="Status next and Status previous step through the Values; tagWheel shows them all at once">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/fields-next.gif" width="720" loading="lazy" alt="Status next and Status previous step through the Values; tagWheel shows them all at once">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -60,7 +77,12 @@ Each Field gets two commands of its own. They change the Value with one key, wit
 
 The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a line that already has it keeps it. **Tags & PKM → Fields → Values**.
 
-<img src="media/showcase/value-eye.gif" width="720" alt="The eye hides doing from the tagWheel Scroller">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/value-eye.gif" width="720" loading="lazy" alt="The eye hides doing from the tagWheel Scroller">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -70,7 +92,12 @@ The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a l
 
 ### Add a Field
 
-<img src="media/showcase/fields-2.gif" width="720" alt="A new Field Energy is added and appears in tagWheel next to Status">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/fields-2.gif" width="720" loading="lazy" alt="A new Field Energy is added and appears in tagWheel next to Status">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -82,7 +109,12 @@ The eye in front of a Value takes it out of `next`, `previous` and tagWheel; a l
 
 An Element writes an emoji marker with a Value after it, and `next` and `previous` step that Value. **Tags & PKM → Fields → Steps by**.
 
-<img src="media/showcase/element-steps.gif" width="720" alt="A due date steps by a day, a counter counts up, and a list Element walks its emoji Values">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/element-steps.gif" width="720" loading="lazy" alt="A due date steps by a day, a counter counts up, and a list Element walks its emoji Values">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -94,7 +126,12 @@ An Element writes an emoji marker with a Value after it, and `next` and `previou
 
 An Action Field writes no Value: each of its categories is an edit of the line, with its own `next` and `previous`. **Tags & PKM → Fields → Add Field → Action**.
 
-<img src="media/showcase/action-field.gif" width="720" alt="An Action Field picked in tagWheel wraps a line in a callout, changes its type and takes it off">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/action-field.gif" width="720" loading="lazy" alt="An Action Field picked in tagWheel wraps a line in a callout, changes its type and takes it off">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -108,7 +145,12 @@ An Action Field writes no Value: each of its categories is an edit of the line, 
 
 A link Value and its note keep one name. **Tags & PKM → Fields → Values**.
 
-<img src="media/showcase/link-rename.gif" width="720" alt="Renaming the Value Project A renames its note and every link to it">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/link-rename.gif" width="720" loading="lazy" alt="Renaming the Value Project A renames its note and every link to it">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -120,7 +162,12 @@ A link Value and its note keep one name. **Tags & PKM → Fields → Values**.
 
 A Field can depend on a Value of another one. **Tags & PKM → Fields → Child Field**.
 
-<img src="media/showcase/child-fields.gif" width="720" alt="A child Value review is offered after done, then on any line">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/child-fields.gif" width="720" loading="lazy" alt="A child Value review is offered after done, then on any line">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -132,7 +179,12 @@ A Field can depend on a Value of another one. **Tags & PKM → Fields → Child 
 
 `Child tag format` decides how a child Value is written next to its parent. **Tags & PKM → Fields → Behavior**.
 
-<img src="media/showcase/nested-tags.gif" width="720" alt="Separate writes two tags, Nested writes one tag done/review, in the line and in the note property">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/nested-tags.gif" width="720" loading="lazy" alt="Separate writes two tags, Nested writes one tag done/review, in the line and in the note property">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -145,7 +197,12 @@ A Field can depend on a Value of another one. **Tags & PKM → Fields → Child 
 
 With `Prerequisite Field` a Field stays out of the line until another Field has a Value. **Tags & PKM → Fields → Behavior**.
 
-<img src="media/showcase/prerequisite.gif" width="720" alt="Priority waits for Status: paler in the preview with a label, and offered in tagWheel only after Status is set">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/prerequisite.gif" width="720" loading="lazy" alt="Priority waits for Status: paler in the preview with a label, and offered in tagWheel only after Status is set">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -157,7 +214,12 @@ With `Prerequisite Field` a Field stays out of the line until another Field has 
 
 A line has a Left Block before your text and a Right Block after it, each closed off by a Separator. **Tags & PKM → Separators**.
 
-<img src="media/showcase/separators.gif" width="720" alt="Tags before the text, links and dates after it, and both Separators changed to ::">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/separators.gif" width="720" loading="lazy" alt="Tags before the text, links and dates after it, and both Separators changed to ::">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -169,7 +231,12 @@ A line has a Left Block before your text and a Right Block after it, each closed
 
 Lines written before a Separator change keep the old one. One button replaces it everywhere. **Tags & PKM → Separators**.
 
-<img src="media/showcase/separator-rewrite.gif" width="720" alt="After the Separator changes, Replace in all notes rewrites the old Separator in every note">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/separator-rewrite.gif" width="720" loading="lazy" alt="After the Separator changes, Replace in all notes rewrites the old Separator in every note">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -181,7 +248,12 @@ Lines written before a Separator change keep the old one. One button replaces it
 
 `Add Block` makes a Block of your own that writes where the cursor is, inside your text.
 
-<img src="media/showcase/custom-blocks.gif" width="720" alt="The Project Field moves into a custom block and its link is written at the cursor">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/custom-blocks.gif" width="720" loading="lazy" alt="The Project Field moves into a custom block and its link is written at the cursor">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -192,7 +264,12 @@ Lines written before a Separator change keep the old one. One button replaces it
 
 **Tags & PKM → Placement modes**.
 
-<img src="media/showcase/placement.gif" width="720" alt="Strict adds a bullet to the line; a typed tag moves into its Block">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/placement.gif" width="720" loading="lazy" alt="Strict adds a bullet to the line; a typed tag moves into its Block">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -204,7 +281,12 @@ Lines written before a Separator change keep the old one. One button replaces it
 
 A Value can carry a line Prefix, such as `[ ]`. **Tags & PKM → Fields → Behavior → Prefix behavior**.
 
-<img src="media/showcase/prefix-behavior.gif" width="720" alt="todo brings a checkbox on every line with Strict, and only on list lines with Insert only">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/prefix-behavior.gif" width="720" loading="lazy" alt="todo brings a checkbox on every line with Strict, and only on list lines with Insert only">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -217,7 +299,12 @@ A Value can carry a line Prefix, such as `[ ]`. **Tags & PKM → Fields → Beha
 
 **Tags & PKM → Writing rules**.
 
-<img src="media/showcase/ticked-line.gif" width="720" alt="Ticking a checkbox adds done to the line and fades it">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/ticked-line.gif" width="720" loading="lazy" alt="Ticking a checkbox adds done to the line and fades it">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -233,7 +320,12 @@ tagWheel opens over the line you are on. Arrow keys move between Fields and thei
 
 **Tags & PKM → tagWheel behavior**.
 
-<img src="media/showcase/tagwheel.gif" width="720" alt="The arrow key walks on into the Right Block, and the other Block stays in view">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tagwheel.gif" width="720" loading="lazy" alt="The arrow key walks on into the Right Block, and the other Block stays in view">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -243,7 +335,12 @@ tagWheel opens over the line you are on. Arrow keys move between Fields and thei
 
 ### The Field it opens on
 
-<img src="media/showcase/tagwheel-2.gif" width="720" alt="tagWheel opens on the first Field, then on a chosen Field">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tagwheel-2.gif" width="720" loading="lazy" alt="tagWheel opens on the first Field, then on a chosen Field">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -254,7 +351,12 @@ tagWheel opens over the line you are on. Arrow keys move between Fields and thei
 
 **Visual → tagWheel → Panel** and **Scroller**.
 
-<img src="media/showcase/tagwheel-look.gif" width="720" alt="Values without the hash sign, then the Scroller with neighbor Values above and below">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tagwheel-look.gif" width="720" loading="lazy" alt="Values without the hash sign, then the Scroller with neighbor Values above and below">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -264,7 +366,12 @@ tagWheel opens over the line you are on. Arrow keys move between Fields and thei
 
 ### Its colors
 
-<img src="media/showcase/tagwheel-colors.gif" width="720" alt="The theme color behind the open line, then a blue one, and three text colors for Fields and Values">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tagwheel-colors.gif" width="720" loading="lazy" alt="The theme color behind the open line, then a blue one, and three text colors for Fields and Values">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -280,7 +387,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 **Navigation → Move lines (up/down)**.
 
-<img src="media/showcase/move-lines.gif" width="720" alt="A line moves up with its sub-items, jumps over a neighbor tree, a whole section moves, and a line stops at its heading">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/move-lines.gif" width="720" loading="lazy" alt="A line moves up with its sub-items, jumps over a neighbor tree, a whole section moves, and a line stops at its heading">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -292,7 +404,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 ### Where the moved line ends up
 
-<img src="media/showcase/move-lines-2.gif" width="720" alt="The moved line stays highlighted, is kept at the top of the screen, or the note stays put">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/move-lines-2.gif" width="720" loading="lazy" alt="The moved line stays highlighted, is kept at the top of the screen, or the note stays put">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -305,7 +422,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 **Navigation → Move lines (left/right)**.
 
-<img src="media/showcase/move-inline.gif" width="720" alt="A selected word moves word by word, a part of a word by letter, and stops at the Separators">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/move-inline.gif" width="720" loading="lazy" alt="A selected word moves word by word, a part of a word by letter, and stops at the Separators">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -317,7 +439,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 `Move left` and `Move right` on a line with no selection change its Prefix, then its indent.
 
-<img src="media/showcase/prefix-cycle.gif" width="720" alt="Plain text becomes a bullet, then indents, and back again">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/prefix-cycle.gif" width="720" loading="lazy" alt="Plain text becomes a bullet, then indents, and back again">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -329,7 +456,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 **Navigation → Jump inside a line (left/right)**.
 
-<img src="media/showcase/jump-line.gif" width="720" alt="The cursor hops word by word, by sentence, stops at the end, and walks into the tags">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/jump-line.gif" width="720" loading="lazy" alt="The cursor hops word by word, by sentence, stops at the end, and walks into the tags">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -343,7 +475,12 @@ Eight commands that know a line has structure. **Navigation**.
 
 **Navigation → Jump inside a note (up/down)**.
 
-<img src="media/showcase/jump-note.gif" width="720" alt="The cursor jumps between sections, to their first lines only, and line by line">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/jump-note.gif" width="720" loading="lazy" alt="The cursor jumps between sections, to their first lines only, and line by line">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -358,7 +495,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 ### Smart Ctrl+A
 
-<img src="media/showcase/ctrl-a.gif" width="720" alt="Each press of Ctrl+A widens the selection: word, line, tree, section, note">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/ctrl-a.gif" width="720" loading="lazy" alt="Each press of Ctrl+A widens the selection: word, line, tree, section, note">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -366,7 +508,12 @@ Familiar keys that do a little more. **Keyboard**.
 | `Smart Ctrl+A` | The line first, then the whole note |
 | `Selection steps` | Word, line, tree, section, note |
 
-<img src="media/showcase/ctrl-a-2.gif" width="720" alt="Custom steps for Ctrl+A, and one last press that lets go">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/ctrl-a-2.gif" width="720" loading="lazy" alt="Custom steps for Ctrl+A, and one last press that lets go">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -375,7 +522,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 ### Smart Delete and Backspace
 
-<img src="media/showcase/smart-delete.gif" width="720" alt="Delete at the end of a line pulls up only the words of the next one">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/smart-delete.gif" width="720" loading="lazy" alt="Delete at the end of a line pulls up only the words of the next one">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -387,7 +539,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 ### Smart Enter
 
-<img src="media/showcase/smart-enter.gif" width="720" alt="Enter adds a new line below and keeps the current one whole">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/smart-enter.gif" width="720" loading="lazy" alt="Enter adds a new line below and keeps the current one whole">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -398,7 +555,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 ### Smart paste
 
-<img src="media/showcase/smart-paste.gif" width="720" alt="Pasted numbered lines continue the list above or start from one">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/smart-paste.gif" width="720" loading="lazy" alt="Pasted numbered lines continue the list above or start from one">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -409,7 +571,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 **Keyboard → Binder**.
 
-<img src="media/showcase/binder.gif" width="720" alt="A new Binder command inserts an arrow; Smart bracket cycles brackets around a word">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/binder.gif" width="720" loading="lazy" alt="A new Binder command inserts an arrow; Smart bracket cycles brackets around a word">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -422,7 +589,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 **Keyboard → Commands & Hotkeys**.
 
-<img src="media/showcase/hotkeys.gif" width="720" alt="Every command of the plugin with its hotkey, and the button that opens Obsidian's Hotkeys">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/hotkeys.gif" width="720" loading="lazy" alt="Every command of the plugin with its hotkey, and the button that opens Obsidian's Hotkeys">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -435,7 +607,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 ### A line becomes a note
 
-<img src="media/showcase/transform.gif" width="720" alt="The floating button turns a line into a note named from its brackets">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/transform.gif" width="720" loading="lazy" alt="The floating button turns a line into a note named from its brackets">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -447,7 +624,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 **Transform → Source line**.
 
-<img src="media/showcase/transform-source.gif" width="720" alt="The sub-items move into the note, the text stays next to the link, and the line fades">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/transform-source.gif" width="720" loading="lazy" alt="The sub-items move into the note, the text stays next to the link, and the line fades">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -460,7 +642,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 **Transform → Smart Rules**.
 
-<img src="media/showcase/smart-rules.gif" width="720" alt="A rule sends lines with Project A to their own template">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/smart-rules.gif" width="720" loading="lazy" alt="A rule sends lines with Project A to their own template">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -471,7 +658,12 @@ Familiar keys that do a little more. **Keyboard**.
 
 **Transform → Auto-MOC in your links**.
 
-<img src="media/showcase/auto-moc.gif" width="720" alt="Project B receives a link to the new note, at the top, under a heading, or under a heading it creates">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/auto-moc.gif" width="720" loading="lazy" alt="Project B receives a link to the new note, at the top, under a heading, or under a heading it creates">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -480,7 +672,12 @@ Familiar keys that do a little more. **Keyboard**.
 | `Under heading` | The link joins the `## Meetings` section |
 | `If heading not found` | The heading is added at the top, the link under it |
 
-<img src="media/showcase/auto-moc-2.gif" width="720" alt="The link back carries a date, a mark, and goes first in the list">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/auto-moc-2.gif" width="720" loading="lazy" alt="The link back carries a date, a mark, and goes first in the list">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -498,7 +695,12 @@ Drawing only: the file on disk stays the same. **Visual**.
 
 **Visual → Inline appearance**, its `Line view` and `Tag view` parts.
 
-<img src="media/showcase/line-view.gif" width="720" alt="Square tag bubbles, smaller and fainter Blocks, and a Stripe behind each Block">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/line-view.gif" width="720" loading="lazy" alt="Square tag bubbles, smaller and fainter Blocks, and a Stripe behind each Block">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -512,7 +714,12 @@ Drawing only: the file on disk stays the same. **Visual**.
 
 **Visual → Inline appearance**, its `Link view` part.
 
-<img src="media/showcase/link-view.gif" width="720" alt="Separate colors for the note name, the brackets, the text of a Markdown link and web addresses">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/link-view.gif" width="720" loading="lazy" alt="Separate colors for the note name, the brackets, the text of a Markdown link and web addresses">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -524,7 +731,12 @@ Drawing only: the file on disk stays the same. **Visual**.
 
 A Bar in the margin, in the color of a tag, down a line and everything nested under it. **Visual → Tag Bars**.
 
-<img src="media/showcase/tag-bars.gif" width="720" alt="Colored Bars run down each tree; a third level gets its own Bar; the Bar replaces the tag">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tag-bars.gif" width="720" loading="lazy" alt="Colored Bars run down each tree; a third level gets its own Bar; the Bar replaces the tag">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -534,7 +746,12 @@ A Bar in the margin, in the color of a tag, down a line and everything nested un
 | `Bars for the whole tree` off | Each Bar covers only its own line |
 | `Join Bars in a tree` off | Parent and child Bars break apart |
 
-<img src="media/showcase/tag-bars-look.gif" width="720" alt="Wider Bars, further from the text, spread apart, with gaps between them">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/tag-bars-look.gif" width="720" loading="lazy" alt="Wider Bars, further from the text, spread apart, with gaps between them">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -547,7 +764,12 @@ A Bar in the margin, in the color of a tag, down a line and everything nested un
 
 For tags that are not a Value of any Field. **Visual → Color custom tags**.
 
-<img src="media/showcase/custom-tags.gif" width="720" alt="errand in a red bubble, home in a green one, and errand with its word hidden">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/custom-tags.gif" width="720" loading="lazy" alt="errand in a red bubble, home in a green one, and errand with its word hidden">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -558,14 +780,24 @@ For tags that are not a Value of any Field. **Visual → Color custom tags**.
 
 **Visual → Text cursor** and **Cursor jump highlight**.
 
-<img src="media/showcase/cursor.gif" width="720" alt="A red cursor, then a thick one">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/cursor.gif" width="720" loading="lazy" alt="A red cursor, then a thick one">
+
+</details>
 
 | Step | What you see |
 |---|---|
 | `Color the text cursor` | The cursor is red |
 | `Shape the text cursor` | A 6 px cursor, hard to lose |
 
-<img src="media/showcase/cursor-jump.gif" width="720" alt="A circle marks where the cursor lands after a jump">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/cursor-jump.gif" width="720" loading="lazy" alt="A circle marks where the cursor lands after a jump">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -579,7 +811,12 @@ For tags that are not a Value of any Field. **Visual → Color custom tags**.
 
 Each area of the plugin switches off on its own. **General → Modules**.
 
-<img src="media/showcase/modules.gif" width="720" alt="Visual off brings back the theme's look; Navigation off stops Move up">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/modules.gif" width="720" loading="lazy" alt="Visual off brings back the theme's look; Navigation off stops Move up">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -591,7 +828,12 @@ Each area of the plugin switches off on its own. **General → Modules**.
 
 **Advanced → Backup**.
 
-<img src="media/showcase/backup.gif" width="720" alt="Saving a backup note, the list of backups, and Autosave">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/backup.gif" width="720" loading="lazy" alt="Saving a backup note, the list of backups, and Autosave">
+
+</details>
 
 | Step | What you see |
 |---|---|
@@ -603,7 +845,12 @@ Each area of the plugin switches off on its own. **General → Modules**.
 
 The command `Undo last settings change`, and the tips of **Advanced → Diagnostics**.
 
-<img src="media/showcase/diagnostics.gif" width="720" alt="Navigation switched off by mistake and brought back with one button">
+<details>
+<summary>Show the clip</summary>
+
+<img src="media/showcase/diagnostics.gif" width="720" loading="lazy" alt="Navigation switched off by mistake and brought back with one button">
+
+</details>
 
 | Step | What you see |
 |---|---|

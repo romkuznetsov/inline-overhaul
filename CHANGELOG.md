@@ -19,6 +19,15 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## 0.16.3
+
+_2026-10-08 · [all changes since 0.16.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.16.2...0.16.3)_
+
+> [!NOTE]
+> 🔧 **1** internal change
+
+1. 🔧 **The showcase page opens fast.** Each clip is folded under `Show the clip` and loads only when you open it
+
 ## 0.16.2
 
 _2026-10-07 · [all changes since 0.16.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.16.1...0.16.2)_
