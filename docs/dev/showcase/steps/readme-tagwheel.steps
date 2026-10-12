@@ -6,6 +6,8 @@ preset visual.tagWheel.scroller.enabled = true
 preset visual.tagWheel.fillColor = "#fff3bf"
 open Inbox.md
 line-width 620
+# Его слово 2026-10-12: «окна нажатия хоткеев мешают» — плашек нет.
+badge off
 room 60
 caret - call the bank
 cmd open-tagwheel-left

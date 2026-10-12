@@ -52,7 +52,7 @@ Your whole PKM — status, priority, project, dates and so on — lives right in
 You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once and it stays that way forever.
 It reduces decision fatigue and mental exhaustion to almost zero.
 
-<img alt="tagWheel Left opens on the line “call the bank”: ↑ and ↓ walk the Status Values in the Scroller, → steps to Priority, ↓ picks #high, Enter writes #todo and #high into the line" src="docs/media/readme/tagwheel.gif" width="530">
+<img alt="tagWheel Left opens on the line “call the bank”: ↑ and ↓ walk the Status Values in the Scroller, → steps to Priority, ↓ picks #high, Enter writes #todo and #high into the line" src="docs/media/readme/tagwheel.gif" width="336">
 
 And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
 

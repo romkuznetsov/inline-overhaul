@@ -59,6 +59,7 @@
  *   drop <Field>             Field и его дочерний убраны за кадром (в панели только нужное GIF)
  *   room <px>                запас высоты окна под заметкой (окно ужимается по заметке)
  *   line-width <px>          колонка текста уже (`--file-line-width`): место под плашку слева от строки
+ *   badge off                нажатия без плашки (вырезка для README, `readme-tagwheel`)
  *   rec-caret off | hide     off — родная каретка Obsidian вместо фиолетовой (GIF про каретку); hide — каретки нет
  *   sub bottom               субтитр прибит к низу окна под текстом и не ездит (заметка растёт — запас `room`)
  *   pane <файл>              вторая заметка справа, работа остаётся в левой (auto-moc: куда легла ссылка)
@@ -658,7 +659,7 @@ async function run(win, steps, cut, log) {
       /* Подряд идущие нажатия — одна подсветка: она идёт за строкой, плашка мигает на каждом. */
       if (!run.marking) { await markStart(win, run.markMode || "none"); await win.waitForTimeout(250); }
       /* Плашка — в момент нажатия (его слово 2026-10-05 к fields: «появляется во время нажатия и затухает»). */
-      await markPress(win, label, op === "cmd" && /tagwheel/.test(arg));
+      if (!run.noBadge) await markPress(win, label, op === "cmd" && /tagwheel/.test(arg));
       await win.waitForTimeout(120);
       await win.keyboard.press(combo.replace(/^Ctrl\+/, "Control+"));
       run.marking = next === "cmd" || next === "key";
@@ -678,6 +679,10 @@ async function run(win, steps, cut, log) {
       /* `mark line` — фон строки (перенос строк), `mark prefix` — фон отступа и Prefix, `mark caret` — светится каретка (прыжки), `mark none` — ничего. */
       run.markMode = { on: "line", off: "none" }[arg] || arg;
       if (!["line", "prefix", "caret", "none"].includes(run.markMode)) throw new Error("mark: line | prefix | caret | none");
+    } else if (op === "badge") {
+      /* `badge off` — нажатия без плашки: README-вырезка tagWheel (его слово 2026-10-12: «окна нажатия хоткеев мешают»). */
+      if (!["on", "off"].includes(arg)) throw new Error("badge: on | off");
+      run.noBadge = arg === "off";
     } else if (op === "stage") {
       /* `stage <подпись>` — новый этап полосы, назван сценарием (его слово 2026-10-05); `settings` тогда этапа не начинает. */
       run.stages.push({ t: Date.now() / 1000, label: arg });

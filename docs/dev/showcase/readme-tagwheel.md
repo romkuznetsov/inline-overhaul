@@ -10,11 +10,11 @@
 
 | Шаг | Что видно |
 |---|---|
-| `hotkey: tagWheel Left` | tagWheel открывается на `call the bank`, ячейка Status, Scroller сверху и снизу |
+| tagWheel Left | tagWheel открывается на `call the bank`, ячейка Status, Scroller сверху и снизу |
 | ↑ ↑ ↓ | Status проходит `#todo` → `#doing` → `#todo` |
 | → ↓ | шаг на Priority, `#high` |
 | Enter | в строке `- [ ] #todo #high \|\| call the bank` |
 
-Заставки, субтитров и полосы этапов нет: в README идёт вырезка строки и Scroller, `docs/media/readme/tagwheel.gif`.
+Заставки, субтитров, полосы этапов и плашек нажатий нет (его слово 2026-10-12: «окна нажатия хоткеев мешают»): в README идёт вырезка строки и Scroller, `docs/media/readme/tagwheel.gif`.
 
 Шаги записи — `steps/readme-tagwheel.steps`.
