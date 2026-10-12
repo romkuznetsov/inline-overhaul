@@ -12,7 +12,7 @@
 [![Public beta](https://img.shields.io/badge/status-public%20beta-ffb547?style=flat-square&labelColor=1d1b30)](#install)
 [![MIT](https://img.shields.io/github/license/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](LICENSE)
 
-<a href="docs/media/readme/intro.mp4"><img alt="Video, 28 seconds: the line “call the bank” gets a status, a priority, a project and a due date from tagWheel, then becomes its own note with those Values as properties. Click to watch" src="docs/media/readme/intro-poster.jpg" width="720"></a>
+https://github.com/user-attachments/assets/34ccba4e-852b-48d5-aaf6-264f1f1a99df
 
 [Install](#install) · [Tutorial](docs/TUTORIAL.md) · [Showcase](docs/SHOWCASE.md) · [All features](FEATURES.md)
 
