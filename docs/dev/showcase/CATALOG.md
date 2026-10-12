@@ -9,7 +9,7 @@
 
 | № | id | Фича (группа SETTINGS.md) | Что показано | Состояние |
 |---|---|---|---|---|
-| 0 | `readme-tagwheel` | README: снимок tagWheel заменён анимацией | tagWheel Left на строке: ↑ ↑ ↓ по Status, → Priority, ↓ #high, Enter. Без заставки, субтитров, полосы и плашек нажатий (`badge off`, его слово 2026-10-12); в README — вырезка `docs/media/readme/tagwheel.gif` (336×178, `-ss 0.8`, `crop=336:178:172:141`) | записан 2026-10-12 по его заказу, переснят без плашек; ждёт приёмки |
+| 0 | `readme-tagwheel` | README: снимок tagWheel заменён анимацией | tagWheel Left на строке: ↑ ↑ ↓ по Status, → Priority, ↓ #high, Enter. Без заставки, субтитров, полосы и плашек нажатий (`badge off`, его слово 2026-10-12); в README — вырезка `docs/media/readme/tagwheel.gif` (336×178, `-ss 0.8`, `crop=336:178:172:141`) | записан 2026-10-12 по его заказу, переснят без плашек; принят 2026-10-12 («всё работает») |
 | 0 | `readme-hero` | Шапка README: строка через tagWheel | tagWheel Left и Right заполняют строку | перезаписан 2026-10-06 по его замечаниям; принят (галочка в заметке приёмки, архив 2026-10-07) |
 | 1 | `move-lines` | Navigation → Move lines (up/down) | Default Obsidian, Whole tree, Jump over trees, Whole section, Stop at headings | принят 2026-10-06 |
 | 1 | `move-lines-2` | Navigation → Move lines (up/down), вторая часть | Highlight after moving, Where the line lands, Follow the moved line | принят 2026-10-06 |
