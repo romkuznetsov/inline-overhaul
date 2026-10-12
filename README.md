@@ -12,10 +12,7 @@
 [![Public beta](https://img.shields.io/badge/status-public%20beta-ffb547?style=flat-square&labelColor=1d1b30)](#install)
 [![MIT](https://img.shields.io/github/license/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](LICENSE)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/line-dark.png">
-  <img alt="One line in Obsidian with inlineOverhaul: a checkbox, a status and a priority drawn as colored bubbles, the text, a project link and a due date" src="docs/media/readme/line-light.png" width="588">
-</picture>
+<a href="docs/media/readme/intro.mp4"><img alt="Video, 28 seconds: the line “call the bank” gets a status, a priority, a project and a due date from tagWheel, then becomes its own note with those Values as properties. Click to watch" src="docs/media/readme/intro-poster.jpg" width="720"></a>
 
 [Install](#install) · [Tutorial](docs/TUTORIAL.md) · [Showcase](docs/SHOWCASE.md) · [All features](FEATURES.md)
 
@@ -55,10 +52,7 @@ Your whole PKM — status, priority, project, dates and so on — lives right in
 You no longer have to remember whether you mark tasks `#todo` or `#task`: set it up once and it stays that way forever.
 It reduces decision fatigue and mental exhaustion to almost zero.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/tagwheel-dark.png">
-  <img alt="tagWheel open on the line “your text”: the Fields Status and Priority before the text, and the Scroller showing the Values of Status above and below" src="docs/media/readme/tagwheel-light.png" width="316">
-</picture>
+<img alt="tagWheel Left opens on the line “call the bank”: ↑ and ↓ walk the Status Values in the Scroller, → steps to Priority, ↓ picks #high, Enter writes #todo and #high into the line" src="docs/media/readme/tagwheel.gif" width="530">
 
 And all the Values are ordinary markdown: the tags are searchable by Obsidian, the link is a real wikilink, and the emoji-element is text that Tasks and Dataview can read.
 

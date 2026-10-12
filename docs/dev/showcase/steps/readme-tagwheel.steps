@@ -1,0 +1,19 @@
+# readme-tagwheel — шаги записи (что показывается — readme-tagwheel.md)
+# Его слово 2026-10-12: вместо снимка tagWheel в README — анимация: открыть tagWheel на строке, сменить Values, применить.
+# Без заставки и субтитров: GIF обрезается до строки и Scroller и стоит в README маленьким, как снимок до него.
+preset pkm.prefixRules.checkboxByFieldValue = {"Status":{"todo":"[ ]"}}
+preset visual.tagWheel.scroller.enabled = true
+preset visual.tagWheel.fillColor = "#fff3bf"
+open Inbox.md
+line-width 620
+room 60
+caret - call the bank
+cmd open-tagwheel-left
+key ArrowUp
+key ArrowUp
+key ArrowDown
+key ArrowRight
+key ArrowDown
+key Enter
+expect - [ ] #todo #high || call the bank
+pause 1500
