@@ -420,4 +420,44 @@ function stepPlugin(selectAll) {
     "третье нажатие по кругу — строка каретки, а не новый цикл с верха заметки");
 })();
 
+/*
+ * Экран за весь цикл стоит на месте (его слово 2026-10-15: «экран смещается
+ * ниже и мне нужно прокручивать его наверх»). `setSelection` Obsidian
+ * прокручивает к концу выделения, поэтому цикл ставит выделение в вид сам и
+ * без `scrollIntoView`; выход возвращает каретку на месте, которое видно.
+ */
+(function testCycleDoesNotScroll() {
+  const cmState = require("@codemirror/state");
+  const view = { state: cmState.EditorState.create({ doc: LINES.join("\n") }) };
+  const sent = [];
+  view.dispatch = (spec) => { sent.push(spec); view.state = view.state.update(spec).state; };
+  const at = (p) => view.state.doc.line(p.line + 1).from + p.ch;
+  const back = (n) => { const l = view.state.doc.lineAt(n); return { line: l.number - 1, ch: n - l.from }; };
+  let scrolled = 0;
+  const ed = {
+    cm: view,
+    lastLine: () => view.state.doc.lines - 1,
+    getLine: (n) => view.state.doc.line(n + 1).text,
+    getCursor: (w) => back(w === "to" ? view.state.selection.main.to : view.state.selection.main.from),
+    setCursor: () => { scrolled++; },
+    setSelection: () => { scrolled++; },
+  };
+  view.dispatch({ selection: { anchor: at({ line: 1, ch: 3 }) } });
+  sent.length = 0;
+  const plugin = fakePlugin(ed, { enabled: true, mode: "line-note", useDelay: false, clearOnLast: true });
+  for (let i = 0; i < 3; i++) engine.handleEnhancedSelectAllKeymap(plugin);
+  assertEq(scrolled, 0, "цикл позвал `setSelection`/`setCursor` Obsidian, а они прокручивают");
+  assertEq(sent.length, 3, "три нажатия — три выделения в виде");
+  assertEq(sent.some((x) => x.scrollIntoView), false, "выделение цикла прокручивает экран");
+  assertEq(JSON.stringify(ed.getCursor("from")), JSON.stringify({ line: 1, ch: 3 }), "последнее нажатие вернуло каретку");
+
+  /* Браузер сам прокручивает к краю выделения, без транзакции: первая такая прокрутка отменяется. */
+  const fired = [];
+  view.scrollDOM = { scrollTop: 100, addEventListener: (t, h) => fired.push(h), removeEventListener: () => {} };
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  view.scrollDOM.scrollTop = 900;
+  fired.splice(0).forEach((h) => h());
+  assertEq(view.scrollDOM.scrollTop, 100, "прокрутку браузера после выделения цикл не отменил");
+})();
+
 console.log("Enhanced select all regression tests: OK");

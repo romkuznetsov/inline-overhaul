@@ -52,8 +52,41 @@ function getSelectionRange(editor) {
  * (его `💬` к тесту 2 цикла 141, RK_Sync).
  */
 function selectRange(editor, range) {
-  editor.setSelection(range.from, range.to);
+  if (!placeWithoutScroll(editor, range.from, range.to)) editor.setSelection(range.from, range.to);
   return getSelectionRange(editor);
+}
+
+/**
+ * Выделение без прокрутки к его концу: экран за весь цикл стоит, где стоял, и
+ * выход из цикла его не двигает (его слово 2026-10-15: «экран смещается ниже и
+ * мне нужно прокручивать его наверх»). `setSelection` Obsidian прокручивает к
+ * концу ступени `note`. Нет вида — `false`, работает `setSelection`.
+ */
+function placeWithoutScroll(editor, from, to) {
+  const cm = editor && editor.cm;
+  if (!cm || !cm.state || typeof cm.dispatch !== "function") return false;
+  const doc = cm.state.doc;
+  const at = (p) => {
+    const line = doc.line(Math.max(1, Math.min(p.line + 1, doc.lines)));
+    return Math.min(line.from + Math.max(0, p.ch), line.to);
+  };
+  holdScreen(cm);
+  cm.dispatch({ selection: { anchor: at(from), head: at(to) } });
+  return true;
+}
+
+/**
+ * Браузер сам тянет экран к краю выделения в DOM, через такт и без транзакции
+ * (мера в Obsidian 2026-10-15, его заметка: 1000 px на ступени `note`). Первую
+ * прокрутку за 400 мс отменяем — экран остаётся, где был до нажатия.
+ */
+function holdScreen(cm) {
+  const dom = cm && cm.scrollDOM;
+  if (!dom || typeof dom.addEventListener !== "function") return;
+  const top = dom.scrollTop;
+  const keep = () => { dom.scrollTop = top; };
+  dom.addEventListener("scroll", keep, { once: true });
+  setTimeout(() => dom.removeEventListener("scroll", keep), 400);
 }
 
 function wholeNoteRange(editor) {
@@ -214,7 +247,7 @@ function buildSelectAllSequence(editor, mode, origin, customSteps) {
 function collapseSelectionToCursor(editor, pos) {
   const line = Math.max(0, Math.min(pos.line, editor.lastLine()));
   const ch = Math.max(0, Math.min(pos.ch, lineLen(editor, line)));
-  editor.setCursor({ line, ch });
+  if (!placeWithoutScroll(editor, { line, ch }, { line, ch })) editor.setCursor({ line, ch });
 }
 
 function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
@@ -347,6 +380,7 @@ function exitCursorPos(plugin, doc, sel) {
   const pos = (p) => (p.line < doc.lines ? Math.min(doc.line(p.line + 1).from + p.ch, doc.line(p.line + 1).to) : -1);
   if (pos(st.lastRange.from) !== sel.from || pos(st.lastRange.to) !== sel.to) return null;
   plugin._enhancedSelectAllCycle = null;
+  holdScreen(st.editor && st.editor.cm);
   const at = pos(st.origin);
   return at === -1 ? null : at;
 }

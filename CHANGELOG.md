@@ -28,7 +28,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 2. 🎨 **Child Values stand under their parent in the condition window.** `With sub Values` next to a parent adds the parent and all its child Values in one click
 3. 🐛 **A child Field with hidden Values stays closed.** With `Child Field` = `After parent`, picking a parent whose child Values are all hidden no longer opens an empty child Field in tagWheel
 4. 🐛 **Smart Enter and Smart Ctrl+A work next to Outliner.** Outliner no longer takes `Enter` and `Ctrl+A` first; on a line that is not yours to change, the key still goes to Outliner
-5. 🐛 **Leaving the Smart Ctrl+A cycle puts the cursor back.** An arrow key or `Esc` returns it to where you pressed `Ctrl+A` first, not to the top of the note
+5. 🐛 **Leaving the Smart Ctrl+A cycle puts the cursor and the screen back.** An arrow key or `Esc` returns the cursor to where you pressed `Ctrl+A` first, also in a note with properties, and the note does not scroll while you select
 6. 🐛 **Two previews in the panel behave.** `Live preview` folds with `Link view`, and the floating button preview keeps the button right after the last Field when the line wraps
 
 ## 0.16.3
