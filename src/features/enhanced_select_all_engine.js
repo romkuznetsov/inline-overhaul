@@ -45,8 +45,15 @@ function getSelectionRange(editor) {
   return normPos(editor.getCursor("from"), editor.getCursor("to"));
 }
 
+/**
+ * Выделить и вернуть то, что выделилось: Obsidian сдвигает начало за свойства
+ * заметки (`0:0` → первая строка после frontmatter). Цикл запоминает этот
+ * ответ — по просьбе он не узнавал себя и начинал сначала с верха заметки
+ * (его `💬` к тесту 2 цикла 141, RK_Sync).
+ */
 function selectRange(editor, range) {
   editor.setSelection(range.from, range.to);
+  return getSelectionRange(editor);
 }
 
 function wholeNoteRange(editor) {
@@ -226,7 +233,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
     const origin = editor.getCursor("from");
     const seq = buildSelectAllSequence(editor, mode, origin, gf.customSteps);
     if (!seq.length) return false;
-    selectRange(editor, seq[0]);
+    const got = selectRange(editor, seq[0]);
     plugin._enhancedSelectAllCycle = {
       editor,
       mode,
@@ -234,7 +241,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
       idx: 0,
       useDelay: true,
       origin: { line: origin.line, ch: origin.ch },
-      lastRange: seq[0],
+      lastRange: got,
     };
     return true;
   }
@@ -248,7 +255,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
     return true;
   }
   const nextIdx = (clampedIdx + 1) % seq.length;
-  selectRange(editor, seq[nextIdx]);
+  const got = selectRange(editor, seq[nextIdx]);
   plugin._enhancedSelectAllCycle = {
     editor,
     mode,
@@ -256,7 +263,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
     idx: nextIdx,
     useDelay: true,
     origin: st.origin,
-    lastRange: seq[nextIdx],
+    lastRange: got,
   };
   return true;
 }
@@ -265,7 +272,8 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
   const cur = getSelectionRange(editor);
   const st = plugin._enhancedSelectAllCycle;
   let origin = null;
-  if (st && st.editor === editor && st.mode === mode && st.useDelay === false && rangeEq(cur, st.lastRange)) {
+  const going = !!st && st.editor === editor && st.mode === mode && st.useDelay === false && rangeEq(cur, st.lastRange);
+  if (going) {
     origin = st.origin;
   } else {
     const p = editor.getCursor("from");
@@ -275,12 +283,10 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
   const seq = buildSelectAllSequence(editor, mode, origin, gf.customSteps);
   if (!seq.length) return false;
 
-  let idx = -1;
-  for (let i = 0; i < seq.length; i++) {
-    if (rangeEq(seq[i], cur)) {
-      idx = i;
-      break;
-    }
+  /* Цикл идёт — шаг из памяти: выделенное платформой могло не совпасть с просьбой. */
+  let idx = going ? Math.max(0, Math.min(st.idx, seq.length - 1)) : -1;
+  for (let i = 0; idx === -1 && i < seq.length; i++) {
+    if (rangeEq(seq[i], cur)) idx = i;
   }
 
   if (gf.clearOnLast && idx === seq.length - 1) {
@@ -290,7 +296,7 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
   }
 
   const nextIdx = idx === -1 ? 0 : (idx + 1) % seq.length;
-  selectRange(editor, seq[nextIdx]);
+  const got = selectRange(editor, seq[nextIdx]);
   plugin._enhancedSelectAllCycle = {
     editor,
     mode,
@@ -298,7 +304,7 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
     idx: nextIdx,
     useDelay: false,
     origin,
-    lastRange: seq[nextIdx],
+    lastRange: got,
   };
   return true;
 }

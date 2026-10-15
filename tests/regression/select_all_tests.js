@@ -397,4 +397,27 @@ function stepPlugin(selectAll) {
   }
 })();
 
+/*
+ * Заметка со свойствами: Obsidian сдвигает начало выделения за frontmatter
+ * (его `💬` к тесту 2 цикла 141, RK_Sync: «курсор либо оказывался вверху
+ * заметки, либо уходил ниже»). Подделка делает ровно это: строка 0 —
+ * свойства, выделение с неё начинается со строки 1. Цикл обязан узнать
+ * себя: третье нажатие — снова строка, а не новый цикл с верха заметки.
+ */
+(function testCycleSurvivesPlatformClampedSelection() {
+  const lines = ["---", "- первая", "- вторая", "- третья"];
+  const ed = fakeEditor(lines, 2, 4);
+  const plain = ed.setSelection;
+  ed.setSelection = (from, to) => plain(from.line === 0 ? { line: 1, ch: 0 } : from, to);
+  const plugin = fakePlugin(ed, { enabled: true, mode: "line-note", useDelay: false, clearOnLast: false });
+  const shown = () => JSON.stringify(ed._selection());
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  assertEq(shown(), JSON.stringify({ from: { line: 2, ch: 0 }, to: { line: 2, ch: 8 } }), "первое нажатие — строка");
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  assertEq(shown(), JSON.stringify({ from: { line: 1, ch: 0 }, to: { line: 3, ch: 8 } }), "второе — заметка после свойств");
+  engine.handleEnhancedSelectAllKeymap(plugin);
+  assertEq(shown(), JSON.stringify({ from: { line: 2, ch: 0 }, to: { line: 2, ch: 8 } }),
+    "третье нажатие по кругу — строка каретки, а не новый цикл с верха заметки");
+})();
+
 console.log("Enhanced select all regression tests: OK");
