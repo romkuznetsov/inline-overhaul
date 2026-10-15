@@ -1409,8 +1409,9 @@ body.theme-dark {
   justify-content: center;
   cursor: pointer;
 }
-/* Свёрнутый раздел: остаётся одна подпись со знаком. */
-.io-subshut { display: none; }
+/* Свёрнутый раздел: остаётся одна подпись со знаком. Свой блок (`.setting-item.io-block`, `display: block`)
+   выигрывал у одного класса — предпросмотр оставался под свёрнутым `Link view` (его пункт «Новое» 2026-10-15). */
+.io-subshut, .setting-item.io-block.io-subshut { display: none; }
 /*
  * Обязательное поле, пока оно пустое, — его пункт 14 от 2026-09-22: «у
  * textblock `one character or emoji` рамка должна быть не светло-серая, а
@@ -2764,6 +2765,13 @@ body.theme-dark {
 .modal .io-pickvals button.io-vchip--pick:hover,
 .modal .io-pickvals button.io-vchip--pick:focus-visible { border-color: var(--interactive-accent); color: var(--text-accent); background-color: var(--background-modifier-hover); }
 .modal .io-pickvals button.io-vchip--pick:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+/* Родитель с дочерними — своим блоком, дети с отступом под ним; взятое гаснет (его пункт «Новое» 2026-10-15). */
+.io-pickvals__parent { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.io-pickvals__parent .io-pickvals__chips:first-child { align-items: baseline; }
+.io-pickvals__chips + .io-pickvals__parent, .io-pickvals__parent + .io-pickvals__chips { margin-top: 8px; }
+.io-pickvals__subs { padding-left: 18px; border-left: 2px solid var(--background-modifier-border); margin-left: 6px; }
+.modal .io-pickvals button.io-vchip--pick.io-vchip--taken,
+.modal .io-pickvals button.io-vchip--pick.io-vchip--taken:hover { opacity: 0.45; border-color: var(--background-modifier-border); color: var(--text-muted); background-color: var(--background-secondary); cursor: default; }
 
 /* ======================================================================
  * Разбор `Move left` и `Move right` (PRD 10.6): две таблицы рядом.
@@ -3071,6 +3079,8 @@ body.theme-dark {
  * положения скроллера» (замечание заказчика 2026-09-05).
  */
 .io-floatrow .io-line { flex: 0 1 auto; min-width: 0; }
+/* Кнопка внутри строки: промежуток строки уже стоит перед ней, отступ слайдера считается от текста. */
+.io-line > .io-flybtn { margin-left: calc(var(--io-flybtn-gap, 12px) - var(--io-line-gap, 0px)); }
 /* Правил по классу `io-float` здесь больше нет: предпросмотр рисует кнопку
    тем же классом, что и заметка (`io-flybtn`), и таблетка `→ note` ушла
    вместе с ним (замечание заказчика 2026-09-04). */

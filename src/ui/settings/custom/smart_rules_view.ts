@@ -6,7 +6,7 @@
  * считает `validateSmartRules`.
  */
 
-import type { El, ElInput, DragEv } from "./dom.ts";
+import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
 import { el, btn, selectInput, textInput } from "./dom.ts";
 import type { RowKind, RuleKind, RulePlacement, RuleRow, RulesModel } from "./smart_rules_model.ts";
 import { ROW_KINDS } from "./smart_rules_model.ts";
@@ -57,10 +57,14 @@ export interface RulesViewOpts {
   /** Их папка — для подписи пустого списка (1.6.6.2). */
   templatesFolder?: string;
   redraw: () => void;
-  /** Спросить значение условия; окно рисует панель (`Modal`). `null` — отказ. */
+  /**
+   * Спросить значения условия; окно рисует панель (`Modal`). `done` зовётся на
+   * каждый выбор — окно открыто, пока его не закрыли. `taken` — уже в правиле.
+   */
   askCondition: (
     kind: RuleKind,
-    done: (answer: { kind: "value" | "field"; id: string } | null) => void,
+    done: (answer: { kind: "value" | "field"; ids: readonly string[] }) => void,
+    taken: { values: readonly string[]; fields: readonly string[] },
   ) => void;
   /** Подсказчик папок (`AbstractInputSuggest`) от панели (Г16); нет — обычное поле. */
   folderSuggest?: (input: ElInput, write: (value: string) => void) => void;
@@ -182,13 +186,12 @@ function kindRow(host: El, row: RuleRow, index: number, kind: RowKind, o: RulesV
   add.addEventListener("click", (() => {
     if (!o.enabled) return;
     o.askCondition(kind, answer => {
-      if (!answer || !answer.id) return;
       /* «Любое значение Field» — в `conditions.fields` (id, не токен); чип
          вернётся в эту же строку (10.13.14 Н5, B14). */
       const into: RuleKind = answer.kind === "field" ? "fields" : kind;
-      o.model.addCondition(row.id, into, answer.id);
+      for (const id of answer.ids) o.model.addCondition(row.id, into, id);
       o.redraw();
-    });
+    }, { values: row.conditions[kind], fields: row.conditions.fields });
   }) as never);
 }
 
@@ -500,15 +503,23 @@ export function renderSmartRules(host: El, o: RulesViewOpts): void {
   }) as never);
 }
 
-/** Тело диалога выбора (С-5): Field, затем Value; открывает платформа. */
+/**
+ * Тело диалога выбора (С-5): Field, затем Value; открывает платформа. Окно не
+ * закрывается на выборе — можно взять несколько; взятое гаснет (его пункт
+ * «Новое» 2026-10-15). Дочерние Values — под родительским, у родителя кнопка
+ * «вместе с дочерними».
+ */
 export function renderConditionPicker(host: El, o: {
   kind: RuleKind;
-  choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
-  pick: (value: string) => void;
+  choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[]; subs?: Readonly<Record<string, readonly string[]>> }>;
+  /** Одно Value или родитель с дочерними — одним выбором. */
+  pick: (values: readonly string[]) => void;
   /** Условие «любое значение Field» (10.13.14); нет — имя Field лишь подпись. */
   pickField?: (fieldId: string) => void;
   /** Fields, у которых такое условие в правиле уже есть: их кнопка неактивна. */
   fieldsTaken?: readonly string[];
+  /** Values, которые в правиле уже есть: их кнопка неактивна. */
+  valuesTaken?: readonly string[];
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
 }): ElInput | null {
@@ -523,7 +534,30 @@ export function renderConditionPicker(host: El, o: {
   const find = textInput(host, "io-pickvals__find", { value: "", label: say("CONDITION_FIND"), placeholder: say("CONDITION_FIND") });
   const box = el(host, "div", "io-pickvals");
   const taken = new Set((o.fieldsTaken || []).map(x => String(x || "").trim()));
+  const valuesTaken = new Set((o.valuesTaken || []).map(x => String(x || "").trim()));
   const rows: Array<{ wrap: El; label: string; chips: Array<{ node: El; value: string }> }> = [];
+  /* Взятое гаснет на месте: окно остаётся открытым. */
+  const chipNodes = new Map<string, ElButton[]>();
+  const takeOff = (value: string): void => {
+    valuesTaken.add(value);
+    for (const n of chipNodes.get(value) || []) { n.disabled = true; n.addClass("io-vchip--taken"); }
+  };
+  const choose = (values: readonly string[]): void => {
+    const fresh = values.filter(v => !valuesTaken.has(v));
+    if (!fresh.length) return;
+    fresh.forEach(takeOff);
+    o.pick(fresh);
+  };
+  const chipFor = (parent: El, value: string, field: string): ElButton => {
+    const pick = btn(parent, "io-vchip io-vchip--pick", {
+      text: value,
+      label: say("USE_VALUE", value + " from " + field),
+    });
+    pick.addEventListener("click", (() => { choose([value]); }) as never);
+    chipNodes.set(value, (chipNodes.get(value) || []).concat(pick));
+    if (valuesTaken.has(value)) { pick.disabled = true; pick.addClass("io-vchip--taken"); }
+    return pick;
+  };
   for (const group of o.choices) {
     const wrap = el(box, "div", "io-pickvals__group");
     const head = el(wrap, "div", "io-pickvals__head");
@@ -539,23 +573,42 @@ export function renderConditionPicker(host: El, o: {
       any.disabled = already;
       if (!already) {
         const take = o.pickField;
-        any.addEventListener("click", (() => { take(fieldId); }) as never);
+        any.addEventListener("click", (() => {
+          any.disabled = true;
+          any.textContent = say("ANY_VALUE_ADDED");
+          take(fieldId);
+        }) as never);
       }
     }
-    const chips = el(wrap, "div", "io-pickvals__chips");
     const row = { wrap, label: group.label, chips: [] as Array<{ node: El; value: string }> };
     rows.push(row);
     if (!group.values.length) {
-      el(chips, "span", "io-kind__none", say("VALUES_EMPTY"));
+      el(el(wrap, "div", "io-pickvals__chips"), "span", "io-kind__none", say("VALUES_EMPTY"));
       continue;
     }
+    const subs = group.subs || {};
+    const kids = new Set(Object.values(subs).flat());
+    /* Values без детей идут рядом, родитель открывает свой блок с детьми под ним. */
+    let plain: El | null = null;
     for (const value of group.values) {
-      const pick = btn(chips, "io-vchip io-vchip--pick", {
-        text: value,
-        label: say("USE_VALUE", value + " from " + group.label),
+      if (kids.has(value)) continue;
+      const children = subs[value] || [];
+      if (!children.length) {
+        plain = plain || el(wrap, "div", "io-pickvals__chips");
+        row.chips.push({ node: chipFor(plain, value, group.label), value });
+        continue;
+      }
+      plain = null;
+      const block = el(wrap, "div", "io-pickvals__parent");
+      const top = el(block, "div", "io-pickvals__chips");
+      row.chips.push({ node: chipFor(top, value, group.label), value });
+      const all = btn(top, "io-pickvals__any", {
+        text: say("WITH_SUB_VALUES"),
+        label: say("USE_WITH_SUB_VALUES", value),
       });
-      pick.addEventListener("click", (() => { o.pick(value); }) as never);
-      row.chips.push({ node: pick, value });
+      all.addEventListener("click", (() => { choose([value].concat(children)); }) as never);
+      const under = el(block, "div", "io-pickvals__chips io-pickvals__subs");
+      for (const child of children) row.chips.push({ node: chipFor(under, child, group.label), value: child });
     }
   }
   const none = el(box, "div", "io-pickvals__none");
@@ -580,10 +633,10 @@ export function renderConditionPicker(host: El, o: {
   }) as never);
   find.addEventListener("keydown", ((e: { key: string; preventDefault(): void }) => {
     if (e.key !== "Enter") return;
-    const first = visibleChips()[0];
+    const first = visibleChips().find(c => !valuesTaken.has(c.value));
     if (!first) return;
     e.preventDefault();
-    o.pick(first.value);
+    choose([first.value]);
   }) as never);
   return find;
 }

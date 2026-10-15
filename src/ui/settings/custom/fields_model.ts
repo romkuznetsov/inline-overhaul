@@ -180,6 +180,8 @@ export interface FieldTokens {
   kind: FieldKind;
   /** `#todo`, `ClientA`, `\u{1F4C5}` — то, чем Value видно в строке. */
   tokens: string[];
+  /** Дочерние Values под родительским, тем же видом, что `tokens` (его пункт «Новое» 2026-10-15). */
+  subs?: Record<string, string[]>;
 }
 /** Цвет и видимость одного Value так, как их читает вёрстка (Ф7, Ф9). */
 export interface ValueVisual {
@@ -1352,26 +1354,29 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     for (const row of listLineFields()) {
       if (row.parent) continue;
       const tokens: string[] = [];
+      const subs: Record<string, string[]> = {};
       if (row.kind === "element") {
         const marker = String(elementEditor(row.key).emoji || "").trim();
         if (marker) tokens.push(marker);
       } else {
         const ve = valuesEditor(row.key);
-        const push = (raw: unknown): void => {
+        const push = (raw: unknown): string => {
           const token = String(raw || "").trim();
-          if (!token) return;
+          if (!token) return "";
           /* Тег уже с решёткой (`buildTagTree`). У ссылки скобки снимаются, как в `normalizeRuleWikilink`. */
           const shown = row.kind === "wikilink"
             ? token.replace(/^\[\[|\]\]$/g, "").replace(/^#/, "").trim()
             : token;
           if (shown && !tokens.includes(shown)) tokens.push(shown);
+          return shown;
         };
         for (const top of ve.tree) {
-          push(top.token);
-          for (const child of top.children || []) push(child.token);
+          const parent = push(top.token);
+          const kids = (top.children || []).map(child => push(child.token)).filter(Boolean);
+          if (parent && kids.length) subs[parent] = kids;
         }
       }
-      out.push({ key: row.key, label: row.label, kind: row.kind, tokens });
+      out.push({ key: row.key, label: row.label, kind: row.kind, tokens, subs });
     }
     return out;
   };

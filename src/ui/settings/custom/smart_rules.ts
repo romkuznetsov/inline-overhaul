@@ -63,22 +63,17 @@ function askConditionModal(
   app: unknown,
   o: {
     kind: RuleKind;
-    choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
+    choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[]; subs?: Readonly<Record<string, readonly string[]>> }>;
     /** Fields, у которых условие «любое значение» в правиле уже есть. */
     fieldsTaken: readonly string[];
-    /** Значение или Field целиком (10.13.14); вид — полем: id и токен бывают равны. */
-    done: (answer: { kind: "value" | "field"; id: string } | null) => void;
+    /** Values, которые в правиле уже есть. */
+    valuesTaken: readonly string[];
+    /** Значения или Field целиком (10.13.14) — на каждый выбор; вид — полем: id и токен бывают равны. */
+    done: (answer: { kind: "value" | "field"; ids: readonly string[] }) => void;
     /** Видимый текст по имени из каталога (10.13.47). */
     say: (name: string, ...args: readonly (string | number)[]) => string;
   },
 ): void {
-  let answered = false;
-  const finish = (answer: { kind: "value" | "field"; id: string } | null): void => {
-    if (answered) return;
-    answered = true;
-    o.done(answer);
-  };
-
   class ConditionModal extends Modal {
     override onOpen(): void {
       const box = this.contentEl;
@@ -96,21 +91,22 @@ function askConditionModal(
         say: o.say,
         choices: o.choices,
         fieldsTaken: o.fieldsTaken,
-        pick: value => { finish({ kind: "value", id: value }); this.close(); },
-        pickField: fieldId => { finish({ kind: "field", id: fieldId }); this.close(); },
+        valuesTaken: o.valuesTaken,
+        /* Окно остаётся открытым: условий берут несколько (его пункт «Новое» 2026-10-15). */
+        pick: values => { o.done({ kind: "value", ids: values }); },
+        pickField: fieldId => { o.done({ kind: "field", ids: [fieldId] }); },
       });
       /* Печатать можно сразу: поиск в фокусе. Такт — окно платформа фокусирует после `onOpen`. */
       const focusable = find as unknown as { focus?: () => void } | null;
       if (focusable && typeof focusable.focus === "function") window.setTimeout(() => { focusable.focus?.(); }, 0);
       const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button",
-        { cls: "io-btn", text: o.say("CANCEL"), attr: { type: "button" } });
-      cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
+      /* Выбор пишется сразу, отказываться не от чего: кнопка закрывает окно. */
+      const done = foot.createEl("button",
+        { cls: "io-btn io-btn--cta", text: o.say("DONE"), attr: { type: "button" } });
+      done.addEventListener("click", (() => { this.close(); }) as never);
     }
 
     override onClose(): void {
-      /* Закрытие мимо кнопок — это отказ, а не пустой выбор. */
-      finish(null);
       this.contentEl.empty();
     }
   }
@@ -238,11 +234,12 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
         folderSuggest: (input, write) => attachFolderSuggest(
           p.AbstractInputSuggest, app, input,
           value => { input.value = value; write(value); }),
-        askCondition: (kind, done) => askConditionModal(Modal, app, {
+        askCondition: (kind, done, taken) => askConditionModal(Modal, app, {
           kind,
           choices: model.choicesFor(kind),
-          /* Fields с условием «любое значение» — неактивны в окне (10.13.14 Н4). */
-          fieldsTaken: model.listRules().flatMap(r => r.conditions.fields),
+          /* Уже взятое в этом правиле — неактивно в окне (10.13.14 Н4). */
+          fieldsTaken: taken.fields,
+          valuesTaken: taken.values,
           done,
           say: sayIn("smart-rules-list", ctx),
         }),

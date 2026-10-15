@@ -36,40 +36,51 @@ const PLAIN_ENTER = {
   stopPropagation() { /* уборка: то же */ },
 };
 
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(String(navigator.platform || ""));
+
+/**
+ * Обработчик нашей клавиши или `null`. `Ctrl+A` — и по `code`: в русской
+ * раскладке `key` — «ф».
+ */
+function ourKey(e, plugin, view) {
+  const mod = IS_MAC ? e.metaKey : e.ctrlKey;
+  const other = IS_MAC ? e.ctrlKey : e.metaKey;
+  if (other) return null;
+  if (mod) {
+    return !e.shiftKey && (e.code === "KeyA" || String(e.key).toLowerCase() === "a")
+      ? () => plugin.handleEnhancedSelectAllKeymap() : null;
+  }
+  /* Smart Delete (10.13.32) и зеркальный Backspace (10.13.32 Д9): выключенная функция — `false`. */
+  if (e.key === "Delete" && !e.shiftKey) return () => plugin.handleSmartDeleteKeymap();
+  if (e.key === "Backspace" && !e.shiftKey) return () => plugin.handleSmartBackspaceKeymap();
+  if (e.key !== "Enter") return null;
+  /* Smart Enter (10.13.88); Shift+Enter как обычный `Enter` — обработчики платформы тем же keymap. */
+  if (!e.shiftKey) return () => plugin.handleSmartEnterKeymap();
+  return () => plugin.handlePlainEnterKeymap(() => cmView.runScopeHandlers(view, PLAIN_ENTER, "editor"));
+}
+
+/** Нажатие до всех keymap: `true` — взяли мы. Отдельно — для проверки порядка (`editor_mount_tests.js`). */
+function handleOurKeydown(plugin, e, view) {
+  if (e.isComposing || e.altKey) return false;
+  const run = ourKey(e, plugin, view);
+  if (!run || run() !== true) return false;
+  e.preventDefault();
+  return true;
+}
+
 function mountExtensions(plugin) {
-  plugin.registerEditorExtension(cmState.Prec.highest(cmView.keymap.of([
-    {
-      key: "c-a",
-      mac: "m-a",
-      run: () => plugin.handleEnhancedSelectAllKeymap(),
-    },
-    /* Smart Delete (10.13.32): выключенная функция возвращает `false`, и `Del` работает как обычно. */
-    {
-      key: "Delete",
-      run: () => plugin.handleSmartDeleteKeymap(),
-    },
-    /* Зеркальный случай, свой тумблер (10.13.32 Д9). */
-    {
-      key: "Backspace",
-      run: () => plugin.handleSmartBackspaceKeymap(),
-    },
-    /*
-     * Smart Enter (10.13.88): выключен или строка не наша — `false`, `Enter`
-     * уходит платформе.
-     */
-    {
-      key: "Enter",
-      run: () => plugin.handleSmartEnterKeymap(),
-    },
-    /*
-     * Shift+Enter как обычный `Enter` (тумблер `Shift+Enter as usual Enter`):
-     * зовутся обработчики платформы тем же keymap, Smart Enter отступает.
-     */
-    {
-      key: "Shift-Enter",
-      run: (view) => plugin.handlePlainEnterKeymap(() => cmView.runScopeHandlers(view, PLAIN_ENTER, "editor")),
-    },
-  ])));
+  /*
+   * Наши клавиши — обработчиком `keydown` с `Prec.highest`, а не `keymap`: все
+   * keymap CodeMirror идут одним обработчиком `keydown` по порядку загрузки, и
+   * Outliner (`Prec.highest(keymap)`, загружен раньше) забирал `Enter` и `Ctrl+A`
+   * первым (его пункт «Новое» 2026-10-15). Выключено или строка не наша —
+   * `false`, и клавиша уходит дальше: Outliner и платформе.
+   */
+  plugin.registerEditorExtension(cmState.Prec.highest(cmView.EditorView.domEventHandlers({
+    keydown: (e, view) => handleOurKeydown(plugin, e, view),
+  })));
+  /* Выход из цикла Smart Ctrl+A клавишей — в исходное место каретки (2026-10-15). */
+  plugin.registerEditorExtension(cmState.EditorState.transactionFilter.of(plugin.selectAllExitFilter()));
   /*
    * Smart paste (`З-31`, `З-32`) — не keymap: `Ctrl+V` Obsidian отдаёт событием
    * `editor-paste` с буфером. Уборка — `registerEvent`.
@@ -174,4 +185,5 @@ function refreshOpenEditors(plugin) {
 module.exports = {
   mountExtensions,
   refreshOpenEditors,
+  handleOurKeydown,
 };

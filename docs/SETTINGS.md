@@ -496,7 +496,8 @@ A rule spots a kind of line by the Values it carries and picks the template for 
 - **The condition window** opens from `Add` beside each kind.
   - A search box on top, `Find a Value`; `Enter` takes the first match.
   - Each Field is listed with its own `Any value` button, which accepts every Value of that Field.
-  - The Values sit flat under their Field; click one to add it.
+  - Child Values sit under their parent Value; `With sub Values` beside a parent adds the parent and all its child Values.
+  - Click as many Values as you need, then `Done`. A Value already in the rule is greyed out.
 - **`Use template`**: the template for lines this rule matches.
 - **`Move to folder`**: `Default`, `Next to note`, or `Other folder…`.
 - **`Advanced settings`**: `Default` follows **Transform → Note content**; `Custom` gives the rule its own copy of those rows.

@@ -349,4 +349,52 @@ function stepPlugin(selectAll) {
     "`Custom` без записанных галочек — это `Line, then note`");
 })();
 
+/*
+ * Выход из цикла клавишей — в исходное место каретки (его пункт «Новое»
+ * 2026-10-15: «после выхода из цикла выделений курсор оказывается наверху
+ * заметки»). Настоящий `EditorState` с фильтром движка и настоящие команды
+ * CodeMirror: стрелка влево и `Esc` (`simplifySelection`). Щелчок мышью —
+ * контроль: каретка встаёт туда, куда нажали.
+ */
+(function testKeyboardExitReturnsToOrigin() {
+  const cmState = require("@codemirror/state");
+  const cmCommands = require("@codemirror/commands");
+  const doc = ["first line", "second line", "third line"].join("\n");
+  const origin = { line: 1, ch: 3 };
+  const fresh = () => {
+    const plugin = fakePlugin(null, { enabled: true, mode: "line-note", useDelay: false, clearOnLast: false });
+    const view = { state: cmState.EditorState.create({ doc,
+      extensions: [cmState.EditorState.transactionFilter.of(engine.selectAllExitFilter(plugin))] }) };
+    view.dispatch = (tr) => { view.state = (tr instanceof cmState.Transaction ? tr : view.state.update(tr)).state; };
+    const at = (p) => view.state.doc.line(p.line + 1).from + p.ch;
+    const back = (n) => { const l = view.state.doc.lineAt(n); return { line: l.number - 1, ch: n - l.from }; };
+    const ed = {
+      lastLine: () => view.state.doc.lines - 1,
+      getLine: (n) => view.state.doc.line(n + 1).text,
+      getCursor: (w) => back(w === "to" ? view.state.selection.main.to : view.state.selection.main.from),
+      setCursor: (p) => view.dispatch({ selection: { anchor: at(p) } }),
+      setSelection: (a, b) => view.dispatch({ selection: { anchor: at(a), head: at(b) } }),
+    };
+    plugin.getActiveEditor = () => ed;
+    ed.setCursor(origin);
+    engine.handleEnhancedSelectAllKeymap(plugin);
+    engine.handleEnhancedSelectAllKeymap(plugin);
+    assertEq(view.state.selection.main.to - view.state.selection.main.from, doc.length, "второе нажатие выделило заметку");
+    return { view, ed };
+  };
+  /* Стрелке нужен вид для меры символов; её транзакция — та же форма, что пишет `moveSel` в `@codemirror/commands`. */
+  const arrowLeft = ({ state, dispatch }) => dispatch(state.update({
+    selection: { anchor: state.selection.main.from }, scrollIntoView: true, userEvent: "select" }));
+  for (const [name, cmd] of [["стрелка влево", arrowLeft], ["Esc", cmCommands.simplifySelection]]) {
+    const { view, ed } = fresh();
+    cmd({ state: view.state, dispatch: view.dispatch });
+    assertEq(JSON.stringify(ed.getCursor("from")), JSON.stringify(origin), name + ": каретка в исходном месте");
+  }
+  {
+    const { view, ed } = fresh();
+    view.dispatch(view.state.update({ selection: { anchor: 2 }, userEvent: "select.pointer" }));
+    assertEq(JSON.stringify(ed.getCursor("from")), JSON.stringify({ line: 0, ch: 2 }), "щелчок мышью: каретка там, куда нажали");
+  }
+})();
+
 console.log("Enhanced select all regression tests: OK");

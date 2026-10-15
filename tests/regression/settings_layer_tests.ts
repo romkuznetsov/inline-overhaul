@@ -2173,6 +2173,12 @@ async function main(): Promise<void> {
       "отступ под заголовком группы с коллаутом задаёт не наше правило: "
       + (top ? top.selector : "никто"));
 
+    /* Свой блок под свёрнутым субхедером прячется (его пункт «Новое» 2026-10-15: предпросмотр `Link view`). */
+    const shutBlock = winner(["setting-item", "io-block", "io-subshut"], "display");
+    assert.equal(shutBlock && shutBlock.value, "none",
+      "свой блок под свёрнутым субхедером остаётся на экране: победил `"
+      + (shutBlock ? shutBlock.selector + " { display: " + shutBlock.value + " }" : "никто") + "`");
+
     /*
      * Тот же счёт — панели TagWheel, и там он бы сработал: заказчик написал
      * про неё в четвёртый раз, и причина была ровно эта.

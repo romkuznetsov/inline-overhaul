@@ -329,6 +329,36 @@ function handleEnhancedSelectAllKeymap(plugin) {
   }
 }
 
+/**
+ * Куда встать, когда выделение цикла сняли клавишей (стрелка, `Esc`): в исходное
+ * место каретки (его пункт «Новое» 2026-10-15), а не к краю выделения — у
+ * ступени `note` это верх заметки. `null` — выделение не наше, решает платформа.
+ * `doc` — документ CodeMirror до снятия, `sel` — его главный отрезок.
+ */
+function exitCursorPos(plugin, doc, sel) {
+  const st = plugin && plugin._enhancedSelectAllCycle;
+  if (!st || !st.lastRange || !st.origin || !doc || !sel || sel.empty) return null;
+  const pos = (p) => (p.line < doc.lines ? Math.min(doc.line(p.line + 1).from + p.ch, doc.line(p.line + 1).to) : -1);
+  if (pos(st.lastRange.from) !== sel.from || pos(st.lastRange.to) !== sel.to) return null;
+  plugin._enhancedSelectAllCycle = null;
+  const at = pos(st.origin);
+  return at === -1 ? null : at;
+}
+
+/**
+ * Фильтр транзакций CodeMirror для `exitCursorPos`. Только клавиатура: щелчок
+ * мышью (`select.pointer`) ставит каретку туда, куда нажали.
+ */
+function selectAllExitFilter(plugin) {
+  return (tr) => {
+    if (tr.docChanged || !tr.selection || !tr.isUserEvent("select") || tr.isUserEvent("select.pointer")) return tr;
+    if (!tr.selection.main.empty || tr.selection.ranges.length !== 1) return tr;
+    const at = exitCursorPos(plugin, tr.startState.doc, tr.startState.selection.main);
+    return at === null ? tr : [tr, { selection: { anchor: at }, sequential: true }];
+  };
+}
+
 module.exports = {
   handleEnhancedSelectAllKeymap,
+  selectAllExitFilter,
 };

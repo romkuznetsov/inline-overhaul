@@ -184,7 +184,7 @@ Eight commands that know a line has structure.
 | Auto-MOC in your links | a link back from the notes the line mentions |
 | Smart Rules | a template picked by the Values of the line |
 
-- **Smart Rules.** A `#meeting` line and a `#bug` line become different notes. The condition window has a search box and an `Any value` choice for each Field.
+- **Smart Rules.** A `#meeting` line and a `#bug` line become different notes. The condition window has a search box, an `Any value` choice for each Field and `With sub Values` for each parent Value; it stays open while you pick several.
 - **Auto-MOC**
   - the notes of the link Values on the line get a link to the new note; a missing note is not created
   - the link goes to the beginning, the end, or under a heading, at the top or the bottom of its list

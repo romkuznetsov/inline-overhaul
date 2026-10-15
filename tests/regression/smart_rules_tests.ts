@@ -130,7 +130,7 @@ function makePanel(
 
   /* Что «выберет» человек в окне. С 10.13.14 ответ называет свой вид:
      значение или Field целиком. Строка остаётся сокращением для значения. */
-  let nextAnswer: { kind: "value" | "field"; id: string } | null = null;
+  let nextAnswer: { kind: "value" | "field"; ids: string[] } | null = null;
   let lastModel: Any = null;
   const draw = (): void => {
     host.empty();
@@ -154,7 +154,8 @@ function makePanel(
       templates: o && o.templates ? o.templates : ["Templates/task.md", "Templates/meeting.md"],
       templatesFolder: o && o.templatesFolder !== undefined ? o.templatesFolder : "Templates",
       redraw: draw,
-      askCondition: (_kind, done) => done(nextAnswer),
+      /* Закрытое без выбора окно не зовёт `done` вовсе. */
+      askCondition: (_kind, done) => { if (nextAnswer) done(nextAnswer); },
     });
   };
   draw();
@@ -166,10 +167,10 @@ function makePanel(
     writes,
     draw,
     answer: (value: string | null) => {
-      nextAnswer = value === null ? null : { kind: "value", id: value };
+      nextAnswer = value === null ? null : { kind: "value", ids: [value] };
     },
     /* Нажатие на имя Field в окне выбора: заводит «любое значение». */
-    answerField: (fieldId: string) => { nextAnswer = { kind: "field", id: fieldId }; },
+    answerField: (fieldId: string) => { nextAnswer = { kind: "field", ids: [fieldId] }; },
   };
 }
 
@@ -481,12 +482,12 @@ function baseConfig(rules?: Any[]): Any {
   /* `fieldId` у группы появился для 10.13.14: по нему имя Field в окне
      становится кнопкой. Значения при этом остались те же. */
   assert.deepEqual(model.choicesFor("tags"),
-    [{ label: "Status", fieldId: "status", values: ["#todo", "#doing"] }],
+    [{ label: "Status", fieldId: "status", values: ["#todo", "#doing"], subs: {} }],
     "у тега значения с Prefix и id самого Field — так их видит движок в строке");
   assert.deepEqual(model.choicesFor("wikilinks"),
-    [{ label: "Project", fieldId: "project", values: ["ClientA"] }],
+    [{ label: "Project", fieldId: "project", values: ["ClientA"], subs: {} }],
     "у ссылки имя без скобок: `normalizeRuleWikilink` снимает их и у правила, и у строки");
-  assert.deepEqual(model.choicesFor("emojiFields"), [{ label: "Due", fieldId: "due", values: ["\u{1F4C5}"] }],
+  assert.deepEqual(model.choicesFor("emojiFields"), [{ label: "Due", fieldId: "due", values: ["\u{1F4C5}"], subs: {} }],
     "у элемента значение одно — его маркер");
 
   /* Окно выбора рисует то же самое. */
@@ -499,6 +500,38 @@ function baseConfig(rules?: Any[]): Any {
   assert.deepEqual(texts(dlg, "io-pickvals__name"), ["Status"], "в окне Field назван");
   assert.deepEqual(texts(dlg, "io-vchip"), ["#todo", "#doing"], "и его значения предложены");
   ok("условия выбираются из настоящих Fields, каждое в своей форме");
+}
+
+{
+  /*
+   * Его пункт «Новое» 2026-10-15: окно не закрывается на выборе, дочерние
+   * Values стоят под родительским, у родителя — «вместе с дочерними».
+   */
+  const dlg = makeNode("div");
+  const picked: string[][] = [];
+  renderConditionPicker(dlg as unknown as El, {
+    kind: "tags",
+    choices: [{ label: "Type", fieldId: "type", values: ["#idea", "#doing", "#review", "#draft", "#done"],
+      subs: { "#doing": ["#review", "#draft"] } }],
+    pick: (v) => { picked.push(v.slice()); },
+    valuesTaken: ["#done"],
+  });
+  const parents = all(dlg, "io-pickvals__parent");
+  assert.equal(parents.length, 1, "у родителя свой блок");
+  assert.deepEqual(texts(parents[0] as StubNode, "io-vchip"), ["#doing", "#review", "#draft"], "дети под родителем");
+  assert.deepEqual(texts(parents[0] as StubNode, "io-pickvals__subs").length, 1, "дети отдельной строкой");
+  const chip = (t: string): StubNode => all(dlg, "io-vchip--pick").find(n => n.textContent === t) as StubNode;
+  assert.equal(chip("#done").classList.contains("io-vchip--taken"), true, "взятое в правиле погашено с самого начала");
+  chip("#idea").dispatch("click");
+  chip("#review").dispatch("click");
+  assert.deepEqual(picked, [["#idea"], ["#review"]], "два выбора подряд — окно не закрывалось");
+  assert.equal(chip("#idea").classList.contains("io-vchip--taken"), true, "выбранное погасло");
+  const withSubs = all(parents[0] as StubNode, "io-pickvals__any")[0] as StubNode;
+  withSubs.dispatch("click");
+  assert.deepEqual(picked[2], ["#doing", "#draft"], "«вместе с дочерними»: родитель и все дети, кроме уже взятого");
+  chip("#doing").dispatch("click");
+  assert.equal(picked.length, 3, "взятое повторно не добавляется");
+  ok("окно условия: несколько выборов, дети под родителем, родитель вместе с детьми");
 }
 
 /* ======================================================================
@@ -951,7 +984,7 @@ function baseConfig(rules?: Any[]): Any {
       { label: "Imp", fieldId: "imp", values: ["#high", "#low"] },
       { label: "Type", fieldId: "type", values: ["#todo", "#idea"] },
     ],
-    pick: (v) => { picked.push(v); },
+    pick: (v) => { picked.push(...v); },
   }) as unknown as StubNode;
   const groups = all(host, "io-pickvals__group");
   const chips = all(host, "io-vchip--pick");

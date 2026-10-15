@@ -194,14 +194,14 @@ export function createRulesModel(deps: RulesModelDeps) {
   };
 
   /** Что можно выбрать условием: Field и его значения (С-5); Fields без значений остаются видны. */
-  const choicesFor = (kind: RuleKind): Array<{ label: string; fieldId?: string; values: string[] }> => {
+  const choicesFor = (kind: RuleKind): Array<{ label: string; fieldId?: string; values: string[]; subs?: Record<string, string[]> }> => {
     /* Своего окна у «любого значения Field» нет: Field выбирается по имени в окне строки (10.13.14). */
     if (kind === "fields") return [];
     const want = KIND_OF_FIELD[kind];
     /* `fieldId` у группы — имя Field в окне нажимается как условие «любое значение» (10.13.14, B14). */
     return fieldTokens()
       .filter(f => f.kind === want)
-      .map(f => ({ label: f.label, fieldId: f.key, values: f.tokens.slice() }));
+      .map(f => ({ label: f.label, fieldId: f.key, values: f.tokens.slice(), subs: f.subs || {} }));
   };
 
   /** Имя Field по его id: условие хранит id, а человек знает имя. */

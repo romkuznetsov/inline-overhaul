@@ -527,8 +527,6 @@ export const BLOCK_TEXTS = {
     RULE_FALLBACK_NAME: "Rule {0}",
     RULES_EMPTY: "no rules yet — the default template is used for every line",
     ADD_RULE: "Add rule",
-    /* Кнопка отказа в окне выбора условия (A46). */
-    CANCEL: "Cancel",
     MATCH_ANY: "any",
     MATCH_OR: "or",
     MATCH_AND: "and",
@@ -547,8 +545,12 @@ export const BLOCK_TEXTS = {
     NO_KIND_FIELDS_YET: "no {0} Fields yet — set one up on the Tags & PKM tab",
     VALUES_EMPTY: "no Values yet",
     USE_VALUE: "Use {0}",
+    /* Родитель вместе с дочерними одним нажатием (его пункт «Новое» 2026-10-15). */
+    WITH_SUB_VALUES: "With sub Values",
+    USE_WITH_SUB_VALUES: "Use {0} and all its sub Values",
+    DONE: "Done",
     /* Окно выбора условия (его 💬 к тесту 7 цикла 135): строка под заголовком, поиск, кнопка Field. */
-    CONDITION_HINT: "Click a Value to add it. Any value accepts every Value of that Field",
+    CONDITION_HINT: "Click Values to add them, then Done. Any value accepts every Value of that Field",
     CONDITION_FIND: "Find a Value",
     ANY_VALUE: "Any value",
     ANY_VALUE_ADDED: "Already in this rule",

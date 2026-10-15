@@ -653,7 +653,7 @@ See it in motion: [Links back to the notes you mention](docs/SHOWCASE.md#links-b
 Smart Rules pick a template by the Values a line carries, so a `#meeting` line and a `#bug` line become different notes.
 
 1. Open **Transform → Smart Rules** and press `Add rule`.
-2. Add conditions: a Tag, Element, Link or Field. The window has a search box, and each Field has an `Any value` button.
+2. Add conditions: a Tag, Element, Link or Field. The window stays open until `Done`, so you can click several Values. It has a search box, each Field has an `Any value` button, and each parent Value has `With sub Values`.
 3. Pick `Use template` and `Move to folder`: `Default`, `Next to note` or `Other folder…`.
 4. Optional: `Advanced settings` → `Custom` gives the rule its own `Note content` rows. Back on `Default`, your custom rows are kept.
 

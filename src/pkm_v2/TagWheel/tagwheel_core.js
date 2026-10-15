@@ -2341,7 +2341,9 @@ function buildGroupDisplay(group, mode, state, rules, labels) {
     if (!isFieldEnabled(fieldMode, state, field, rules)) continue
     if (!shownInPanel(state, field)) continue
     if (field.dependsOn) {
-      var allowed = getAllowedValues(fieldMode, state, field, rules)
+      /* Спрятанные глазом дочерние Values поле не открывают (его пункт «Новое» 2026-10-15). */
+      var allowed = __rulesRuntimeHelpers.valuesForStep(
+        getAllowedValues(fieldMode, state, field, rules), state && state.selected ? state.selected[fid] : '')
       var hasChildValues = false
       var ai
       for (ai = 0; ai < allowed.length; ai++) {

@@ -46,6 +46,7 @@ function makePlugin() {
     handleSmartDeleteKeymap: () => false,
     handleSmartBackspaceKeymap: () => false,
     handleSmartEnterKeymap: () => false,
+    selectAllExitFilter: () => (tr) => tr,
     getLineTraceTxId: () => "test",
     _tagVisualCompartment: new cmState.Compartment(),
     _stripCompartment: new cmState.Compartment(),
@@ -184,10 +185,12 @@ test("Shift+Enter при включённом `Shift+Enter as usual Enter` — �
       }])],
     }),
   };
-  const press = (shiftKey) => cmView.runScopeHandlers(view, {
-    type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
-    preventDefault() {}, stopPropagation() {},
-  }, "editor");
+  /* Порядок CodeMirror: наш `keydown` с `Prec.highest`, затем все keymap одним проходом. */
+  const press = (shiftKey) => {
+    const ev = { type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
+      preventDefault() {}, stopPropagation() {} };
+    return mount.handleOurKeydown(plugin, ev, view) || cmView.runScopeHandlers(view, ev, "editor");
+  };
 
   assert.equal(press(true), true, "Shift+Enter никто не взял");
   assert.deepEqual(platform, ["Enter"], "Shift+Enter не дошёл до обычного Enter платформы");
@@ -243,10 +246,12 @@ test("`Use Shift+Enter instead`: Shift+Enter — Smart Enter, Enter — плат
       }])],
     }),
   };
-  const press = (shiftKey) => cmView.runScopeHandlers(view, {
-    type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
-    preventDefault() {}, stopPropagation() {},
-  }, "editor");
+  /* Порядок CodeMirror: наш `keydown` с `Prec.highest`, затем все keymap одним проходом. */
+  const press = (shiftKey) => {
+    const ev = { type: "keydown", key: "Enter", keyCode: 13, shiftKey, ctrlKey: false, altKey: false, metaKey: false,
+      preventDefault() {}, stopPropagation() {} };
+    return mount.handleOurKeydown(plugin, ev, view) || cmView.runScopeHandlers(view, ev, "editor");
+  };
 
   press(true);
   assert.equal(smart.length, 1, "Shift+Enter не стал Smart Enter");
@@ -258,6 +263,67 @@ test("`Use Shift+Enter instead`: Shift+Enter — Smart Enter, Enter — плат
   press(false);
   assert.equal(smart.length, 2, "контроль: выключенный тумблер обязан вернуть Smart Enter на Enter");
   assert.equal(configNormalize.migrateConfig({ schemaVersion: 2 }).editor.smartEnter.useShift, false, "умолчание тумблера не «выключен»");
+});
+
+/*
+ * Outliner ставит `Enter` и `Ctrl+A` в `Prec.highest(keymap)` и грузится
+ * раньше нас — его keymap брал клавишу первым (его пункт «Новое» 2026-10-15:
+ * «Smart Enter не работает в RK_Sync»). Наш `keydown` идёт до всех keymap;
+ * выключенная функция отдаёт клавишу Outliner.
+ */
+test("Smart Enter и Smart Ctrl+A срабатывают раньше Outliner, выключенные — уступают ему", () => {
+  const cmView = require(path.join(root, "node_modules", "@codemirror", "view"));
+  const engine = require(path.join(root, "src", "features", "smart_enter_engine.js"));
+  const configNormalize = require(path.join(root, "src", "core", "config_normalize.js"));
+  const text = "- позвонить в банк, завтра в налоговую";
+  let enabled = true;
+  let selectAll = true;
+  const smart = [];
+  const plugin = makePlugin();
+  plugin.getConfig = () => configNormalize.migrateConfig({
+    schemaVersion: 2,
+    editor: { smartEnter: { enabled, newLinePrefix: "same" } },
+    pkm: { lineFormat: { separator1: "||", separator2: "::" } },
+  });
+  plugin.getActiveEditor = () => ({
+    getLine: () => text, getCursor: () => ({ line: 0, ch: 17 }),
+    somethingSelected: () => false, listSelections: () => [{}],
+    replaceRange: (t) => { smart.push(t); }, setCursor: () => {},
+  });
+  plugin.handleSmartEnterKeymap = function () { return engine.handleSmartEnterKeymap(this); };
+  plugin.handleEnhancedSelectAllKeymap = () => { if (selectAll) smart.push("select-all"); return selectAll; };
+  const outliner = [];
+  const outlinerKeys = cmState.Prec.highest(cmView.keymap.of([
+    { key: "Enter", run: () => { outliner.push("Enter"); return true; } },
+    { key: "Mod-a", run: () => { outliner.push("Mod-a"); return true; } },
+  ]));
+  /* Outliner загружен раньше: его расширение стоит первым. */
+  const host = { registered: [outlinerKeys] };
+  plugin.registerEditorExtension = (ext) => { host.registered.push(ext); };
+  mount.mountExtensions(plugin);
+  const view = { state: cmState.EditorState.create({ doc: text, extensions: host.registered.slice() }) };
+  const press = (ev) => {
+    const e = Object.assign({ type: "keydown", shiftKey: false, ctrlKey: false, altKey: false, metaKey: false,
+      preventDefault() {}, stopPropagation() {} }, ev);
+    return mount.handleOurKeydown(plugin, e, view) || cmView.runScopeHandlers(view, e, "editor");
+  };
+  /* Контроль подделки: без нашего `keydown` Outliner и правда берёт клавишу первым. */
+  cmView.runScopeHandlers(view, { type: "keydown", key: "Enter", keyCode: 13, shiftKey: false, ctrlKey: false,
+    altKey: false, metaKey: false, preventDefault() {}, stopPropagation() {} }, "editor");
+  assert.deepEqual(outliner, ["Enter"], "контроль: keymap Outliner не взял Enter");
+  outliner.length = 0;
+
+  press({ key: "Enter", keyCode: 13 });
+  assert.equal(smart.length, 1, "Smart Enter не сработал при Outliner");
+  assert.deepEqual(outliner, [], "Outliner взял Enter, который наш");
+  press({ key: "ф", code: "KeyA", keyCode: 65, ctrlKey: true });
+  assert.deepEqual(smart.slice(1), ["select-all"], "Smart Ctrl+A в русской раскладке не сработал при Outliner");
+  assert.deepEqual(outliner, [], "Outliner взял Ctrl+A, который наш");
+  enabled = false;
+  selectAll = false;
+  press({ key: "Enter", keyCode: 13 });
+  press({ key: "a", code: "KeyA", keyCode: 65, ctrlKey: true });
+  assert.deepEqual(outliner, ["Enter", "Mod-a"], "выключенные функции обязаны отдать клавиши Outliner");
 });
 
 let failed = 0;

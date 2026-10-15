@@ -1598,6 +1598,7 @@ body.theme-dark {
   user-select: none;
 }
 .io-flybtn:hover { color: var(--text-accent); border-color: var(--text-accent); }
+.io-line > .io-flybtn { margin-left: calc(var(--io-flybtn-gap, 6px) - var(--io-line-gap, 0px)); }
 .io-float:hover { background: var(--interactive-accent-hover); }
 
 /* Предпросмотр каретки (10.13.33 Ц8). Мерцает тем же шагом, что редактор:
@@ -7244,7 +7245,9 @@ function renderFloatingButton(host) {
     /* Ширина строки — по содержимому: иначе кнопка прижата к правому краю
        рамки и отступ от текста не виден (замечание заказчика 2026-09-05). */
     line.style.setProperty("flex", "0 1 auto");
-    const btn = el("span", "io-flybtn", row, "\u2192");
+    /* Кнопка — в самой строке, за последним Field: перенесённая строка уводила
+       её к правому краю рамки (его пункт «Новое» 2026-10-15). */
+    const btn = el("span", "io-flybtn", line, "\u2192");
     btn.setAttribute("role", "button");
     btn.title = "Turn this line into a note";
     btn.setAttribute("aria-label", "Turn this line into a note");

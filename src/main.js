@@ -110,6 +110,10 @@ class InlineOverhaulPlugin extends Plugin {
     return getEnhancedSelectAllEngine().handleEnhancedSelectAllKeymap(this);
   }
 
+  selectAllExitFilter() {
+    return getEnhancedSelectAllEngine().selectAllExitFilter(this);
+  }
+
   handleSmartDeleteKeymap() {
     return getSmartDeleteEngine().handleSmartDeleteKeymap(this);
   }

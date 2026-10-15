@@ -879,8 +879,10 @@ export const floatingButton: CustomRender = (host, ctx) => {
     holder.empty();
     const row = el(holder, "div", "io-floatrow");
     const { fields } = previewFields(ctx);
-    structuralLine(row, ctx, fields);
-    const button = el(row, "span", "io-flybtn", FLOAT_LABEL);
+    /* Кнопка — в самой строке, за последним Field: перенесённая строка уводила
+       её к правому краю рамки (его пункт «Новое» 2026-10-15). */
+    const line = structuralLine(row, ctx, fields);
+    const button = el(line, "span", "io-flybtn", FLOAT_LABEL);
     /* Та же переменная, что ставит декорация в заметке (У-32). */
     cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
     el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
