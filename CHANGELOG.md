@@ -19,7 +19,9 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
      нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.16.4
+
+_2026-10-16 · [all changes since 0.16.3](https://github.com/romkuznetsov/inline-overhaul/compare/0.16.3...0.16.4)_
 
 > [!NOTE]
 > 🎨 **2** changes you can see · 🐛 **4** bug fixes
@@ -27,7 +29,7 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 1. 🎨 **The condition window of Smart Rules stays open.** Click several Values in a row and press `Done`; a Value already in the rule is greyed out
 2. 🎨 **Child Values stand under their parent in the condition window.** `With sub Values` next to a parent adds the parent and all its child Values in one click
 3. 🐛 **A child Field with hidden Values stays closed.** With `Child Field` = `After parent`, picking a parent whose child Values are all hidden no longer opens an empty child Field in tagWheel
-4. 🐛 **Smart Enter and Smart Ctrl+A work next to Outliner.** Outliner no longer takes `Enter` and `Ctrl+A` first; on a line that is not yours to change, the key still goes to Outliner
+4. 🐛 **Smart Enter and Smart Ctrl+A work next to Outliner.** Outliner no longer takes `Enter` and `Ctrl+A` first; turn either feature off and the key goes to Outliner as before
 5. 🐛 **Leaving the Smart Ctrl+A cycle puts the cursor and the screen back.** An arrow key or `Esc` returns the cursor to where you pressed `Ctrl+A` first, also in a note with properties, and the note does not scroll while you select
 6. 🐛 **Two previews in the panel behave.** `Live preview` folds with `Link view`, and the floating button preview keeps the button right after the last Field when the line wraps
 
